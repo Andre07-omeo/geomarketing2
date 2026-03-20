@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot,} from 'firebase/firestore';
 import { getAuth,  } from "firebase/auth";
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useScroll, useSpring, useMotionValueEvent } from 'framer-motion';
