@@ -1,23 +1,41 @@
 'use client';
+
+import { initializeApp, getApps, getApp } from "firebase/app";
+import {
+  getFirestore,
+  collection,
+  onSnapshot,
+  addDoc,
+  doc,
+  updateDoc
+} from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import BookingForm from "@/components/booking/BookingForm";
-import { collection, onSnapshot } from 'firebase/firestore';
 import {
-  X, TrendingUp, BarChart3, ListChecks, MapPin,
-  Filter, LayoutGrid, Zap, Maximize, Maximize2, Ruler
+  X, TrendingUp, BarChart3, ListChecks, 
+  Filter, LayoutGrid, Maximize2, 
 } from 'lucide-react';
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Modifiez votre ligne d'import lucide-react comme ceci :
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
-
-import { addDoc, doc, updateDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
@@ -55,7 +73,7 @@ export const cloudinaryConfig = {
 
 
 // Remplace la ligne 66 par celle-ci si l'erreur persiste :
-const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
+const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   ssr: false,
   loading: () => <div className="h-full w-full bg-zinc-900 animate-pulse flex items-center justify-center text-[#d4af37]">Initialisation de la carte...</div>
 });
@@ -63,8 +81,19 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 export default function ElegantDashboard() {
-  const [hasStarted, setHasStarted] = useState(false);
   const [panneaux, setPanneaux] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
@@ -77,7 +106,6 @@ export default function ElegantDashboard() {
   });
 
   const [isMobileListOpen, setIsMobileListOpen] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // --- LOGIQUE DE DONNÉES ---
   useEffect(() => {
@@ -382,16 +410,7 @@ function HeaderStat({ icon, label, value, theme }: any) {
 
 
 
-// --- SOUS-COMPOSANTS RE-STYLES (LUMINEUX) ---
 
-function InfoBlock({ label, value }: { label: string, value: string }) {
-  return (
-    <div className="p-8 rounded-[2.5rem] bg-white border border-black/[0.03] shadow-sm hover:shadow-md transition-shadow">
-      <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-3">{label}</p>
-      <p className="text-2xl font-black text-zinc-800 tracking-tight">{value}</p>
-    </div>
-  );
-}
 
 function FaceCard({ face, parentPanneau, index }: any) {
   const [showConfirm, setShowConfirm] = useState(false);
@@ -400,7 +419,6 @@ function FaceCard({ face, parentPanneau, index }: any) {
   const zoneAffiche = parentPanneau?.zone || "Zone Géo";
   const status = face?.statut || 'Maintenance';
 
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
 
   const [isBooking, setIsBooking] = useState(false);
@@ -422,71 +440,101 @@ function FaceCard({ face, parentPanneau, index }: any) {
   }, []);
 
 
-  // --- FONCTION DE GÉNÉRATION PDF PROFESSIONNELLE ---
+ // --- FONCTION DE GÉNÉRATION PDF PROFESSIONNELLE ---
   const generatePDF = (data: any, validationId: string) => {
     const doc = new jsPDF();
+    const blueRoi = [30, 64, 175]; // #1e40af
+    const dateJour = new Date().toLocaleDateString('fr-FR');
 
-    // Design de l'Entête (Bleu Roi Profond #1e40af)
+    // --- DESIGN DE L'ENTÊTE ---
     doc.setFontSize(22);
-    doc.setTextColor(30, 64, 175); // Correspond à #1e40af (R:30, G:64, B:175)
+    doc.setTextColor(blueRoi[0], blueRoi[1], blueRoi[2]);
+    doc.setFont("helvetica", "bold");
     doc.text("DISPROMALT", 14, 20);
 
     doc.setFontSize(10);
     doc.setTextColor(100);
+    doc.setFont("helvetica", "normal");
     doc.text("Régie Publicitaire & Affichage", 14, 26);
     doc.text("Kinshasa, RDC | contact@dispromalt.com", 14, 31);
 
-    // Infos Facture
-    doc.setDrawColor(30, 64, 175); // Ligne en Bleu Roi Profond
+    // --- INFOS FACTURE & LIGNE DE SÉPARATION ---
+    doc.setDrawColor(blueRoi[0], blueRoi[1], blueRoi[2]);
+    doc.setLineWidth(0.5);
     doc.line(14, 35, 196, 35);
+
     doc.setTextColor(0);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Facture N°: ${validationId}`, 14, 45);
-    doc.text(`Date: 12/03/2026`, 14, 52);
-
-    // Infos Client
     doc.setFontSize(11);
-    doc.text("INFORMATIONS CLIENT", 14, 65);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Bon de Réservation N°: ${validationId}`, 14, 45);
     doc.setFont("helvetica", "normal");
-    doc.text(`Société: ${data.societe}`, 14, 72);
-    doc.text(`Paiement: ${data.paiement}`, 14, 79);
+    doc.text(`Date d'émission: ${dateJour}`, 14, 52);
 
-    // Tableau Technique
+    // --- INFOS CLIENT ---
+    doc.setFont("helvetica", "bold");
+    doc.text("INFORMATIONS CLIENT", 14, 65);
+    doc.setLineWidth(0.1);
+    doc.line(14, 67, 70, 67); // Petite ligne sous le titre client
+
+    doc.setFont("helvetica", "normal");
+    doc.text(`Société: ${data.societe}`, 14, 75);
+    doc.text(`Moyen de paiement: ${data.paiement}`, 14, 82);
+
+    // --- TABLEAU TECHNIQUE ---
     doc.setFont("helvetica", "bold");
     doc.text("DÉTAILS TECHNIQUES DU SUPPORT", 14, 95);
 
-    autoTable(doc, {
+    // Calcul du total dynamique (évite les erreurs de texte)
+    const prixUnitaire = data.prix || 450;
+    const totalGlobal = prixUnitaire * data.mois;
+
+    // Utilisation de (doc as any) pour éviter les erreurs de type TypeScript avec autoTable
+    (doc as any).autoTable({
       startY: 100,
       head: [['Désignation', 'Détails']],
       body: [
         ['Référence Face', data.idFace],
-        ['Adresse', "Avenue de l'Université (Kapela)"],
-        ['Zone', data.zone],
-        ['Dimension', "4m x 3m"],
-        ['Durée', `${data.mois} Mois`],
-        ['Prix Unitaire', "450$"],
-        ['Total', `${450 * data.mois}$`]
+        ['Zone Géographique', data.zone],
+        ['Dimension', data.dimension || "Standard"],
+        ['Durée du contrat', `${data.mois} Mois`],
+        ['Prix Mensuel', `${prixUnitaire}$`],
+        ['MONTANT TOTAL', `${totalGlobal}$`]
       ],
-      headStyles: { fillColor: [30, 64, 175] }, // Header du tableau en Bleu Roi Profond
+      headStyles: { 
+        fillColor: blueRoi,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 50 },
+      },
+      styles: { font: "helvetica", fontSize: 10 },
       theme: 'grid'
     });
 
-
-
-
-    // Bas de page (Engagement & Cachet)
+    // --- BAS DE PAGE (Engagement & Cachet) ---
     const finalY = (doc as any).lastAutoTable.finalY + 15;
-    doc.setFontSize(8);
+    
+    doc.setFontSize(9);
+    doc.setTextColor(100);
     doc.setFont("helvetica", "italic");
-    doc.text("Nous garantissons une visibilité optimale sur nos supports.", 14, finalY);
-    doc.text("Ce document est une preuve officielle de votre réservation.", 14, finalY + 5);
+    doc.text("Note : Cette réservation est valable 24h. Passé ce délai, le support sera remis en disponibilité.", 14, finalY);
+    doc.text("Nous garantissons une visibilité optimale sur l'ensemble de nos réseaux.", 14, finalY + 6);
 
+    // Bloc Cachet / Signature
+    doc.setFontSize(10);
+    doc.setTextColor(0);
     doc.setFont("helvetica", "bold");
-    doc.text("Pour la Direction, Signature & Cachet", 140, finalY + 15);
-    doc.rect(140, finalY + 18, 50, 25);
+    doc.text("Pour la Direction DISPROMALT", 135, finalY + 20);
+    doc.setFont("helvetica", "normal");
+    doc.text("Signature & Cachet", 145, finalY + 25);
+    
+    // Rectangle pour le cachet
+    doc.setDrawColor(200);
+    doc.rect(130, finalY + 28, 60, 30); 
 
-
-    doc.save(`Facture_${data.idFace}.pdf`);
+    // --- SAUVEGARDE ---
+    doc.save(`Facture_${data.idFace}_${validationId}.pdf`);
   };
 
   // --- LOGIQUE DE RÉSERVATION ---
@@ -689,6 +737,15 @@ function FaceCard({ face, parentPanneau, index }: any) {
       </motion.div>
 
 
+
+
+
+
+
+
+
+
+
       {/* BOITE DE DIALOGUE DE CONFIRMATION */}
       <AnimatePresence>
 
@@ -798,15 +855,14 @@ function LoadingState() {
   );
 }
 
-import React from 'react';
 import {
-
   Activity,
   ShieldCheck,
   Layers,
-  ChevronDown
+  ChevronDown,
+  MapPin, // Ajoute ceci ici
+  Zap     // Et Zap aussi car il est utilisé comme icône par défaut
 } from 'lucide-react';
-
 /**
  * 1. COMPOSANT INDIVIDUEL DE FILTRE (UI)
  * Style : Futuristic Stealth (Noir pur, accents bleus, polices grasses)
