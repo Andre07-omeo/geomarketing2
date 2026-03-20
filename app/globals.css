@@ -1,0 +1,83 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  /* --- TES NOUVELLES COULEURS QUI FRAPPENT --- */
+  --background: #001a33; /* Bleu nuit profond */
+  --foreground: #ffffff; /* Texte blanc pour la lisibilité */
+  --accent-gold: #d4af37; /* Le doré pour les boutons et détails */
+}
+
+/* On force le mode sombre partout pour garder l'unité du design */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #001a33;
+    --foreground: #ffffff;
+  }
+}
+
+@layer utilities {
+  /* Gradient doré pour des effets de texte ou bordures */
+  .bg-gold-gradient {
+    background: linear-gradient(135deg, #d4af37 0%, #f1c40f 100%);
+  }
+  
+  .text-gold {
+    color: #d4af37;
+  }
+
+  /* Scrollbar personnalisée Dorée sur Bleu */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #001a33;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d4af37;
+    border-radius: 10px;
+    border: 2px solid #001a33;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  /* Optionnel : ajout d'un léger grain ou gradient pour le look "Luxe" */
+  background-image: radial-gradient(circle at top right, #002a52 0%, #001a33 100%);
+  background-attachment: fixed;
+}
+
+/* --- CORRECTIFS LEAFLET --- */
+.map-wrapper {
+  height: 100% !important;
+  width: 100% !important;
+  min-height: 500px;
+  border: 1px solid rgba(212, 175, 55, 0.2); /* Légère bordure dorée pour la carte */
+  border-radius: 1.5rem;
+  overflow: hidden;
+}
+
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  background: #001a33 !important; /* Fond de carte accordé */
+}
+
+/* Pour que les popups Leaflet ne soient pas blanches (optionnel) */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: #001a33 !important;
+    color: white !important;
+    border: 1px solid #d4af37;
+}
