@@ -27,14 +27,12 @@ import { getAuth } from "firebase/auth";
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import BookingForm from "@/components/booking/BookingForm";
 import {
   X, TrendingUp, BarChart3, ListChecks, 
   Filter, LayoutGrid, Maximize2, 
 } from 'lucide-react';
 
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 
 const firebaseConfig = {
