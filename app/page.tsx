@@ -574,6 +574,19 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
 
         </div>
 
+
+        {/* BOUTON FERMER (X) DYNAMIQUE */}
+                <button
+                  onClick={onClose}
+                  className="absolute top-6 right-6 md:top-10 md:right-10 z-[100] p-3 rounded-2xl bg-black/20 border border-white/10 text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all duration-300 group"
+                >
+                  <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+                </button>
+
+
+
+                
+
         <div className="p-8 space-y-6">
           {/* HEADER INFO */}
           <div className="flex justify-between items-end">

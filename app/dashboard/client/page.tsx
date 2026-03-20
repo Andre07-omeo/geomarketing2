@@ -45,7 +45,6 @@ const statusConfig: any = {
   'Maintenance': { bg: 'bg-rose-500/10', text: 'text-rose-500', btn: 'bg-zinc-800 cursor-not-allowed', label: 'En Maintenance' }
 };
 
-const CLOUDINARY_CLOUD_NAME = "dn7wnikzp";
 
 // Configuration Cloudinary
 export const cloudinaryConfig = {
@@ -64,7 +63,6 @@ const MapComponent = dynamic(() => import('../../../components/MapComponent'), {
 
 
 export default function ElegantDashboard() {
-  const [hasStarted, setHasStarted] = useState(false);
   const [panneaux, setPanneaux] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
@@ -293,6 +291,16 @@ function DetailOverlay({ panneau, onClose }: any) {
         className="w-full max-w-[1450px] bg-[#1e3a8a] h-auto max-h-[92vh] rounded-[3rem] md:rounded-[5rem] border-4 border-white/20 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden relative"
       >
 
+        {/* BOUTON FERMER (X) DYNAMIQUE */}
+        <button
+          onClick={onClose}
+          className="absolute top-6 right-6 md:top-10 md:right-10 z-[100] p-3 rounded-2xl bg-black/20 border border-white/10 text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all duration-300 group"
+        >
+          <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+
+
+        
         {/* TEXTURE DE FOND PROFONDE */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-400/10 via-transparent to-black/60 pointer-events-none" />
 

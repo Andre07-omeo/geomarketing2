@@ -10,31 +10,15 @@ import {
   updateDoc
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, TrendingUp, BarChart3, ListChecks, 
-  Filter, LayoutGrid, Maximize2, 
+  X, TrendingUp, BarChart3, ListChecks,
+  Filter, LayoutGrid, Maximize2,
 } from 'lucide-react';
 
 import jsPDF from 'jspdf';
-
-
 const firebaseConfig = {
   apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
   authDomain: "kin-geo-market.firebaseapp.com",
@@ -319,6 +303,14 @@ function DetailOverlay({ panneau, onClose }: any) {
         className="w-full max-w-[1450px] bg-[#1e3a8a] h-auto max-h-[92vh] rounded-[3rem] md:rounded-[5rem] border-4 border-white/20 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden relative"
       >
 
+        {/* BOUTON FERMER (X) DYNAMIQUE */}
+        <button
+          onClick={onClose}
+          className="absolute top-6 right-6 md:top-10 md:right-10 z-[100] p-3 rounded-2xl bg-black/20 border border-white/10 text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all duration-300 group"
+        >
+          <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+
         {/* TEXTURE DE FOND PROFONDE */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-400/10 via-transparent to-black/60 pointer-events-none" />
 
@@ -438,7 +430,7 @@ function FaceCard({ face, parentPanneau, index }: any) {
   }, []);
 
 
- // --- FONCTION DE GÉNÉRATION PDF PROFESSIONNELLE ---
+  // --- FONCTION DE GÉNÉRATION PDF PROFESSIONNELLE ---
   const generatePDF = (data: any, validationId: string) => {
     const doc = new jsPDF();
     const blueRoi = [30, 64, 175]; // #1e40af
@@ -498,7 +490,7 @@ function FaceCard({ face, parentPanneau, index }: any) {
         ['Prix Mensuel', `${prixUnitaire}$`],
         ['MONTANT TOTAL', `${totalGlobal}$`]
       ],
-      headStyles: { 
+      headStyles: {
         fillColor: blueRoi,
         textColor: [255, 255, 255],
         fontStyle: 'bold'
@@ -512,7 +504,7 @@ function FaceCard({ face, parentPanneau, index }: any) {
 
     // --- BAS DE PAGE (Engagement & Cachet) ---
     const finalY = (doc as any).lastAutoTable.finalY + 15;
-    
+
     doc.setFontSize(9);
     doc.setTextColor(100);
     doc.setFont("helvetica", "italic");
@@ -526,10 +518,10 @@ function FaceCard({ face, parentPanneau, index }: any) {
     doc.text("Pour la Direction DISPROMALT", 135, finalY + 20);
     doc.setFont("helvetica", "normal");
     doc.text("Signature & Cachet", 145, finalY + 25);
-    
+
     // Rectangle pour le cachet
     doc.setDrawColor(200);
-    doc.rect(130, finalY + 28, 60, 30); 
+    doc.rect(130, finalY + 28, 60, 30);
 
     // --- SAUVEGARDE ---
     doc.save(`Facture_${data.idFace}_${validationId}.pdf`);
