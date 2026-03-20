@@ -266,13 +266,6 @@ export default function UltimateSupervisor() {
               </button>
 
               <button
-                onClick={() => window.location.reload()}
-                className="bg-[#d4af37] text-black px-6 py-3 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all shadow-lg shadow-[#d4af37]/20 active:scale-95"
-              >
-                Accueil
-              </button>
-
-              <button
                 onClick={ouvrirLaCarte}
                 className="flex items-center gap-2 bg-[#d4af37] text-black px-6 py-3 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all shadow-lg shadow-[#d4af37]/20 active:scale-95"
               >
