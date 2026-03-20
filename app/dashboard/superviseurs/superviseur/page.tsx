@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import BookingForm from "../../../components/booking/BookingForm";
+import BookingForm from "@/components/booking/BookingForm";
 import { collection, onSnapshot } from 'firebase/firestore';
 import {
   X, TrendingUp, BarChart3, ListChecks, MapPin,
@@ -55,7 +55,7 @@ export const cloudinaryConfig = {
 
 
 // Remplace la ligne 66 par celle-ci si l'erreur persiste :
-const MapComponent = dynamic(() => import('../../../components/MapComponent'), {
+const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
   ssr: false,
   loading: () => <div className="h-full w-full bg-zinc-900 animate-pulse flex items-center justify-center text-[#d4af37]">Initialisation de la carte...</div>
 });
