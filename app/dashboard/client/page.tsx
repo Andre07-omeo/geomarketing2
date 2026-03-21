@@ -300,7 +300,7 @@ function DetailOverlay({ panneau, onClose }: any) {
         </button>
 
 
-        
+
         {/* TEXTURE DE FOND PROFONDE */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-400/10 via-transparent to-black/60 pointer-events-none" />
 
@@ -594,10 +594,10 @@ function FaceCard({ face, parentPanneau, index }: any) {
             whileHover={{ scale: 1.03, rotateY: -5 }}
             className="w-full h-full relative rounded-[3rem] overflow-hidden shadow-2xl border border-white/10"
           >
-            {face?.urlPhotoCampagne ? (
+            {face?.photoCampagneUrl ? (
               <>
                 <img
-                  src={face.urlPhotoCampagne}
+                  src={face.photoCampagneUrl}
                   alt={idFaceUnique}
                   className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110"
                 />

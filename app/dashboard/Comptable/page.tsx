@@ -86,107 +86,107 @@ export default function AccountingDashboard() {
 
   // --- UPLOAD CLOUDINARY ---
   const uploadToCloudinary = async (file: File) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", "panneaux"); // Vérifiez bien l'orthographe
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "panneaux"); // Vérifiez bien l'orthographe
     try {
-    const resp = await fetch(`https://api.cloudinary.com/v1_1/dn7wnikzp/image/upload`, {
-      method: "POST",
-      body: formData
-    });
-
-    const data = await resp.json();
-
-    if (!resp.ok) {
-      // Si Cloudinary refuse, on voit pourquoi ici :
-      console.error("Détails Erreur Cloudinary:", data.error.message);
-      throw new Error(data.error.message);
-    }
-
-    return data.secure_url; 
-  } catch (error) {
-    console.error("Erreur Fetch Cloudinary:", error);
-    return null;
-  }
-};
-
-const handleFinalApprobation = async () => {
-  if (!validationData.nomComptable || !validationData.imageFile || !validationData.cleValidationConfirmation) {
-    return alert("Champs obligatoires manquants.");
-  }
-
-  if (validationData.cleValidationConfirmation !== factureTrouvee.validationId) {
-    return alert("La clé de confirmation ne correspond pas.");
-  }
-
-  setLoading(true);
-  try {
-    // 1. Upload Cloudinary
-    const photoUrl = await uploadToCloudinary(validationData.imageFile);
-
-    if (!photoUrl) {
-      setLoading(false);
-      return alert("Erreur lors de l'upload de l'image.");
-    }
-
-    // 2. Mise à jour de la FACTURE
-    await updateDoc(doc(db, "factures", factureTrouvee.id), {
-      statutPaiement: "Approuvé",
-      validePar: validationData.nomComptable,
-      dateValidation: serverTimestamp(),
-      photoCampagneUrl: photoUrl 
-    });
-
-    // 3. MISE À JOUR DU PANNEAU (C'est ici que la correction a lieu)
-    // On extrait l'ID du panneau (ex: "B") de l'ID complet (ex: "B-1")
-    const idPanPrincipal = factureTrouvee.idFace.split('-')[0];
-    
-    const qPan = query(collection(db, "panneaux"), where("idPan", "==", idPanPrincipal));
-    const panSnap = await getDocs(qPan);
-
-    if (!panSnap.empty) {
-      const pDoc = panSnap.docs[0];
-      const panRef = doc(db, "panneaux", pDoc.id);
-      
-      // CORRECTION : On utilise f.id au lieu de f.idPan
-      const updatedFaces = pDoc.data().faces.map((f: any) => {
-        // On compare avec f.id car c'est le nom du champ dans votre map Firestore
-        if (f.id === factureTrouvee.idFace) { 
-          return { 
-            ...f, 
-            statut: "Occupé",
-            urlPhotoCampagne: photoUrl 
-          };
-        }
-        return f;
+      const resp = await fetch(`https://api.cloudinary.com/v1_1/dn7wnikzp/image/upload`, {
+        method: "POST",
+        body: formData
       });
 
-      await updateDoc(panRef, { faces: updatedFaces });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        // Si Cloudinary refuse, on voit pourquoi ici :
+        console.error("Détails Erreur Cloudinary:", data.error.message);
+        throw new Error(data.error.message);
+      }
+
+      return data.secure_url;
+    } catch (error) {
+      console.error("Erreur Fetch Cloudinary:", error);
+      return null;
+    }
+  };
+
+  const handleFinalApprobation = async () => {
+    if (!validationData.nomComptable || !validationData.imageFile || !validationData.cleValidationConfirmation) {
+      return alert("Champs obligatoires manquants.");
     }
 
-    // 4. Archive dans validerpanneaux
-    await addDoc(collection(db, "validerpanneaux"), {
-      idPan: factureTrouvee.idFace,
-      urlPhotoCampagne: photoUrl,
-      societe: factureTrouvee.nomSociete,
-      montant: (factureTrouvee.prixUnitaire * factureTrouvee.moisLocation),
-      dateValidation: serverTimestamp(),
-      comptable: validationData.nomComptable
-    });
+    if (validationData.cleValidationConfirmation !== factureTrouvee.validationId) {
+      return alert("La clé de confirmation ne correspond pas.");
+    }
 
-    alert("Validation réussie ! Le statut est maintenant 'Occupé' dans la table de la face.");
-    
-    setFactureTrouvee(null);
-    setShowConfirmModal(false);
-    setSearchKey("");
+    setLoading(true);
+    try {
+      // 1. Upload Cloudinary
+      const photoUrl = await uploadToCloudinary(validationData.imageFile);
 
-  } catch (error) {
-    console.error("Erreur:", error);
-    alert("Une erreur est survenue lors de la mise à jour.");
-  } finally {
-    setLoading(false);
-  }
-};
+      if (!photoUrl) {
+        setLoading(false);
+        return alert("Erreur lors de l'upload de l'image.");
+      }
+
+      // 2. Mise à jour de la FACTURE
+      await updateDoc(doc(db, "factures", factureTrouvee.id), {
+        statutPaiement: "Approuvé",
+        validePar: validationData.nomComptable,
+        dateValidation: serverTimestamp(),
+        photoCampagneUrl: photoUrl
+      });
+
+      // 3. MISE À JOUR DU PANNEAU (C'est ici que la correction a lieu)
+      // On extrait l'ID du panneau (ex: "B") de l'ID complet (ex: "B-1")
+      const idPanPrincipal = factureTrouvee.idFace.split('-')[0];
+
+      const qPan = query(collection(db, "panneaux"), where("idPan", "==", idPanPrincipal));
+      const panSnap = await getDocs(qPan);
+
+      if (!panSnap.empty) {
+        const pDoc = panSnap.docs[0];
+        const panRef = doc(db, "panneaux", pDoc.id);
+
+        // CORRECTION : On utilise f.id au lieu de f.idPan
+        const updatedFaces = pDoc.data().faces.map((f: any) => {
+          // On compare avec f.id car c'est le nom du champ dans votre map Firestore
+          if (f.id === factureTrouvee.idFace) {
+            return {
+              ...f,
+              statut: "Occupé",
+              urlPhotoCampagne: photoUrl
+            };
+          }
+          return f;
+        });
+
+        await updateDoc(panRef, { faces: updatedFaces });
+      }
+
+      // 4. Archive dans validerpanneaux
+      await addDoc(collection(db, "validerpanneaux"), {
+        idPan: factureTrouvee.idFace,
+        urlPhotoCampagne: photoUrl,
+        societe: factureTrouvee.nomSociete,
+        montant: (factureTrouvee.prixUnitaire * factureTrouvee.moisLocation),
+        dateValidation: serverTimestamp(),
+        comptable: validationData.nomComptable
+      });
+
+      alert("Validation réussie ! Le statut est maintenant 'Occupé' dans la table de la face.");
+
+      setFactureTrouvee(null);
+      setShowConfirmModal(false);
+      setSearchKey("");
+
+    } catch (error) {
+      console.error("Erreur:", error);
+      alert("Une erreur est survenue lors de la mise à jour.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 

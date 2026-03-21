@@ -7,8 +7,8 @@ import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useScroll, useSpring, useMotionValueEvent } from 'framer-motion';
 import {
-  Search,  MapPin, Filter, PlusCircle, CheckCircle2,
-  Menu, X, Home,  Zap, Globe, 
+  Search, MapPin, Filter, PlusCircle, CheckCircle2,
+  Menu, X, Home, Zap, Globe,
   Lock, Mail, Loader2, FileText
 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -53,6 +53,8 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, ouvrirLaCarte
         )}
       </AnimatePresence>
 
+
+
       {/* Mapping des faces du panneau */}
       {faces.map((face: any, fIdx: number) => {
         // Création d'un ID unique pour la face (PanneauID + FaceID)
@@ -88,7 +90,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, ouvrirLaCarte
                 <motion.img
                   whileHover={{ scale: 1.1 }}
                   transition={{ duration: 0.8 }}
-                  src={face.urlPhotoCampagne || 'https://via.placeholder.com/800x600'}
+                  src={face.photoCampagneUrl || 'https://via.placeholder.com/800x600'}
                   className="w-full h-full object-cover"
                   alt={`Face ${face.id}`}
                 />
@@ -106,11 +108,17 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, ouvrirLaCarte
               <div className="p-6 space-y-4 flex-grow">
                 <div>
                   <h3 className="text-lg font-black text-white italic uppercase tracking-tighter leading-none">
-                    Face: {face.id || fIdx + 1}
+                    Face: {face.faceId || fIdx + 1}
                   </h3>
-                  <p className="text-[9px] font-black text-[#d4af37] uppercase mt-2 tracking-[0.2em] opacity-90">
-                    ID RÉSEAU: {panneau.idPan}
-                  </p>
+                  <p className="text-[9px] font-black text-[#d4af37] uppercase mt-2 tracking-[0.1em] opacity-90 flex flex-wrap gap-2">
+                <span>ID: {panneau.idPan}</span>
+                <span className="text-white/20">|</span>
+                <span>{panneau.zone}</span>
+                <span className="text-white/20">•</span>
+                <span>{panneau.adresse}</span>
+                <span className="text-white/20">•</span>
+                <span className="text-white/60">{panneau.type}</span>
+              </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
@@ -274,7 +282,7 @@ export default function UltimateSupervisor() {
               </button>
 
               <button
-                
+
                 className="bg-red-600 text-white px-8 py-4 rounded-full font-[1000] uppercase text-[11px] tracking-[0.2em] hover:bg-red-700 transition-all shadow-xl shadow-red-600/30 active:scale-95 border border-white/10"
               >
                 Vous avez une commande
@@ -421,17 +429,65 @@ export default function UltimateSupervisor() {
 
       {/* MAIN CONTENT */}
       <main className="relative z-10 max-w-[1500px] mx-auto px-6 pt-44 pb-40">
-        <header className="mb-20">
+        <header className="mb-20 relative">
+          {/* HALO DE FOND SUBTIL */}
+          <div className="absolute -top-10 -left-10 w-40 h-40 bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
+
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-            <h1 className="text-5xl lg:text-7xl font-black uppercase italic leading-[0.85] tracking-tighter text-white">
-              GESTION <br />
-              <span className="text-[#d4af37]">DIGITALE</span>
-            </h1>
-            <div className="flex items-center gap-3 bg-white/5 px-6 py-4 rounded-full border border-white/10 backdrop-blur-md w-fit mt-8">
-              <Globe size={18} className="text-[#d4af37]" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-200">
-                Inventaire actif : <span className="text-white">{filtered.reduce((acc, p) => acc + (p.faces?.length || 0), 0)}</span> Faces
-              </span>
+            <div className="flex items-start gap-6">
+
+              {/* INDICATEUR DE LIGNE ROUGE AFFINÉ */}
+              <div className="w-[3px] h-24 bg-gradient-to-b from-red-600 via-red-600/20 to-transparent shadow-[0_0_15px_#ef4444] rounded-full mt-2" />
+
+              <div className="space-y-4">
+                {/* TITRE RÉDUIT ET AJUSTÉ */}
+                <div className="space-y-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[8px] font-black text-red-500 uppercase tracking-[0.4em]">Network Status: Online</span>
+                    <div className="w-1 h-1 bg-red-600 rounded-full animate-ping" />
+                  </div>
+
+                  <h1 className="text-4xl lg:text-6xl font-[1000] text-white tracking-tighter uppercase italic leading-[0.9]">
+                    GESTION <br />
+                    <span className="text-[#d4af37]">DIGITALE</span> <br />
+                    {/* AJOUT DU MOT PANNEAUX EN ROUGE ÉCLATANT */}
+                    <span className="text-red-600 text-3xl lg:text-5xl not-italic tracking-[0.2em] font-black drop-shadow-[0_0_10px_rgba(239,68,68,0.4)]">
+                      PANNEAUX
+                    </span>
+                  </h1>
+                </div>
+
+                {/* BADGE D'INVENTAIRE DASHBOARD STYLE */}
+                <div className="flex flex-wrap items-center gap-4 mt-6">
+                  <div className="flex items-center gap-4 bg-black/40 backdrop-blur-2xl px-6 py-4 rounded-3xl border border-white/10 hover:border-red-600/30 transition-all duration-500">
+
+                    <div className="relative p-2 bg-white/5 rounded-xl">
+                      <Globe size={16} className="text-[#d4af37]" />
+                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />
+                    </div>
+
+                    <div className="flex flex-col">
+                      <span className="text-[7px] font-black text-zinc-500 uppercase tracking-widest">Database Sync</span>
+                      <span className="text-lg font-black text-white italic">
+                        {filtered.reduce((acc, p) => acc + (p.faces?.length || 0), 0)}
+                        <span className="text-[9px] text-red-500 not-italic ml-2 tracking-widest uppercase">Faces Actives</span>
+                      </span>
+                    </div>
+
+                    {/* MICRO PANNEAUX HUD ROUGES */}
+                    <div className="flex gap-0.5 ml-2 border-l border-white/10 pl-4">
+                      <div className="w-1 h-3 bg-red-600 rounded-full animate-[bounce_2s_infinite]" />
+                      <div className="w-1 h-3 bg-red-600/30 rounded-full" />
+                    </div>
+                  </div>
+
+                  {/* INDICATEUR DE RÉGIE ROUGE */}
+                  <div className="flex items-center gap-2 px-4 py-2 bg-red-600/10 border border-red-600/20 rounded-xl">
+                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full shadow-[0_0_5px_#ef4444]" />
+                    <span className="text-[8px] font-black text-red-500 uppercase tracking-widest italic">Régie Dispromalt</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
         </header>
@@ -518,6 +574,7 @@ export default function UltimateSupervisor() {
 
 
 
+
       {/* SECTION MODALES UNIFIÉE */}
       <AnimatePresence mode="wait">
         {/* MODALE CONNEXION (Appel unique) */}
@@ -567,7 +624,7 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
         {/* IMAGE + BOUTON CROIX RENFORCÉ */}
         <div className="relative aspect-video">
           <img
-            src={face.urlPhotoCampagne || "https://via.placeholder.com/800x600"}
+            src={face.photoCampagneUrl || "https://via.placeholder.com/800x600"}
             className="w-full h-full object-cover"
             alt={`Panneau ${panneau.idPan}`}
           />
@@ -576,33 +633,40 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
 
 
         {/* BOUTON FERMER (X) DYNAMIQUE */}
-                <button
-                  onClick={onClose}
-                  className="absolute top-6 right-6 md:top-10 md:right-10 z-[100] p-3 rounded-2xl bg-black/20 border border-white/10 text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all duration-300 group"
-                >
-                  <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-                </button>
+        <button
+          onClick={onClose}
+          className="absolute top-6 right-6 md:top-10 md:right-10 z-[100] p-3 rounded-2xl bg-black/20 border border-white/10 text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all duration-300 group"
+        >
+          <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+        </button>
 
 
 
-                
+
 
         <div className="p-8 space-y-6">
           {/* HEADER INFO */}
           <div className="flex justify-between items-end">
             <div>
-              <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter text-white">
-                ID: {panneau.idPan}
-              </h2>
-              <p className="text-[#d4af37] font-bold text-sm uppercase tracking-widest">
-                Face: {face.id} — {panneau.zone}
+              <h3 className="text-lg font-black text-white italic uppercase tracking-tighter leading-none">
+                Face: {face.faceId}
+              </h3>
+              <p className="text-[9px] font-black text-[#d4af37] uppercase mt-2 tracking-[0.1em] opacity-90 flex flex-wrap gap-2">
+                <span>ID: {panneau.idPan}</span>
+                <span className="text-white/20">|</span>
+                <span>{panneau.zone}</span>
+                <span className="text-white/20">•</span>
+                <span>{panneau.adresse}</span>
+                <span className="text-white/20">•</span>
+                <span className="text-white/60">{panneau.type}</span>
               </p>
             </div>
             <div className="text-right">
-              <span className="text-4xl font-black text-white">{face.prix || 0} $</span>
-              <p className="text-white/50 text-[10px] uppercase font-bold">Prix Mensuel HT</p>
+              <p className="text-[7px] font-bold text-white/40 uppercase tracking-widest">Dimension</p>
+              <p className="text-[10px] font-black text-white">{panneau.dimension || '12x4m'}</p>
             </div>
           </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
             {/* STATISTIQUES */}
@@ -627,22 +691,45 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
             </div>
 
             {/* FICHE TECHNIQUE */}
+            {/* FICHE TECHNIQUE COMPLÈTE */}
             <div className="bg-black/10 rounded-3xl p-6 space-y-3 border border-white/5 shadow-inner">
               <h3 className="text-[#d4af37] text-[10px] font-black uppercase tracking-[0.2em] mb-2">Fiche Technique</h3>
+
+              {/* ADRESSE */}
               <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
-                <span className="text-white/50">Format</span>
-                <span className="text-white">{panneau.format || '12m²'}</span>
+                <span className="text-white/50">Adresse</span>
+                <span className="text-white text-right ml-4">{panneau.adresse || 'Non spécifiée'}</span>
               </div>
+
+              {/* ZONE / COMMUNE */}
+              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
+                <span className="text-white/50">Zone</span>
+                <span className="text-white">{panneau.zone || 'N/A'}</span>
+              </div>
+
+              {/* TYPE */}
               <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
                 <span className="text-white/50">Type</span>
                 <span className="text-white">{panneau.type || 'Standard'}</span>
               </div>
-              <div className="flex justify-between text-[10px] font-bold uppercase">
+
+              {/* SENS TRAFIC (Vient de la face) */}
+              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
                 <span className="text-white/50">Sens Trafic</span>
                 <span className="text-white">{face.sens || 'N/A'}</span>
               </div>
-              <div className="mt-4 p-2 bg-[#d4af37]/20 rounded-lg text-center">
-                <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${isLibre ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+
+              {/* PRIX */}
+              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
+                <span className="text-white/50">Tarif Mensuel</span>
+                <span className="text-[#d4af37] font-black">
+                  {panneau.prix ? `${Number(panneau.prix).toLocaleString()} $` : 'Sur devis'}
+                </span>
+              </div>
+
+              {/* STATUT */}
+              <div className="mt-4 p-2 bg-black/20 rounded-lg text-center">
+                <span className={`text-[9px] font-black uppercase px-4 py-1.5 rounded-full ${isLibre ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}>
                   {face.statut || 'Inconnu'}
                 </span>
               </div>
@@ -658,8 +745,7 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                 e.stopPropagation();
                 ouvrirLaCarte();
                 onClose();
-              }}
-            >
+              }} >
               <MapPin size={16} /> Voir sur la carte
             </button>
 
@@ -884,12 +970,12 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
 
 
 
+import { ShieldCheck, } from 'lucide-react';
+
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-
 
 function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const router = useRouter();
@@ -899,117 +985,147 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   if (!isOpen) return null;
 
+  const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      // 1. Authentification
       const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password.trim());
       const user = userCredential.user;
-
-      // 2. Récupération du profil Firestore
       const userDocRef = doc(db, "societes", user.uid);
       const userDoc = await getDoc(userDocRef);
 
-      if (!userDoc.exists()) {
-        throw new Error("Profil utilisateur introuvable.");
-      }
+      if (!userDoc.exists()) throw new Error("Profil introuvable.");
 
       const userData = userDoc.data();
-
-      // 3. Vérification du compte actif
       if (userData.actif !== true) {
         await auth.signOut();
-        alert("Accès révoqué. Contactez l'administrateur.");
+        alert("Accès révoqué.");
         setLoading(false);
         return;
       }
 
-      // 4. Redirection selon tes nouvelles variables
       const routes: Record<string, string> = {
         superviseurs: '/dashboard/superviseurs',
         commercial: '/dashboard/superviseurs',
         comptable: '/dashboard/Comptable',
         admin: '/dashboard/admin',
-        client: '/dashboard/client' // Optionnel, selon tes besoins
+        client: '/dashboard/client'
       };
 
-      const userRole = userData.role;
-
-      if (routes[userRole]) {
-        onClose(); // On ferme la boîte de dialogue
-        router.push(routes[userRole]);
+      if (routes[userData.role]) {
+        onClose();
+        router.push(routes[userData.role]);
       } else {
-        alert("Rôle inconnu : accès refusé.");
+        alert("Rôle inconnu.");
         await auth.signOut();
       }
-
     } catch (err: any) {
       console.error(err);
-      alert("Identifiants invalides ou erreur réseau.");
+      alert("Erreur d'authentification.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-[#001a33] border border-white/10 w-full max-w-md rounded-[2rem] overflow-hidden shadow-2xl"
+    <div className="fixed inset-0 z-[2000] bg-[#020617]/90 backdrop-blur-xl flex items-center justify-center p-4">
+      {/* BOUTON FERMER STYLE AÉRONAUTIQUE */}
+      <button
+        onClick={onClose}
+        className="fixed top-6 right-6 z-[2100] p-4 bg-red-600 text-white rounded-full shadow-[0_0_30px_rgba(239,68,68,0.5)] hover:scale-110 hover:bg-white hover:text-red-600 transition-all duration-500 border border-white/20"
       >
-        {/* Header */}
-        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
-          <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">
-            Connexion <span className="text-[#d4af37]">Sécurisée</span>
+        <X size={24} strokeWidth={3} />
+      </button>
+
+      <motion.div
+        initial={{ y: 50, opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        className="w-full max-w-lg bg-[#1e3a8a] rounded-[3rem] lg:rounded-[4rem] border-4 border-white/10 shadow-[0_60px_150px_-20px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden relative"
+      >
+        {/* TEXTURE DE FOND */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-500/20 via-transparent to-black/60 pointer-events-none" />
+
+        {/* HEADER STYLE DASHBOARD */}
+        <div className="relative px-10 py-12 bg-black/40 backdrop-blur-3xl border-b border-white/10 text-center">
+          <div className="flex justify-center mb-6">
+            <div className="relative p-1 bg-white/10 rounded-[2rem] border border-white/20">
+              <img src={logoUrl} className="w-20 h-20 rounded-[1.8rem] object-cover" alt="Logo" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full border-2 border-[#1e3a8a] animate-pulse" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <div className="w-1.5 h-4 bg-red-600 shadow-[0_0_10px_#ef4444]" />
+            <p className="text-[#d4af37] text-[9px] font-[1000] uppercase tracking-[0.5em]">
+              Système d'authentification
+            </p>
+          </div>
+
+          <h2 className="text-4xl font-[1000] text-white uppercase italic tracking-tighter">
+            ACCÈS <span className="text-[#d4af37]">G</span>DP
           </h2>
-          <button onClick={onClose} className="p-2 text-zinc-500 hover:text-white transition-colors">
-            <X size={20} />
-          </button>
         </div>
 
-        {/* Formulaire */}
-        <form onSubmit={handleLogin} className="p-8 space-y-5">
+        {/* FORMULAIRE */}
+        <form onSubmit={handleLogin} className="relative z-10 p-10 space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Email Professionnel</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+            <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-2 italic">ID Terminal</label>
+            <div className="relative group">
+              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-[#d4af37]" size={20} />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white focus:border-[#d4af37] outline-none transition-all"
-                placeholder="nom@entreprise.com"
+                className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white text-sm focus:border-[#d4af37] outline-none transition-all font-bold"
+                placeholder="votre-id@dispromalt.com"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Mot de passe</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+            <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-2 italic">Clé de Sécurité</label>
+            <div className="relative group">
+              <ShieldCheck className="absolute left-5 top-1/2 -translate-y-1/2 text-[#d4af37]" size={20} />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white focus:border-[#d4af37] outline-none transition-all"
-                placeholder="••••••••"
+                className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white text-sm focus:border-[#d4af37] outline-none transition-all font-bold"
+                placeholder="••••••••••••"
               />
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#d4af37] text-black font-black py-4 rounded-xl uppercase text-xs tracking-[0.2em] shadow-lg shadow-[#d4af37]/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 mt-4"
-          >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : "Accéder au Dashboard"}
-          </button>
+          <div className="pt-6">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#d4af37] hover:bg-white text-black font-[1000] py-6 rounded-[2rem] uppercase text-[12px] tracking-[0.3em] shadow-[0_20px_40px_rgba(212,175,55,0.2)] transition-all active:scale-95 flex items-center justify-center gap-4 group"
+            >
+              {loading ? <Loader2 className="animate-spin" /> : (
+                <><Zap size={18} className="group-hover:animate-bounce" /> Lancer la Session</>
+              )}
+            </button>
+          </div>
+
+          <div className="flex items-center justify-center gap-3 opacity-40 pt-4">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+            <p className="text-[8px] font-black text-white uppercase tracking-[0.4em]">Cryptage 256-bit actif</p>
+          </div>
         </form>
+
+        {/* LIGNE DE SCAN ROUGE INFÉRIEURE */}
+        <div className="h-2 w-full bg-red-600/20 relative overflow-hidden">
+          <motion.div
+            animate={{ x: ["-100%", "100%"] }}
+            transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+            className="absolute inset-0 w-40 bg-gradient-to-r from-transparent via-red-600 to-transparent shadow-[0_0_15px_#ef4444]"
+          />
+        </div>
       </motion.div>
     </div>
   );
