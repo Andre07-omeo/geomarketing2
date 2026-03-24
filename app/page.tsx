@@ -2,10 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useScroll, useSpring, useMotionValueEvent } from 'framer-motion';
+
+// Ajoutez ces imports spécifiques à Firestore
+import {
+  query,
+  where,
+  getDocs,
+  limit,
+} from 'firebase/firestore';
 import {
   Search, MapPin, Filter, PlusCircle, CheckCircle2,
   Menu, X, Home, Zap, Globe,
@@ -111,14 +119,14 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, ouvrirLaCarte
                     Face: {face.faceId || fIdx + 1}
                   </h3>
                   <p className="text-[9px] font-black text-[#d4af37] uppercase mt-2 tracking-[0.1em] opacity-90 flex flex-wrap gap-2">
-                <span>ID: {panneau.idPan}</span>
-                <span className="text-white/20">|</span>
-                <span>{panneau.zone}</span>
-                <span className="text-white/20">•</span>
-                <span>{panneau.adresse}</span>
-                <span className="text-white/20">•</span>
-                <span className="text-white/60">{panneau.type}</span>
-              </p>
+                    <span>ID: {panneau.idPan}</span>
+                    <span className="text-white/20">|</span>
+                    <span>{panneau.zone}</span>
+                    <span className="text-white/20">•</span>
+                    <span>{panneau.adresse}</span>
+                    <span className="text-white/20">•</span>
+                    <span className="text-white/60">{panneau.type}</span>
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
@@ -968,7 +976,7 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
 };
 
 
-
+import { doc, getDoc, } from 'firebase/firestore';
 
 import { ShieldCheck, } from 'lucide-react';
 
@@ -988,47 +996,90 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
+
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanPassword = password.trim();
+
+  try {
+    let userData: any = null;
+    let userId: string = "";
+
+    // --- ÉTAPE 1 : TENTER LA CONNEXION VIA FIREBASE AUTH ---
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password.trim());
-      const user = userCredential.user;
-      const userDocRef = doc(db, "societes", user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) throw new Error("Profil introuvable.");
-
-      const userData = userDoc.data();
-      if (userData.actif !== true) {
-        await auth.signOut();
-        alert("Accès révoqué.");
-        setLoading(false);
-        return;
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+      userId = userCredential.user.uid;
+      
+      // Si Auth réussit, on récupère son profil dans Firestore
+      const docSnap = await getDoc(doc(db, "societes", userId));
+      if (docSnap.exists()) {
+        userData = docSnap.data();
       }
-
-      const routes: Record<string, string> = {
-        superviseurs: '/dashboard/superviseurs',
-        commercial: '/dashboard/superviseurs',
-        comptable: '/dashboard/Comptable',
-        admin: '/dashboard/admin',
-        client: '/dashboard/client'
-      };
-
-      if (routes[userData.role]) {
-        onClose();
-        router.push(routes[userData.role]);
-      } else {
-        alert("Rôle inconnu.");
-        await auth.signOut();
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert("Erreur d'authentification.");
-    } finally {
-      setLoading(false);
+    } catch (authError) {
+      console.log("Auth classique échouée, tentative via Firestore direct...");
+      // On ne s'arrête pas, on passe à l'étape 2
     }
-  };
 
+    // --- ÉTAPE 2 : SI PAS ENCORE TROUVÉ, CHERCHER DANS LA COLLECTION (VISITEURS) ---
+    if (!userData) {
+      const q = query(
+        collection(db, "societes"),
+        where("email", "==", cleanEmail),
+        where("password", "==", cleanPassword),
+        limit(1)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const resDoc = querySnapshot.docs[0];
+        userId = resDoc.id;
+        userData = resDoc.data();
+      }
+    }
+
+    // --- ÉTAPE 3 : VÉRIFICATIONS FINALES ---
+    if (!userData) {
+      throw new Error("Identifiants incorrects. Veuillez vérifier vos accès.");
+    }
+
+    // VÉRIFICATION DU STATUT ACTIF (Votre demande spécifique)
+    if (userData.actif !== true) {
+      // Si c'était un compte Auth, on le déconnecte par sécurité
+      if (auth.currentUser) await auth.signOut();
+      throw new Error("Votre compte n'est pas encore activé. Veuillez contacter le service Admin de Dispromalt pour l'activation.");
+    }
+
+    // --- ÉTAPE 4 : REDIRECTION SELON LE RÔLE ---
+    const routes: Record<string, string> = {
+      visiteur: '/dashboard/visiteurs',
+      admin: '/dashboard/admin',
+      superviseurs: '/dashboard/superviseurs',
+      commercial: '/dashboard/superviseurs',
+      comptable: '/dashboard/Comptable',
+      client: '/dashboard/client'
+    };
+
+    const targetRoute = routes[userData.role?.toLowerCase()];
+
+    if (targetRoute) {
+      // Sauvegarde de la session pour les pages internes
+      localStorage.setItem('userSession', JSON.stringify({ id: userId, ...userData }));
+      
+      onClose();
+      router.push(targetRoute);
+    } else {
+      throw new Error("Rôle utilisateur non configuré.");
+    }
+
+  } catch (err: any) {
+    console.error("Login Error:", err);
+    alert(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="fixed inset-0 z-[2000] bg-[#020617]/90 backdrop-blur-xl flex items-center justify-center p-4">
       {/* BOUTON FERMER STYLE AÉRONAUTIQUE */}
