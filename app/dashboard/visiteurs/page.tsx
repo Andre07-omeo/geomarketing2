@@ -30,6 +30,7 @@ export default function VisiteurDashboard() {
     const [mesFaces, setMesFaces] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const [isOnline, setIsOnline] = useState(true); // Par défaut true
     const [panneaux, setPanneaux] = useState<any[]>([]); // L'erreur vient souvent du fait que cette ligne manque
     // Force l'affichage de TOUS les panneaux, peu importe le client
 
@@ -65,6 +66,50 @@ export default function VisiteurDashboard() {
         return () => { unsubUser(); unsubPanneaux(); };
     }, [router]);
 
+
+
+
+   useEffect(() => {
+    if (!user?.id) return;
+
+    const userDocRef = doc(db, "societes", user.id);
+
+    // Fonction pour mettre à jour la DB
+    const updateOnlineStatus = async (status: boolean) => {
+        try {
+            await updateDoc(userDocRef, {
+                isOnline: status,
+                derniereConnexion: new Date().toISOString()
+            });
+        } catch (e) {
+            console.error("Erreur update status:", e);
+        }
+    };
+
+    // 1. Marquer comme en ligne au montage
+    updateOnlineStatus(true);
+
+    // 2. Écouter les changements de réseau
+    const handleOnline = () => {
+        setIsOnline(true);
+        updateOnlineStatus(true);
+    };
+    const handleOffline = () => {
+        setIsOnline(false);
+        updateOnlineStatus(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // 3. Marquer comme hors ligne quand on ferme l'onglet ou on délogue
+    return () => {
+        updateOnlineStatus(false);
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    };
+}, [user?.id]);
+
     // --- LOGIQUE DE RENDU DES VUES ---
     const renderContent = () => {
         switch (activeTab) {
@@ -95,14 +140,14 @@ export default function VisiteurDashboard() {
             {/* --- SIDEBAR : Ruban de contrôle scrollable sur mobile --- */}
             <aside className="w-full h-20 md:h-screen md:w-24 bg-black/60 border-t md:border-t-0 md:border-r border-white/10 flex flex-row md:flex-col items-center backdrop-blur-3xl z-50 order-2 md:order-1 overflow-x-auto md:overflow-y-auto no-scrollbar">
 
-                {/* LOGO (Caché sur mobile pour laisser place au scroll) */}
+                {/* LOGO (Caché sur mobile) */}
                 <div className="hidden md:flex mb-12 mt-8 shrink-0">
                     <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-2xl">
                         <ShieldCheck className="text-[#1e40af]" size={26} />
                     </div>
                 </div>
 
-                {/* CONTENEUR DE SCROLL UNIQUE (Tout est dedans) */}
+                {/* CONTENEUR DE SCROLL UNIQUE */}
                 <div className="flex flex-row md:flex-col items-center gap-6 px-6 md:px-0 w-max md:w-full h-full md:h-auto">
 
                     {/* MENU PRINCIPAL */}
@@ -126,20 +171,22 @@ export default function VisiteurDashboard() {
                         ))}
                     </nav>
 
-                    {/* SÉPARATEUR VISUEL (Visible uniquement sur mobile pour marquer la suite) */}
+                    {/* SÉPARATEUR VISUEL MOBILE */}
                     <div className="w-[1px] h-8 bg-white/10 md:hidden shrink-0"></div>
 
-                    {/* INDICATEUR RÉSEAU (Maintenant visible et scrollable) */}
+                    {/* INDICATEUR RÉSEAU DYNAMIQUE (isOnline) */}
                     <div className="flex flex-col items-center gap-1.5 shrink-0 min-w-[50px]">
                         <div className="flex gap-[2px] items-end h-3">
-                            <div className="w-[3px] h-[30%] bg-emerald-500 rounded-full"></div>
-                            <div className="w-[3px] h-[60%] bg-emerald-500 rounded-full"></div>
-                            <div className="w-[3px] h-[100%] bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]"></div>
+                            <div className={`w-[3px] h-[30%] rounded-full transition-colors ${isOnline ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                            <div className={`w-[3px] h-[60%] rounded-full transition-colors ${isOnline ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                            <div className={`w-[3px] h-[100%] rounded-full transition-colors ${isOnline ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
                         </div>
-                        <span className="text-[7px] font-black uppercase tracking-tighter text-emerald-500">GKM-Net</span>
+                        <span className={`text-[7px] font-black uppercase tracking-tighter transition-colors ${isOnline ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {isOnline ? 'GKM-Net' : 'Offline'}
+                        </span>
                     </div>
 
-                    {/* BOUTON DE SORTIE (À la fin du scroll) */}
+                    {/* BOUTON DE SORTIE */}
                     <button
                         onClick={() => { localStorage.removeItem('userSession'); router.push('/'); }}
                         className="w-12 h-12 rounded-xl bg-red-600/10 text-red-500 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all border border-red-500/20 shrink-0"
@@ -180,12 +227,19 @@ export default function VisiteurDashboard() {
             </div>
 
             <style jsx global>{`
-            .no-scrollbar::-webkit-scrollbar { display: none; }
-            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        `}</style>
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            `}</style>
         </div>
     );
 }
+
+
+
+
+
+
+
 
 
 import { Users, MessageSquare } from 'lucide-react';

@@ -48,44 +48,44 @@ export default function UsersPage() {
   }, []);
 
   // Formatage de la dernière connexion
- const formatLastSeen = (timestamp: any) => {
-  if (!timestamp) return "Jamais connecté";
+  const formatLastSeen = (timestamp: any) => {
+    if (!timestamp) return "Jamais connecté";
 
-  try {
-    let date: Date;
+    try {
+      let date: Date;
 
-    // Cas 1 : C'est un Timestamp Firebase classique (le plus probable)
-    if (timestamp && typeof timestamp.toDate === 'function') {
-      date = timestamp.toDate();
-    } 
-    // Cas 2 : C'est déjà une Date JS ou un nombre (ms)
-    else if (timestamp instanceof Date || typeof timestamp === 'number') {
-      date = new Date(timestamp);
-    }
-    // Cas 3 : C'est une String (ISO ou autre format texte)
-    else if (typeof timestamp === 'string') {
-      date = new Date(timestamp);
-    }
-    // Cas 4 : C'est l'objet temporaire de Firebase pendant l'écriture
-    else {
-      return "Synchronisation...";
-    }
+      // Cas 1 : C'est un Timestamp Firebase classique (le plus probable)
+      if (timestamp && typeof timestamp.toDate === 'function') {
+        date = timestamp.toDate();
+      }
+      // Cas 2 : C'est déjà une Date JS ou un nombre (ms)
+      else if (timestamp instanceof Date || typeof timestamp === 'number') {
+        date = new Date(timestamp);
+      }
+      // Cas 3 : C'est une String (ISO ou autre format texte)
+      else if (typeof timestamp === 'string') {
+        date = new Date(timestamp);
+      }
+      // Cas 4 : C'est l'objet temporaire de Firebase pendant l'écriture
+      else {
+        return "Synchronisation...";
+      }
 
-    // Si la date est valide, on extrait l'heure et les minutes
-    if (!isNaN(date.getTime())) {
-      return new Intl.DateTimeFormat('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        day: '2-digit',
-        month: '2-digit'
-      }).format(date);
-    }
+      // Si la date est valide, on extrait l'heure et les minutes
+      if (!isNaN(date.getTime())) {
+        return new Intl.DateTimeFormat('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          day: '2-digit',
+          month: '2-digit'
+        }).format(date);
+      }
 
-    return "Heure non définie";
-  } catch (e) {
-    return "Erreur lecture";
-  }
-};
+      return "Heure non définie";
+    } catch (e) {
+      return "Erreur lecture";
+    }
+  };
 
   const handleCreateUser = async () => {
     if (!createForm.nomSociete || !createForm.email || !createForm.password) {
@@ -113,10 +113,10 @@ export default function UsersPage() {
   const handleSaveEdit = async () => {
     if (!editingUser) return;
     try {
-        await updateDoc(doc(db, "societes", editingUser.id), editForm);
-        setEditingUser(null);
+      await updateDoc(doc(db, "societes", editingUser.id), editForm);
+      setEditingUser(null);
     } catch (e) {
-        alert("Erreur lors de la mise à jour");
+      alert("Erreur lors de la mise à jour");
     }
   };
 
@@ -152,15 +152,15 @@ export default function UsersPage() {
 
   return (
     <div className="min-h-screen bg-[#4169E1] text-white p-4 md:p-8 selection:bg-red-600">
-      
+
       {/* HEADER LUXE */}
       <header className="max-w-7xl mx-auto mb-10 bg-white/10 p-6 md:p-10 rounded-[3rem] border border-white/20 backdrop-blur-2xl shadow-2xl">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-10">
           <div className="flex items-center gap-6">
             <div className="relative w-24 h-24 p-1 bg-gradient-to-br from-amber-400 via-amber-100 to-amber-600 rounded-[2rem] shadow-xl border border-amber-300/50 flex items-center justify-center overflow-hidden">
-                <div className="w-full h-full bg-white rounded-[1.8rem] overflow-hidden flex items-center justify-center">
-                    <img src={LOGO_DISPROMALT} alt="Logo Dispromalt" className="w-full h-full object-cover" />
-                </div>
+              <div className="w-full h-full bg-white rounded-[1.8rem] overflow-hidden flex items-center justify-center">
+                <img src={LOGO_DISPROMALT} alt="Logo Dispromalt" className="w-full h-full object-cover" />
+              </div>
             </div>
             <div>
               <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter text-white uppercase leading-none drop-shadow-md">
@@ -199,14 +199,16 @@ export default function UsersPage() {
           {[
             { label: 'Partenaires', value: users.length, icon: Building2, color: 'text-white' },
             { label: 'En Ligne', value: users.filter(u => u.isOnline).length, icon: Activity, color: 'text-emerald-400' },
+            { label: 'Actives', value: users.filter(u => u.actif).length, icon: Activity, color: 'text-emerald-400' },
+
             { label: 'Visiteurs', value: users.filter(u => u.role === 'visiteur').length, icon: ShieldCheck, color: 'text-amber-400' }
           ].map((stat, i) => (
             <div key={i} className="bg-white/5 border border-white/10 p-5 rounded-[2rem] flex items-center gap-4">
-               <div className="p-3 bg-white/10 rounded-xl hidden sm:block"><stat.icon className="text-amber-400" size={20} /></div>
-               <div>
-                 <p className="text-[10px] uppercase font-black text-blue-100/50">{stat.label}</p>
-                 <p className={`text-3xl font-black ${stat.color}`}>{stat.value}</p>
-               </div>
+              <div className="p-3 bg-white/10 rounded-xl hidden sm:block"><stat.icon className="text-amber-400" size={20} /></div>
+              <div>
+                <p className="text-[10px] uppercase font-black text-blue-100/50">{stat.label}</p>
+                <p className={`text-3xl font-black ${stat.color}`}>{stat.value}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -219,7 +221,7 @@ export default function UsersPage() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredUsers.map((user) => (
             <div key={user.id} className="relative group bg-white/10 border border-white/20 p-8 rounded-[2.5rem] hover:bg-white/20 transition-all duration-500 backdrop-blur-sm shadow-xl">
-              
+
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-white border-2 border-amber-400/30 flex items-center justify-center overflow-hidden">
@@ -242,17 +244,17 @@ export default function UsersPage() {
               {/* AFFICHAGE LAST SEEN */}
               <div className="flex items-center gap-3 mb-6 bg-white/5 p-3 rounded-2xl border border-white/5">
                 <div className="p-2 bg-blue-600/30 rounded-lg">
-                    <Clock size={14} className="text-amber-400" />
+                  <Clock size={14} className="text-amber-400" />
                 </div>
                 <div>
-                    <p className="text-[8px] text-blue-200/50 font-black uppercase tracking-tighter">Activité</p>
-                    <p className="text-[11px] font-bold text-white italic">
-    {user.isOnline ? (
-      <span className="text-emerald-400">En ligne</span>
-    ) : (
-      `Déconnecté le ${formatLastSeen(user.lastSeen)}`
-    )}
-</p>
+                  <p className="text-[8px] text-blue-200/50 font-black uppercase tracking-tighter">Activité</p>
+                  <p className="text-[11px] font-bold text-white italic">
+                    {user.isOnline ? (
+                      <span className="text-emerald-400">En ligne</span>
+                    ) : (
+                      `Déconnecté le ${formatLastSeen(user.lastSeen)}`
+                    )}
+                  </p>
                 </div>
               </div>
 
@@ -276,7 +278,7 @@ export default function UsersPage() {
                 <div className="flex justify-between items-center mb-10 text-white">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center"><UserPlus size={28} /></div>
-                    <h3 className="text-3xl font-black italic uppercase leading-none text-white">Nouveau<br/><span className="text-amber-400">Visiteur</span></h3>
+                    <h3 className="text-3xl font-black italic uppercase leading-none text-white">Nouveau<br /><span className="text-amber-400">Visiteur</span></h3>
                   </div>
                   <button onClick={() => setIsCreateModalOpen(false)}><X size={32} /></button>
                 </div>
@@ -319,20 +321,20 @@ export default function UsersPage() {
                 <h3 className="text-3xl font-black italic text-white uppercase mb-8 text-center underline decoration-red-600 underline-offset-8">Édition Profil</h3>
                 <div className="space-y-5">
                   <div className="grid grid-cols-2 gap-4">
-                      <div>
-                          <label className="text-[10px] font-black text-amber-400 uppercase ml-2 mb-1 block">Nom Société</label>
-                          <input className="w-full bg-white/10 p-4 rounded-2xl border border-white/10 text-white font-bold" value={editForm.nomSociete} onChange={(e) => setEditForm({ ...editForm, nomSociete: e.target.value })} />
-                      </div>
-                      <div>
-                          <label className="text-[10px] font-black text-amber-400 uppercase ml-2 mb-1 block">Rôle</label>
-                          <select className="w-full bg-black/40 p-4 rounded-2xl border border-white/10 text-white font-bold outline-none" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
-                            <option value="visiteur">Visiteur</option>
-                            <option value="admin">Admin</option>
-                            <option value="comptable">Comptable</option>
-                            <option value="commercial">Commercial</option>
-                            <option value="superviseurs">Superviseur</option>
-                          </select>
-                      </div>
+                    <div>
+                      <label className="text-[10px] font-black text-amber-400 uppercase ml-2 mb-1 block">Nom Société</label>
+                      <input className="w-full bg-white/10 p-4 rounded-2xl border border-white/10 text-white font-bold" value={editForm.nomSociete} onChange={(e) => setEditForm({ ...editForm, nomSociete: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-amber-400 uppercase ml-2 mb-1 block">Rôle</label>
+                      <select className="w-full bg-black/40 p-4 rounded-2xl border border-white/10 text-white font-bold outline-none" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
+                        <option value="visiteur">Visiteur</option>
+                        <option value="admin">Admin</option>
+                        <option value="comptable">Comptable</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="superviseurs">Superviseur</option>
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-amber-400 uppercase ml-2 mb-1 block">Téléphone</label>
