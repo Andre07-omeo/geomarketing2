@@ -81,3 +81,16 @@ body {
     color: white !important;
     border: 1px solid #d4af37;
 }
+
+
+.custom-popup .leaflet-popup-content-wrapper {
+  background: #121212 !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 1.5rem !important;
+}
+
+.custom-popup .leaflet-popup-tip {
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}

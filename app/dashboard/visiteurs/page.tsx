@@ -23,14 +23,18 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
+
 export default function VisiteurDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [user, setUser] = useState<any>(null);
     const [mesFaces, setMesFaces] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const [panneaux, setPanneaux] = useState<any[]>([]); // L'erreur vient souvent du fait que cette ligne manque
+    // Force l'affichage de TOUS les panneaux, peu importe le client
 
     useEffect(() => {
+
         const session = localStorage.getItem('userSession');
         if (!session) { router.push('/'); return; }
         const userData = JSON.parse(session);
@@ -67,7 +71,15 @@ export default function VisiteurDashboard() {
             case 'overview': return <OverviewSection mesFaces={mesFaces} user={user} />;
             case 'analytics': return <AnalyticsSection mesFaces={mesFaces} />;
             case 'inventory': return <InventorySection mesFaces={mesFaces} />;
-            case 'map': return <MapSection />;
+            // Dans ton switch (renderContent)
+            case 'map':
+    return (
+        <MapSection 
+            // On ne passe plus 'tousLesPanneaux' car la fonction 
+            // contient son propre onSnapshot (temps réel)
+            userConnecte={user} 
+        />
+    );
             default: return <OverviewSection mesFaces={mesFaces} user={user} />;
         }
     };
@@ -105,8 +117,8 @@ export default function VisiteurDashboard() {
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id)}
                                 className={`relative w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-xl md:rounded-2xl transition-all shrink-0 ${activeTab === item.id
-                                        ? 'bg-[#d4af37] text-black scale-110 shadow-[0_0_15px_#d4af37]/40'
-                                        : 'text-white/40 hover:text-white bg-white/5'
+                                    ? 'bg-[#d4af37] text-black scale-110 shadow-[0_0_15px_#d4af37]/40'
+                                    : 'text-white/40 hover:text-white bg-white/5'
                                     }`}
                             >
                                 <item.icon size={22} />
@@ -461,7 +473,7 @@ function InventorySection({ mesFaces }: any) {
                         {mesFaces.length} Emplacements Stratégiques sous gestion
                     </p>
                 </div>
-                
+
                 {/* Barre de recherche rapide intégrée à l'inventaire */}
                 <div className="w-full md:w-auto flex items-center bg-white/5 border border-white/10 rounded-2xl px-4 py-2 focus-within:border-[#d4af37]/50 transition-all">
                     <Search size={14} className="text-white/20 mr-2" />
@@ -474,24 +486,23 @@ function InventorySection({ mesFaces }: any) {
                 {mesFaces.map((face: any, i: number) => {
                     // Calcul d'un statut fictif pour le design
                     const isExpiring = i === 1; // Simulation
-                    
+
                     return (
                         <div key={i} className="bg-black/40 border border-white/10 rounded-[2.5rem] p-4 md:p-6 flex flex-col sm:flex-row gap-6 hover:bg-black/60 hover:border-[#d4af37]/30 transition-all group relative overflow-hidden">
-                            
+
                             {/* --- PARTIE IMAGE : LE PRODUIT --- */}
                             <div className="w-full sm:w-48 h-48 md:h-56 rounded-[2rem] overflow-hidden shadow-2xl relative shrink-0">
-                                <img 
-                                    src={face.photoCampagneUrl || 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0'} 
-                                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000 scale-105 group-hover:scale-110" 
+                                <img
+                                    src={face.photoCampagneUrl || 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0'}
+                                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000 scale-105 group-hover:scale-110"
                                 />
                                 <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black border border-white/20 uppercase tracking-widest">
                                     #{face.faceId}
                                 </div>
-                                
+
                                 {/* Badge Statut */}
-                                <div className={`absolute bottom-4 right-4 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter border ${
-                                    isExpiring ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                                }`}>
+                                <div className={`absolute bottom-4 right-4 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter border ${isExpiring ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                                    }`}>
                                     {isExpiring ? 'Expiration Proche' : 'Diffusion Active'}
                                 </div>
                             </div>
@@ -538,11 +549,11 @@ function InventorySection({ mesFaces }: any) {
                                             <Maximize2 size={16} />
                                         </button>
                                     </div>
-                                    
+
                                     {/* Barre de progression du contrat */}
                                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                                        <div 
-                                            className={`h-full rounded-full transition-all duration-1000 ${isExpiring ? 'bg-red-500' : 'bg-emerald-500'}`} 
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-1000 ${isExpiring ? 'bg-red-500' : 'bg-emerald-500'}`}
                                             style={{ width: isExpiring ? '85%' : '30%' }}
                                         ></div>
                                     </div>
@@ -558,132 +569,173 @@ function InventorySection({ mesFaces }: any) {
 
 
 
-import  {useMemo } from 'react';
-import { MapPinOff } from "lucide-react";
 
-// --- IMPORTE LE CSS ICI (C'est sécurisé pour le SSR) ---
+import React, { useMemo, } from 'react';
+import { Navigation2,  } from "lucide-react";
 import 'leaflet/dist/leaflet.css';
 
- function MapSection({ tousLesPanneaux = [], userConnecte }: any) {
-  const [MapLib, setMapLib] = useState<any>(null);
-  const [isMounted, setIsMounted] = useState(false);
+ function MapSection({ userConnecte }: { userConnecte?: any }) {
+    const [tousLesPanneaux, setTousLesPanneaux] = useState<any[]>([]);
+    const [MapLib, setMapLib] = useState<any>(null);
+    const [isMounted, setIsMounted] = useState(false);
+    
+    // État pour le mode de la carte
+    const [mapMode, setMapMode] = useState<'dark' | 'light' | 'satellite'>('dark');
 
-  useEffect(() => {
-    setIsMounted(true);
-    const loadLeaflet = async () => {
-      // On importe uniquement les composants JS dynamiquement
-      const ReactLeaflet = await import('react-leaflet');
-      const L = (await import('leaflet')).default;
-
-      // Correction des icônes
-      const DefaultIcon = L.icon({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-      });
-      L.Marker.prototype.options.icon = DefaultIcon;
-
-      setMapLib({ ...ReactLeaflet, L });
+    const tileUrls = {
+        dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     };
-    loadLeaflet();
-  }, []);
 
-  // FILTRAGE : Panneau affiché SI (userConnecte?.nomSociete == face.clientNom)
-  const mesPointsGeo = useMemo(() => {
-    const points: any[] = [];
-    if (!Array.isArray(tousLesPanneaux)) return points;
-
-    tousLesPanneaux.forEach((panneau: any) => {
-      if (panneau?.coords && Array.isArray(panneau.faces)) {
-        
-        // Vérification de la correspondance entre Client et Face
-        const aUneFaceClient = panneau.faces.some((face: any) => {
-          const nomFace = face?.clientNom?.toString().toLowerCase().trim();
-          const nomUser = userConnecte?.nomSociete?.toString().toLowerCase().trim();
-          return nomFace === nomUser && nomUser !== "";
-        });
-
-        if (aUneFaceClient) {
-          points.push({
-            lat: parseFloat(panneau.coords[0]),
-            lng: parseFloat(panneau.coords[1]),
-            adresse: panneau.adresse || "Localisation GKM",
-            facesDuClient: panneau.faces.filter((f: any) => 
-              f.clientNom?.toLowerCase().trim() === userConnecte?.nomSociete?.toLowerCase().trim()
-            )
-          });
-        }
-      }
-    });
-    return points;
-  }, [tousLesPanneaux, userConnecte]);
-
-  if (!isMounted || !MapLib) {
-    return (
-      <div className="h-[70vh] bg-black/20 animate-pulse rounded-[3rem] border border-white/10 flex items-center justify-center">
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20 italic">Initialisation Radar...</p>
-      </div>
-    );
-  }
-
-  const { MapContainer, TileLayer, Marker, Popup, LayersControl, useMap } = MapLib;
-
-  // SOUS-COMPOSANT : RECENTREMENT
-  const RecenterMap = ({ points }: { points: any[] }) => {
-    const map = useMap();
+    // 1. Récupération des données Firestore
     useEffect(() => {
-      if (points.length > 0) {
-        const bounds = MapLib.L.latLngBounds(points.map((p: any) => [p.lat, p.lng]));
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-      }
-    }, [points, map]);
-    return null;
-  };
+        const q = query(collection(db, "panneaux"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setTousLesPanneaux(docs);
+        });
+        return () => unsubscribe();
+    }, []);
 
-  return (
-    <div className="h-[70vh] rounded-[3rem] border border-white/10 overflow-hidden relative z-0">
-      <MapContainer 
-        center={[-4.33, 15.31]} 
-        zoom={12} 
-        style={{ height: "100%", width: "100%", background: "#000" }}
-        zoomControl={false}
-      >
-        <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="Radar Sombre">
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-          </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Vue Satellite">
-            <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
-          </LayersControl.BaseLayer>
-        </LayersControl>
+    // 2. Initialisation Leaflet
+    useEffect(() => {
+        setIsMounted(true);
+        const loadLeaflet = async () => {
+            try {
+                const [L, ReactLeaflet] = await Promise.all([
+                    import('leaflet').then(m => m.default || m),
+                    import('react-leaflet')
+                ]);
+                delete (L.Icon.Default.prototype as any)._getIconUrl;
+                const RadarIcon = L.divIcon({
+                    className: 'custom-radar-icon',
+                    html: `<div class="flex items-center justify-center">
+                             <div class="absolute w-8 h-8 bg-[#d4af37]/30 rounded-full animate-ping"></div>
+                             <div class="relative w-4 h-4 bg-[#d4af37] border-2 border-black rounded-full shadow-[0_0_10px_#d4af37]"></div>
+                           </div>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15],
+                });
+                L.Marker.prototype.options.icon = RadarIcon;
+                setMapLib({ ...ReactLeaflet, L });
+            } catch (e) { console.error(e); }
+        };
+        loadLeaflet();
+    }, []);
 
-        <RecenterMap points={mesPointsGeo} />
+    // 3. FILTRAGE CRITIQUE : Comparaison userConnecte.nomSociete VS face.clientNom
+    const mesPointsGeo = useMemo(() => {
+        const nomSocieteUser = userConnecte?.nomSociete?.toString().toLowerCase().trim();
 
-        {mesPointsGeo.map((pt, i) => (
-          <Marker key={i} position={[pt.lat, pt.lng]}>
-            <Popup minWidth={200}>
-              <div className="p-1 text-black font-sans text-[11px]">
-                <h4 className="font-bold uppercase border-b pb-1 mb-1">{pt.adresse}</h4>
-                {pt.facesDuClient.map((f: any, idx: number) => (
-                  <div key={idx} className="mt-1">
-                    <p className="font-black text-amber-600">ID: {f.faceId}</p>
-                    {f.photoCampagneUrl && <img src={f.photoCampagneUrl} className="w-full h-16 object-cover rounded mt-1" alt="Face" />}
-                  </div>
+        if (!nomSocieteUser) return [];
+
+        return tousLesPanneaux
+            .filter((pan) => {
+                // On garde le panneau si au moins une de ses faces appartient à la société
+                return pan.faces?.some((face: any) => 
+                    face.clientNom?.toString().toLowerCase().trim() === nomSocieteUser
+                );
+            })
+            .map((pan) => {
+                const lat = parseFloat(pan.coords?.[0]);
+                const lng = parseFloat(pan.coords?.[1]);
+                if (isNaN(lat) || isNaN(lng)) return null;
+                return { ...pan, lat, lng };
+            })
+            .filter(p => p !== null);
+    }, [tousLesPanneaux, userConnecte]);
+
+    if (!isMounted || !MapLib) {
+        return (
+            <div className="h-[70vh] bg-zinc-950 rounded-[3rem] flex flex-col items-center justify-center border border-white/5 shadow-2xl">
+                <Target className="text-[#d4af37] animate-spin mb-4" size={40} />
+                <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] font-black italic">Connexion Satellite...</p>
+            </div>
+        );
+    }
+
+    const { MapContainer, TileLayer, Marker, Popup, useMap } = MapLib;
+
+    function RecenterHelper({ points }: { points: any[] }) {
+        const map = useMap();
+        useEffect(() => {
+            if (points.length > 0) {
+                const bounds = MapLib.L.latLngBounds(points.map((p: any) => [p.lat, p.lng]));
+                map.fitBounds(bounds, { padding: [70, 70], maxZoom: 15 });
+            }
+        }, [points, map]);
+        return null;
+    }
+
+    return (
+        <div className="h-[70vh] rounded-[3.5rem] border-4 border-white/10 overflow-hidden relative bg-black shadow-2xl">
+            
+            {/* SÉLECTEUR DE MODE DE CARTE (Noir, Clair, Satellite) */}
+            <div className="absolute top-8 right-8 z-[1000] flex flex-col gap-2">
+                {[
+                    { id: 'dark', label: 'Noir' },
+                    { id: 'light', label: 'Clair' },
+                    { id: 'satellite', label: 'Satellite' }
+                ].map((mode) => (
+                    <button
+                        key={mode.id}
+                        onClick={() => setMapMode(mode.id as any)}
+                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
+                            mapMode === mode.id 
+                            ? 'bg-[#d4af37] text-black border-[#d4af37]' 
+                            : 'bg-black/60 text-white border-white/10 backdrop-blur-md hover:bg-black/80'
+                        }`}
+                    >
+                        {mode.label}
+                    </button>
                 ))}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
+            </div>
 
-      {mesPointsGeo.length === 0 && (
-        <div className="absolute inset-0 z-[1000] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-          <MapPinOff className="text-amber-500/40 mb-4" size={48} />
-          <h4 className="text-white font-black uppercase tracking-widest text-sm italic">Aucun point d'impact détecté</h4>
-          <p className="text-white/30 text-[9px] uppercase mt-2">Compte : {userConnecte?.nomSociete}</p>
+            <MapContainer center={[-4.32, 15.30]} zoom={12} style={{ height: "100%", width: "100%" }} zoomControl={false}>
+                <TileLayer url={tileUrls[mapMode]} />
+                <RecenterHelper points={mesPointsGeo} />
+
+                {mesPointsGeo.map((pt) => (
+                    <Marker key={pt.id} position={[pt.lat, pt.lng]}>
+                        <Popup minWidth={260}>
+                            <div className="bg-[#0a0a0a] text-white p-2 rounded-xl">
+                                <div className="flex items-center gap-2 mb-3 border-b border-white/10 pb-2 font-black text-[10px] uppercase">
+                                    <Navigation2 size={12} className="text-[#d4af37]" />
+                                    {pt.adresse || "DISPOSITIF GKM"}
+                                </div>
+                                <div className="space-y-2">
+                                    {/* On affiche seulement les faces de CETTE société */}
+                                    {pt.faces?.filter((f: any) => f.clientNom?.toString().toLowerCase().trim() === userConnecte?.nomSociete?.toString().toLowerCase().trim()).map((face: any, idx: number) => (
+                                        <div key={idx} className="bg-[#d4af37]/10 p-2 rounded-lg border border-[#d4af37]/20 flex justify-between items-center">
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] text-[#d4af37] font-bold italic">VOTRE RÉSERVATION</span>
+                                                <span className="text-[10px] font-black uppercase">Face {face.id || idx + 1}</span>
+                                            </div>
+                                            <div className="text-[10px] font-bold text-emerald-400">EN LIGNE</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </Popup>
+                    </Marker>
+                ))}
+            </MapContainer>
+
+            {/* OVERLAY D'INFORMATION */}
+            <div className="absolute top-8 left-8 z-[1000] pointer-events-none">
+                <div className="bg-black/80 backdrop-blur-xl px-5 py-3 rounded-2xl border border-white/10 flex items-center gap-4 shadow-2xl">
+                    <div className="w-3 h-3 bg-[#d4af37] rounded-full animate-pulse"></div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">
+                            {userConnecte?.nomSociete || "Chargement..."}
+                        </span>
+                        <span className="text-[9px] font-bold text-[#d4af37] uppercase">
+                            {mesPointsGeo.length} Panneaux détectés
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
-      )}
-    </div>
-  );
+    );
 }
