@@ -26,10 +26,10 @@ import {
   // mais dans ce useEffect précis, c'est le 'doc' du snapshot (pas l'import)
 } from 'firebase/firestore';
 
+import PageEnregistrement from '@/components/PageEnregistrement';
 
-
-
-
+// Assurez-vous d'avoir importé useState
+import { } from 'react';
 
 
 const firebaseConfig = {
@@ -52,8 +52,6 @@ export const auth = getAuth(app);
 const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any) => {
   // État pour afficher la modale de détails d'une face spécifique
   const [selectedFaceDetails, setSelectedFaceDetails] = useState<any>(null);
-
-  // Sécurité sur les faces
   const faces = panneau?.faces || [];
 
   return (
@@ -209,12 +207,21 @@ import { LogOut, } from 'lucide-react';
 // --- PAGE PRINCIPALE ---
 export default function UltimateSupervisor() {
 
-  // 1. TOUS LES ÉTATS
+
+
+
+  // --- DANS UltimateSupervisor ---
   const [panneauxData, setPanneauxData] = useState<any[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false); // État pour la modale Nouveau Panneau
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // CORRIGÉ : false par défaut
+
+
+
+
   const [filters, setFilters] = useState({ zone: '', statut: '', format: '' });
   const [hidden, setHidden] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -280,10 +287,8 @@ export default function UltimateSupervisor() {
     return matchesSearch && matchesZone && matchesFormat && matchesStatut;
   });
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(true);
   // 1. Initialiser l'état pour stocker les panneaux
   const [panels, setPanels] = useState<any[]>([]);
-
   // 2. Récupérer les données en temps réel pour avoir le "count" à jour
 
   const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
@@ -368,6 +373,11 @@ export default function UltimateSupervisor() {
       </nav>
 
       {/* SIDEBAR / MENU LATÉRAL */}
+
+
+
+
+
       <AnimatePresence>
         {isSidebarOpen && (
           <>
@@ -412,25 +422,51 @@ export default function UltimateSupervisor() {
                   />
                 </div>
 
+
                 <div className="space-y-4">
-                  <p className="text-[10px] font-black text-[#d4af37] uppercase tracking-[0.4em] mb-6 opacity-80">Exploration</p>
+                  <p className="text-[10px] font-black text-[#d4af37] uppercase tracking-[0.4em] mb-6 opacity-80">
+                    Exploration
+                  </p>
+
+                  {/* 2. Ton menu qui utilise l'état */}
                   {[
                     { icon: <Home size={20} />, label: "Tableau de Bord", action: () => window.location.reload() },
                     { icon: <MapPin size={20} />, label: "Carte Interactive", action: ouvrirLaCarte },
-                    { icon: <PlusCircle size={20} />, label: "Nouveau Panneau", action: () => setIsAddModalOpen(true) },
+                    { icon: <PlusCircle size={20} />, label: "Nouveau Panneau", action: () => setIsModalOpen(true) },
                   ].map((item, i) => (
                     <button
                       key={i}
-                      onClick={() => { item.action(); setIsSidebarOpen(false); }}
+                      onClick={(e) => {
+                        // 1. On empêche le clic de remonter vers les parents (comme le fond de la sidebar)
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        // 2. On exécute l'action (ouvrir la modale)
+                        item.action();
+
+                        // 3. On ferme la sidebar SEULEMENT si l'action n'est pas "Nouveau Panneau" 
+                        // ou alors on s'assure que la modale a la priorité.
+                        if (typeof setIsSidebarOpen === 'function') {
+                          setIsSidebarOpen(false);
+                        }
+                      }}
                       className="w-full flex items-center justify-between p-6 rounded-[1.5rem] bg-white/5 hover:bg-white hover:text-[#1e40af] border border-white/10 text-white font-black uppercase text-[11px] tracking-widest transition-all shadow-lg active:scale-95 group"
                     >
                       <div className="flex items-center gap-5">
-                        <span className="group-hover:text-[#1e40af] transition-colors">{item.icon}</span>
+                        <span className="group-hover:text-[#1e40af] transition-colors">
+                          {item.icon}
+                        </span>
                         {item.label}
                       </div>
                       <div className="w-2 h-2 rounded-full bg-[#d4af37] opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   ))}
+
+                  {/* 3. La Modale qui réagit au changement d'état */}
+                  <PageEnregistrement
+                    isOpen={isModalOpen} // Vérifie que c'est bien isModalOpen ici
+                    onClose={() => setIsModalOpen(false)}
+                  />
                 </div>
 
                 <div className="space-y-6 pt-8 border-t border-white/20">
@@ -621,8 +657,6 @@ export default function UltimateSupervisor() {
 
 
 
-
-
         {isCartOpen && (
           <CartModall
             isOpen={isCartOpen}
@@ -632,7 +666,10 @@ export default function UltimateSupervisor() {
           />
         )}
       </AnimatePresence>
-
+      <PageEnregistrement
+        isOpen={isModalOpen} // Vérifie que c'est bien isModalOpen ici
+        onClose={() => setIsModalOpen(false)}
+      />
       <EditPanneauModal
         isOpen={!!panneauToEdit}
         onClose={() => setPanneauToEdit(null)}

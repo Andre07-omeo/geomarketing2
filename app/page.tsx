@@ -1056,7 +1056,7 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
       visiteur: '/dashboard/visiteurs',
       admin: '/dashboard/admin',
       superviseurs: '/dashboard/superviseurs',
-      commercial: '/dashboard/superviseurs',
+      commercial: '/dashboard/Commercial',
       comptable: '/dashboard/Comptable',
       client: '/dashboard/client'
     };
