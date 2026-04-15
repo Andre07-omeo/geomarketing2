@@ -1296,20 +1296,27 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
 
                       {/* 3. Sélecteur Société : Affiché SEULEMENT si Occupé */}
                       {face.statut === "Occupé" && (
-                        <div className="space-y-1">
-                          <p className="text-[8px] font-black text-[#d4af37] uppercase italic">Société (Locataire)</p>
-                          <select
-                            value={face.clientNom || ''}
-                            onChange={(e) => updateFace(idx, 'clientNom', e.target.value)} // Vérifiez bien 'clientNom'
-                            className="..."
-                          >
-                            <option value="">Sélectionner un client</option>
-                            {listeSocietes.map(nom => (
-                              <option key={nom} value={nom}>{nom}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+  <div className="space-y-1">
+    <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
+      Société (Locataire)
+    </p>
+    
+    <select
+      value={face.clientNom || ''}
+      onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
+      className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none focus:border-[#d4af37] transition-all"
+    >
+      <option value="" className="bg-[#1a1a1a]">Sélectionner un client</option>
+      
+      {/* On filtre les doublons ici avec Array.from(new Set(...)) */}
+      {Array.from(new Set(listeSocietes)).map((nom) => (
+        <option key={nom} value={nom} className="bg-[#1a1a1a]">
+          {nom}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
                       <div className="space-y-1">
                         <p className="text-[8px] font-black text-white/30 uppercase italic">Sens de vue</p>
                         <input type="text" value={face.sens || ''} onChange={(e) => updateFace(idx, 'sens', e.target.value)} className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-white p-2 outline-none" />

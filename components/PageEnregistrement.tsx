@@ -183,7 +183,7 @@ export default function PageEnregistrement({ isOpen, onClose }: { isOpen: boolea
 
                 <div className="flex justify-between items-start mb-8">
                     <div>
-                        <h2 className="text-white font-black text-2xl tracking-tighter italic">NEW DISPOSITIF</h2>
+                        <h2 className="text-white font-black text-2xl tracking-tighter italic">NOUVEAU PANNEAU</h2>
                         <p className="text-[10px] text-blue-200 font-bold uppercase tracking-widest">Saisie obligatoire de tous les champs</p>
                     </div>
                     <button onClick={onClose} className="p-3 bg-white/10 rounded-full hover:bg-red-500 text-white transition-colors">
