@@ -3,19 +3,18 @@
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, MapPin, Server, Menu, X, ShieldCheck, 
-  Database, Settings, Cpu, HardDrive, Bell, Eye, Globe, Activity, Zap 
+  Database, Settings, Cpu, HardDrive, Bell, Eye, Globe, Activity, Zap, TrendingUp
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// IMPORTS FIREBASE CORRIGÉS
+// FIREBASE
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, collection, getDocs } from 'firebase/firestore';
 
 import PannelComponent from './lib/pannel';
 import Userss from './lib/users';
 
-// CONFIGURATION FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
   authDomain: "kin-geo-market.firebaseapp.com",
@@ -25,7 +24,6 @@ const firebaseConfig = {
   appId: "1:50335362445:web:44430fdb027a4bec80a1c4"
 };
 
-// INITIALISATION SERVICES (En dehors du composant pour éviter les re-réglages)
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -34,171 +32,221 @@ export default function DashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [systemStats, setSystemStats] = useState({ cpu: 12, ram: 45 });
+  const [systemStats, setSystemStats] = useState({ cpu: 0, ram: 0 });
+  const [dbStats, setDbStats] = useState({ totalPanneaux: 0, totalFaces: 0, totalUsers: 0 });
 
-  // 1. Gestion des statistiques système
   useEffect(() => {
+    const fetchRealData = async () => {
+      try {
+        const [snapP, snapU] = await Promise.all([
+          getDocs(collection(db, "panneaux")),
+          getDocs(collection(db, "users"))
+        ]);
+        let faces = 0;
+        snapP.forEach(doc => faces += doc.data().nbFaces || 0);
+        setDbStats({ totalPanneaux: snapP.size, totalFaces: faces, totalUsers: snapU.size });
+      } catch (err) { console.error(err); }
+    };
+    fetchRealData();
+
     const interval = setInterval(() => {
       setSystemStats({
-        cpu: Math.floor(Math.random() * 20) + 5,
-        ram: Math.floor(Math.random() * 20) + 40
+        cpu: Math.floor(Math.random() * 10) + 5,
+        ram: Math.floor(Math.random() * 5) + 42
       });
-    }, 3000);
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
-  // 2. Sécurité : Surveillance de la session
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        router.push('/');
-      }
-    });
+    const unsubscribe = onAuthStateChanged(auth, (user) => { if (!user) router.push('/'); });
     return () => unsubscribe();
   }, [router]);
 
-  // 3. Fonction de déconnexion
   const handleLogout = async () => {
-    const confirmLogout = window.confirm("Voulez-vous vraiment vous déconnecter ?");
-    if (confirmLogout) {
-      try {
-        await signOut(auth);
-        router.push('/');
-      } catch (error) {
-        console.error("Erreur lors de la déconnexion:", error);
-      }
+    if (window.confirm("Mettre fin à la session administrative ?")) {
+      await signOut(auth);
+      router.push('/');
     }
   };
 
   const menuGroups = [
-    { group: 'PRINCIPAL', items: [{ name: 'Dashboard', icon: LayoutDashboard }, { name: 'Alertes', icon: Bell }, { name: 'Audit', icon: Eye }] },
-    { group: 'GESTION', items: [{ name: 'Utilisateurs', icon: Users }, { name: 'Panneaux', icon: MapPin }] },
-    { group: 'SYSTÈME', items: [{ name: 'Maintenance', icon: Server }, { name: 'Sécurité', icon: ShieldCheck }, { name: 'Base de données', icon: Database }, { name: 'Configuration', icon: Settings }] }
+    { group: 'PILOTAGE', items: [{ name: 'Dashboard', icon: LayoutDashboard }, { name: 'Audit', icon: Eye }] },
+    { group: 'ACTIFS', items: [{ name: 'Panneaux', icon: MapPin }, { name: 'Utilisateurs', icon: Users }] },
+    { group: 'INFRASTRUCTURE', items: [{ name: 'Base de données', icon: Database }, { name: 'Maintenance', icon: Server }] }
   ];
 
   return (
-    <div className="min-h-screen bg-[#001a33] flex text-zinc-900">
-
-      {/* Overlay mobile */}
-      {isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 z-50 h-full w-72 bg-white/95 backdrop-blur-xl border-r border-white/20 p-6 flex flex-col transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-black italic bg-gradient-to-r from-blue-700 via-amber-500 to-red-600 bg-clip-text text-transparent">DISPROMALT</h1>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-zinc-500"><X size={24} /></button>
+    <div className="min-h-screen bg-[#000d1a] flex text-zinc-100 font-sans selection:bg-amber-500/30">
+      
+      {/* Sidebar - Royal Blue & Gold Accents */}
+      <aside className={`fixed top-0 left-0 z-50 h-full w-72 bg-[#001429] border-r border-amber-500/10 flex flex-col transform transition-transform duration-500 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full shadow-2xl shadow-black'}`}>
+        <div className="p-10 text-center">
+          <h1 className="text-3xl font-black italic tracking-tighter text-white">
+            DISPRO<span className="text-amber-500">MALT</span>
+          </h1>
+          <div className="h-0.5 w-12 bg-gradient-to-r from-blue-600 via-amber-500 to-red-600 mx-auto mt-2" />
         </div>
 
-        <nav className="flex-1 overflow-y-auto pr-2 space-y-6">
+        <nav className="flex-1 overflow-y-auto px-6 space-y-8">
           {menuGroups.map((group) => (
             <div key={group.group}>
-              <p className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest mb-3 px-2">{group.group}</p>
-              {group.items.map((item) => (
-                <button
-                  key={item.name}
-                  onClick={() => { setActiveTab(item.name); setIsSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === item.name ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-zinc-600 hover:bg-zinc-100 hover:text-blue-700'}`}>
-                  <item.icon size={18} /> {item.name}
-                </button>
-              ))}
+              <p className="text-[9px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-5 px-4">{group.group}</p>
+              <div className="space-y-1.5">
+                {group.items.map((item) => (
+                  <button
+                    key={item.name}
+                    onClick={() => { setActiveTab(item.name); setIsSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-4 px-5 py-4 rounded-xl font-bold text-xs transition-all duration-300 ${activeTab === item.name ? 'bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-lg shadow-blue-900/50 border border-white/10' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
+                    <item.icon size={18} className={activeTab === item.name ? 'text-amber-400' : ''} /> 
+                    <span className="uppercase tracking-widest">{item.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           ))}
         </nav>
+
+        <div className="p-8 border-t border-white/5">
+          <button onClick={handleLogout} className="w-full py-4 rounded-xl border border-red-500/30 text-red-500 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-red-500 hover:text-white transition-all duration-500">
+            Déconnexion sécurisée
+          </button>
+        </div>
       </aside>
 
-      {/* Contenu principal */}
-      <main className="flex-1 w-full lg:pl-72 min-h-screen flex flex-col bg-[#001a33] bg-[radial-gradient(circle_at_top_right,_#002b55_0%,_transparent_40%)]">
+      {/* Main Content Area */}
+      <main className="flex-1 lg:pl-72 min-h-screen bg-[#000d1a] bg-[radial-gradient(ellipse_at_top_right,_#001a33_0%,_transparent_50%)]">
         
-        {/* Header */}
-        <header className="sticky top-0 z-30 flex justify-between items-center bg-white/[0.03] backdrop-blur-xl p-4 m-4 md:m-8 rounded-[2rem] border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]">
-          <button className="p-3 hover:bg-white/10 rounded-xl lg:hidden text-white transition-all active:scale-95" onClick={() => setIsSidebarOpen(true)}>
-            <Menu size={22} />
+        {/* Header - Glass Effect */}
+        <header className="px-8 py-6 flex justify-between items-center sticky top-0 z-40 bg-[#000d1a]/60 backdrop-blur-2xl border-b border-white/5">
+          <button className="lg:hidden p-3 text-amber-500" onClick={() => setIsSidebarOpen(true)}>
+            <Menu size={24} />
           </button>
 
-          {/* Stats Système */}
-          <div className="hidden md:flex items-center gap-6 text-[10px] font-black text-white/40 bg-black/20 px-6 py-2.5 rounded-full border border-white/5 uppercase tracking-widest">
-            <span className="flex items-center gap-2">
-              <Cpu size={14} className="text-amber-500 animate-pulse" /> CPU <span className="text-white">{systemStats.cpu}%</span>
-            </span>
-            <div className="w-[1px] h-3 bg-white/10" />
-            <span className="flex items-center gap-2">
-              <HardDrive size={14} className="text-blue-400" /> RAM <span className="text-white">{systemStats.ram}%</span>
-            </span>
+          <div className="hidden md:flex gap-4">
+            <SystemTag icon={<Cpu size={14}/>} label="CPU" value={`${systemStats.cpu}%`} color="text-amber-500" />
+            <SystemTag icon={<HardDrive size={14}/>} label="RAM" value={`${systemStats.ram}%`} color="text-blue-400" />
           </div>
 
-          {/* Profil avec fonction Logout */}
-          <div 
-            className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-all group"
-            onClick={handleLogout}
-            title="Se déconnecter"
-          >
+          <div className="flex items-center gap-5">
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-black text-white uppercase tracking-tighter italic group-hover:text-red-400">Admin User</p>
-              <div className="flex justify-end items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                <p className="text-[9px] text-red-500 font-black uppercase tracking-widest">Déconnexion</p>
-              </div>
+              <p className="text-[10px] font-black text-white tracking-widest uppercase">Admin Principal</p>
+              <p className="text-[8px] text-amber-500 font-bold uppercase">Dispromalt HQ</p>
             </div>
-            
-            <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-tr from-blue-600 to-red-600 rounded-full blur opacity-25 group-hover:opacity-60 transition duration-500"></div>
-              <div className="relative w-11 h-11 rounded-full bg-[#001a33] border-2 border-white/10 flex items-center justify-center overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-tr from-blue-700 to-red-600" />
-              </div>
+            <div className="w-12 h-12 rounded-full border-2 border-amber-500/30 p-1">
+              <div className="w-full h-full rounded-full bg-gradient-to-tr from-blue-600 to-red-600 shadow-inner" />
             </div>
           </div>
         </header>
 
-        {/* Section Dynamique */}
-        <section className="px-4 md:px-8 pb-8 flex-1">
+        {/* Dynamic Section */}
+        <div className="p-8 md:p-12">
           {activeTab === 'Dashboard' ? (
-            <div className="space-y-10">
-              <div className="flex items-baseline gap-4">
-                  <h2 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter uppercase">Dashboard</h2>
-                  <div className="h-1 flex-1 bg-gradient-to-r from-[#d4af37]/50 to-transparent rounded-full opacity-20" />
-              </div>
+            <div className="space-y-12 animate-in fade-in duration-1000">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[
-                  { label: 'Total Panneaux', value: '124', color: 'from-blue-600/20', icon: <Globe className="text-blue-400" /> },
-                  { label: 'En Maintenance', value: '03', color: 'from-amber-600/20', icon: <Activity className="text-amber-500" /> },
-                  { label: 'Alertes Système', value: '01', color: 'from-red-600/20', icon: <Zap className="text-red-500" /> }
-                ].map((stat, i) => (
-                  <div key={i} className={`group relative p-8 rounded-[2.5rem] bg-gradient-to-br ${stat.color} to-transparent border border-white/5 backdrop-blur-md hover:border-white/20 transition-all duration-500 shadow-xl overflow-hidden`}>
-                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
-                    <div className="relative flex justify-between items-start">
-                      <div>
-                          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">{stat.label}</p>
-                          <p className="text-5xl font-black text-white mt-2 italic tracking-tighter">{stat.value}</p>
-                      </div>
-                      <div className="p-3 bg-white/5 rounded-2xl border border-white/10 group-hover:scale-110 transition-transform duration-500">
-                          {stat.icon}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center gap-6">
+                <div className="w-2 h-16 bg-gradient-to-b from-blue-600 via-amber-500 to-red-600 rounded-full" />
+                <div>
+                  <h2 className="text-5xl md:text-7xl font-black text-white italic tracking-tighter uppercase leading-none">Aperçu <br/><span className="text-amber-500">Global</span></h2>
+                </div>
               </div>
+
+              {/* Stats Grid - Blue Roi, Gold, Red */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <MainStatCard 
+                  label="Parc de Panneaux" 
+                  value={dbStats.totalPanneaux} 
+                  icon={<Globe size={24}/>} 
+                  sub="Dispositifs actifs"
+                  gradient="from-blue-900/40 via-blue-800/10"
+                  accent="border-blue-500/20"
+                />
+                <MainStatCard 
+                  label="Volume d'Affichage" 
+                  value={dbStats.totalFaces} 
+                  icon={<TrendingUp size={24}/>} 
+                  sub="Faces publicitaires"
+                  gradient="from-amber-900/30 via-amber-800/5"
+                  accent="border-amber-500/20"
+                />
+                <MainStatCard 
+                  label="Équipe Technique" 
+                  value={dbStats.totalUsers} 
+                  icon={<Users size={24}/>} 
+                  sub="Comptes certifiés"
+                  gradient="from-red-900/30 via-red-800/5"
+                  accent="border-red-500/20"
+                />
+              </div>
+
+              {/* Status Section */}
+              <div className="mt-16 bg-[#001429] rounded-[3rem] p-10 border border-amber-500/5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <Database size={200} className="text-amber-500" />
+                </div>
+                <div className="relative flex items-center gap-3 mb-10 text-emerald-500">
+                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_emerald]" />
+                   <span className="text-[10px] font-black uppercase tracking-[0.4em]">Système en ligne - Kinshasa Cloud</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
+                   <InfoBlock label="Moteur DB" value="Firestore" />
+                   <InfoBlock label="Version App" value="v2.4.0-Gold" />
+                   <InfoBlock label="Dernier Sync" value="Il y a 1 min" />
+                   <InfoBlock label="Réseau" value="Optimal" />
+                </div>
+              </div>
+
             </div>
           ) : (
-            <div className="bg-white border border-zinc-200 rounded-[3rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] min-h-[65vh] relative overflow-hidden">
-              <div className="relative z-10">
-                  {activeTab === 'Panneaux' ? (
-                    <PannelComponent />
-                  ) : activeTab === 'Utilisateurs' ? (
-                    <Userss />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
-                      <div className="w-12 h-12 border-4 border-zinc-100 border-t-blue-600 rounded-full animate-spin" />
-                      <p className="text-zinc-400 font-black uppercase tracking-[0.4em] text-[10px]">Initialisation du module {activeTab}</p>
-                    </div>
-                  )}
-              </div>
+            <div className="bg-white rounded-[3.5rem] p-1 shadow-[0_40px_100px_rgba(0,0,0,0.6)] animate-in zoom-in-95 duration-500 overflow-hidden">
+               <div className="bg-zinc-50 rounded-[3.4rem] p-8 md:p-12 min-h-[75vh]">
+                {activeTab === 'Panneaux' ? <PannelComponent /> : 
+                 activeTab === 'Utilisateurs' ? <Userss /> : 
+                 <div className="flex flex-col items-center justify-center h-[50vh] opacity-20">
+                    <Zap size={64} className="text-blue-900 mb-6 animate-bounce" />
+                    <p className="font-black text-blue-900 uppercase tracking-[0.5em] text-xs text-center">Chargement sécurisé du module {activeTab}</p>
+                 </div>}
+               </div>
             </div>
           )}
-        </section>
+        </div>
       </main>
+    </div>
+  );
+}
+
+// --- SUB-COMPONENTS PRESTIGE ---
+
+function SystemTag({ icon, label, value, color }: any) {
+  return (
+    <div className="bg-white/5 border border-white/5 px-4 py-2.5 rounded-xl flex items-center gap-3">
+      <div className={color}>{icon}</div>
+      <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{label} <span className="text-white ml-1">{value}</span></span>
+    </div>
+  );
+}
+
+function MainStatCard({ label, value, icon, sub, gradient, accent }: any) {
+  return (
+    <div className={`relative p-10 rounded-[3rem] bg-gradient-to-br ${gradient} to-transparent border ${accent} backdrop-blur-md hover:scale-[1.02] transition-all duration-700`}>
+      <div className="flex justify-between items-start mb-6 text-white/30 italic">
+        {icon}
+        <span className="text-[8px] font-bold uppercase tracking-widest">Live Data</span>
+      </div>
+      <p className="text-7xl font-black text-white italic tracking-tighter mb-2 leading-none">
+        {value < 10 && value > 0 ? `0${value}` : value}
+      </p>
+      <p className="text-[11px] font-black text-white/80 uppercase tracking-[0.2em] mb-1">{label}</p>
+      <p className="text-[9px] text-zinc-500 font-bold uppercase">{sub}</p>
+    </div>
+  );
+}
+
+function InfoBlock({ label, value }: any) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">{label}</p>
+      <p className="text-white font-mono text-lg font-bold tracking-tight">{value}</p>
     </div>
   );
 }

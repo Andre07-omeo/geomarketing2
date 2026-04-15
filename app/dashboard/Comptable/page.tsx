@@ -217,26 +217,30 @@ export default function AdvancedAccountingSystem() {// --- CONFIGURATION ET STAT
 import { addDoc, serverTimestamp } from "firebase/firestore";
 
 function CashInDrawer({ isOpen, onClose, societes, db }: any) {
-  const [numPanneaux, setNumPanneaux] = useState(1);
-  // Correction : Chaque panneau a maintenant un identifiant (nom) et un montant
-  const [panneauxDetails, setPanneauxDetails] = useState([{ id_panneau: "", montant: 0 }]);
   const [selectedSocieteId, setSelectedSocieteId] = useState("");
+  const [numPanneaux, setNumPanneaux] = useState(1);
+  const [panneauxDetails, setPanneauxDetails] = useState([{ id_panneau: "", montant: 0 }]);
   const [nbMois, setNbMois] = useState(1);
+  const [tvaActive, setTvaActive] = useState(true); // Nouvelle fonctionnalité : TVA
   const [isSaving, setIsSaving] = useState(false);
 
   const currentSociete = useMemo(() =>
     societes.find((s: any) => s.id === selectedSocieteId),
     [selectedSocieteId, societes]);
 
-  const totalGeneral = useMemo(() => {
-    const sommeBase = panneauxDetails.reduce((acc, curr) => acc + Number(curr.montant || 0), 0);
-    return sommeBase * nbMois;
-  }, [panneauxDetails, nbMois]);
+  // --- LOGIQUE DE CALCUL SÉCURISÉE ---
+  const calculs = useMemo(() => {
+    const sousTotal = panneauxDetails.reduce((acc, curr) => acc + (Number(curr.montant) || 0), 0);
+    const baseMensuelle = sousTotal * (Number(nbMois) || 1);
+    const tva = tvaActive ? baseMensuelle * 0.16 : 0; // 16% de TVA (RDC)
+    const totalFinal = baseMensuelle + tva;
+
+    return { baseMensuelle, tva, totalFinal };
+  }, [panneauxDetails, nbMois, tvaActive]);
 
   const handleAddPanneau = (val: number) => {
     const count = Math.max(1, val);
     setNumPanneaux(count);
-    // On préserve les données existantes et on ajoute des lignes vides si nécessaire
     const newArr = Array.from({ length: count }, (_, i) =>
       panneauxDetails[i] || { id_panneau: "", montant: 0 }
     );
@@ -244,158 +248,159 @@ function CashInDrawer({ isOpen, onClose, societes, db }: any) {
   };
 
   const submitTransaction = async () => {
-    if (!selectedSocieteId) return alert("Veuillez sélectionner une société");
-
-    // Vérification : tous les panneaux doivent avoir un identifiant
-    const incomplete = panneauxDetails.some(p => p.id_panneau.trim() === "");
-    if (incomplete) return alert("Veuillez saisir l'identifiant de chaque panneau");
+    if (!selectedSocieteId) return alert("Sélectionnez une société");
 
     setIsSaving(true);
     try {
       await addDoc(collection(db, "transactions"), {
         type: "ENTRÉE",
-        societe_id: selectedSocieteId,
         client_nom: currentSociete?.nom || "Inconnu",
-        nombre_panneaux: numPanneaux,
-        details_panneaux: panneauxDetails, // Contient maintenant {id_panneau, montant}
-        mois: nbMois,
-        total_usd: totalGeneral,
-        valide_par: "Andre Omeonga",
+        societe_id: selectedSocieteId,
+        details_panneaux: panneauxDetails,
+        duree_mois: nbMois,
+        montant_ht: calculs.baseMensuelle,
+        montant_tva: calculs.tva,
+        total_usd: calculs.totalFinal,
+        devise: "USD",
+        valide_par: "Andre Omeonga", // Signature automatique
         date: serverTimestamp(),
         status: "Validé"
       });
 
-      alert("Transaction enregistrée !");
+      alert("Transaction comptabilisée avec succès !");
       onClose();
-      setSelectedSocieteId("");
-      setNumPanneaux(1);
-      setPanneauxDetails([{ id_panneau: "", montant: 0 }]);
     } catch (e) {
       console.error(e);
-      alert("Erreur de connexion");
+      alert("Erreur lors de la sauvegarde.");
     } finally {
       setIsSaving(false);
     }
   };
-  {
-    societes.map((s: any) => (
-      <option key={s.id} value={s.id} className="bg-[#1e3a8a]">
-        {s.nom || s.Nom || "Champ 'nom' introuvable"}
-      </option>
-    ))
-  }
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" />
+          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#1e3a8a] border-l border-white/10 shadow-2xl z-[101] p-8 overflow-y-auto custom-scrollbar">
 
-          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#1e3a8a] border-l border-white/10 shadow-2xl z-[101] p-8 overflow-y-auto">
-
-            <div className="flex justify-between items-center mb-10">
-              <h2 className="text-2xl font-black italic uppercase text-[#f59e0b]">Encaissement</h2>
-              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full"><X size={24} /></button>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-black italic uppercase text-[#f59e0b]">Nouveau Revenu</h2>
+              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-white"><X size={24} /></button>
             </div>
 
             <div className="space-y-6">
-              {/* SOCIÉTÉ */}
+              {/* SÉLECTEUR SOCIÉTÉ */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase opacity-40 italic">
-                  Société Partenaire
+                <label className="text-[10px] font-black uppercase opacity-40 italic text-white">
+                  Partenaire
                 </label>
-                <select 
-  value={selectedSocieteId} 
-  onChange={(e) => setSelectedSocieteId(e.target.value)}
-  className="w-full bg-white/10 border border-white/20 p-4 rounded-2xl text-white font-bold"
->
-  <option value="">-- Sélectionner --</option>
-  
-  {/* TEST FORCE : Si societes est vide, on affiche des faux noms pour vérifier le design */}
-  {societes && societes.length > 0 ? (
-    societes.map((s: any) => (
-      <option key={s.id} value={s.id} className="bg-[#1e3a8a]">
-        {s.nom || "Société sans nom"}
-      </option>
-    ))
-  ) : (
-    <>
-      <option disabled className="text-red-400">⚠️ Aucune société en base de données</option>
-      <option value="test-1" className="bg-green-900">Société de Test A (Local)</option>
-      <option value="test-2" className="bg-green-900">Société de Test B (Local)</option>
-    </>
-  )}
-</select>
 
-                {/* Indicateur de debug sous le champ */}
-                <p className="text-[8px] opacity-30">
-                  Nombre de sociétés chargées : {societes?.length || 0}
-                </p>
+                <select
+                  value={selectedSocieteId}
+                  onChange={(e) => setSelectedSocieteId(e.target.value)}
+                  className="w-full bg-white/10 border border-white/10 p-4 rounded-2xl text-white font-bold outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="" className="bg-slate-900 text-white">
+                    -- Choisir --
+                  </option>
+
+                  {/* Sécurisation : on vérifie que societes existe et est un tableau */}
+                  {Array.isArray(societes) && societes.length > 0 ? (
+                    societes.map((s: any) => (
+                      <option
+                        key={s.id}
+                        value={s.id}
+                        className="bg-[#1e3a8a] text-white"
+                      >
+                        {s.nom}
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled className="bg-slate-900 text-white/50">
+                      Chargement des partenaires...
+                    </option>
+                  )}
+                </select>
+
+                {/* Optionnel : Petit indicateur si aucune société n'est trouvée */}
+                {(!societes || societes.length === 0) && (
+                  <p className="text-[9px] text-amber-500/60 font-medium">
+                    Aucune donnée partenaire disponible.
+                  </p>
+                )}
               </div>
 
-              {/* CONFIGURATION QUANTITÉ */}
+              {/* DURÉE ET OPTIONS */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase opacity-40 italic">Nb Panneaux</label>
-                  <input type="number" min="1" value={numPanneaux} onChange={(e) => handleAddPanneau(parseInt(e.target.value) || 1)} className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl outline-none" />
+                  <label className="text-[10px] font-black uppercase opacity-40 text-white">Mois</label>
+                  <input type="number" min="1" value={nbMois} onChange={(e) => setNbMois(parseInt(e.target.value) || 1)} className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl text-white outline-none focus:border-amber-500" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase opacity-40 italic">Durée (Mois)</label>
-                  <input type="number" min="1" value={nbMois} onChange={(e) => setNbMois(parseInt(e.target.value) || 1)} className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl outline-none" />
+                <div className="flex items-end pb-2">
+                  <button
+                    onClick={() => setTvaActive(!tvaActive)}
+                    className={`w-full py-4 rounded-2xl text-[10px] font-black transition-all border ${tvaActive ? 'bg-amber-500/20 border-amber-500 text-amber-500' : 'bg-white/5 border-white/10 text-white/40'}`}
+                  >
+                    {tvaActive ? "TVA 16% INCLUSE" : "SANS TVA"}
+                  </button>
                 </div>
               </div>
 
-              {/* LISTE DYNAMIQUE DES PANNEAUX (CORRIGÉE) */}
+              {/* LISTE DES PANNEAUX */}
               <div className="space-y-4 pt-4 border-t border-white/10">
-                <p className="text-[10px] font-black uppercase text-[#f59e0b]">Détails par Panneau</p>
+                <div className="flex justify-between items-center">
+                  <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Détails Supports</p>
+                  <input type="number" min="1" max="10" value={numPanneaux} onChange={(e) => handleAddPanneau(parseInt(e.target.value) || 1)} className="w-16 bg-white/10 border-none rounded-lg p-1 text-center text-xs text-amber-500 font-bold" />
+                </div>
+
                 {panneauxDetails.map((p, index) => (
-                  <div key={index} className="space-y-2 bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black opacity-30">UNITÉ {index + 1}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* CHAMP POUR LE NOM/ID DU PANNEAU */}
-                      <input
-                        type="text"
-                        placeholder="Nom/ID du panneau"
-                        value={p.id_panneau}
-                        onChange={(e) => {
-                          const newP = [...panneauxDetails];
-                          newP[index].id_panneau = e.target.value;
-                          setPanneauxDetails(newP);
-                        }}
-                        className="bg-white/5 border border-white/10 p-2 rounded-lg text-xs font-bold outline-none focus:border-amber-500"
-                      />
-
-                      {/* CHAMP POUR LE MONTANT */}
-                      <input
-                        type="number"
-                        placeholder="Montant USD"
-                        onChange={(e) => {
-                          const newP = [...panneauxDetails];
-                          newP[index].montant = Number(e.target.value);
-                          setPanneauxDetails(newP);
-                        }}
-                        className="bg-transparent border-b border-white/20 outline-none text-right font-black text-lg text-amber-500"
-                      />
-                    </div>
+                  <div key={index} className="grid grid-cols-2 gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 group-hover:border-amber-500/30 transition-all">
+                    <input
+                      type="text" placeholder="ID Panneau"
+                      value={p.id_panneau}
+                      onChange={(e) => {
+                        const newP = [...panneauxDetails];
+                        newP[index].id_panneau = e.target.value.toUpperCase();
+                        setPanneauxDetails(newP);
+                      }}
+                      className="bg-transparent border-b border-white/10 text-xs text-white p-2 outline-none focus:border-amber-500"
+                    />
+                    <input
+                      type="number" placeholder="Montant/Mois"
+                      onChange={(e) => {
+                        const newP = [...panneauxDetails];
+                        newP[index].montant = Number(e.target.value);
+                        setPanneauxDetails(newP);
+                      }}
+                      className="bg-transparent border-b border-white/10 text-right font-black text-amber-500 outline-none"
+                    />
                   </div>
                 ))}
               </div>
 
-              {/* TOTAL */}
-              <div className="mt-6 p-6 bg-amber-500 rounded-3xl text-[#1e3a8a]">
-                <p className="text-[10px] font-black uppercase opacity-60">Total Global</p>
-                <h3 className="text-3xl font-black italic">{totalGeneral.toLocaleString()} $</h3>
+              {/* RÉSUMÉ FINANCIER BI */}
+              <div className="mt-8 p-6 bg-gradient-to-br from-amber-500 to-orange-600 rounded-[2rem] text-[#1e3a8a] shadow-xl">
+                <div className="flex justify-between text-[9px] font-black uppercase opacity-60 mb-1">
+                  <span>Sous-total HT</span>
+                  <span>{calculs.baseMensuelle.toLocaleString()} $</span>
+                </div>
+                <div className="flex justify-between text-[9px] font-black uppercase opacity-60 mb-3 pb-3 border-b border-black/10">
+                  <span>TVA (16%)</span>
+                  <span>{calculs.tva.toLocaleString()} $</span>
+                </div>
+                <div className="flex justify-between items-end">
+                  <span className="text-[10px] font-black uppercase">Total à Encaisser</span>
+                  <span className="text-3xl font-black italic">{calculs.totalFinal.toLocaleString()} $</span>
+                </div>
               </div>
 
               <button
                 onClick={submitTransaction}
-                disabled={isSaving || !selectedSocieteId || totalGeneral <= 0}
-                className="w-full bg-white text-[#1e3a8a] py-5 rounded-2xl font-black uppercase hover:bg-amber-500 hover:text-white transition-all disabled:opacity-20"
+                disabled={isSaving || !selectedSocieteId || calculs.totalFinal <= 0}
+                className="w-full bg-white text-[#1e3a8a] py-5 rounded-2xl font-black uppercase hover:bg-amber-500 hover:text-white transition-all disabled:opacity-20 shadow-2xl"
               >
-                {isSaving ? "Enregistrement..." : "Valider l'entrée"}
+                {isSaving ? "Synchronisation..." : "Confirmer l'encaissement"}
               </button>
             </div>
           </motion.div>
@@ -431,50 +436,274 @@ function ActionButton({ icon: Icon, label, color, onClick }: any) {
 
 
 
-// --- MODULE 1: AUDIT (BI DASHBOARD) ---
-function AuditModule({ data }: any) {
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <section className={`${THEME.glass} p-6 md:p-8 rounded-[2rem] shadow-inner`}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <FilterInput icon={Search} placeholder="Recherche..." />
-          <FilterSelect icon={Calendar} label="Période" options={['Mars 2026', 'Archives']} />
-          <FilterSelect icon={Tag} label="Type" options={['Global', 'Revenus', 'Charges']} />
-          <FilterInput icon={CreditCard} placeholder="Min $" type="number" />
-          <FilterSelect icon={RefreshCcw} label="Devise" options={['USD', 'CDF']} />
-        </div>
-      </section>
+import {
+  Users, AlertTriangle, Send, MapPin,
+  Layers, CheckCircle,
+} from 'lucide-react';
+import {
+  Radar, RadarChart, PolarGrid, PolarAngleAxis,
+  Pie, Cell,
+} from 'recharts';
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8 h-auto lg:h-[400px]">
-        <div className={`${THEME.glass} p-6 md:p-8 rounded-[2.5rem] min-h-[300px]`}>
-          <h3 className="text-[10px] font-black uppercase mb-4 opacity-40 italic tracking-widest">Flux Transactionnels</h3>
+// ==========================================
+// 1. DONNÉES DE RÉFÉRENCE (PRÉDÉFINIES)
+// ==========================================
+
+const RAW_AUDIT_DATA = [
+  { type: "ENTRÉE", client_nom: "VODACOM", nombre_panneaux: 12, total_usd: 15000 },
+  { type: "ENTRÉE", client_nom: "AIRTEL", nombre_panneaux: 8, total_usd: 9600 },
+  { type: "ENTRÉE", client_nom: "ORANGE", nombre_panneaux: 15, total_usd: 18000 },
+  { type: "ENTRÉE", client_nom: "BRACINGO", nombre_panneaux: 5, total_usd: 5000 },
+  { type: "ENTRÉE", client_nom: "CANAL+", nombre_panneaux: 10, total_usd: 12000 },
+];
+
+const REVENUE_CHART_DATA = [
+  { month: 'Jan', val: 4000 },
+  { month: 'Fév', val: 7500 },
+  { month: 'Mar', val: 5000 },
+  { month: 'Avr', val: 9000 },
+  { month: 'Mai', val: 12000 },
+  { month: 'Juin', val: 15000 },
+];
+
+const AUDIT_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
+
+// ==========================================
+// 2. COMPOSANT PRINCIPAL
+// ==========================================
+
+function AuditModule({
+  data = RAW_AUDIT_DATA,
+  THEME,
+  chartData = REVENUE_CHART_DATA
+}: any) {
+
+  // --- LOGIQUE BI : TRAITEMENT SÉCURISÉ ---
+  const auditAnalytics = useMemo(() => {
+    if (!data) return { marketLeader: { nom: "N/A" }, occupancyTotal: 0, clientList: [] };
+    const clientMap: any = {};
+    const districtStats: any = { "Gombe": 0, "Limete": 0, "Ngaliema": 0, "Ndjili": 0 };
+
+    const supportTypes = [
+      { name: 'Bâche', value: 45 },
+      { name: 'Vinyle', value: 30 },
+      { name: 'Trivision', value: 25 }
+    ];
+
+    if (!data || !Array.isArray(data)) {
+      return {
+        clientList: [],
+        marketLeader: { nom: "N/A", faces: 0 },
+        geoMetrics: [],
+        mediaMetrics: supportTypes,
+        occupancyTotal: 0
+      };
+    }
+
+    data.forEach((entry: any) => {
+      if (entry.type === "ENTRÉE") {
+        const name = entry.client_nom || "Inconnu";
+        if (!clientMap[name]) {
+          clientMap[name] = {
+            nom: name,
+            faces: 0,
+            revenue: 0,
+            daysLeft: Math.floor(Math.random() * 40) + 5
+          };
+        }
+        const count = Number(entry.nombre_panneaux) || 0;
+        clientMap[name].faces += count;
+        clientMap[name].revenue += Number(entry.total_usd) || 0;
+
+        // Répartition par district (Simulation)
+        if (name.length % 2 === 0) districtStats["Gombe"] += count;
+        else districtStats["Limete"] += count;
+      }
+    });
+
+    const sortedList = Object.values(clientMap).sort((a: any, b: any) => b.faces - a.faces);
+
+    return {
+      clientList: sortedList,
+      marketLeader: sortedList[0] || { nom: "N/A", faces: 0 },
+      geoMetrics: Object.entries(districtStats).map(([name, value]) => ({ name, value })),
+      mediaMetrics: supportTypes,
+      occupancyTotal: sortedList.reduce((acc, curr: any) => acc + curr.faces, 0)
+    };
+  }, [data]);
+
+  // --- ACTIONS ---
+  const handleAlert = (name: string) => {
+    alert(`ALERTE : Notification envoyée à ${name} pour renouvellement.`);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 space-y-8 pb-24">
+
+      {/* SECTION 1: INDICATEURS CLÉS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-white">
+        <div className={`${THEME?.glass || 'bg-white/10'} p-6 rounded-[2rem] border border-white/5`}>
+          <p className="text-[10px] font-black opacity-40 uppercase mb-2">Leader Actuel</p>
+
+
+          <div className="text-xl font-black">
+  {auditAnalytics?.mediaMetrics?.map((item, idx) => (
+    <div key={idx} className="flex items-center gap-2">
+       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: AUDIT_COLORS[idx % AUDIT_COLORS.length] }} />
+       <span className="text-sm">{item.name}</span>
+    </div>
+  ))}
+</div>
+        </div>
+
+        <div className={`${THEME?.glass || 'bg-white/10'} p-6 rounded-[2rem] border border-white/5`}>
+          <p className="text-[10px] font-black opacity-40 uppercase mb-2">Occupation Réseau</p>
+          <p className="text-xl font-black text-white">
+            {typeof auditAnalytics?.occupancyTotal === 'number'
+              ? ((auditAnalytics.occupancyTotal / 203) * 100).toFixed(1)
+              : "0.0"}%
+          </p>
+        </div>
+
+        <div className={`${THEME?.glass || 'bg-white/10'} p-6 rounded-[2rem] border border-white/5`}>
+          <p className="text-[10px] font-black opacity-40 uppercase mb-2">Contrats à Risque</p>
+          <p className="text-xl font-black text-red-500 flex items-center gap-2">
+            <AlertTriangle size={18} /> Urgent
+          </p>
+        </div>
+
+        <button className="bg-amber-500 rounded-[2rem] p-6 flex flex-col items-center justify-center hover:brightness-110 transition-all group shadow-lg shadow-amber-500/20">
+          <Send className="text-[#1e3a8a] mb-1" size={20} />
+          <span className="text-[10px] font-black uppercase text-[#1e3a8a]">Relancer Ventes</span>
+        </button>
+      </div>
+
+      {/* SECTION 2: GRAPHIQUES DE PERFORMANCE */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Graphique Radar Districts */}
+        <div className={`${THEME?.glass || 'bg-white/10'} p-8 rounded-[2.5rem]`}>
+          <h3 className="text-[10px] font-black uppercase mb-6 opacity-40 text-white tracking-tighter">Répartition Districts</h3>
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={auditAnalytics.geoMetrics}>
+                <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                <PolarAngleAxis dataKey="name" tick={{ fill: 'white', fontSize: 10 }} />
+                <Radar dataKey="value" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.5} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Graphique Flux Financier */}
+        <div className={`${THEME?.glass || 'bg-white/10'} p-8 rounded-[2.5rem] lg:col-span-2`}>
+          <h3 className="text-[10px] font-black uppercase mb-6 opacity-40 text-white tracking-tighter">Flux Financier (Mensuel)</h3>
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="auditGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Tooltip contentStyle={{ background: '#1e3a8a', border: 'none', borderRadius: '12px' }} />
+                <Area type="monotone" dataKey="val" stroke="#f59e0b" fill="url(#auditGrad)" strokeWidth={3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 3: TYPES DE MEDIA (PIE) */}
+      <div className={`${THEME?.glass || 'bg-white/10'} p-8 rounded-[2.5rem] grid grid-cols-1 md:grid-cols-2 items-center`}>
+        <div>
+          <h3 className="text-[10px] font-black uppercase mb-6 opacity-40 text-white">Inventaire par Type de Support</h3>
+          {/* REMPLACE LE <p> PAR UNE <div> ICI */}
+          <div className="space-y-4">
+            {auditAnalytics?.mediaMetrics?.map((item: any, idx: number) => (
+              <div key={idx} className="flex items-center gap-3">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: AUDIT_COLORS[idx % AUDIT_COLORS.length] }}
+                />
+                <span className="text-white text-[10px] font-bold uppercase">
+                  {item.name} — {item.value}%
+                </span>
+              </div>
+            ))}
+          </div>s
+        </div>
+        <div className="h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={mockBI}>
-              <defs>
-                <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={THEME.gold} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={THEME.gold} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Tooltip contentStyle={{ background: '#1e3a8a', border: 'none', borderRadius: '10px' }} />
-              <Area type="monotone" dataKey="val" stroke={THEME.gold} fillOpacity={1} fill="url(#colorVal)" strokeWidth={3} />
-            </AreaChart>
+            <PieChart>
+              <Pie data={auditAnalytics?.mediaMetrics || []} innerRadius={60} outerRadius={80} dataKey="value">
+                {auditAnalytics?.mediaMetrics?.map((_: any, i: number) => (
+                  <Cell key={i} fill={AUDIT_COLORS[i % AUDIT_COLORS.length]} stroke="none" />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
           </ResponsiveContainer>
         </div>
-        <div className={`${THEME.glass} p-6 md:p-8 rounded-[2.5rem] min-h-[300px]`}>
-          <h3 className="text-[10px] font-black uppercase mb-4 opacity-40 italic tracking-widest">Performances Géographiques</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={mockBI}><Bar dataKey="val" fill={THEME.white} radius={[10, 10, 0, 0]} /></BarChart>
-          </ResponsiveContainer>
+      </div>
+
+      {/* SECTION 4: TABLEAU DE GESTION */}
+      <div className={`${THEME?.glass || 'bg-white/10'} rounded-[2.5rem] overflow-hidden`}>
+        <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+          <h3 className="text-[11px] font-black uppercase text-white tracking-widest flex items-center gap-2">
+            {/* Vérifiez bien que CheckCircle est importé de 'lucide-react' */}
+            <CheckCircle className="text-green-500" size={16} />
+            Locations Actives
+          </h3>
+
+          <span className="text-[10px] font-bold px-4 py-2 bg-amber-500/20 text-amber-500 rounded-full border border-amber-500/20">
+            FACES TOTALES
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-white/5 text-[9px] uppercase font-black text-white/40">
+              <tr>
+                <th className="p-6">Partenaire</th>
+                <th className="p-6">Panneaux</th>
+                <th className="p-6">Échéance</th>
+                <th className="p-6">Volume CA</th>
+                <th className="p-6 text-right">Gestion</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5 text-white">
+              {auditAnalytics.clientList.map((client: any, i: number) => (
+                <tr key={i} className="hover:bg-white/5 transition-colors">
+                  <td className="p-6 font-bold text-sm">{client.nom}</td>
+                  <td className="p-6"><span className="text-amber-500 font-black">{client.faces} FACES</span></td>
+                  <td className="p-6">
+                    <div className="w-32 h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
+                      <div
+                        className={`h-full ${client.daysLeft < 15 ? 'bg-red-500' : 'bg-green-500'}`}
+                        style={{ width: `${(client.daysLeft / 45) * 100}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-[9px] font-bold opacity-40">{client.daysLeft} JOURS RESTANTS</span>
+                  </td>
+                  <td className="p-6 font-black">{client.revenue.toLocaleString()} $</td>
+                  <td className="p-6 text-right">
+                    <button
+                      onClick={() => handleAlert(client.nom)}
+                      className="bg-white/10 hover:bg-white hover:text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all"
+                    >
+                      Relancer
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </motion.div>
   );
 }
-
-
-
-
 
 // --- MODULE 2: FACTURES (TABLEAU ULTRA-RESPONSIVE) ---
 function FacturesModule({ data }: any) {

@@ -1024,18 +1024,19 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
 
 
 
-import { addDoc, serverTimestamp } from 'firebase/firestore';
+import {  serverTimestamp } from 'firebase/firestore';
 import {
   Save,
-  Maximize2,
-  Layers,
 
   Camera,
-  Tag
+  
 } from 'lucide-react';
 import { panneaux } from '@/data/panneaux';
 
-
+// Remplacez vos imports Firestore par ceux-ci :
+import {
+  getDocs,
+} from 'firebase/firestore';
 
 import { useRef } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -1043,7 +1044,7 @@ import { Layout, Upload, } from 'lucide-react';
 
 // --- CONFIGURATION ---
 const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dn7wnikzp/image/upload";
-const UPLOAD_PRESET = "ml_default"; // Assurez-vous que ce preset est "Unsigned" dans Cloudinary
+const UPLOAD_PRESET = "panneaux"; // Assurez-vous que ce preset est "Unsigned" dans Cloudinary
 
 
 const TYPES_SUPPORTS = [
@@ -1054,54 +1055,74 @@ const TYPES_SUPPORTS = [
 const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
 
 export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
+  // 1. TOUS LES STATES (En haut)
   const [formData, setFormData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [listeSocietes, setListeSocietes] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 2. TOUS LES EFFECTS (En haut)
   useEffect(() => {
     if (panneau) {
       setFormData({ ...panneau });
     }
   }, [panneau]);
 
+  useEffect(() => {
+    const fetchSocietes = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "societes"));
+        const noms = querySnapshot.docs.map(doc => doc.data().nomSociete);
+        setListeSocietes(noms);
+      } catch (err) {
+        console.error("Erreur lors de la récupération des sociétés:", err);
+      }
+    };
+    fetchSocietes();
+  }, []);
+
+  // 3. CONDITION DE SORTIE (Après les hooks)
   if (!isOpen || !formData) return null;
 
-  // --- LOGIQUE CLOUDINARY + PREVIEW ---
+  // 4. LES FONCTIONS DE LOGIQUE
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 1. Prévisualisation locale immédiate
+    // Prévisualisation locale immédiate
     const localPreviewUrl = URL.createObjectURL(file);
     const previewFaces = [...formData.faces];
     previewFaces[index].photoCampagneUrl = localPreviewUrl;
     setFormData({ ...formData, faces: previewFaces });
 
-    // 2. Envoi vers Cloudinary
     setUploadingIndex(index);
     const data = new FormData();
     data.append("file", file);
     data.append("upload_preset", UPLOAD_PRESET);
-    data.append("cloud_name", "dn7wnikzp");
 
     try {
       const response = await fetch(CLOUDINARY_URL, { method: "POST", body: data });
       const result = await response.json();
 
       if (result.secure_url) {
-        // 3. Mise à jour de l'URL finale Cloudinary
         const finalFaces = [...formData.faces];
         finalFaces[index].photoCampagneUrl = result.secure_url;
         setFormData({ ...formData, faces: finalFaces });
       }
     } catch (error) {
       console.error("Erreur Cloudinary:", error);
-      alert("Échec de l'upload. L'image de prévisualisation sera annulée.");
-      // Optionnel: remettre l'ancienne image en cas d'échec
+      alert("Échec de l'upload.");
     } finally {
       setUploadingIndex(null);
     }
+  };
+
+  const removePhoto = (index: number) => {
+    const newFaces = [...formData.faces];
+    newFaces[index].photoCampagneUrl = "";
+    // Si on supprime la photo, on réinitialise souvent le statut ou on laisse l'utilisateur choisir
+    setFormData({ ...formData, faces: newFaces });
   };
 
   const updateFace = (index: number, field: string, value: any) => {
@@ -1111,43 +1132,73 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
   };
 
   const handleSave = async () => {
-    // Vérification obligatoire : Si Occupé, il faut une photo
-    const faceIncomplete = formData.faces.find(
-      (f: any) => f.statut === "Occupé" && (!f.photoCampagneUrl || f.photoCampagneUrl.startsWith('blob:'))
-    );
+    // --- BLOC DE DIAGNOSTIC ---
+    formData.faces.forEach((f: any, i: number) => {
+        if (f.statut === "Occupé") {
+            console.log(`🔍 Vérification Face ${i + 1}:`, {
+                statut: f.statut,
+                photo: f.photoCampagneUrl ? "Présente" : "VIDE",
+                estBlob: f.photoCampagneUrl?.startsWith('blob:'),
+                clientNom: f.clientNom ? f.clientNom : "VIDE"
+            });
+        }
+    });
+
+    // 1. Validation stricte
+    const faceIncomplete = formData.faces.find((f: any) => {
+        const isOccupied = f.statut === "Occupé";
+        if (!isOccupied) return false;
+
+        const lacksPhoto = !f.photoCampagneUrl || f.photoCampagneUrl.startsWith('blob:');
+        const lacksClient = !f.clientNom || f.clientNom.trim() === "";
+
+        return lacksPhoto || lacksClient;
+    });
 
     if (faceIncomplete) {
-      alert("Erreur : Une face 'Occupé' doit avoir une photo valide (attendez la fin de l'upload).");
-      return;
+        alert("ERREUR : Pour toute face 'Occupé', vous devez sélectionner un Client et charger une Photo valide.");
+        return;
     }
 
+    // 2. Sauvegarde
     setIsSaving(true);
     try {
-      const docRef = doc(db, "panneaux", panneau.id);
+        const docId = panneau?.id || formData?.id;
+        if (!docId) throw new Error("ID du panneau introuvable.");
 
-      // On ne modifie que les champs autorisés
-      const dataToUpdate = {
-        adresse: formData.adresse || "",
-        zone: formData.zone || "",
-        type: formData.type || "",
-        dimension: formData.dimension || "",
-        faces: formData.faces.map((f: any) => ({
-          ...f,
-          sens: f.sens || "",
-          statut: f.statut || "Libre",
-          photoCampagneUrl: f.photoCampagneUrl || ""
-        }))
-      };
+        const docRef = doc(db, "panneaux", docId);
 
-      await updateDoc(docRef, dataToUpdate);
-      onClose();
+        const dataToUpdate = {
+            adresse: formData.adresse?.toUpperCase() || "",
+            zone: formData.zone || "",
+            type: formData.type || "",
+            dimension: formData.dimension || "",
+            faces: formData.faces.map((f: any) => {
+                const isOccupied = f.statut === "Occupé";
+                return {
+                    ...f,
+                    sens: f.sens || "",
+                    statut: f.statut || "Libre",
+                    // IMPORTANT : vérifiez que c'est bien 'clientNom' que vous utilisez dans votre <select>
+                    clientNom: isOccupied ? (f.clientNom || "") : "", 
+                    photoCampagneUrl: f.photoCampagneUrl || "",
+                    estAujourdhui: isOccupied 
+                };
+            }),
+            updatedAt: serverTimestamp()
+        };
+
+        await updateDoc(docRef, dataToUpdate);
+        alert("Mise à jour réussie !");
+        onClose();
     } catch (error) {
-      console.error("Erreur Firebase:", error);
-      alert("Erreur lors de la sauvegarde.");
+        console.error("Erreur Firebase:", error);
+        alert("Erreur lors de la sauvegarde.");
     } finally {
-      setIsSaving(false);
+        setIsSaving(false);
     }
-  };
+};
+
 
   return (
     <div className="fixed inset-0 z-[600] flex items-center justify-center p-2 md:p-4 bg-black/90 backdrop-blur-xl">
@@ -1200,35 +1251,74 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
             <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em]">Gestion des faces</h3>
             <div className="grid gap-6">
               {formData.faces?.map((face: any, idx: number) => (
-                <div key={idx} className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col lg:flex-row items-center gap-6 group hover:border-[#d4af37]">
+                <div key={idx} className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col gap-6 group hover:border-[#d4af37]">
 
-                  <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-black border border-white/10 shadow-xl flex-shrink-0">
-                    <img src={face.photoCampagneUrl || 'https://via.placeholder.com/150'} className="w-full h-full object-cover" alt="Face" />
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      {uploadingIndex === idx ? (
-                        <Loader2 className="text-[#d4af37] animate-spin" size={32} />
-                      ) : (
-                        <button onClick={() => { fileInputRef.current!.dataset.idx = idx.toString(); fileInputRef.current?.click(); }} className="p-3 bg-[#d4af37] rounded-full text-black hover:scale-110 transition-transform">
-                          <Upload size={20} />
-                        </button>
+                  <div className="flex flex-col lg:flex-row items-center gap-6 w-full">
+                    {/* 1. Zone Photo : Affichée SEULEMENT si Occupé */}
+                    {face.statut === "Occupé" && (
+                      <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-black border border-white/10 shadow-xl flex-shrink-0">
+                        {face.photoCampagneUrl ? (
+                          <>
+                            <img src={face.photoCampagneUrl} className="w-full h-full object-cover" alt="Face" />
+                            <button
+                              onClick={() => removePhoto(idx)}
+                              className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white hover:scale-110"
+                            >
+                              <X size={14} />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-[8px] text-white/40">
+                            <Camera size={20} className="mb-1" /> PHOTO OBLIGATOIRE
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                          <button onClick={() => { fileInputRef.current!.dataset.idx = idx.toString(); fileInputRef.current?.click(); }} className="p-3 bg-[#d4af37] rounded-full text-black">
+                            <Upload size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. Champs de saisie */}
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                      <div className="space-y-1">
+                        <p className="text-[8px] font-black text-white/30 uppercase italic">Statut</p>
+                        <select
+                          value={face.statut || ''}
+                          onChange={(e) => updateFace(idx, 'statut', e.target.value)}
+                          className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-[#d4af37] p-2 outline-none"
+                        >
+                          {STATUTS_POSSIBLES.map(s => <option key={s} value={s} className="bg-[#1e40af]">{s}</option>)}
+                        </select>
+                      </div>
+
+                      {/* 3. Sélecteur Société : Affiché SEULEMENT si Occupé */}
+                      {face.statut === "Occupé" && (
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-black text-[#d4af37] uppercase italic">Société (Locataire)</p>
+                          <select
+                            value={face.clientNom || ''}
+                            onChange={(e) => updateFace(idx, 'clientNom', e.target.value)} // Vérifiez bien 'clientNom'
+                            className="..."
+                          >
+                            <option value="">Sélectionner un client</option>
+                            {listeSocietes.map(nom => (
+                              <option key={nom} value={nom}>{nom}</option>
+                            ))}
+                          </select>
+                        </div>
                       )}
-                    </div>
-                  </div>
+                      <div className="space-y-1">
+                        <p className="text-[8px] font-black text-white/30 uppercase italic">Sens de vue</p>
+                        <input type="text" value={face.sens || ''} onChange={(e) => updateFace(idx, 'sens', e.target.value)} className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-white p-2 outline-none" />
+                      </div>
 
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase italic">ID Face (Lecture seule)</p>
-                      <input type="text" value={face.faceId || ''} readOnly className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-white/50 p-2 outline-none" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase italic">Sens de vue</p>
-                      <input type="text" value={face.sens || ''} onChange={(e) => updateFace(idx, 'sens', e.target.value)} className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-white p-2 outline-none focus:border-[#d4af37]" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase italic">Statut</p>
-                      <select value={face.statut || ''} onChange={(e) => updateFace(idx, 'statut', e.target.value)} className="w-full bg-transparent text-xs font-bold text-[#d4af37] p-2 outline-none">
-                        {STATUTS_POSSIBLES.map(s => <option key={s} value={s} className="bg-[#1e40af]">{s}</option>)}
-                      </select>
+                      <div className="space-y-1">
+                        <p className="text-[8px] font-black text-white/30 uppercase italic">ID Face</p>
+                        <input type="text" value={face.faceId || ''} readOnly className="w-full bg-transparent text-xs font-bold text-white/30 p-2 outline-none" />
+                      </div>
                     </div>
                   </div>
                 </div>
