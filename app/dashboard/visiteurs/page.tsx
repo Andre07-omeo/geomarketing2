@@ -1,14 +1,20 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, updateDoc, onSnapshot, collection, query, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, updateDoc, onSnapshot, collection, query, where, } from 'firebase/firestore';
 import {
     LogOut, MapPin, Bell, Globe, Zap, ShieldCheck, Award,
-    ArrowUpRight, Target, Activity, LayoutGrid, Calendar, Clock,
-    BarChart3, Eye, MousePointer2, TrendingUp, Search, Layers,
-    ChevronRight, Box, Filter, Download, Maximize2
+    Target, Activity, LayoutGrid,
+    BarChart3, TrendingUp, Search, Layers, ArrowRight,
+    Filter, Download, Maximize2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
+
+
+
+
+
 
 // --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
@@ -33,6 +39,75 @@ export default function VisiteurDashboard() {
     const [isOnline, setIsOnline] = useState(true); // Par défaut true
     const [panneaux, setPanneaux] = useState<any[]>([]); // L'erreur vient souvent du fait que cette ligne manque
     // Force l'affichage de TOUS les panneaux, peu importe le client
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
+    useEffect(() => {
+        // 1. Vérification stricte de l'utilisateur
+        if (!user || !user.nomSociete) {
+            console.warn("🔔 Notifications : En attente du nom de la société...");
+            return;
+        }
+
+        // 2. Préparation propre du filtre
+        // On enlève les espaces inutiles pour éviter les erreurs de frappe
+        const targetClient = user.nomSociete.toLowerCase().trim();
+
+        try {
+            const q = query(
+                collection(db, "messages_clients"),
+                where("destinataire", "==", targetClient)
+            );
+
+            const unsub = onSnapshot(q, (snap) => {
+                const rawDocs = snap.docs.map(docSnap => {
+                    const data = docSnap.data();
+
+                    // Gestion sécurisée de la date
+                    let dateStr = "À l'instant";
+                    let timeVal = Date.now();
+
+                    if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+                        const d = data.createdAt.toDate();
+                        dateStr = d.toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        timeVal = data.createdAt.toMillis();
+                    }
+
+                    return {
+                        id: docSnap.id,
+                        ...data,
+                        dateFormatee: dateStr,
+                        timeValue: timeVal
+                    };
+                });
+
+                // 4. Tri sécurisé
+                const sorted = rawDocs.sort((a, b) => b.timeValue - a.timeValue);
+                setNotifications(sorted);
+
+            }, (error) => {
+                // --- CRITIQUE : SI L'ERREUR PERSISTE, REGARDE ICI ---
+                console.error("❌ Erreur Firebase (Index ou Permissions) :", error);
+                // Si tu vois un message "The query requires an index", 
+                // clique sur le lien bleu dans la console pour le créer.
+            });
+
+            return () => unsub();
+
+        } catch (err) {
+            console.error("❌ Erreur lors de la création de la requête :", err);
+        }
+    }, [user?.nomSociete]); // Déclenche si le nom change
+
+
+
+
 
     useEffect(() => {
 
@@ -69,46 +144,46 @@ export default function VisiteurDashboard() {
 
 
 
-   useEffect(() => {
-    if (!user?.id) return;
+    useEffect(() => {
+        if (!user?.id) return;
 
-    const userDocRef = doc(db, "societes", user.id);
+        const userDocRef = doc(db, "societes", user.id);
 
-    // Fonction pour mettre à jour la DB
-    const updateOnlineStatus = async (status: boolean) => {
-        try {
-            await updateDoc(userDocRef, {
-                isOnline: status,
-                derniereConnexion: new Date().toISOString()
-            });
-        } catch (e) {
-            console.error("Erreur update status:", e);
-        }
-    };
+        // Fonction pour mettre à jour la DB
+        const updateOnlineStatus = async (status: boolean) => {
+            try {
+                await updateDoc(userDocRef, {
+                    isOnline: status,
+                    derniereConnexion: new Date().toISOString()
+                });
+            } catch (e) {
+                console.error("Erreur update status:", e);
+            }
+        };
 
-    // 1. Marquer comme en ligne au montage
-    updateOnlineStatus(true);
-
-    // 2. Écouter les changements de réseau
-    const handleOnline = () => {
-        setIsOnline(true);
+        // 1. Marquer comme en ligne au montage
         updateOnlineStatus(true);
-    };
-    const handleOffline = () => {
-        setIsOnline(false);
-        updateOnlineStatus(false);
-    };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+        // 2. Écouter les changements de réseau
+        const handleOnline = () => {
+            setIsOnline(true);
+            updateOnlineStatus(true);
+        };
+        const handleOffline = () => {
+            setIsOnline(false);
+            updateOnlineStatus(false);
+        };
 
-    // 3. Marquer comme hors ligne quand on ferme l'onglet ou on délogue
-    return () => {
-        updateOnlineStatus(false);
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-    };
-}, [user?.id]);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        // 3. Marquer comme hors ligne quand on ferme l'onglet ou on délogue
+        return () => {
+            updateOnlineStatus(false);
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, [user?.id]);
 
     // --- LOGIQUE DE RENDU DES VUES ---
     const renderContent = () => {
@@ -118,13 +193,13 @@ export default function VisiteurDashboard() {
             case 'inventory': return <InventorySection mesFaces={mesFaces} />;
             // Dans ton switch (renderContent)
             case 'map':
-    return (
-        <MapSection 
-            // On ne passe plus 'tousLesPanneaux' car la fonction 
-            // contient son propre onSnapshot (temps réel)
-            userConnecte={user} 
-        />
-    );
+                return (
+                    <MapSection
+                        // On ne passe plus 'tousLesPanneaux' car la fonction 
+                        // contient son propre onSnapshot (temps réel)
+                        userConnecte={user}
+                    />
+                );
             default: return <OverviewSection mesFaces={mesFaces} user={user} />;
         }
     };
@@ -214,9 +289,117 @@ export default function VisiteurDashboard() {
                                 <Award size={14} />
                             </div>
                         </div>
-                        <div className="w-9 h-9 bg-white/5 rounded-lg border border-white/10 flex items-center justify-center relative">
-                            <Bell className="text-[#d4af37]" size={16} />
-                            <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                        <div className="relative">
+                            {/* TON BOUTON (Rendu interactif) */}
+                            <button
+                                onClick={() => setShowNotifications(!showNotifications)}
+                                className={`w-9 h-9 rounded-lg border transition-all flex items-center justify-center relative z-[60] ${showNotifications ? 'bg-[#d4af37] border-[#d4af37] text-black' : 'bg-white/5 border-white/10'
+                                    }`}
+                            >
+                                <Bell className={showNotifications ? "text-black" : "text-[#d4af37]"} size={16} />
+
+                                {/* Badge : s'affiche uniquement s'il y a des notifications */}
+                                {notifications.length > 0 && (
+                                    <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                                )}
+                            </button>
+
+                            {/* LA BOITE DE DIALOGUE (Affichée si showNotifications est true) */}
+                            {showNotifications && (
+                                <>
+                                    {/* Overlay invisible pour fermer en cliquant n'importe où ailleurs */}
+                                    <div
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setShowNotifications(false)}
+                                    ></div>
+
+                                    {/* Le Panneau */}
+                                    <div className="absolute right-0 mt-3 w-80 md:w-96 bg-[#0f172a]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+
+                                        {/* Header interne */}
+                                        <div className="p-4 border-b border-white/5 bg-[#d4af37]/10 flex justify-between items-center">
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#d4af37]">Flux Notifications</h4>
+                                            <span className="text-[8px] text-white/40 font-bold uppercase">{notifications.length} Message(s)</span>
+                                        </div>
+
+                                        {/* Liste scrollable */}
+                                        <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                                            {notifications.length === 0 ? (
+                                                <div className="p-10 text-center">
+                                                    <p className="text-[10px] text-white/20 uppercase font-black italic">Aucune alerte</p>
+                                                </div>
+                                            ) : (
+                                                notifications.map((notif) => {
+                                                    const isExpanded = expandedId === notif.id;
+
+                                                    return (
+                                                        <div
+                                                            key={notif.id}
+                                                            className={`border-b border-white/5 transition-all duration-300 ${isExpanded ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                                                        >
+                                                            {/* EN-TÊTE CLIQUABLE */}
+                                                            <div
+                                                                className="p-4 cursor-pointer flex gap-3"
+                                                                onClick={() => setExpandedId(isExpanded ? null : notif.id)}
+                                                            >
+                                                                <div className="mt-1 shrink-0">
+                                                                    {notif.type === "ALERTE_CLIENT" ? (
+                                                                        <Zap size={14} className="text-red-500" />
+                                                                    ) : (
+                                                                        <Bell size={14} className="text-[#d4af37]" />
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex justify-between items-start mb-1">
+                                                                        <p className={`text-[11px] font-black uppercase leading-tight truncate transition-colors ${isExpanded ? 'text-[#d4af37]' : 'text-white'}`}>
+                                                                            {notif.libelle || "Alerte Système"}
+                                                                        </p>
+                                                                        <span className="text-[7px] text-white/30 font-bold ml-2 shrink-0">
+                                                                            {notif.dateFormatee}
+                                                                        </span>
+                                                                    </div>
+
+                                                                    {/* Aperçu court (visible seulement si non déroulé) */}
+                                                                    {!isExpanded && (
+                                                                        <p className="text-[10px] text-white/50 italic truncate">
+                                                                            {notif.messageComplet}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* CONTENU DÉROULANT */}
+                                                            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                                                <div className="px-4 pb-4 ml-7 border-l border-[#d4af37]/30">
+                                                                    <p className="text-[10px] md:text-[11px] text-white/80 leading-relaxed whitespace-pre-wrap">
+                                                                        {notif.messageComplet}
+                                                                    </p>
+
+                                                                    {notif.idFace && (
+                                                                        <div className="mt-3">
+                                                                            <span className="text-[7px] bg-[#d4af37]/20 px-2 py-0.5 rounded text-[#d4af37] font-black uppercase">
+                                                                                ID FACE: {notif.idFace}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                        {/* Pied de panneau */}
+                                        <button
+                                            onClick={() => setShowNotifications(false)}
+                                            className="w-full py-3 bg-white/5 text-white/30 text-[9px] font-black uppercase hover:bg-white hover:text-black transition-colors"
+                                        >
+                                            Fermer
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </header>
@@ -342,11 +525,58 @@ function OverviewSection({ mesFaces, user }: any) {
 
 
 
-
 // --- SOUS-COMPOSANT : ANALYTICS (Version Ultra-Riche & Responsive) ---
-function AnalyticsSection({ mesFaces }: any) {
-    // Simulation de calculs basés sur tes données réelles
-    const totalImpact = mesFaces.length * 450;
+function AnalyticsSection({ user, panneaux, mesFaces }: any) {
+    // 1. Calcul de l'impact global (mesFaces = ce que le client possède déjà)
+    const totalImpact = (mesFaces?.length || 0) * 450;
+
+    // 2. Adresses possédées (pour le message de félicitations)
+    const adressesPossedees = mesFaces
+        ? Array.from(new Set(mesFaces.map((f: any) => f.adresse?.split(',')[0] || "Zone Premium")))
+        : [];
+
+    // 3. Logique des opportunités (Filtre intelligent)
+    // 3. Logique des opportunités (Filtre testé sur tes données "LOBO 30")
+    const panneauxOpportunites = (panneaux || []).filter((p: any) => {
+    if (!p?.faces || !Array.isArray(p.faces)) return false;
+
+    return p.faces.some((f: any) => {
+        // 1. Nettoyage strict (tout en minuscules)
+        const statut = f?.statut ? String(f.statut).toLowerCase().trim() : "";
+        const client = f?.clientNom ? String(f.clientNom).toLowerCase().trim() : "";
+
+        // 2. Définition des critères (COMPARAISON EN MINUSCULES UNIQUEMENT)
+        const estLibreParStatut = statut === "disponible" || statut === "libre" || statut === "";
+        const estLibreParClient = !f?.clientNom || client === "" || client === "null" || client === "disponible";
+        
+        // 3. Exclusion stricte (si c'est marqué occupé, c'est mort)
+        const nEstPasOccupe = statut !== "occupé" && statut !== "occupe";
+
+        return (estLibreParStatut || estLibreParClient) && nEstPasOccupe;
+    });
+});
+
+
+
+
+
+
+
+    // 4. Extraction et mise en forme des données pour l'affichage (SANS DOUBLONS)
+    const adressesDispoUniques = Array.from(new Set(
+        panneauxOpportunites.map((p: any) => p.adresse?.split(',')[0] || "Axe Majeur")
+    ));
+
+    const nbOpportunites = panneauxOpportunites.length;
+
+    // 5. Construction des messages dynamiques
+    const messageFort = adressesPossedees.length > 0
+        ? `Votre marque domine actuellement ${adressesPossedees.slice(0, 2).join(' et ')}.`
+        : "Renforcez votre présence sur les axes stratégiques de Kinshasa.";
+
+    const messageAdressesDispo = adressesDispoUniques.length > 0
+        ? adressesDispoUniques.slice(0, 2).join(' et ')
+        : "nos zones stratégiques";
 
     return (
         <div className="space-y-6 md:space-y-10 pb-20 md:pb-0">
@@ -397,72 +627,201 @@ function AnalyticsSection({ mesFaces }: any) {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
                 {/* GRAPHE PRINCIPAL (Prend 2 colonnes sur large écran) */}
-                <div className="xl:col-span-2 bg-black/40 rounded-[2.5rem] border border-white/10 p-6 md:p-8 relative min-h-[300px] flex flex-col">
-                    <div className="flex justify-between items-center mb-8">
-                        <div className="flex items-center gap-2">
-                            <Activity size={16} className="text-[#d4af37]" />
-                            <p className="text-[10px] font-black uppercase tracking-widest">Flux d'audience hebdomadaire</p>
+                <div className="xl:col-span-2 bg-black/40 rounded-[2.5rem] border border-white/10 p-6 md:p-8 relative min-h-[350px] flex flex-col group/chart">
+                    {/* HEADER DU GRAPHE */}
+                    <div className="flex justify-between items-center mb-10">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-[#d4af37]/10 rounded-lg">
+                                <Activity size={18} className="text-[#d4af37] animate-pulse" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white">Flux d'audience hebdomadaire</p>
+                                <p className="text-[8px] text-white/30 uppercase">Données basées sur vos {mesFaces?.length || 0} emplacements</p>
+                            </div>
                         </div>
-                        <div className="flex gap-1">
-                            {[...Array(7)].map((_, i) => <div key={i} className="w-1.5 h-1.5 rounded-full bg-white/10"></div>)}
+
+                        {/* Indicateurs de jours (7 points pour la semaine) */}
+                        <div className="flex gap-1.5">
+                            {[...Array(7)].map((_, i) => (
+                                <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === 6 ? 'bg-[#d4af37] shadow-[0_0_8px_#d4af37]' : 'bg-white/10'}`}></div>
+                            ))}
                         </div>
                     </div>
 
-                    <div className="flex-1 flex items-end justify-between gap-1 md:gap-4 px-2">
+                    {/* ZONE DES BARRES */}
+                    <div className="flex-1 flex items-end justify-between gap-1.5 md:gap-4 px-2 pb-4">
                         {[40, 70, 45, 90, 65, 80, 50, 85, 60, 75, 95, 40].map((h, i) => (
-                            <div key={i} className="flex-1 group relative">
+                            <div key={i} className="flex-1 group relative h-full flex flex-col justify-end">
+
+                                {/* TOOLTIP (INFOBULLE) */}
+                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] font-black px-2 py-1 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-30 whitespace-nowrap mb-2">
+                                    {h}K Vues
+                                    {/* Petite flèche sous le tooltip */}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-white"></div>
+                                </div>
+
+                                {/* LA BARRE */}
                                 <div
-                                    className="w-full bg-gradient-to-t from-[#1e40af] to-[#d4af37] rounded-t-lg opacity-40 group-hover:opacity-100 transition-all cursor-help relative"
+                                    className="w-full bg-gradient-to-t from-[#1e40af]/40 via-[#d4af37]/60 to-[#d4af37] rounded-t-full opacity-30 group-hover:opacity-100 group-hover:scale-x-110 transition-all duration-500 cursor-help relative shadow-[0_0_15px_transparent] group-hover:shadow-[#d4af37]/20"
                                     style={{ height: `${h}%` }}
                                 >
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white text-black text-[8px] font-black px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {h}K
-                                    </div>
+                                    {/* Ligne lumineuse au sommet de la barre au survol */}
+                                    <div className="absolute top-0 left-0 right-0 h-1 bg-white opacity-0 group-hover:opacity-50 rounded-t-full transition-opacity"></div>
                                 </div>
-                                <p className="text-[6px] text-white/20 mt-2 text-center hidden md:block italic">0{i + 1}</p>
+
+                                {/* LABEL AXE X */}
+                                <p className="text-[7px] font-bold text-white/20 mt-3 text-center group-hover:text-[#d4af37] transition-colors uppercase">
+                                    {i === 11 ? "Now" : `0${i + 1}`}
+                                </p>
                             </div>
                         ))}
                     </div>
+
+                    {/* LIGNE DE BASE (AXE X) */}
+                    <div className="absolute bottom-[44px] left-8 right-8 h-[1px] bg-white/5"></div>
                 </div>
 
 
 
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     {[
-                        { label: "Domination Zone", val: "22%", trend: "Faible", color: "text-red-400", sub: "Prenez 2 faces de plus pour dominer" },
-                        { label: "Audience Unique", val: "1.2M", trend: "+12%", color: "text-emerald-400", sub: "Personnes touchées / mois" },
-                        { label: "Temps d'Exposition", val: "480h", trend: "Live", color: "text-blue-400", sub: "Cumul d'affichage quotidien" },
-                        { label: "Optimisation CPM", val: "-15%", trend: "Elite", color: "text-[#d4af37]", sub: "Economie liée à votre volume" },
+                        {
+                            label: "Domination Zone",
+                            val: "22%",
+                            trend: "Faible",
+                            color: "text-red-400",
+                            sub: "Prenez 2 faces de plus pour dominer",
+                            icon: <Layers size={14} className="text-red-400/50" />
+                        },
+                        {
+                            label: "Audience Unique",
+                            val: "1.2M",
+                            trend: "+12%",
+                            color: "text-emerald-400",
+                            sub: "Personnes touchées / mois",
+                            icon: <Globe size={14} className="text-emerald-400/50" />
+                        },
+                        {
+                            label: "Temps d'Exposition",
+                            val: "480h",
+                            trend: "Live",
+                            color: "text-blue-400",
+                            sub: "Cumul d'affichage quotidien",
+                            icon: <Activity size={14} className="text-blue-400/50" />
+                        },
+                        {
+                            label: "Optimisation CPM",
+                            val: "-15%",
+                            trend: "Elite",
+                            color: "text-[#d4af37]",
+                            sub: "Économie liée à votre volume",
+                            icon: <Zap size={14} className="text-[#d4af37]/50" />
+                        },
                     ].map((s, i) => (
-                        <div key={i} className="bg-black/30 p-4 rounded-[2rem] border border-white/5 relative group">
-                            <p className="text-[8px] font-black uppercase text-white/40 mb-1">{s.label}</p>
-                            <p className={`text-2xl md:text-3xl font-black italic ${s.color}`}>{s.val}</p>
-                            <p className="text-[7px] text-white/60 mt-2 font-medium italic">{s.sub}</p>
-                            <div className={`absolute top-4 right-4 text-[7px] font-bold px-1.5 py-0.5 rounded ${s.trend === 'Faible' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                                {s.trend}
+                        <div key={i} className="group relative bg-white/[0.03] backdrop-blur-md p-5 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all duration-500 overflow-hidden">
+
+                            {/* Effet de Halo lumineux au survol */}
+                            <div className={`absolute -right-4 -top-4 w-20 h-20 bg-current opacity-0 group-hover:opacity-10 blur-3xl transition-opacity duration-700 ${s.color}`}></div>
+
+                            <div className="relative z-10">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="p-2 bg-white/5 rounded-lg border border-white/5 group-hover:scale-110 transition-transform duration-500">
+                                        {s.icon}
+                                    </div>
+                                    {/* Badge de tendance intelligent */}
+                                    <div className={`text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm
+                        ${s.trend === 'Faible' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
+                                            s.trend === 'Elite' ? 'bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30 animate-pulse' :
+                                                'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                                        {s.trend}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <p className="text-[9px] font-black uppercase text-white/30 tracking-[0.2em]">{s.label}</p>
+                                    <div className="flex items-baseline gap-1">
+                                        <p className={`text-3xl md:text-4xl font-black italic tracking-tighter ${s.color}`}>
+                                            {s.val}
+                                        </p>
+                                    </div>
+                                    <p className="text-[8px] text-white/50 mt-3 leading-relaxed font-medium italic group-hover:text-white/80 transition-colors">
+                                        {s.sub}
+                                    </p>
+                                </div>
+
+                                {/* Barre de progression miniature pour le visuel */}
+                                <div className="mt-4 h-[2px] w-full bg-white/5 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full bg-current opacity-50 group-hover:opacity-100 transition-all duration-1000 ${s.color}`}
+                                        style={{ width: s.val.includes('%') ? s.val : '70%' }}
+                                    ></div>
+                                </div>
                             </div>
+
+                            {/* Chiffre en arrière-plan (Watermark) */}
+                            <span className="absolute -bottom-2 -right-2 text-6xl font-black text-white/[0.02] italic pointer-events-none group-hover:text-white/[0.05] transition-colors">
+                                0{i + 1}
+                            </span>
                         </div>
                     ))}
                 </div>
 
-                {/* // NOUVELLE SECTION : OPPORTUNITÉS (Pour pousser à l'achat) ---*/}
-                <div className="mt-8 bg-gradient-to-r from-[#d4af37]/20 to-transparent p-6 rounded-[2.5rem] border-l-4 border-[#d4af37]">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-[#d4af37] rounded-full flex items-center justify-center text-black shadow-lg shadow-[#d4af37]/20">
-                                <Zap size={24} fill="currentColor" />
+
+                {/* --- SECTION OPPORTUNITÉS AMÉLIORÉE --- */}
+                {nbOpportunites >= 0 && (
+                    <div className="mt-8 bg-gradient-to-r from-[#d4af37]/20 via-[#d4af37]/5 to-transparent p-6 rounded-[2rem] border border-[#d4af37]/30 relative overflow-hidden group">
+
+                        {/* Effet de brillance animé */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-[#d4af37] rounded-full animate-ping opacity-20"></div>
+                                    <div className="w-14 h-14 bg-[#d4af37] rounded-full flex items-center justify-center text-black shadow-xl relative">
+                                        <Zap size={26} fill="currentColor" />
+                                    </div>
+                                </div>
+
+                                <div>
+    <div className="flex items-center gap-2 mb-1">
+        <h4 className="text-sm font-black uppercase tracking-tighter text-[#d4af37]">
+            Domination Territoriale
+        </h4>
+        <span className="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full font-bold animate-pulse">
+            ALERTE OPPORTUNITÉ
+        </span>
+    </div>
+    
+    {/* Une seule balise <p> ici pour éviter l'erreur de console */}
+    <p className="text-[11px] text-white/90 leading-tight max-w-md">
+        Ne laissez pas le terrain vide : <span className="text-white font-bold">{nbOpportunites} emplacements clés</span> incluant <span className="text-[#d4af37] font-black uppercase tracking-tighter">"{messageAdressesDispo}"</span> sont disponibles. Saisissez-les avant vos concurrents.
+    </p>
+</div>
                             </div>
-                            <div>
-                                <h4 className="text-sm font-black uppercase tracking-widest text-[#d4af37]">Boostez votre impact</h4>
-                                <p className="text-[10px] text-white/60">Selon vos données, 3 faces premium sont disponibles dans vos zones de prédilection.</p>
+
+                            <div className="flex flex-col items-center gap-3 w-full md:w-auto">
+                                <button
+                                    // onClick={() => setActiveTab('map')} 
+                                    className="group/btn w-full md:w-auto px-10 py-4 bg-[#d4af37] text-black font-black text-[11px] uppercase rounded-xl hover:bg-white transition-all shadow-[0_10px_20px_rgba(212,175,55,0.3)] flex items-center justify-center gap-3"
+                                >
+                                    Prendre ces positions <ArrowRight size={16} className="group-hover/btn:translate-x-2 transition-transform" />
+                                </button>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <p className="text-[8px] text-white/40 uppercase tracking-widest font-black italic">Analyse prioritaire pour {user?.nomSociete || 'GKM Partner'}</p>
+                                </div>
                             </div>
                         </div>
-                        <button className="w-full md:w-auto px-8 py-3 bg-white text-[#1e40af] font-black text-[10px] uppercase rounded-xl hover:scale-105 transition-transform shadow-xl">
-                            Réserver ces emplacements
-                        </button>
+
+                        {/* Filigrane discret en fond */}
+                        <p className="absolute -right-4 -bottom-2 text-6xl font-black text-white/[0.03] italic select-none">DISPO</p>
                     </div>
-                </div>
+                )}
+
+
+
                 {/* TOP ZONES : La valeur ajoutée pour le client */}
                 <div className="bg-gradient-to-b from-white/5 to-transparent rounded-[2.5rem] border border-white/10 p-6 md:p-8">
                     <div className="flex items-center gap-2 mb-6">
@@ -625,14 +984,13 @@ function InventorySection({ mesFaces }: any) {
 
 
 import React, { useMemo, } from 'react';
-import { Navigation2,  } from "lucide-react";
-import 'leaflet/dist/leaflet.css';
+import { Navigation2, } from "lucide-react";
 
- function MapSection({ userConnecte }: { userConnecte?: any }) {
+function MapSection({ userConnecte }: { userConnecte?: any }) {
     const [tousLesPanneaux, setTousLesPanneaux] = useState<any[]>([]);
     const [MapLib, setMapLib] = useState<any>(null);
     const [isMounted, setIsMounted] = useState(false);
-    
+
     // État pour le mode de la carte
     const [mapMode, setMapMode] = useState<'dark' | 'light' | 'satellite'>('dark');
 
@@ -687,7 +1045,7 @@ import 'leaflet/dist/leaflet.css';
         return tousLesPanneaux
             .filter((pan) => {
                 // On garde le panneau si au moins une de ses faces appartient à la société
-                return pan.faces?.some((face: any) => 
+                return pan.faces?.some((face: any) =>
                     face.clientNom?.toString().toLowerCase().trim() === nomSocieteUser
                 );
             })
@@ -724,7 +1082,7 @@ import 'leaflet/dist/leaflet.css';
 
     return (
         <div className="h-[70vh] rounded-[3.5rem] border-4 border-white/10 overflow-hidden relative bg-black shadow-2xl">
-            
+
             {/* SÉLECTEUR DE MODE DE CARTE (Noir, Clair, Satellite) */}
             <div className="absolute top-8 right-8 z-[1000] flex flex-col gap-2">
                 {[
@@ -735,11 +1093,10 @@ import 'leaflet/dist/leaflet.css';
                     <button
                         key={mode.id}
                         onClick={() => setMapMode(mode.id as any)}
-                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
-                            mapMode === mode.id 
-                            ? 'bg-[#d4af37] text-black border-[#d4af37]' 
+                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${mapMode === mode.id
+                            ? 'bg-[#d4af37] text-black border-[#d4af37]'
                             : 'bg-black/60 text-white border-white/10 backdrop-blur-md hover:bg-black/80'
-                        }`}
+                            }`}
                     >
                         {mode.label}
                     </button>
