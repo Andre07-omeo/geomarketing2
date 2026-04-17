@@ -869,10 +869,7 @@ function FilterGroup({
 
 
 
-/**
- * 2. BARRE DE FILTRES COMPLÈTE
- * Utilisation : <FilterBar onFilterChange={...} communes={...} types={...} />
- */
+
 interface FilterBarProps {
   onFilterChange: (key: string, value: string) => void;
   communes: string[];

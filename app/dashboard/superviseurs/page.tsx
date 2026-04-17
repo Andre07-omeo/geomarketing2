@@ -203,7 +203,8 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
 };
 
 import { LogOut, } from 'lucide-react';
-
+// Ajoute FilePieChart à la liste des imports existants
+import { LayoutDashboard, FilePieChart, } from 'lucide-react';
 // --- PAGE PRINCIPALE ---
 export default function UltimateSupervisor() {
 
@@ -350,6 +351,21 @@ export default function UltimateSupervisor() {
                 <MapPin size={14} />
                 Carte interactive
               </button>
+
+
+              <Link href="/dashboard/superviseurs/rapport">
+                <div className="group flex items-center gap-4 p-4 rounded-2xl bg-[#1e40af]/20 hover:bg-amber-500 transition-all cursor-pointer border border-white/5 hover:border-amber-400">
+                  <FilePieChart className="text-blue-400 group-hover:text-black" size={22} />
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-white group-hover:text-black">
+                      Rapport Intelligent
+                    </p>
+                    <p className="text-[8px] font-bold text-blue-300/50 group-hover:text-black/50 uppercase">
+                      Disponibilité & Ventes
+                    </p>
+                  </div>
+                </div>
+              </Link>
 
               <div className="h-6 w-px bg-white/10 mx-2" />
 
@@ -1024,12 +1040,12 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
 
 
 
-import {  serverTimestamp } from 'firebase/firestore';
+import { serverTimestamp } from 'firebase/firestore';
 import {
   Save,
 
   Camera,
-  
+
 } from 'lucide-react';
 import { panneaux } from '@/data/panneaux';
 
@@ -1134,70 +1150,70 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
   const handleSave = async () => {
     // --- BLOC DE DIAGNOSTIC ---
     formData.faces.forEach((f: any, i: number) => {
-        if (f.statut === "Occupé") {
-            console.log(`🔍 Vérification Face ${i + 1}:`, {
-                statut: f.statut,
-                photo: f.photoCampagneUrl ? "Présente" : "VIDE",
-                estBlob: f.photoCampagneUrl?.startsWith('blob:'),
-                clientNom: f.clientNom ? f.clientNom : "VIDE"
-            });
-        }
+      if (f.statut === "Occupé") {
+        console.log(`🔍 Vérification Face ${i + 1}:`, {
+          statut: f.statut,
+          photo: f.photoCampagneUrl ? "Présente" : "VIDE",
+          estBlob: f.photoCampagneUrl?.startsWith('blob:'),
+          clientNom: f.clientNom ? f.clientNom : "VIDE"
+        });
+      }
     });
 
     // 1. Validation stricte
     const faceIncomplete = formData.faces.find((f: any) => {
-        const isOccupied = f.statut === "Occupé";
-        if (!isOccupied) return false;
+      const isOccupied = f.statut === "Occupé";
+      if (!isOccupied) return false;
 
-        const lacksPhoto = !f.photoCampagneUrl || f.photoCampagneUrl.startsWith('blob:');
-        const lacksClient = !f.clientNom || f.clientNom.trim() === "";
+      const lacksPhoto = !f.photoCampagneUrl || f.photoCampagneUrl.startsWith('blob:');
+      const lacksClient = !f.clientNom || f.clientNom.trim() === "";
 
-        return lacksPhoto || lacksClient;
+      return lacksPhoto || lacksClient;
     });
 
     if (faceIncomplete) {
-        alert("ERREUR : Pour toute face 'Occupé', vous devez sélectionner un Client et charger une Photo valide.");
-        return;
+      alert("ERREUR : Pour toute face 'Occupé', vous devez sélectionner un Client et charger une Photo valide.");
+      return;
     }
 
     // 2. Sauvegarde
     setIsSaving(true);
     try {
-        const docId = panneau?.id || formData?.id;
-        if (!docId) throw new Error("ID du panneau introuvable.");
+      const docId = panneau?.id || formData?.id;
+      if (!docId) throw new Error("ID du panneau introuvable.");
 
-        const docRef = doc(db, "panneaux", docId);
+      const docRef = doc(db, "panneaux", docId);
 
-        const dataToUpdate = {
-            adresse: formData.adresse?.toUpperCase() || "",
-            zone: formData.zone || "",
-            type: formData.type || "",
-            dimension: formData.dimension || "",
-            faces: formData.faces.map((f: any) => {
-                const isOccupied = f.statut === "Occupé";
-                return {
-                    ...f,
-                    sens: f.sens || "",
-                    statut: f.statut || "Libre",
-                    // IMPORTANT : vérifiez que c'est bien 'clientNom' que vous utilisez dans votre <select>
-                    clientNom: isOccupied ? (f.clientNom || "") : "", 
-                    photoCampagneUrl: f.photoCampagneUrl || "",
-                    estAujourdhui: isOccupied 
-                };
-            }),
-            updatedAt: serverTimestamp()
-        };
+      const dataToUpdate = {
+        adresse: formData.adresse?.toUpperCase() || "",
+        zone: formData.zone || "",
+        type: formData.type || "",
+        dimension: formData.dimension || "",
+        faces: formData.faces.map((f: any) => {
+          const isOccupied = f.statut === "Occupé";
+          return {
+            ...f,
+            sens: f.sens || "",
+            statut: f.statut || "Libre",
+            // IMPORTANT : vérifiez que c'est bien 'clientNom' que vous utilisez dans votre <select>
+            clientNom: isOccupied ? (f.clientNom || "") : "",
+            photoCampagneUrl: f.photoCampagneUrl || "",
+            estAujourdhui: isOccupied
+          };
+        }),
+        updatedAt: serverTimestamp()
+      };
 
-        await updateDoc(docRef, dataToUpdate);
-        alert("Mise à jour réussie !");
-        onClose();
+      await updateDoc(docRef, dataToUpdate);
+      alert("Mise à jour réussie !");
+      onClose();
     } catch (error) {
-        console.error("Erreur Firebase:", error);
-        alert("Erreur lors de la sauvegarde.");
+      console.error("Erreur Firebase:", error);
+      alert("Erreur lors de la sauvegarde.");
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
-};
+  };
 
 
   return (
@@ -1296,27 +1312,27 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
 
                       {/* 3. Sélecteur Société : Affiché SEULEMENT si Occupé */}
                       {face.statut === "Occupé" && (
-  <div className="space-y-1">
-    <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
-      Société (Locataire)
-    </p>
-    
-    <select
-      value={face.clientNom || ''}
-      onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
-      className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none focus:border-[#d4af37] transition-all"
-    >
-      <option value="" className="bg-[#1a1a1a]">Sélectionner un client</option>
-      
-      {/* On filtre les doublons ici avec Array.from(new Set(...)) */}
-      {Array.from(new Set(listeSocietes)).map((nom) => (
-        <option key={nom} value={nom} className="bg-[#1a1a1a]">
-          {nom}
-        </option>
-      ))}
-    </select>
-  </div>
-)}
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
+                            Société (Locataire)
+                          </p>
+
+                          <select
+                            value={face.clientNom || ''}
+                            onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none focus:border-[#d4af37] transition-all"
+                          >
+                            <option value="" className="bg-[#1a1a1a]">Sélectionner un client</option>
+
+                            {/* On filtre les doublons ici avec Array.from(new Set(...)) */}
+                            {Array.from(new Set(listeSocietes)).map((nom) => (
+                              <option key={nom} value={nom} className="bg-[#1a1a1a]">
+                                {nom}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       <div className="space-y-1">
                         <p className="text-[8px] font-black text-white/30 uppercase italic">Sens de vue</p>
                         <input type="text" value={face.sens || ''} onChange={(e) => updateFace(idx, 'sens', e.target.value)} className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-white p-2 outline-none" />

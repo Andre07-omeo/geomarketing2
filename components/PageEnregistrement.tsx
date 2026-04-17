@@ -22,7 +22,7 @@ const CLOUDINARY_UPLOAD_PRESET = "panneaux";
 const CLOUDINARY_CLOUD_NAME = "dn7wnikzp";
 
 const COMMUNES_KINSHASA = ["Bandalungwa", "Barumbu", "Gombe", "Kalamu", "Kasa-Vubu", "Kimbanseke", "Kinshasa", "Kintambo", "Lemba", "Limete", "Lingwala", "Masina", "Matete", "Mont-Ngafula", "Ngaliema", "Ndjili", "Plateaux", "Nsele"];
-const TYPES_PANNEAUX = ["Standard", "Lumineux", "LED / Digital", "Déroulant", "Mur d'image", "Abribus", "Totem"];
+const TYPES_PANNEAUX = [ "LED", "Bache", "Vinyle",];
 
 export default function PageEnregistrement({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     const [localPreviews, setLocalPreviews] = useState<{ [key: number]: string }>({});
