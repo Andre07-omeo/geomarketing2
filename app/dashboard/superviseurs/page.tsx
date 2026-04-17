@@ -1149,13 +1149,16 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
 
   const handleSave = async () => {
     // --- BLOC DE DIAGNOSTIC ---
+    // --- BLOC DE DIAGNOSTIC ---
     formData.faces.forEach((f: any, i: number) => {
       if (f.statut === "Occupé") {
         console.log(`🔍 Vérification Face ${i + 1}:`, {
           statut: f.statut,
+          dateDebut: f.dateDebut || "MANQUANTE", // On affiche directement la valeur
+          dateFin: f.dateFin || "MANQUANTE",     // car on sait déjà qu'il est occupé
           photo: f.photoCampagneUrl ? "Présente" : "VIDE",
           estBlob: f.photoCampagneUrl?.startsWith('blob:'),
-          clientNom: f.clientNom ? f.clientNom : "VIDE"
+          clientNom: f.clientNom || "VIDE"
         });
       }
     });
@@ -1311,28 +1314,56 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
                       </div>
 
                       {/* 3. Sélecteur Société : Affiché SEULEMENT si Occupé */}
+                      {/* 3. Détails du contrat : Affichés SEULEMENT si Occupé */}
                       {face.statut === "Occupé" && (
-                        <div className="space-y-1">
-                          <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
-                            Société (Locataire)
-                          </p>
+                        <>
+                          {/* Sélecteur Société */}
+                          <div className="space-y-1">
+                            <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
+                              Société (Locataire)
+                            </p>
+                            <select
+                              value={face.clientNom || ''}
+                              onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
+                              className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none focus:border-[#d4af37] transition-all"
+                            >
+                              <option value="" className="bg-[#1a1a1a]">Sélectionner un client</option>
+                              {Array.from(new Set(listeSocietes)).map((nom) => (
+                                <option key={nom} value={nom} className="bg-[#1a1a1a]">{nom}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                          <select
-                            value={face.clientNom || ''}
-                            onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none focus:border-[#d4af37] transition-all"
-                          >
-                            <option value="" className="bg-[#1a1a1a]">Sélectionner un client</option>
+                          {/* Date de Début */}
+                          <div className="space-y-1">
+                            <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
+                              Début Contrat
+                            </p>
+                            <input
+                              type="date"
+                              value={face.dateDebut || ''}
+                              onChange={(e) => updateFace(idx, 'dateDebut', e.target.value)}
+                              className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-[10px] outline-none focus:border-[#d4af37] transition-all [color-scheme:dark]"
+                            />
+                          </div>
 
-                            {/* On filtre les doublons ici avec Array.from(new Set(...)) */}
-                            {Array.from(new Set(listeSocietes)).map((nom) => (
-                              <option key={nom} value={nom} className="bg-[#1a1a1a]">
-                                {nom}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                          {/* Date de Fin */}
+                          <div className="space-y-1">
+                            <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
+                              Fin Contrat
+                            </p>
+                            <input
+                              type="date"
+                              value={face.dateFin || ''}
+                              onChange={(e) => updateFace(idx, 'dateFin', e.target.value)}
+                              className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-[10px] outline-none focus:border-[#d4af37] transition-all [color-scheme:dark]"
+                            />
+                          </div>
+                        </>
                       )}
+
+
+
                       <div className="space-y-1">
                         <p className="text-[8px] font-black text-white/30 uppercase italic">Sens de vue</p>
                         <input type="text" value={face.sens || ''} onChange={(e) => updateFace(idx, 'sens', e.target.value)} className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-white p-2 outline-none" />
