@@ -399,7 +399,7 @@ export default function UltimateSupervisor() {
                     className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-full transition-all border border-red-500/20"
                     title="Déconnexion"
                   >
-                    <img src={user.logoUrl || "/default-avatar.png"} className="w-8 h-8 rounded-full border border-[#d4af37]" alt="Profil" />
+                    <img src={user.photoURL || "/default-avatar.png"} className="w-8 h-8 rounded-full border border-[#d4af37]" alt="Profil" />
                     <LogOut size={14} />
                   </button>
                 </div>
@@ -409,22 +409,12 @@ export default function UltimateSupervisor() {
             </div>
 
             {/* MOBILE MENU BUTTON (Ajout du nom en mobile) */}
-            <div className="xl:hidden flex items-center gap-3">
-              {/* Lien vers le Rapport en Mobile */}
-              <Link href="/dashboard/superviseurs/rapport">
-                <div className="p-2 text-blue-400 hover:text-amber-400 transition-colors">
-                  <FilePieChart size={24} />
-                </div>
-              </Link>
-
-              {/* Bouton Déconnexion */}
+            <div className="xl:hidden flex items-center gap-4">
               {user && (
-                <button onClick={handleLogout} className="p-2 text-white/50 hover:text-red-400 transition-colors">
+                <button onClick={handleLogout} className="p-2 text-white/50 hover:text-red-400">
                   <LogOut size={24} />
                 </button>
               )}
-
-              {/* Bouton Menu Filtre */}
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 className="p-3 bg-white/5 rounded-2xl border border-white/10 text-[#d4af37] hover:bg-[#d4af37]/10 transition-all"
