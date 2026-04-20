@@ -538,23 +538,23 @@ function AnalyticsSection({ user, panneaux, mesFaces }: any) {
     // 3. Logique des opportunités (Filtre intelligent)
     // 3. Logique des opportunités (Filtre testé sur tes données "LOBO 30")
     const panneauxOpportunites = (panneaux || []).filter((p: any) => {
-    if (!p?.faces || !Array.isArray(p.faces)) return false;
+        if (!p?.faces || !Array.isArray(p.faces)) return false;
 
-    return p.faces.some((f: any) => {
-        // 1. Nettoyage strict (tout en minuscules)
-        const statut = f?.statut ? String(f.statut).toLowerCase().trim() : "";
-        const client = f?.clientNom ? String(f.clientNom).toLowerCase().trim() : "";
+        return p.faces.some((f: any) => {
+            // 1. Nettoyage strict (tout en minuscules)
+            const statut = f?.statut ? String(f.statut).toLowerCase().trim() : "";
+            const client = f?.clientNom ? String(f.clientNom).toLowerCase().trim() : "";
 
-        // 2. Définition des critères (COMPARAISON EN MINUSCULES UNIQUEMENT)
-        const estLibreParStatut = statut === "disponible" || statut === "libre" || statut === "";
-        const estLibreParClient = !f?.clientNom || client === "" || client === "null" || client === "disponible";
-        
-        // 3. Exclusion stricte (si c'est marqué occupé, c'est mort)
-        const nEstPasOccupe = statut !== "occupé" && statut !== "occupe";
+            // 2. Définition des critères (COMPARAISON EN MINUSCULES UNIQUEMENT)
+            const estLibreParStatut = statut === "disponible" || statut === "libre" || statut === "";
+            const estLibreParClient = !f?.clientNom || client === "" || client === "null" || client === "disponible";
 
-        return (estLibreParStatut || estLibreParClient) && nEstPasOccupe;
+            // 3. Exclusion stricte (si c'est marqué occupé, c'est mort)
+            const nEstPasOccupe = statut !== "occupé" && statut !== "occupe";
+
+            return (estLibreParStatut || estLibreParClient) && nEstPasOccupe;
+        });
     });
-});
 
 
 
@@ -785,20 +785,20 @@ function AnalyticsSection({ user, panneaux, mesFaces }: any) {
                                 </div>
 
                                 <div>
-    <div className="flex items-center gap-2 mb-1">
-        <h4 className="text-sm font-black uppercase tracking-tighter text-[#d4af37]">
-            Domination Territoriale
-        </h4>
-        <span className="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full font-bold animate-pulse">
-            ALERTE OPPORTUNITÉ
-        </span>
-    </div>
-    
-    {/* Une seule balise <p> ici pour éviter l'erreur de console */}
-    <p className="text-[11px] text-white/90 leading-tight max-w-md">
-        Ne laissez pas le terrain vide : <span className="text-white font-bold">{nbOpportunites} emplacements clés</span> incluant <span className="text-[#d4af37] font-black uppercase tracking-tighter">"{messageAdressesDispo}"</span> sont disponibles. Saisissez-les avant vos concurrents.
-    </p>
-</div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="text-sm font-black uppercase tracking-tighter text-[#d4af37]">
+                                            Domination Territoriale
+                                        </h4>
+                                        <span className="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full font-bold animate-pulse">
+                                            ALERTE OPPORTUNITÉ
+                                        </span>
+                                    </div>
+
+                                    {/* Une seule balise <p> ici pour éviter l'erreur de console */}
+                                    <p className="text-[11px] text-white/90 leading-tight max-w-md">
+                                        Ne laissez pas le terrain vide : <span className="text-white font-bold">{nbOpportunites} emplacements clés</span> incluant <span className="text-[#d4af37] font-black uppercase tracking-tighter">"{messageAdressesDispo}"</span> sont disponibles. Saisissez-les avant vos concurrents.
+                                    </p>
+                                </div>
                             </div>
 
                             <div className="flex flex-col items-center gap-3 w-full md:w-auto">

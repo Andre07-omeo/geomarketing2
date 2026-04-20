@@ -1,12 +1,37 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, deleteDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Trash2, Power, Edit2, Search, X, Save, Loader2, UserPlus, Building2, ShieldCheck, Activity, Globe, Clock } from 'lucide-react';
-import Image from 'next/image';
+import { Timestamp, getFirestore, collection, onSnapshot, doc, deleteDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Trash2, Power, Edit2, Search, X, Save, Loader2, UserPlus, Building2, ShieldCheck, Activity, Globe, Clock, Eye, EyeOff } from 'lucide-react';
+
+
+
+// 1. Définition de l'interface
+interface User {
+  id: string;
+  nomSociete?: string;
+  adresse?: string;
+  logoUrl?: string;
+  nom?: string;
+  postNom?: string;
+  prenom?: string;
+  nomComplet?: string;
+  fonction?: string;
+  email: string;
+  telephone: string;
+  role: 'admin' | 'comptable' | 'commercial' | 'visiteur';
+  actif: boolean;
+  isOnline: boolean;
+  lastLogin: Timestamp | null;
+  createdAt: Timestamp;
+  password?: string; // <--- Ajoute cette ligne ici
+}
+
 
 // Configuration Cloudinary / Logo
 const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+// Constantes des URLs par défaut
+const LOGO_AGENT_PAR_DEFAUT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690407/dtmebbxkdgj56wmg07hw.jpg";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
@@ -21,23 +46,64 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<any[]>([]);
+
+  const [users, setUsers] = useState<User[]>([]);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [editingUser, setEditingUser] = useState<any | null>(null);
-  const [editForm, setEditForm] = useState({ nomSociete: '', email: '', adresse: '', role: '', telephone: '' });
+  const [editForm, setEditForm] = useState({
+    nomSociete: '',
+    email: '',
+    adresse: '',
+    role: '',
+    telephone: '',
+    // Ajoute ces champs pour les agents
+    nom: '',
+    postNom: '',
+    prenom: '',
+    fonction: ''
+  });
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({ nomSociete: '', email: '', password: '', role: 'visiteur' });
+  // Remplace ton useState actuel par celui-ci
+  const [createForm, setCreateForm] = useState({
+    type: 'societe', // 'societe' ou 'agent'
+    nomSociete: '',
+    // Champs Agent
+    nom: '',
+    postNom: '',
+    prenom: '',
+    fonction: '',
+    role: 'comptable', // admin, comptable, commercial
+    email: '',
+    telephone: '+243',
+    password: ''
+  });
+
+
+
+
+
+  // Génération auto de l'email
+  const generateEmail = (nom: string, prenom: string) => {
+    if (!nom || !prenom) return '';
+    const cleanNom = nom.toLowerCase().replace(/\s/g, '');
+    const cleanPrenom = prenom.toLowerCase().replace(/\s/g, '');
+    return `${cleanPrenom}.${cleanNom}.${Math.floor(Math.random() * 999)}@dispromalt.cd`;
+  };
 
   // Récupération des données en temps réel
   useEffect(() => {
     const colRef = collection(db, "societes");
     const unsub = onSnapshot(colRef, (snapshot) => {
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const data = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      })) as User[]; // Typage explicite
       setUsers(data);
       setLoading(false);
     }, (err) => {
@@ -87,28 +153,98 @@ export default function UsersPage() {
     }
   };
 
-  const handleCreateUser = async () => {
-    if (!createForm.nomSociete || !createForm.email || !createForm.password) {
-      return alert("Veuillez remplir tous les champs obligatoires");
+
+
+  const isFormValid = () => {
+    // Si c'est une société, seul le nom est nécessaire
+    if (createForm.type === 'societe') {
+      return createForm.nomSociete.trim().length > 2;
     }
+
+    // Si c'est un agent, on vérifie TOUS les champs
+    return (
+      createForm.nom.trim().length > 0 &&
+      createForm.postNom.trim().length > 0 &&
+      createForm.prenom.trim().length > 0 &&
+      createForm.telephone.trim().length >= 10 &&
+      createForm.fonction.trim().length > 0 &&
+      createForm.password.trim().length >= 8
+    );
+  };
+
+  const handleCreateUser = async () => {
+    // 1. Validation de base
+    if (createForm.type === 'agent' && (!createForm.nom || !createForm.prenom || !createForm.email)) {
+      return alert("Veuillez remplir les champs obligatoires pour l'agent");
+    }
+
     setIsCreating(true);
     try {
-      await addDoc(collection(db, "societes"), {
-        ...createForm,
-        role: 'visiteur',
-        actif: true,
-        isOnline: false,
-        lastSeen: null,
-        createdAt: serverTimestamp()
-      });
-      setCreateForm({ nomSociete: '', email: '', password: '', role: 'visiteur' });
+      // 2. Construction de l'objet de données
+      const userData = createForm.type === 'societe'
+        ? {
+          nomSociete: createForm.nomSociete,
+          email: createForm.email,
+          password: createForm.password, // Stocké pour vérification future
+          role: 'visiteur',
+          logoUrl: LOGO_DISPROMALT, // Utilisation de la constante
+          actif: true,
+          createdAt: serverTimestamp(),
+          lastLogin: null,
+          isOnline: false,
+          mouvements: []
+        }
+        : {
+          nom: createForm.nom,
+          postNom: createForm.postNom,
+          prenom: createForm.prenom,
+          nomComplet: `${createForm.nom} ${createForm.postNom} ${createForm.prenom}`,
+          telephone: createForm.telephone,
+          email: createForm.email,
+          fonction: createForm.fonction,
+          logoUrl: LOGO_AGENT_PAR_DEFAUT, // Utilisation de la constante
+          role: createForm.role, // admin, comptable, ou commercial
+          password: createForm.password,
+          actif: true,
+          createdAt: serverTimestamp(),
+          lastLogin: null,
+          isOnline: false,
+          mouvements: []
+        };
+
+      // 3. Envoi à Firestore
+      await addDoc(collection(db, "societes"), userData);
+
+      // 4. Succès
+      alert("Compte créé avec succès. Veuillez transmettre le mot de passe manuellement.");
+
+      // 5. Fermeture et Reset complet
       setIsCreateModalOpen(false);
+      setCreateForm({
+        type: 'societe',
+        nomSociete: '',
+        nom: '',
+        postNom: '',
+        prenom: '',
+        fonction: '',
+        role: 'comptable',
+        email: '',
+        telephone: '+243',
+        password: ''
+      });
+
     } catch (err) {
-      alert("Erreur lors de la création");
+      if (err instanceof Error) {
+        console.error(err.message);
+        alert("Erreur : " + err.message);
+      } else {
+        alert("Une erreur inconnue est survenue");
+      }
     } finally {
       setIsCreating(false);
     }
   };
+
 
   const handleSaveEdit = async () => {
     if (!editingUser) return;
@@ -119,6 +255,7 @@ export default function UsersPage() {
       alert("Erreur lors de la mise à jour");
     }
   };
+
 
   const handleUpdateStatus = async (id: string, current: boolean) => {
     await updateDoc(doc(db, "societes", id), { actif: !current });
@@ -149,6 +286,24 @@ export default function UsersPage() {
     (u.nomSociete?.toLowerCase() || "").includes(search.toLowerCase()) ||
     (u.email?.toLowerCase() || "").includes(search.toLowerCase())
   );
+
+
+
+  const handleEditClick = (userToEdit: User) => {
+    setEditingUser(userToEdit);
+    setEditForm({
+      nomSociete: userToEdit.nomSociete || '',
+      email: userToEdit.email || '',
+      adresse: userToEdit.adresse || '',
+      role: userToEdit.role || 'visiteur',
+      telephone: userToEdit.telephone || '',
+      nom: userToEdit.nom || '',
+      postNom: userToEdit.postNom || '',
+      prenom: userToEdit.prenom || '',
+      fonction: userToEdit.fonction || ''
+    });
+  };
+
 
   return (
     <div className="min-h-screen bg-[#4169E1] text-white p-4 md:p-8 selection:bg-red-600">
@@ -222,17 +377,20 @@ export default function UsersPage() {
           {filteredUsers.map((user) => (
             <div key={user.id} className="relative group bg-white/10 border border-white/20 p-8 rounded-[2.5rem] hover:bg-white/20 transition-all duration-500 backdrop-blur-sm shadow-xl">
 
+              {/* HEADER : Photo / Logo et Nom */}
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-white border-2 border-amber-400/30 flex items-center justify-center overflow-hidden">
                     {user.logoUrl ? (
-                      <img src={user.logoUrl} alt="L" className="w-full h-full object-cover" />
+                      <img src={user.logoUrl || LOGO_DISPROMALT} alt="Logo" className="w-full h-full object-cover" />
                     ) : (
                       <Building2 className="text-blue-600" size={28} />
                     )}
                   </div>
                   <div>
-                    <h3 className="font-black text-xl text-white uppercase truncate max-w-[140px]">{user.nomSociete}</h3>
+                    <h3 className="font-black text-xl text-white uppercase truncate max-w-[140px]">
+                      {user.nom ? `${user.prenom} ${user.nom}` : user.nomSociete}
+                    </h3>
                     <span className={`mt-1 px-3 py-0.5 inline-block rounded-full text-[9px] font-black uppercase border ${getRoleStyle(user.role)}`}>
                       {user.role}
                     </span>
@@ -241,119 +399,254 @@ export default function UsersPage() {
                 <div className={`w-3 h-3 rounded-full ${user.actif ? 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)]' : 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]'}`} />
               </div>
 
-              {/* AFFICHAGE LAST SEEN */}
-              <div className="flex items-center gap-3 mb-6 bg-white/5 p-3 rounded-2xl border border-white/5">
-                <div className="p-2 bg-blue-600/30 rounded-lg">
-                  <Clock size={14} className="text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-[8px] text-blue-200/50 font-black uppercase tracking-tighter">Activité</p>
-                  <p className="text-[11px] font-bold text-white italic">
-                    {user.isOnline ? (
-                      <span className="text-emerald-400">En ligne</span>
-                    ) : (
-                      `Déconnecté le ${formatLastSeen(user.lastSeen)}`
-                    )}
-                  </p>
-                </div>
-              </div>
+              {/* SECTION INFORMATIONS AGENT (Intégrée dans le map) */}
+              {user.nom && (
+                <div className="mb-4 p-4 bg-black/20 rounded-2xl border border-white/5 space-y-2">
+                  <p className="text-[9px] text-blue-200/40 font-black uppercase tracking-widest">Détails Agent</p>
+                  <div className="text-white font-bold text-sm">
+                    {user.prenom} {user.nom} {user.postNom}
+                  </div>
+                  <div className="text-amber-400 text-xs italic">{user.fonction}</div>
 
+                  {/* TOGGLE MOT DE PASSE */}
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase">Pass:</span>
+
+                    {/* Conteneur pour l'input et l'icône */}
+                    <div className="flex items-center bg-black/40 px-3 py-1.5 rounded-lg border border-white/10">
+                      <input
+                        id={`pass-${user.id}`}
+                        type="password"
+                        // Utilise (user as any) si tu n'as pas mis 'password' dans ton interface User
+                        defaultValue={(user as any).password || '******'}
+                        readOnly
+                        className="bg-transparent w-20 outline-none text-center text-white text-[11px] font-mono cursor-default"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById(`pass-${user.id}`) as HTMLInputElement;
+                          if (el) el.type = el.type === 'password' ? 'text' : 'password';
+                        }}
+                        className="ml-2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+                      >
+                        👁️
+                      </button>
+
+                    </div>
+                    <p className="text-[11px] font-bold text-white italic">
+                      {user.isOnline ? (
+                        <span className="text-emerald-400">En ligne</span>
+                      ) : (
+                        user.lastLogin
+                          ? `Déconnecté le ${formatLastSeen(user.lastLogin)}`
+                          : "Jamais connecté"
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* IDENTIFIANT SYSTÈME (Email) */}
               <div className="bg-black/20 p-4 rounded-2xl mb-8 border border-white/5">
-                <p className="text-[9px] text-blue-200/40 font-black uppercase tracking-widest mb-1">Identifiant Système</p>
+                <p className="text-[9px] text-blue-200/40 font-black uppercase tracking-widest mb-1">Email    bbbbb</p>
                 <p className="text-sm font-bold text-amber-100/90 truncate">{user.email}</p>
               </div>
 
+              {/* FOOTER : BOUTONS */}
               <div className="flex justify-between items-center gap-3">
-                <button onClick={() => handleUpdateStatus(user.id, user.actif)} className={`flex-1 flex justify-center py-3 rounded-xl transition-all ${user.actif ? 'bg-amber-400/20 text-amber-400' : 'bg-red-600 text-white shadow-lg shadow-red-900/40'}`}><Power size={18} /></button>
-                <button onClick={() => { setEditingUser(user); setEditForm({ nomSociete: user.nomSociete, email: user.email, adresse: user.adresse || '', role: user.role, telephone: user.telephone || '' }); }} className="flex-1 flex justify-center py-3 bg-white/10 rounded-xl text-white hover:bg-white/20"><Edit2 size={18} /></button>
-                <button onClick={() => handleDelete(user.id)} className="flex-1 flex justify-center py-3 bg-red-600/10 text-red-400 rounded-xl hover:bg-red-600 hover:text-white"><Trash2 size={18} /></button>
+                <button onClick={() => handleUpdateStatus(user.id, user.actif)} className={`flex-1 flex justify-center py-3 rounded-xl transition-all ${user.actif ? 'bg-amber-400/20 text-amber-400' : 'bg-red-600 text-white'}`}>
+                  <Power size={18} />
+                </button>
+                <button onClick={() => handleEditClick(user)} className="flex-1 flex justify-center py-3 bg-blue-600/10 text-blue-400 rounded-xl hover:bg-blue-600 hover:text-white transition-all">
+                  <Edit2 size={18} />
+                </button>
+                <button onClick={() => handleDelete(user.id)} className="flex-1 flex justify-center py-3 bg-red-600/10 text-red-400 rounded-xl hover:bg-red-600 hover:text-white transition-all">
+                  <Trash2 size={18} />
+                </button>
               </div>
             </div>
           ))}
 
           {/* MODALE DE CRÉATION */}
           {isCreateModalOpen && (
-            <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 backdrop-blur-2xl">
-              <div className="bg-[#4169E1] border-2 border-amber-400/40 p-8 md:p-12 rounded-[3rem] w-full max-w-lg shadow-2xl">
-                <div className="flex justify-between items-center mb-10 text-white">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center"><UserPlus size={28} /></div>
-                    <h3 className="text-3xl font-black italic uppercase leading-none text-white">Nouveau<br /><span className="text-amber-400">Visiteur</span></h3>
-                  </div>
-                  <button onClick={() => setIsCreateModalOpen(false)}><X size={32} /></button>
+            <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 backdrop-blur-2xl overflow-y-auto">
+              <div className="bg-[#4169E1] border-2 border-amber-400/40 p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl my-8">
+
+                {/* HEADER AVEC CROIX */}
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className="text-3xl font-black italic uppercase text-white">Nouvel <span className="text-amber-400">Accès</span></h3>
+                  <button
+                    onClick={() => setIsCreateModalOpen(false)}
+                    className="text-white hover:text-red-400 transition-colors"
+                  >
+                    <X size={32} />
+                  </button>
                 </div>
-                <div className="space-y-6">
-                  <div>
-                    <label className="text-[10px] font-black text-amber-400 uppercase tracking-widest ml-4 mb-2 block">Société</label>
-                    <input
-                      placeholder="NOM..."
-                      className="w-full bg-white/10 p-5 rounded-[1.5rem] border border-white/20 text-white outline-none focus:border-amber-400 font-black uppercase"
-                      value={createForm.nomSociete}
-                      onChange={(e) => {
-                        const nom = e.target.value;
-                        const nomClean = nom.toLowerCase().replace(/\s+/g, '');
-                        setCreateForm({ ...createForm, nomSociete: nom, email: nom ? `${nomClean}.dispro@visiteur.com` : '' });
-                      }}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white/5 p-5 rounded-[1.5rem] border border-white/10">
-                      <label className="text-[10px] text-blue-200/50 uppercase block mb-1">Rôle</label>
-                      <div className="text-amber-400 font-black italic">VISITEUR</div>
+
+                {/* SÉLECTEUR TYPE */}
+                <div className="flex gap-2 mb-8 p-1 bg-white/10 rounded-2xl">
+                  <button onClick={() => setCreateForm({ ...createForm, type: 'societe' })} className={`flex-1 py-3 rounded-xl font-black ${createForm.type === 'societe' ? 'bg-amber-400 text-blue-900' : 'text-white'}`}>SOCIÉTÉ</button>
+                  <button onClick={() => setCreateForm({ ...createForm, type: 'agent' })} className={`flex-1 py-3 rounded-xl font-black ${createForm.type === 'agent' ? 'bg-amber-400 text-blue-900' : 'text-white'}`}>AGENT</button>
+                </div>
+
+                <div className="space-y-4">
+                  {createForm.type === 'agent' ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <input placeholder="Nom" className="bg-white/10 p-4 rounded-xl border border-white/20 text-white" value={createForm.nom} onChange={(e) => setCreateForm({ ...createForm, nom: e.target.value })} />
+                        <input placeholder="Post-Nom" className="bg-white/10 p-4 rounded-xl border border-white/20 text-white" value={createForm.postNom} onChange={(e) => setCreateForm({ ...createForm, postNom: e.target.value })} />
+                      </div>
+                      <input placeholder="Prénom" className="w-full bg-white/10 p-4 rounded-xl border border-white/20 text-white" value={createForm.prenom} onChange={(e) => {
+                        const newPrenom = e.target.value;
+                        setCreateForm({ ...createForm, prenom: newPrenom, email: generateEmail(createForm.nom, newPrenom) });
+                      }} />
+                      <input placeholder="Téléphone (+243...)" className="w-full bg-white/10 p-4 rounded-xl border border-white/20 text-white" value={createForm.telephone} onChange={(e) => setCreateForm({ ...createForm, telephone: e.target.value })} />
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <input placeholder="Fonction" className="bg-white/10 p-4 rounded-xl border border-white/20 text-white" value={createForm.fonction} onChange={(e) => setCreateForm({ ...createForm, fonction: e.target.value })} />
+                        <select className="bg-white/10 p-4 rounded-xl border border-white/20 text-white outline-none" value={createForm.role} onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}>
+                          <option value="admin">Admin</option>
+                          <option value="comptable">Comptable</option>
+                          <option value="commercial">Commercial</option>
+                        </select>
+                      </div>
+
+                      <div className="bg-black/20 p-4 rounded-xl border border-white/10">
+                        <label className="text-[9px] text-amber-400 uppercase">Email généré</label>
+                        <div className="text-white font-bold">{createForm.email || 'en attente...'}</div>
+                      </div>
+
+                      {/* INPUT MOT DE PASSE AVEC VISIBILITÉ */}
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Mot de passe sécurisé"
+                          className="w-full bg-white/10 p-4 rounded-xl border border-white/20 text-white pr-12"
+                          value={createForm.password}
+                          onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
+
                     </div>
-                    <div>
-                      <label className="text-[10px] text-amber-400 uppercase block mb-2">Password</label>
-                      <input type="password" placeholder="••••" className="w-full bg-white/10 p-5 rounded-[1.5rem] border border-white/20 text-white" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} />
-                    </div>
-                  </div>
-                  <button onClick={handleCreateUser} disabled={isCreating} className="w-full p-6 bg-red-600 hover:bg-red-700 rounded-[1.5rem] font-black text-white flex justify-center items-center gap-3 shadow-xl uppercase">
-                    {isCreating ? <Loader2 className="animate-spin" /> : <Save size={20} />} Enregistrer
+                  ) : (
+                    <input className="w-full bg-white/10 p-5 rounded-[1.5rem] border border-white/20 text-white font-black" placeholder="NOM DE LA SOCIÉTÉ" value={createForm.nomSociete} onChange={(e) => setCreateForm({ ...createForm, nomSociete: e.target.value })} />
+                  )}
+
+                  <button
+                    onClick={handleCreateUser}
+                    disabled={!isFormValid()}
+                    className={`w-full mt-6 p-6 rounded-[1.5rem] font-black text-white uppercase shadow-xl transition-all ${isFormValid() ? 'bg-red-600 hover:bg-red-700' : 'bg-zinc-700 cursor-not-allowed opacity-50'}`}
+                  >
+                    {isCreating ? <Loader2 className="animate-spin" /> : "Valider Enregistrement"}
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* MODALE DE MODIFICATION (COMPLÈTE) */}
           {editingUser && (
-            <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 backdrop-blur-2xl">
-              <div className="bg-[#4169E1] border-2 border-amber-400/40 p-10 rounded-[3rem] w-full max-w-lg shadow-2xl">
-                <h3 className="text-3xl font-black italic text-white uppercase mb-8 text-center underline decoration-red-600 underline-offset-8">Édition Profil</h3>
-                <div className="space-y-5">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[10px] font-black text-amber-400 uppercase ml-2 mb-1 block">Nom Société</label>
-                      <input className="w-full bg-white/10 p-4 rounded-2xl border border-white/10 text-white font-bold" value={editForm.nomSociete} onChange={(e) => setEditForm({ ...editForm, nomSociete: e.target.value })} />
+            <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 backdrop-blur-2xl overflow-y-auto">
+              <div className="bg-[#4169E1] border-2 border-amber-400/40 p-8 rounded-[3rem] w-full max-w-lg shadow-2xl">
+                <h3 className="text-2xl font-black text-white uppercase mb-6 text-center">
+                  {/* Utilisation de l'optional chaining ?. pour la sécurité */}
+                  {editingUser?.nom ? 'Modification Agent' : 'Modification Société'}
+                </h3>
+
+                <div className="space-y-4">
+                  {/* LOGIQUE DYNAMIQUE : Si c'est un agent (possède un nom), on affiche ses champs */}
+                  {editingUser?.nom ? (
+                    <div className="space-y-3 border-b border-white/20 pb-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          placeholder="Nom"
+                          className="bg-white/10 p-4 rounded-xl border border-white/20 text-white"
+                          value={editForm.nom}
+                          onChange={(e) => setEditForm({ ...editForm, nom: e.target.value })}
+                        />
+                        <input
+                          placeholder="Post-Nom"
+                          className="bg-white/10 p-4 rounded-xl border border-white/20 text-white"
+                          value={editForm.postNom}
+                          onChange={(e) => setEditForm({ ...editForm, postNom: e.target.value })}
+                        />
+                      </div>
+                      <input
+                        placeholder="Prénom"
+                        className="w-full bg-white/10 p-4 rounded-xl border border-white/20 text-white"
+                        value={editForm.prenom}
+                        onChange={(e) => setEditForm({ ...editForm, prenom: e.target.value })}
+                      />
+                      <input
+                        placeholder="Fonction"
+                        className="w-full bg-white/10 p-4 rounded-xl border border-white/20 text-white"
+                        value={editForm.fonction}
+                        onChange={(e) => setEditForm({ ...editForm, fonction: e.target.value })}
+                      />
                     </div>
-                    <div>
-                      <label className="text-[10px] font-black text-amber-400 uppercase ml-2 mb-1 block">Rôle</label>
-                      <select className="w-full bg-black/40 p-4 rounded-2xl border border-white/10 text-white font-bold outline-none" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
-                        <option value="visiteur">Visiteur</option>
-                        <option value="admin">Admin</option>
-                        <option value="comptable">Comptable</option>
-                        <option value="commercial">Commercial</option>
-                        <option value="superviseurs">Superviseur</option>
-                      </select>
-                    </div>
+                  ) : (
+                    <input
+                      className="w-full bg-white/10 p-4 rounded-xl border border-white/20 text-white font-bold"
+                      placeholder="Nom Société"
+                      value={editForm.nomSociete}
+                      onChange={(e) => setEditForm({ ...editForm, nomSociete: e.target.value })}
+                    />
+                  )}
+
+                  {/* Champs communs */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      className="bg-white/10 p-4 rounded-xl border border-white/20 text-white"
+                      placeholder="Tél"
+                      value={editForm.telephone}
+                      onChange={(e) => setEditForm({ ...editForm, telephone: e.target.value })}
+                    />
+                    <select
+                      className="bg-black/40 p-4 rounded-xl border border-white/20 text-white"
+                      value={editForm.role}
+                      onChange={(e) => setEditForm({ ...editForm, role: e.target.value as any })}
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="comptable">Comptable</option>
+                      <option value="commercial">Commercial</option>
+                      <option value="visiteur">Client</option>
+                    </select>
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black text-amber-400 uppercase ml-2 mb-1 block">Téléphone</label>
-                    <input className="w-full bg-white/10 p-4 rounded-2xl border border-white/10 text-white" value={editForm.telephone} onChange={(e) => setEditForm({ ...editForm, telephone: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-amber-400 uppercase ml-2 mb-1 block">Adresse</label>
-                    <input className="w-full bg-white/10 p-4 rounded-2xl border border-white/10 text-white" value={editForm.adresse} onChange={(e) => setEditForm({ ...editForm, adresse: e.target.value })} />
-                  </div>
-                  <div className="flex gap-4 pt-6">
-                    <button onClick={() => setEditingUser(null)} className="flex-1 p-5 bg-white/5 rounded-2xl font-black text-white uppercase text-xs hover:bg-white/10">Fermer</button>
-                    <button onClick={handleSaveEdit} className="flex-1 p-5 bg-red-600 rounded-2xl font-black text-white uppercase text-xs shadow-lg shadow-red-900/40 hover:bg-red-700">Mettre à jour</button>
-                  </div>
+                  <input
+                    className="w-full bg-white/10 p-4 rounded-xl border border-white/20 text-white"
+                    placeholder="Email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-8">
+                  <button
+                    onClick={() => setEditingUser(null)}
+                    className="flex-1 p-4 bg-white/10 rounded-2xl text-white font-bold hover:bg-white/20 transition-all"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="flex-1 p-4 bg-red-600 rounded-2xl text-white font-bold hover:bg-red-700 transition-all"
+                  >
+                    Sauvegarder
+                  </button>
                 </div>
               </div>
             </div>
           )}
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 }

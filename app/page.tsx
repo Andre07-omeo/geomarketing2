@@ -976,9 +976,25 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
 };
 
 
+
+
+
+
+
 import { doc, getDoc, } from 'firebase/firestore';
 
 import { ShieldCheck, } from 'lucide-react';
+
+import {
+  updateDoc,        // <--- Vérifie cet import
+  serverTimestamp   // <--- Vérifie cet import
+} from 'firebase/firestore';
+
+
+
+
+import { useAuth } from "@/context/AuthContext"; // Si tu es dans app/
+
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -991,95 +1007,96 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+
+
+  // 2. APPELLE LE HOOK ICI (tout en haut du composant, pas dans handleLogin)
+  
+const { login } = useAuth();
+
+
+  if (!isOpen) return null;
+
+
+
+  const [showPassword, setShowPassword] = useState(false); // ICI !
+
   if (!isOpen) return null;
 
   const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
   const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
+    e.preventDefault();
+    setLoading(true);
 
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanPassword = password.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
 
-  try {
-    let userData: any = null;
-    let userId: string = "";
-
-    // --- ÉTAPE 1 : TENTER LA CONNEXION VIA FIREBASE AUTH ---
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      userId = userCredential.user.uid;
-      
-      // Si Auth réussit, on récupère son profil dans Firestore
-      const docSnap = await getDoc(doc(db, "societes", userId));
-      if (docSnap.exists()) {
-        userData = docSnap.data();
+      let userData: any = null;
+      let userId: string = "";
+
+      // --- ÉTAPE 1 : CONNEXION ---
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        userId = userCredential.user.uid;
+        const docSnap = await getDoc(doc(db, "societes", userId));
+        if (docSnap.exists()) userData = docSnap.data();
+      } catch (authError) {
+        const q = query(collection(db, "societes"), where("email", "==", cleanEmail), limit(1));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const resDoc = querySnapshot.docs[0];
+          if (resDoc.data().password === cleanPassword) {
+            userId = resDoc.id;
+            userData = resDoc.data();
+          }
+        }
       }
-    } catch (authError) {
-      console.log("Auth classique échouée, tentative via Firestore direct...");
-      // On ne s'arrête pas, on passe à l'étape 2
-    }
 
-    // --- ÉTAPE 2 : SI PAS ENCORE TROUVÉ, CHERCHER DANS LA COLLECTION (VISITEURS) ---
-    if (!userData) {
-      const q = query(
-        collection(db, "societes"),
-        where("email", "==", cleanEmail),
-        where("password", "==", cleanPassword),
-        limit(1)
-      );
+      if (!userData) throw new Error("Identifiants incorrects.");
 
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const resDoc = querySnapshot.docs[0];
-        userId = resDoc.id;
-        userData = resDoc.data();
+      // --- ÉTAPE 2 : VÉRIFICATIONS ---
+      if (userData.actif !== true) {
+        if (auth.currentUser) await auth.signOut();
+        throw new Error("Compte non activé. Contactez l'admin.");
       }
+
+      const routes: Record<string, string> = {
+        visiteur: '/dashboard/visiteurs',
+        admin: '/dashboard/admin',
+        superviseurs: '/dashboard/superviseurs',
+        commercial: '/dashboard/superviseurs',
+        comptable: '/dashboard/Comptable',
+        client: '/dashboard/client'
+      };
+
+      const targetRoute = routes[userData.role?.toLowerCase()];
+
+      if (targetRoute) {
+        // --- ÉTAPE 3 : MISE À JOUR ---
+        await updateDoc(doc(db, "societes", userId), {
+          isOnline: true,
+          lastLogin: serverTimestamp()
+        });
+
+        // Utilisation du contexte
+        login({ id: userId, ...userData });
+
+        onClose();
+        router.push(targetRoute);
+      } else {
+        throw new Error("Rôle non configuré.");
+      }
+
+    } catch (err: any) {
+      console.error("Login Error:", err);
+      alert(err.message);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // --- ÉTAPE 3 : VÉRIFICATIONS FINALES ---
-    if (!userData) {
-      throw new Error("Identifiants incorrects. Veuillez vérifier vos accès.");
-    }
 
-    // VÉRIFICATION DU STATUT ACTIF (Votre demande spécifique)
-    if (userData.actif !== true) {
-      // Si c'était un compte Auth, on le déconnecte par sécurité
-      if (auth.currentUser) await auth.signOut();
-      throw new Error("Votre compte n'est pas encore activé. Veuillez contacter le service Admin de Dispromalt pour l'activation.");
-    }
-
-    // --- ÉTAPE 4 : REDIRECTION SELON LE RÔLE ---
-    const routes: Record<string, string> = {
-      visiteur: '/dashboard/visiteurs',
-      admin: '/dashboard/admin',
-      superviseurs: '/dashboard/superviseurs',
-      commercial: '/dashboard/Commercial',
-      comptable: '/dashboard/Comptable',
-      client: '/dashboard/client'
-    };
-
-    const targetRoute = routes[userData.role?.toLowerCase()];
-
-    if (targetRoute) {
-      // Sauvegarde de la session pour les pages internes
-      localStorage.setItem('userSession', JSON.stringify({ id: userId, ...userData }));
-      
-      onClose();
-      router.push(targetRoute);
-    } else {
-      throw new Error("Rôle utilisateur non configuré.");
-    }
-
-  } catch (err: any) {
-    console.error("Login Error:", err);
-    alert(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
   return (
     <div className="fixed inset-0 z-[2000] bg-[#020617]/90 backdrop-blur-xl flex items-center justify-center p-4">
       {/* BOUTON FERMER STYLE AÉRONAUTIQUE */}

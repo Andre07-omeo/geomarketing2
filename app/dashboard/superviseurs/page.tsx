@@ -202,7 +202,19 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   );
 };
 
-import { LogOut, } from 'lucide-react';
+
+
+
+
+
+
+
+
+import { useAuth } from "@/context/AuthContext"; // Si tu es dans app/
+
+
+import { LogOut, User } from "lucide-react";
+
 // Ajoute FilePieChart à la liste des imports existants
 import { LayoutDashboard, FilePieChart, } from 'lucide-react';
 // --- PAGE PRINCIPALE ---
@@ -220,13 +232,14 @@ export default function UltimateSupervisor() {
   const [isModalOpen, setIsModalOpen] = useState(false); // État pour la modale Nouveau Panneau
   const [isAddModalOpen, setIsAddModalOpen] = useState(false); // CORRIGÉ : false par défaut
 
-
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
 
 
   const [filters, setFilters] = useState({ zone: '', statut: '', format: '' });
   const [hidden, setHidden] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const router = useRouter();
+  const { user, logout } = useAuth();
 
   // 2. HOOKS (Framer Motion & Scroll)
   const { scrollYProgress, scrollY } = useScroll();
@@ -238,11 +251,18 @@ export default function UltimateSupervisor() {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    router.push('/');
-  };
+    if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+      // 1. Appel de ta fonction du contexte
+      logout();
 
+      // 2. Nettoyage supplémentaire par sécurité
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // 3. Redirection propre
+      router.push('/');
+    }
+  };
 
 
   useMotionValueEvent(scrollY, "change", (latest) => {
@@ -367,28 +387,56 @@ export default function UltimateSupervisor() {
                 </div>
               </Link>
 
-              <div className="h-6 w-px bg-white/10 mx-2" />
-
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="flex items-center gap-2 bg-white/5 border border-[#d4af37]/30 text-[#d4af37] px-6 py-3 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-[#d4af37] hover:text-black transition-all"
-              >
-                <Filter size={14} /> Menu Filtre
-              </button>
+              {/* ZONE UTILISATEUR CONNECTÉ */}
+              {user ? (
+                <div className="flex items-center gap-3 pl-6 border-l border-white/10">
+                  <div className="text-right hidden 2xl:block">
+                    <p className="text-[10px] font-bold text-white uppercase">{user.nom || "Utilisateur"}</p>
+                    <p className="text-[8px] text-[#d4af37] uppercase">{user.role}</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-full transition-all border border-red-500/20"
+                    title="Déconnexion"
+                  >
+                    <img src={user.logoUrl || "/default-avatar.png"} className="w-8 h-8 rounded-full border border-[#d4af37]" alt="Profil" />
+                    <LogOut size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setIsLoginOpen(true)} className="text-[#d4af37] text-[10px] font-bold uppercase">Connexion</button>
+              )}
             </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="xl:hidden p-3 bg-white/5 rounded-2xl border border-white/10 text-[#d4af37] hover:bg-[#d4af37]/10 transition-all"
-            >
-              <Menu size={28} />
-            </button>
+            {/* MOBILE MENU BUTTON (Ajout du nom en mobile) */}
+            <div className="xl:hidden flex items-center gap-3">
+              {/* Lien vers le Rapport en Mobile */}
+              <Link href="/dashboard/superviseurs/rapport">
+                <div className="p-2 text-blue-400 hover:text-amber-400 transition-colors">
+                  <FilePieChart size={24} />
+                </div>
+              </Link>
+
+              {/* Bouton Déconnexion */}
+              {user && (
+                <button onClick={handleLogout} className="p-2 text-white/50 hover:text-red-400 transition-colors">
+                  <LogOut size={24} />
+                </button>
+              )}
+
+              {/* Bouton Menu Filtre */}
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-3 bg-white/5 rounded-2xl border border-white/10 text-[#d4af37] hover:bg-[#d4af37]/10 transition-all"
+              >
+                <Menu size={28} />
+              </button>
+            </div>
           </motion.div>
         </div>
       </nav>
 
-      {/* SIDEBAR / MENU LATÉRAL */}
+
 
 
 
@@ -1043,7 +1091,6 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
 import { serverTimestamp } from 'firebase/firestore';
 import {
   Save,
-
   Camera,
 
 } from 'lucide-react';
@@ -1393,6 +1440,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
     </div>
   );
 };
+
 
 
 const COMMUNES_KINSHASA = ["Bandalungwa", "Barumbu", "Gombe", "Kalamu", "Kasa-Vubu", "Kimbanseke", "Kinshasa", "Kintambo", "Lemba", "Limete", "Lingwala", "Masina", "Matete", "Mont-Ngafula", "Ngaliema", "Ndjili", "Nsele"];

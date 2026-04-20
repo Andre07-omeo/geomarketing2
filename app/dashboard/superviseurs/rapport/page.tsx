@@ -3,9 +3,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search, Download, CheckCircle2, AlertCircle,
   Calendar, Printer, ArrowUpRight, Loader2, Clock,
-  ChevronDown, Database,
+  ChevronDown, Database, LogOut, User, Menu, FileSpreadsheet, FileText
 } from 'lucide-react';
 import { motion, } from 'framer-motion';
+
+
+import { useAuth } from "@/context/AuthContext"; // Vérifie ton chemin !
+import { useRouter } from 'next/navigation'; // Import pour le App Router
 
 // --- INITIALISATION FIREBASE DIRECTE ---
 import { initializeApp, getApps, getApp } from 'firebase/app';
@@ -15,9 +19,7 @@ import ExcelJS from 'exceljs'; // <--- NOUVEL IMPORT
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import {
-  FileText, FileSpreadsheet,
-} from 'lucide-react';
+
 
 import autoTable from 'jspdf-autotable'; // Importation de la fonction directe
 
@@ -107,6 +109,13 @@ Pour garantir le maintien de votre image sur ce site, merci de nous confirmer vo
 
 // --- COMPOSANT PRINCIPAL ---
 export default function DisproReporting() {
+
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
   // --- ÉTATS ---
   const [loading, setLoading] = useState(true);
   const [rawPanneaux, setRawPanneaux] = useState<any[]>([]);
@@ -144,124 +153,136 @@ export default function DisproReporting() {
   }, []);
 
 
+  const handleLogout = () => {
+    if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+      // 1. Appel de ta fonction du contexte
+      logout();
 
+      // 2. Nettoyage supplémentaire par sécurité
+      localStorage.clear();
+      sessionStorage.clear();
 
-
-
-
- 
-const exportToExcel = async () => {
-  if (!filteredData || filteredData.length === 0) return;
-
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Inventaire DISPRO');
-
-  // --- 1. PRÉPARATION DES COLONNES ---
-  const columns = [
-    { name: 'RÉFÉRENCE', filterButton: true },
-    { name: 'SITE / ADRESSE', filterButton: true },
-    { name: 'ZONE GÉOGRAPHIQUE', filterButton: true },
-    { name: 'TYPE DE SUPPORT', filterButton: true },
-    { name: 'STATUT ACTUEL', filterButton: true },
-    { name: 'CLIENT / LOCATAIRE', filterButton: true },
-    { name: "DATE D'ÉCHÉANCE", filterButton: true },
-  ];
-
-  // --- 2. PRÉPARATION DES DONNÉES ---
-  const rows = filteredData.map(item => [
-    item.idPan,
-    item.adresse.toUpperCase(),
-    item.zone,
-    item.supportType,
-    item.statut.toUpperCase(),
-    item.clientNom || 'DISPONIBLE (LIBRE)',
-    item.dateFin || '---'
-  ]);
-
-  // --- 3. AJOUT DU TABLEAU NATIF (Style identique à ton image) ---
-  worksheet.addTable({
-    name: 'TableauInventaire',
-    ref: 'A1',
-    headerRow: true,
-    totalsRow: false,
-    style: {
-      theme: 'TableStyleMedium2', // Bleu officiel Excel
-      showRowStripes: true,
-    },
-    columns: columns,
-    rows: rows,
-  });
-
-  // --- 4. RÉGLAGES MAGNIFIQUES (Design & Ergonomie) ---
-  
-  // Ajustement des largeurs de colonnes
-  const widths = [15, 45, 25, 20, 20, 35, 20];
-  widths.forEach((w, i) => {
-    worksheet.getColumn(i + 1).width = w;
-  });
-
-  // Style des lignes (Hauteur et Alignement)
-  worksheet.eachRow((row, rowNumber) => {
-    row.height = 22; // Lignes plus aérées
-    row.eachCell((cell, colNumber) => {
-      cell.alignment = { 
-        vertical: 'middle', 
-        horizontal: (colNumber === 1 || colNumber === 5) ? 'center' : 'left' 
-      };
-    });
-  });
-
-  // --- 5. COLORATION CONDITIONNELLE (Statuts) ---
-  (worksheet as any).addConditionalFormatting({
-    ref: `E2:E${rows.length + 1}`,
-    rules: [
-      {
-        type: 'containsText',
-        operator: 'containsText',
-        text: 'OCCUPÉ',
-        formulae: [`NOT(ISERROR(SEARCH("OCCUPÉ",E2)))`], 
-        style: {
-          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, // Vert clair
-          font: { color: { argb: 'FF15803D' }, bold: true } // Texte vert foncé
-        },
-      },
-      {
-        type: 'containsText',
-        operator: 'containsText',
-        text: 'LIBRE',
-        formulae: [`NOT(ISERROR(SEARCH("LIBRE",E2)))`],
-        style: {
-          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, // Rouge clair
-          font: { color: { argb: 'FFB91C1C' }, bold: true } // Texte rouge foncé
-        },
-      }
-    ]
-  });
-
-  // --- 6. VUE PROFESSIONNELLE (Volets figés et Grille masquée) ---
-  worksheet.views = [
-    {
-      state: 'frozen',
-      xSplit: 0,
-      ySplit: 1, // L'en-tête reste visible au scroll
-      showGridLines: false, // Rend le fichier beaucoup plus propre (Dashboard style)
-      activeCell: 'A2'
+      // 3. Redirection propre
+      router.push('/');
     }
-  ];
+  };
 
-  // --- 7. GÉNÉRATION ET TÉLÉCHARGEMENT ---
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  
-  const dateStr = new Date().toLocaleDateString().replace(/\//g, '-');
-  a.href = url;
-  a.download = `DISPRO_INVENTAIRE_PRO_${dateStr}.xlsx`;
-  a.click();
-  
-  window.URL.revokeObjectURL(url);
-};
+
+
+
+
+  const exportToExcel = async () => {
+    if (!filteredData || filteredData.length === 0) return;
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Inventaire DISPRO');
+
+    // --- 1. PRÉPARATION DES COLONNES ---
+    const columns = [
+      { name: 'RÉFÉRENCE', filterButton: true },
+      { name: 'SITE / ADRESSE', filterButton: true },
+      { name: 'ZONE GÉOGRAPHIQUE', filterButton: true },
+      { name: 'TYPE DE SUPPORT', filterButton: true },
+      { name: 'STATUT ACTUEL', filterButton: true },
+      { name: 'CLIENT / LOCATAIRE', filterButton: true },
+      { name: "DATE D'ÉCHÉANCE", filterButton: true },
+    ];
+
+    // --- 2. PRÉPARATION DES DONNÉES ---
+    const rows = filteredData.map(item => [
+      item.idPan,
+      item.adresse.toUpperCase(),
+      item.zone,
+      item.supportType,
+      item.statut.toUpperCase(),
+      item.clientNom || 'DISPONIBLE (LIBRE)',
+      item.dateFin || '---'
+    ]);
+
+    // --- 3. AJOUT DU TABLEAU NATIF (Style identique à ton image) ---
+    worksheet.addTable({
+      name: 'TableauInventaire',
+      ref: 'A1',
+      headerRow: true,
+      totalsRow: false,
+      style: {
+        theme: 'TableStyleMedium2', // Bleu officiel Excel
+        showRowStripes: true,
+      },
+      columns: columns,
+      rows: rows,
+    });
+
+    // --- 4. RÉGLAGES MAGNIFIQUES (Design & Ergonomie) ---
+
+    // Ajustement des largeurs de colonnes
+    const widths = [15, 45, 25, 20, 20, 35, 20];
+    widths.forEach((w, i) => {
+      worksheet.getColumn(i + 1).width = w;
+    });
+
+    // Style des lignes (Hauteur et Alignement)
+    worksheet.eachRow((row, rowNumber) => {
+      row.height = 22; // Lignes plus aérées
+      row.eachCell((cell, colNumber) => {
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: (colNumber === 1 || colNumber === 5) ? 'center' : 'left'
+        };
+      });
+    });
+
+    // --- 5. COLORATION CONDITIONNELLE (Statuts) ---
+    (worksheet as any).addConditionalFormatting({
+      ref: `E2:E${rows.length + 1}`,
+      rules: [
+        {
+          type: 'containsText',
+          operator: 'containsText',
+          text: 'OCCUPÉ',
+          formulae: [`NOT(ISERROR(SEARCH("OCCUPÉ",E2)))`],
+          style: {
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, // Vert clair
+            font: { color: { argb: 'FF15803D' }, bold: true } // Texte vert foncé
+          },
+        },
+        {
+          type: 'containsText',
+          operator: 'containsText',
+          text: 'LIBRE',
+          formulae: [`NOT(ISERROR(SEARCH("LIBRE",E2)))`],
+          style: {
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, // Rouge clair
+            font: { color: { argb: 'FFB91C1C' }, bold: true } // Texte rouge foncé
+          },
+        }
+      ]
+    });
+
+    // --- 6. VUE PROFESSIONNELLE (Volets figés et Grille masquée) ---
+    worksheet.views = [
+      {
+        state: 'frozen',
+        xSplit: 0,
+        ySplit: 1, // L'en-tête reste visible au scroll
+        showGridLines: false, // Rend le fichier beaucoup plus propre (Dashboard style)
+        activeCell: 'A2'
+      }
+    ];
+
+    // --- 7. GÉNÉRATION ET TÉLÉCHARGEMENT ---
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+
+    const dateStr = new Date().toLocaleDateString().replace(/\//g, '-');
+    a.href = url;
+    a.download = `DISPRO_INVENTAIRE_PRO_${dateStr}.xlsx`;
+    a.click();
+
+    window.URL.revokeObjectURL(url);
+  };
 
 
 
@@ -446,49 +467,54 @@ const exportToExcel = async () => {
   return (
     <div className="min-h-screen bg-[#000a1a] text-white p-4 md:p-10 font-sans selection:bg-[#FFD700] selection:text-black">
 
-      {/* HEADER LUXE */}
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-12 gap-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-1 bg-[#E31E24]" />
-            <h1 className="text-5xl font-black italic tracking-tighter">Rapport<span className="text-[#FFD700]">.</span>Général</h1>
+      <header className="flex flex-col gap-6 mb-12 animate-in fade-in duration-500">
+      
+      {/* SECTION HAUTE : Profil et Menu Mobile */}
+      <div className="flex justify-between items-center w-full">
+        {user && (
+          <div className="flex items-center gap-3 ml-auto px-4 py-2 bg-[#1e40af]/20 backdrop-blur-md border border-white/5 rounded-full shadow-xl">
+            <div className="text-right hidden sm:block">
+              <p className="text-[10px] font-black text-white uppercase leading-none">{user.nom}</p>
+              <p className="text-[8px] text-[#d4af37] uppercase">{user.role}</p>
+            </div>
+            <button onClick={handleLogout} className="p-1.5 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">
+              <LogOut size={14} />
+            </button>
           </div>
-          <p className="text-[10px] text-blue-400 font-bold uppercase tracking-[0.5em] flex items-center gap-2">
-            <Database size={12} /> Real-time Inventory Analysis
+        )}
+      </div>
+
+      {/* SECTION BASSE : Titre et Actions */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-1 bg-[#E31E24]" />
+            <h1 className="text-4xl lg:text-5xl font-black italic tracking-tighter text-white">
+              Rapport<span className="text-[#FFD700]">.</span>Général
+            </h1>
+          </div>
+          <p className="text-[9px] text-blue-400 font-bold uppercase tracking-[0.3em] flex items-center gap-2">
+            <Database size={10} /> Real-time Inventory Analysis
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-4 z-20 relative">
-          {/* IMPRIMER */}
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-3 px-6 py-4 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl hover:border-[#1e40af] text-slate-600 hover:text-[#1e40af] transition-all font-black text-[10px] uppercase shadow-sm active:scale-95 group"
-          >
-            <Printer size={18} className="group-hover:rotate-12 transition-transform" />
-            <span>Imprimer</span>
+        {/* CONTROLES D'EXPORT (Responsive Grid) */}
+        <div className="grid grid-cols-3 lg:flex items-center gap-2 bg-[#0F172A]/50 p-1.5 rounded-2xl border border-white/5">
+          <button onClick={() => window.print()} className="flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 px-2 py-2 lg:px-4 lg:py-2.5 rounded-xl hover:bg-white/10 transition-all text-[9px] font-black uppercase text-white">
+            <Printer size={14} /> <span className="hidden lg:inline">Print</span>
           </button>
-
-          {/* EXPORT EXCEL */}
-          <button
-            onClick={exportToExcel}
-            className="flex items-center gap-3 px-6 py-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all font-black text-[10px] uppercase shadow-lg shadow-emerald-900/20 active:scale-95"
-          >
-            <FileSpreadsheet size={18} />
-            <span>Excel</span>
+          <button onClick={exportToExcel} className="flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 px-2 py-2 lg:px-4 lg:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition-all text-[9px] font-black uppercase text-white">
+            <FileSpreadsheet size={14} /> <span className="hidden lg:inline">Excel</span>
           </button>
-
-          {/* EXPORT PDF */}
-          <button
-            onClick={exportToPDF}
-            className="flex items-center gap-3 px-6 py-4 bg-[#0F172A] text-white rounded-2xl hover:bg-[#1e40af] transition-all font-black text-[10px] uppercase shadow-lg shadow-slate-900/20 active:scale-95 group"
-          >
-            <FileText size={18} className="text-[#d4af37] group-hover:text-white transition-colors" />
-            <span>PDF</span>
+          <button onClick={exportToPDF} className="flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 px-2 py-2 lg:px-4 lg:py-2.5 rounded-xl bg-[#d4af37] text-black hover:bg-white transition-all text-[9px] font-black uppercase">
+            <FileText size={14} /> <span className="hidden lg:inline">PDF</span>
           </button>
         </div>
-      </header>
-
-      {/* FILTRES AVANCÉS */}
+      </div>
+    </header>
+    
+    
+    {/* FILTRES AVANCÉS */}
       <section className="bg-[#1e40af]/60 backdrop-blur-3xl border border-white/10 p-6 rounded-[3rem] mb-10 shadow-2xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 print:hidden relative z-10">
 
         {/* 1. RECHERCHE PRINCIPALE */}
