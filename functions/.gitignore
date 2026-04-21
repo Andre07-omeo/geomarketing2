@@ -1,0 +1,19 @@
+# Dépendances
+node_modules
+/functions/node_modules
+
+# Fichiers de configuration Firebase (ne jamais exposer vos clés secrètes)
+.firebase
+firebase-debug.log
+firebase.json
+.firebaserc
+
+# Build Next.js / React
+.next
+out
+build
+dist
+
+# Environnement local
+.env*.local
+.env

@@ -270,27 +270,82 @@ export default function UltimateSupervisor() {
     setHidden(latest > previous && latest > 150);
   });
   // Remplace tes deux anciens useEffect par celui-ci :
-  useEffect(() => {
-    const panelsRef = collection(db, "panneaux");
-    // On trie par date de création
-    const q = query(panelsRef, orderBy("createdAt", "desc"));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const panelsData = snapshot.docs.map((document) => ({
-        id: document.id,
-        ...document.data()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  useEffect(() => {
+  // 1. Définition de la référence à l'extérieur de la requête
+  const panelsRef = collection(db, "panneaux");
+  const q = query(panelsRef, orderBy("createdAt", "desc"));
+
+  // 2. Initialisation du snapshot avec gestion d'erreur détaillée
+  const unsubscribe = onSnapshot(
+    q, 
+    (snapshot) => {
+      const panelsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
       }));
 
-      // CORRECTION ICI : Utilise le nom exact de ton setter d'état
       setPanneauxData(panelsData);
       setLoading(false);
-    }, (error) => {
-      console.error("Erreur Firestore :", error);
+    }, 
+    (error) => {
+      console.error("Erreur de synchronisation Firestore :", error);
+      
+      // Gestion intelligente des erreurs réseau
+      if (error.code === 'permission-denied') {
+        alert("Accès refusé : Vérifiez vos règles de sécurité Firestore.");
+      } else if (error.code === 'unavailable') {
+        alert("Connexion perdue : Firestore est momentanément indisponible.");
+      }
+      
       setLoading(false);
-    });
+    }
+  );
 
-    return () => unsubscribe();
-  }, []);
+  // 3. Nettoyage essentiel pour libérer la connexion (indispensable sur mobile)
+  return () => {
+    if (unsubscribe) {
+      unsubscribe();
+    }
+  };
+}, []); // Dépendances vides : s'exécute uniquement au chargement
+
+
   // 5. LOGIQUE DE FILTRAGE
   const filtered = panneauxData.filter(p => {
     const term = searchTerm.toLowerCase();
@@ -1108,14 +1163,49 @@ const TYPES_SUPPORTS = [
 const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
 
 export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
-  // 1. TOUS LES STATES (En haut)
+
+
+
+
+
+
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [listeSocietes, setListeSocietes] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { currentUser } = useAuth();
 
-  // 2. TOUS LES EFFECTS (En haut)
+  // --- LOGIQUE DE SÉCURITÉ ---
+  const getActiveReservation = (face: any) => {
+    const now = new Date();
+    return face.reservations?.find((res: any) => {
+      const debut = new Date(res.dateDebut);
+      const fin = new Date(res.dateFin);
+      return now >= debut && now <= fin;
+    });
+  };
+
+  const canEditFace = (face: any) => {
+    const activeRes = getActiveReservation(face);
+    if (!activeRes) return true;
+    return activeRes.agentEmail === currentUser?.email;
+  };
+
+  const getReservationWarning = (face: any) => {
+    // Si la face est verrouillée par un autre, on retourne le message
+    if ((face.statut === "Occupé" || face.statut === "Réservé") && !canEditFace(face)) {
+      return `Face réservée par un autre agent. Veuillez contacter le responsable pour négocier.`;
+    }
+    return null;
+  };
+
+
+
+
+
+
+
   useEffect(() => {
     if (panneau) {
       setFormData({ ...panneau });
@@ -1140,8 +1230,11 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
 
   // 4. LES FONCTIONS DE LOGIQUE
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Utilisation correcte du setter
 
     // Prévisualisation locale immédiate
     const localPreviewUrl = URL.createObjectURL(file);
@@ -1149,6 +1242,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
     previewFaces[index].photoCampagneUrl = localPreviewUrl;
     setFormData({ ...formData, faces: previewFaces });
 
+    // Utilisation correcte du setter
     setUploadingIndex(index);
     const data = new FormData();
     data.append("file", file);
@@ -1171,6 +1265,59 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
     }
   };
 
+
+  const isFaceReserved = (face: any) => {
+    if (face.statut !== "Occupé") return false;
+    // Vérifiez si une date est passée ou si la réservation est active
+    const now = new Date();
+    const fin = new Date(face.dateFin);
+    return fin >= now; // Si la date de fin est dans le futur, la face est "bloquée"
+  };
+
+  // Vérifie si la face est en cours d'occupation/réservation
+  const isFaceLocked = (face: any) => {
+    if (!face.dateDebut || !face.dateFin || face.statut === "Libre") return false;
+
+    const now = new Date();
+    const debut = new Date(face.dateDebut);
+    const fin = new Date(face.dateFin);
+
+    // Verrouillé si la date actuelle est dans la période
+    return now >= debut && now <= fin;
+  };
+
+  // Vérifie si l'utilisateur actuel est celui qui a posé le verrou
+  const isOwner = (face: any) => {
+    return face.agentEmail === currentUser?.email;
+  };
+
+
+  // Dans votre rendu, remplacez le clic d'édition par une vérification :
+  const handleEditClick = (face: any) => {
+    if (isFaceReserved(face)) {
+      alert(`Cette face est réservée par ${face.agentNom || 'un agent'}. 
+           Période : ${face.dateDebut} au ${face.dateFin}. 
+           Merci de le contacter pour une éventuelle négociation.`);
+      return;
+    }
+  };
+
+
+
+  const tryOpenUpload = (face: any, idx: number) => {
+    if (isFaceLocked(face)) {
+      alert(`ATTENTION : Cette face est réservée par ${face.clientNom || 'un client'}. 
+    Elle est occupée jusqu'au ${face.dateFin}. 
+    Veuillez contacter le responsable pour négocier.`);
+      return;
+    }
+    // Si libre, on ouvre
+    fileInputRef.current!.dataset.idx = idx.toString();
+    fileInputRef.current?.click();
+  };
+
+
+
   const removePhoto = (index: number) => {
     const newFaces = [...formData.faces];
     newFaces[index].photoCampagneUrl = "";
@@ -1185,38 +1332,59 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
   };
 
   const handleSave = async () => {
-    // --- BLOC DE DIAGNOSTIC ---
-    // --- BLOC DE DIAGNOSTIC ---
-    formData.faces.forEach((f: any, i: number) => {
-      if (f.statut === "Occupé") {
-        console.log(`🔍 Vérification Face ${i + 1}:`, {
-          statut: f.statut,
-          dateDebut: f.dateDebut || "MANQUANTE", // On affiche directement la valeur
-          dateFin: f.dateFin || "MANQUANTE",     // car on sait déjà qu'il est occupé
-          photo: f.photoCampagneUrl ? "Présente" : "VIDE",
-          estBlob: f.photoCampagneUrl?.startsWith('blob:'),
-          clientNom: f.clientNom || "VIDE"
-        });
-      }
+    // 1. Logique de validation des chevauchements de dates
+    const checkOverlap = (newDebut: string, newFin: string, existingReservations: any[]) => {
+      if (!newDebut || !newFin) return false;
+      const d1 = new Date(newDebut).getTime();
+      const d2 = new Date(newFin).getTime();
+      
+      return existingReservations.some(res => {
+        const r1 = new Date(res.dateDebut).getTime();
+        const r2 = new Date(res.dateFin).getTime();
+        // Vérifie si les périodes se croisent
+        return d1 <= r2 && d2 >= r1;
+      });
+    };
+
+    // 2. Validation de sécurité : Est-ce que l'utilisateur peut modifier cette face ?
+    const unauthorizedFace = formData.faces.find((f: any) => {
+      const isLocked = f.statut === "Occupé" || f.statut === "Réservé";
+      const isOwner = f.agentEmail === currentUser?.email;
+      return isLocked && !isOwner; // Bloque si verrouillé par un autre agent
     });
 
-    // 1. Validation stricte
-    const faceIncomplete = formData.faces.find((f: any) => {
-      const isOccupied = f.statut === "Occupé";
-      if (!isOccupied) return false;
-
-      const lacksPhoto = !f.photoCampagneUrl || f.photoCampagneUrl.startsWith('blob:');
-      const lacksClient = !f.clientNom || f.clientNom.trim() === "";
-
-      return lacksPhoto || lacksClient;
-    });
-
-    if (faceIncomplete) {
-      alert("ERREUR : Pour toute face 'Occupé', vous devez sélectionner un Client et charger une Photo valide.");
+    if (unauthorizedFace) {
+      alert("ACCÈS REFUSÉ : Cette face est verrouillée par un autre agent.");
       return;
     }
 
-    // 2. Sauvegarde
+    // 3. Validation des champs obligatoires
+    const faceError = formData.faces.find((f: any) => {
+      const isOccupied = f.statut === "Occupé" || f.statut === "Réservé";
+      if (!isOccupied) return false;
+
+      return !f.photoCampagneUrl || f.photoCampagneUrl.startsWith('blob:') || 
+             !f.clientNom || f.clientNom.trim() === "" || 
+             !f.dateDebut || !f.dateFin;
+    });
+
+    if (faceError) {
+      alert("ERREUR : Pour toute face occupée/réservée, remplissez le Client, les dates et la Photo.");
+      return;
+    }
+
+    // 4. Vérification des conflits de dates (si vous avez un tableau de réservations existantes)
+    const hasConflict = formData.faces.some((f: any) => 
+      (f.statut === "Occupé" || f.statut === "Réservé") && 
+      checkOverlap(f.dateDebut, f.dateFin, f.reservations || [])
+    );
+
+    if (hasConflict) {
+      alert("ATTENTION : Cette période chevauche une réservation existante sur ce panneau.");
+      return;
+    }
+
+    // 5. Sauvegarde vers Firebase
     setIsSaving(true);
     try {
       const docId = panneau?.id || formData?.id;
@@ -1230,15 +1398,25 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
         type: formData.type || "",
         dimension: formData.dimension || "",
         faces: formData.faces.map((f: any) => {
-          const isOccupied = f.statut === "Occupé";
+          const isOccupied = f.statut === "Occupé" || f.statut === "Réservé";
+          
           return {
             ...f,
-            sens: f.sens || "",
             statut: f.statut || "Libre",
-            // IMPORTANT : vérifiez que c'est bien 'clientNom' que vous utilisez dans votre <select>
             clientNom: isOccupied ? (f.clientNom || "") : "",
+            agentEmail: isOccupied ? (f.agentEmail || currentUser?.email) : "", // Enregistre l'email de l'agent
             photoCampagneUrl: f.photoCampagneUrl || "",
-            estAujourdhui: isOccupied
+            estAujourdhui: isOccupied,
+            // Ajout automatique à l'historique d'audit
+            historique: [
+              ...(f.historique || []), 
+              {
+                agentEmail: currentUser?.email,
+                date: new Date().toISOString(),
+                statut: f.statut,
+                client: f.clientNom
+              }
+            ]
           };
         }),
         updatedAt: serverTimestamp()
@@ -1247,13 +1425,23 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
       await updateDoc(docRef, dataToUpdate);
       alert("Mise à jour réussie !");
       onClose();
-    } catch (error) {
+      
+    } catch (error: any) {
       console.error("Erreur Firebase:", error);
-      alert("Erreur lors de la sauvegarde.");
+      
+      if (error.code === 'unavailable') {
+        alert("Connexion internet instable. Veuillez réessayer.");
+      } else if (error.code === 'permission-denied') {
+        alert("Permission refusée. Vous n'avez pas le droit de modifier cette face.");
+      } else {
+        alert("Erreur système : " + error.message);
+      }
     } finally {
       setIsSaving(false);
     }
   };
+
+
 
 
   return (
@@ -1306,114 +1494,134 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
           <div className="space-y-6">
             <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em]">Gestion des faces</h3>
             <div className="grid gap-6">
-              {formData.faces?.map((face: any, idx: number) => (
-                <div key={idx} className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col gap-6 group hover:border-[#d4af37]">
+              {formData.faces?.map((face: any, idx: number) => {
+                // Calcul des états avant le rendu pour alléger le JSX
+                const warning = getReservationWarning(face);
+                const isLocked = !canEditFace(face);
 
-                  <div className="flex flex-col lg:flex-row items-center gap-6 w-full">
-                    {/* 1. Zone Photo : Affichée SEULEMENT si Occupé */}
-                    {face.statut === "Occupé" && (
-                      <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-black border border-white/10 shadow-xl flex-shrink-0">
-                        {face.photoCampagneUrl ? (
-                          <>
-                            <img src={face.photoCampagneUrl} className="w-full h-full object-cover" alt="Face" />
-                            <button
-                              onClick={() => removePhoto(idx)}
-                              className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white hover:scale-110"
-                            >
-                              <X size={14} />
-                            </button>
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-[8px] text-white/40">
-                            <Camera size={20} className="mb-1" /> PHOTO OBLIGATOIRE
-                          </div>
-                        )}
+                return (
+                  <div
+                    key={face.faceId || idx}
+                    className={`bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col gap-6 group hover:border-[#d4af37] transition-all ${isLocked ? "opacity-75" : ""}`}
+                  >
+                    <div className="flex flex-col lg:flex-row items-center gap-6 w-full">
 
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                          <button onClick={() => { fileInputRef.current!.dataset.idx = idx.toString(); fileInputRef.current?.click(); }} className="p-3 bg-[#d4af37] rounded-full text-black">
-                            <Upload size={20} />
-                          </button>
+                      {/* 1. Zone Photo */}
+                      {(face.statut === "Occupé" || face.statut === "Réservé") && (
+                        <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-black border border-white/10 shadow-xl flex-shrink-0">
+                          {face.photoCampagneUrl ? (
+                            <>
+                              <img src={face.photoCampagneUrl} className="w-full h-full object-cover" alt="Face" />
+                              {!isLocked || isOwner(face) ? (
+                                <button
+                                  onClick={() => removePhoto(idx)}
+                                  className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white hover:scale-110"
+                                >
+                                  <X size={14} />
+                                </button>
+                              ) : (
+                                <div className="absolute top-1 right-1 p-1 bg-gray-500 rounded-full text-white cursor-not-allowed">
+                                  <X size={14} />
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-[8px] text-white/40">
+                              <Camera size={20} className="mb-1" /> PHOTO OBLIGATOIRE
+                            </div>
+                          )}
+
+                          {(!isLocked || isOwner(face)) && (
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => {
+                                  fileInputRef.current!.dataset.idx = idx.toString();
+                                  fileInputRef.current?.click();
+                                }}
+                                className="p-3 bg-[#d4af37] rounded-full text-black"
+                              >
+                                <Upload size={20} />
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
-
-                    {/* 2. Champs de saisie */}
-                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-                      <div className="space-y-1">
-                        <p className="text-[8px] font-black text-white/30 uppercase italic">Statut</p>
-                        <select
-                          value={face.statut || ''}
-                          onChange={(e) => updateFace(idx, 'statut', e.target.value)}
-                          className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-[#d4af37] p-2 outline-none"
-                        >
-                          {STATUTS_POSSIBLES.map(s => <option key={s} value={s} className="bg-[#1e40af]">{s}</option>)}
-                        </select>
-                      </div>
-
-                      {/* 3. Sélecteur Société : Affiché SEULEMENT si Occupé */}
-                      {/* 3. Détails du contrat : Affichés SEULEMENT si Occupé */}
-                      {face.statut === "Occupé" && (
-                        <>
-                          {/* Sélecteur Société */}
-                          <div className="space-y-1">
-                            <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
-                              Société (Locataire)
-                            </p>
-                            <select
-                              value={face.clientNom || ''}
-                              onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
-                              className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none focus:border-[#d4af37] transition-all"
-                            >
-                              <option value="" className="bg-[#1a1a1a]">Sélectionner un client</option>
-                              {Array.from(new Set(listeSocietes)).map((nom) => (
-                                <option key={nom} value={nom} className="bg-[#1a1a1a]">{nom}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Date de Début */}
-                          <div className="space-y-1">
-                            <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
-                              Début Contrat
-                            </p>
-                            <input
-                              type="date"
-                              value={face.dateDebut || ''}
-                              onChange={(e) => updateFace(idx, 'dateDebut', e.target.value)}
-                              className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-[10px] outline-none focus:border-[#d4af37] transition-all [color-scheme:dark]"
-                            />
-                          </div>
-
-                          {/* Date de Fin */}
-                          <div className="space-y-1">
-                            <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
-                              Fin Contrat
-                            </p>
-                            <input
-                              type="date"
-                              value={face.dateFin || ''}
-                              onChange={(e) => updateFace(idx, 'dateFin', e.target.value)}
-                              className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-[10px] outline-none focus:border-[#d4af37] transition-all [color-scheme:dark]"
-                            />
-                          </div>
-                        </>
                       )}
 
+                      {/* 2. Champs de saisie */}
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-black text-white/30 uppercase italic">Statut</p>
+                          <select
+                            value={face.statut || ''}
+                            onChange={(e) => updateFace(idx, 'statut', e.target.value)}
+                            disabled={isLocked}
+                            className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-[#d4af37] p-2 outline-none"
+                          >
+                            {STATUTS_POSSIBLES.map(s => <option key={s} value={s} className="bg-[#1e40af]">{s}</option>)}
+                          </select>
+                        </div>
 
+                        {(face.statut === "Occupé" || face.statut === "Réservé") && (
+                          <>
+                            <div className="space-y-1">
+                              <p className="text-[8px] font-black text-[#d4af37] uppercase italic">Société (Locataire)</p>
+                              <select
+                                value={face.clientNom || ''}
+                                disabled={isLocked}
+                                onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
+                                onClick={() => isLocked && alert("Accès refusé : Cette face est verrouillée.")}
+                                className={`w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none ${isLocked ? "cursor-not-allowed" : "focus:border-[#d4af37]"}`}
+                              >
+                                <option value="" className="bg-[#1a1a1a]">Sélectionner un client</option>
+                                {Array.from(new Set(listeSocietes || []))
+                                  .filter(nom => nom && nom.trim() !== "")
+                                  .map((nom, i) => (
+                                    <option key={`${nom}-${i}`} value={nom} className="bg-[#1a1a1a]">{nom}</option>
+                                  ))}
+                              </select>
+                            </div>
 
-                      <div className="space-y-1">
-                        <p className="text-[8px] font-black text-white/30 uppercase italic">Sens de vue</p>
-                        <input type="text" value={face.sens || ''} onChange={(e) => updateFace(idx, 'sens', e.target.value)} className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-white p-2 outline-none" />
-                      </div>
+                            {['agentNom', 'agentEmail'].map((field) => (
+                              <div key={field} className="space-y-1">
+                                <p className="text-[8px] font-black text-[#d4af37] uppercase italic">{field === 'agentNom' ? "Agent" : "Email"}</p>
+                                <input
+                                  type={field === 'agentEmail' ? "email" : "text"}
+                                  value={face[field] || ''}
+                                  disabled={isLocked}
+                                  onChange={(e) => updateFace(idx, field, e.target.value)}
+                                  className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-[10px]"
+                                />
+                              </div>
+                            ))}
 
-                      <div className="space-y-1">
-                        <p className="text-[8px] font-black text-white/30 uppercase italic">ID Face</p>
-                        <input type="text" value={face.faceId || ''} readOnly className="w-full bg-transparent text-xs font-bold text-white/30 p-2 outline-none" />
+                            <div className="flex gap-2">
+                              {['dateDebut', 'dateFin'].map((dField) => (
+                                <div key={dField} className="space-y-1 flex-1">
+                                  <p className="text-[8px] font-black text-[#d4af37] uppercase italic">{dField === 'dateDebut' ? "Début" : "Fin"}</p>
+                                  <input
+                                    type="date"
+                                    value={face[dField] || ''}
+                                    disabled={isLocked}
+                                    onChange={(e) => updateFace(idx, dField, e.target.value)}
+                                    className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-[10px] [color-scheme:dark]"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
+                        {/* Message d'avertissement */}
+                        {warning && (
+                          <div className="col-span-full bg-red-500/10 border border-red-500/50 p-3 rounded-lg">
+                            <p className="text-[10px] text-red-400 font-medium">⚠️ {warning}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
