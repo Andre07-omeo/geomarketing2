@@ -38,127 +38,136 @@ export const auth = getAuth(app);
 
 // --- COMPOSANT ELEGANT CARD ---
 
-const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, ouvrirLaCarte }: any) => {
-  // État pour afficher la modale de détails d'une face spécifique
+const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any) => {
   const [selectedFaceDetails, setSelectedFaceDetails] = useState<any>(null);
-  // Sécurité sur les faces
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
+
   const faces = panneau?.faces || [];
+
+  const getStatusStyles = (statut: string) => {
+    switch (statut?.toLowerCase()) {
+      case 'occupé': return "bg-red-500/20 text-red-400 border-red-500/40";
+      case 'réservé': return "bg-orange-500/20 text-orange-400 border-orange-500/40";
+      case 'maintenance': return "bg-blue-500/20 text-blue-400 border-blue-400/40";
+      default: return "bg-green-500/20 text-green-400 border-green-500/40";
+    }
+  };
+
+  const downloadImage = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `campagne_${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) { console.error("Erreur téléchargement", err); }
+  };
+
+  const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+  const getActiveData = (face: any) => {
+    const now = new Date();
+    // On cherche une réservation qui couvre la date d'aujourd'hui
+    const currentRes = face.reservations?.find((res: any) =>
+      now >= new Date(res.dateDebut) && now <= new Date(res.dateFin)
+    );
+
+    if (currentRes) {
+      return {
+        hasReservation: true, // Désormais vrai pour tout statut de réservation
+        label: currentRes.statut || "Occupé",
+        photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
+        client: currentRes.societeLocatrice,
+        agent: currentRes.agentNom || "Non spécifié",
+        dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`
+      };
+    }
+    return { hasReservation: false, label: "Libre", photo: LOGO_DISPROMALT, client: null, agent: null, dates: null };
+  };
 
   return (
     <>
-      {/* Modale de détails (s'affiche si une face est sélectionnée) */}
       <AnimatePresence>
         {selectedFaceDetails && (
-          <FaceDetailModal
-            isOpen={true}
-            onClose={() => setSelectedFaceDetails(null)}
-            panneau={panneau}
-            face={selectedFaceDetails}
-            onSelect={onSelect}
-            // Comparaison robuste de l'ID pour la sélection
-            isSelected={selectedIds?.includes(`${panneau.id}_${selectedFaceDetails.id}`)}
-          />
+          <FaceDetailModal isOpen={true} onClose={() => setSelectedFaceDetails(null)} panneau={panneau} face={selectedFaceDetails} />
         )}
       </AnimatePresence>
 
+      {zoomedImage && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setZoomedImage(null)}>
+          <img src={zoomedImage} className="max-w-full max-h-full object-contain rounded-lg" alt="Zoom" />
+        </div>
+      )}
 
-
-      {/* Mapping des faces du panneau */}
       {faces.map((face: any, fIdx: number) => {
-        // Création d'un ID unique pour la face (PanneauID + FaceID)
-        const faceUniqueId = `${panneau.id}_${face.id || fIdx}`;
-        const isFaceSelected = selectedIds?.includes(faceUniqueId);
-        const isLibre = face.statut?.toLowerCase() === 'libre';
+        const data = getActiveData(face);
+        const displayId = `${face.id || fIdx + 1}`;
 
         return (
-          <motion.div
-            key={faceUniqueId}
-            layout
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{
-              duration: 0.6,
-              delay: (index + fIdx) * 0.05,
-              type: "spring",
-              stiffness: 100
-            }}
-            whileHover={{ y: -10 }}
-            className={`relative group rounded-[2.5rem] p-px overflow-hidden bg-gradient-to-b transition-all duration-500 
-                ${isFaceSelected
-                ? 'from-[#d4af37] to-[#1e40af] shadow-[0_25px_50px_rgba(0,0,0,0.5)]'
-                : 'from-white/20 to-transparent'
-              }`}
-          >
-            {/* Fond de la carte : Bleu Roi Profond pour l'effet "Encre" */}
-            <div className="relative bg-[#1e40af] backdrop-blur-3xl rounded-[2.4rem] overflow-hidden h-full flex flex-col">
+          <motion.div key={fIdx} className="relative w-full h-[450px] rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 group">
 
-              {/* Image de la face */}
-              <div className="relative aspect-video overflow-hidden bg-black/20">
-                <motion.img
-                  whileHover={{ scale: 1.1 }}
-                  transition={{ duration: 0.8 }}
-                  src={face.photoCampagneUrl || 'https://via.placeholder.com/800x600'}
-                  className="w-full h-full object-cover"
-                  alt={`Face ${face.id}`}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1e40af] via-transparent to-transparent opacity-80" />
+            {/* IMAGE ET LOGIQUE D'INTERACTION */}
+            <div className="absolute inset-0 overflow-hidden">
+              <img src={data.photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none" alt="Face" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-                {/* Badge Type - Accent Doré */}
-                <div className="absolute top-4 left-4">
-                  <span className="bg-black/40 backdrop-blur-xl text-white text-[8px] font-black px-3 py-1.5 rounded-full uppercase border border-[#d4af37]/30 shadow-lg">
-                    {panneau.type || 'DIGITAL'}
-                  </span>
-                </div>
+              <div
+                className="absolute inset-0 z-10 cursor-pointer"
+                onClick={() => setZoomedImage(data.photo)}
+                onMouseDown={() => setPressTimer(setTimeout(() => downloadImage(data.photo), 600))}
+                onMouseUp={() => pressTimer && clearTimeout(pressTimer)}
+                onMouseLeave={() => pressTimer && clearTimeout(pressTimer)}
+                onTouchStart={() => setPressTimer(setTimeout(() => downloadImage(data.photo), 600))}
+                onTouchEnd={() => pressTimer && clearTimeout(pressTimer)}
+                onContextMenu={(e) => e.preventDefault()}
+              />
+            </div>
+
+            {/* BADGE STATUT */}
+            <div className="absolute top-4 right-4">
+              <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border backdrop-blur-md ${getStatusStyles(data.label)}`}>
+                {data.label}
+              </span>
+            </div>
+
+            {/* INFOS */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+              <div className="mb-4">
+                <h3 className="text-2xl font-black italic uppercase">Face : {displayId}</h3>
+                <p className="text-[10px] text-[#d4af37] font-bold uppercase">{panneau.adresse} • Zone: {panneau.zone}</p>
+                <p className="text-[10px] text-white/60 font-bold uppercase">Dimension: {panneau.dimension}</p>
               </div>
 
-              {/* Contenu et Actions */}
-              <div className="p-6 space-y-4 flex-grow">
-                <div>
-                  <h3 className="text-lg font-black text-white italic uppercase tracking-tighter leading-none">
-                    Face: {face.faceId || fIdx + 1}
-                  </h3>
-                  <p className="text-[9px] font-black text-[#d4af37] uppercase mt-2 tracking-[0.1em] opacity-90 flex flex-wrap gap-2">
-                    <span>ID: {panneau.idPan}</span>
-                    <span className="text-white/20">|</span>
-                    <span>{panneau.zone}</span>
-                    <span className="text-white/20">•</span>
-                    <span>{panneau.adresse}</span>
-                    <span className="text-white/20">•</span>
-                    <span className="text-white/60">{panneau.type}</span>
+            
+              {data.hasReservation && (
+                <div className="bg-white/10 p-3 rounded-xl backdrop-blur-md mb-4 border border-white/10">
+                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                    Client: <span className="text-white">{data.client}</span>
+                  </p>
+                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                    Agent: <span className="text-white">{data.agent}</span>
+                  </p>
+                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                    Période: <span className="text-white">{data.dates}</span>
                   </p>
                 </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFaceDetails(face);
+                  }}
+                  className="relative z-20 flex-1 py-3 bg-white/10 backdrop-blur-md rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all"
+                >
+                  Détails
+                </button>
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  {/* Bouton Détails - Style Verre */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFaceDetails(face)}
-                    className="flex items-center justify-center gap-2 py-3 rounded-xl border border-white/10 bg-white/5 text-[8px] font-black text-white uppercase hover:bg-white hover:text-[#1e40af] transition-all cursor-pointer z-10 shadow-sm"
-                  >
-                    Détails
-                  </button>
-
-                  {/* Bouton Panier / Sélection - Style Or ou Alerte */}
-                  <button
-                    type="button"
-                    onClick={() => isLibre && onSelect(faceUniqueId)}
-                    className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[8px] font-black uppercase transition-all shadow-md 
-                        ${!isLibre
-                        ? 'bg-black/30 text-white/20 cursor-not-allowed border border-white/5'
-                        : isFaceSelected
-                          ? 'bg-red-600 text-white shadow-[0_10px_20px_rgba(220,38,38,0.3)]'
-                          : 'bg-[#d4af37] text-black hover:bg-white active:scale-95'
-                      }`}
-                  >
-                    {isFaceSelected ? <CheckCircle2 size={14} /> : <PlusCircle size={14} />}
-                    {isFaceSelected ? 'Retirer' : 'Panier'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Petit indicateur de brillance interne */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none" />
+                            </div>
             </div>
           </motion.div>
         );

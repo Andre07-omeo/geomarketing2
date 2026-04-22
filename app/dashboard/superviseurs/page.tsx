@@ -47,153 +47,147 @@ export const auth = getAuth(app);
 
 
 
-// --- COMPOSANT ELEGANT CARD ---
+
 
 const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any) => {
-  // État pour afficher la modale de détails d'une face spécifique
   const [selectedFaceDetails, setSelectedFaceDetails] = useState<any>(null);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
+
   const faces = panneau?.faces || [];
+
+  const getStatusStyles = (statut: string) => {
+    switch (statut?.toLowerCase()) {
+      case 'occupé': return "bg-red-500/20 text-red-400 border-red-500/40";
+      case 'réservé': return "bg-orange-500/20 text-orange-400 border-orange-500/40";
+      case 'maintenance': return "bg-blue-500/20 text-blue-400 border-blue-400/40";
+      default: return "bg-green-500/20 text-green-400 border-green-500/40";
+    }
+  };
+
+  const downloadImage = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `campagne_${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) { console.error("Erreur téléchargement", err); }
+  };
+
+  const getActiveData = (face: any) => {
+    const now = new Date();
+    // On cherche une réservation qui couvre la date d'aujourd'hui
+    const currentRes = face.reservations?.find((res: any) =>
+      now >= new Date(res.dateDebut) && now <= new Date(res.dateFin)
+    );
+
+    if (currentRes) {
+      return {
+        hasReservation: true, // Désormais vrai pour tout statut de réservation
+        label: currentRes.statut || "Occupé",
+        photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
+        client: currentRes.societeLocatrice,
+        agent: currentRes.agentNom || "Non spécifié",
+        dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`
+      };
+    }
+    return { hasReservation: false, label: "Libre", photo: LOGO_DISPROMALT, client: null, agent: null, dates: null };
+  };
 
   return (
     <>
-      {/* Modale de détails (s'affiche si une face est sélectionnée) */}
       <AnimatePresence>
         {selectedFaceDetails && (
-          <FaceDetailModal
-            isOpen={true}
-            onClose={() => setSelectedFaceDetails(null)}
-            panneau={panneau}
-            face={selectedFaceDetails}
-            onSelect={onSelect}
-            isSelected={selectedIds?.includes(`${panneau.id}_${selectedFaceDetails.id}`)}
-          />
+          <FaceDetailModal isOpen={true} onClose={() => setSelectedFaceDetails(null)} panneau={panneau} face={selectedFaceDetails} />
         )}
       </AnimatePresence>
 
-      {/* Mapping des faces du panneau */}
+      {zoomedImage && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setZoomedImage(null)}>
+          <img src={zoomedImage} className="max-w-full max-h-full object-contain rounded-lg" alt="Zoom" />
+        </div>
+      )}
+
       {faces.map((face: any, fIdx: number) => {
-        const faceUniqueId = `${panneau.id}_${face.id || fIdx}`;
-        const isFaceSelected = selectedIds?.includes(faceUniqueId);
-        const isLibre = face.statut?.toLowerCase() === 'libre';
+        const data = getActiveData(face);
+        const displayId = `${face.id || fIdx + 1}`;
 
         return (
-          <motion.div
-            key={faceUniqueId}
-            layout
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{
-              duration: 0.6,
-              delay: (index + fIdx) * 0.05,
-              type: "spring",
-              stiffness: 100
-            }}
-            whileHover={{ y: -10 }}
-            className={`relative group rounded-[2.5rem] p-px overflow-hidden bg-gradient-to-b transition-all duration-500 
-                ${isFaceSelected
-                ? 'from-[#d4af37] to-[#1e40af] shadow-[0_25px_50px_rgba(0,0,0,0.5)]'
-                : 'from-white/20 to-transparent'
-              }`}
-          >
-            <div className="relative bg-[#1e40af] backdrop-blur-3xl rounded-[2.4rem] overflow-hidden h-full flex flex-col">
+          <motion.div key={fIdx} className="relative w-full h-[450px] rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 group">
 
-              {/* SECTION IMAGE */}
-              <div className="relative aspect-video overflow-hidden bg-black/20">
-                <motion.img
-                  whileHover={{ scale: 1.1 }}
-                  transition={{ duration: 0.8 }}
-                  src={face.photoCampagneUrl || 'https://via.placeholder.com/800x600'}
-                  className="w-full h-full object-cover"
-                  alt={`Face ${face.id}`}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1e40af] via-transparent to-transparent opacity-80" />
+            {/* IMAGE ET LOGIQUE D'INTERACTION */}
+            <div className="absolute inset-0 overflow-hidden">
+              <img src={data.photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none" alt="Face" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-                {/* Badge Type & Statut (Top) */}
-                <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
-                  <span className="bg-black/40 backdrop-blur-xl text-white text-[7px] font-black px-3 py-1.5 rounded-full uppercase border border-[#d4af37]/30 shadow-lg">
-                    {panneau.type || 'DIGITAL'}
-                  </span>
+              <div
+                className="absolute inset-0 z-10 cursor-pointer"
+                onClick={() => setZoomedImage(data.photo)}
+                onMouseDown={() => setPressTimer(setTimeout(() => downloadImage(data.photo), 600))}
+                onMouseUp={() => pressTimer && clearTimeout(pressTimer)}
+                onMouseLeave={() => pressTimer && clearTimeout(pressTimer)}
+                onTouchStart={() => setPressTimer(setTimeout(() => downloadImage(data.photo), 600))}
+                onTouchEnd={() => pressTimer && clearTimeout(pressTimer)}
+                onContextMenu={(e) => e.preventDefault()}
+              />
+            </div>
 
-                  <span className={`px-3 py-1.5 rounded-full text-[7px] font-black uppercase border shadow-lg backdrop-blur-xl
-                    ${isLibre
-                      ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                      : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-                    {face.statut || 'INCONNU'}
-                  </span>
-                </div>
+            {/* BADGE STATUT */}
+            <div className="absolute top-4 right-4">
+              <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border backdrop-blur-md ${getStatusStyles(data.label)}`}>
+                {data.label}
+              </span>
+            </div>
+
+            {/* INFOS */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+              <div className="mb-4">
+                <h3 className="text-2xl font-black italic uppercase">Face : {displayId}</h3>
+                <p className="text-[10px] text-[#d4af37] font-bold uppercase">{panneau.adresse} • Zone: {panneau.zone}</p>
+                <p className="text-[10px] text-white/60 font-bold uppercase">Dimension: {panneau.dimension}</p>
               </div>
 
-              {/* CONTENU TECHNIQUE */}
-              <div className="p-5 space-y-4 flex-grow">
-                <div className="flex justify-between items-end">
-                  <div>
-                    <h3 className="text-lg font-black text-white italic uppercase tracking-tighter leading-none">
-                      Face: {face.faceId || fIdx + 1}
-                    </h3>
-                    <p className="text-[8px] font-black text-[#d4af37] uppercase mt-2 tracking-[0.2em] opacity-90">
-                      ID: {panneau.idPan}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[7px] font-bold text-white/40 uppercase tracking-widest">Dimension</p>
-                    <p className="text-[10px] font-black text-white">{panneau.dimension || '12x4m'}</p>
-                  </div>
+              {/* On utilise une seule condition qui englobe tous les cas de réservations (Occupé, Réservé, etc.)
+  Cela évite de dupliquer le code et le rendu HTML.
+*/}
+              {data.hasReservation && (
+                <div className="bg-white/10 p-3 rounded-xl backdrop-blur-md mb-4 border border-white/10">
+                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                    Client: <span className="text-white">{data.client}</span>
+                  </p>
+                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                    Agent: <span className="text-white">{data.agent}</span>
+                  </p>
+                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                    Période: <span className="text-white">{data.dates}</span>
+                  </p>
                 </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFaceDetails(face);
+                  }}
+                  className="relative z-20 flex-1 py-3 bg-white/10 backdrop-blur-md rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all"
+                >
+                  Détails
+                </button>
 
-                {/* GRILLE D'INFOS (ZONE & SENS) */}
-                <div className="grid grid-cols-2 gap-2 bg-black/20 rounded-2xl p-3 border border-white/5">
-                  <div className="space-y-1">
-                    <p className="text-[7px] font-bold text-[#d4af37] uppercase tracking-widest">Zone</p>
-                    <p className="text-[9px] font-black text-white truncate uppercase">{panneau.zone || 'N/A'}</p>
-                  </div>
-                  <div className="space-y-1 border-l border-white/10 pl-3">
-                    <p className="text-[7px] font-bold text-[#d4af37] uppercase tracking-widest">Sens</p>
-                    <p className="text-[9px] font-black text-white truncate uppercase">{face.sens || 'VERS CENTRE'}</p>
-                  </div>
-                </div>
-
-                {/* ACTIONS */}
-                <div className="space-y-2 pt-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFaceDetails(face)}
-                      className="flex items-center justify-center gap-2 py-3 rounded-xl border border-white/10 bg-white/5 text-[8px] font-black text-white uppercase hover:bg-white hover:text-[#1e40af] transition-all cursor-pointer z-10 shadow-sm"
-                    >
-                      Détails
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => isLibre && onSelect(faceUniqueId)}
-                      className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[8px] font-black uppercase transition-all shadow-md z-10
-                          ${!isLibre
-                          ? 'bg-black/30 text-white/20 cursor-not-allowed border border-white/5'
-                          : isFaceSelected
-                            ? 'bg-red-600 text-white shadow-[0_10px_20px_rgba(220,38,38,0.3)]'
-                            : 'bg-[#d4af37] text-black hover:bg-white active:scale-95'
-                        }`}
-                    >
-                      {isFaceSelected ? <CheckCircle2 size={12} /> : <PlusCircle size={12} />}
-                      {isFaceSelected ? 'Retirer' : 'Panier'}
-                    </button>
-                  </div>
-
-                  {/* BOUTON MODIFIER - FULL WIDTH */}
-                  <button
-                    type="button"
-                    onClick={() => onEdit && onEdit(panneau)}
-                    className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-[#d4af37] hover:text-black transition-all duration-300 group/edit z-10 shadow-xl"
-                  >
-                    <Settings size={14} className="group-hover/edit:rotate-90 transition-transform duration-500" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">Éditer Support</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Brillance décorative */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Empêche le clic de se propager vers la div d'interaction
+                    onEdit(panneau);
+                  }}
+                  className="relative z-20 py-3 px-6 bg-[#d4af37] rounded-xl text-black font-black text-[10px] uppercase hover:bg-white transition-all"
+                >
+                  <Settings size={14} />
+                </button>              </div>
             </div>
           </motion.div>
         );
@@ -201,11 +195,6 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
     </>
   );
 };
-
-
-
-
-
 
 
 
@@ -307,43 +296,43 @@ export default function UltimateSupervisor() {
 
 
   useEffect(() => {
-  // 1. Définition de la référence à l'extérieur de la requête
-  const panelsRef = collection(db, "panneaux");
-  const q = query(panelsRef, orderBy("createdAt", "desc"));
+    // 1. Définition de la référence à l'extérieur de la requête
+    const panelsRef = collection(db, "panneaux");
+    const q = query(panelsRef, orderBy("createdAt", "desc"));
 
-  // 2. Initialisation du snapshot avec gestion d'erreur détaillée
-  const unsubscribe = onSnapshot(
-    q, 
-    (snapshot) => {
-      const panelsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+    // 2. Initialisation du snapshot avec gestion d'erreur détaillée
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const panelsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-      setPanneauxData(panelsData);
-      setLoading(false);
-    }, 
-    (error) => {
-      console.error("Erreur de synchronisation Firestore :", error);
-      
-      // Gestion intelligente des erreurs réseau
-      if (error.code === 'permission-denied') {
-        alert("Accès refusé : Vérifiez vos règles de sécurité Firestore.");
-      } else if (error.code === 'unavailable') {
-        alert("Connexion perdue : Firestore est momentanément indisponible.");
+        setPanneauxData(panelsData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Erreur de synchronisation Firestore :", error);
+
+        // Gestion intelligente des erreurs réseau
+        if (error.code === 'permission-denied') {
+          alert("Accès refusé : Vérifiez vos règles de sécurité Firestore.");
+        } else if (error.code === 'unavailable') {
+          alert("Connexion perdue : Firestore est momentanément indisponible.");
+        }
+
+        setLoading(false);
       }
-      
-      setLoading(false);
-    }
-  );
+    );
 
-  // 3. Nettoyage essentiel pour libérer la connexion (indispensable sur mobile)
-  return () => {
-    if (unsubscribe) {
-      unsubscribe();
-    }
-  };
-}, []); // Dépendances vides : s'exécute uniquement au chargement
+    // 3. Nettoyage essentiel pour libérer la connexion (indispensable sur mobile)
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []); // Dépendances vides : s'exécute uniquement au chargement
 
 
   // 5. LOGIQUE DE FILTRAGE
@@ -1141,19 +1130,15 @@ import {
 } from 'lucide-react';
 import { panneaux } from '@/data/panneaux';
 
-// Remplacez vos imports Firestore par ceux-ci :
-import {
-  getDocs,
-} from 'firebase/firestore';
 
 import { useRef } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction, getDocs, } from 'firebase/firestore';
 import { Layout, Upload, } from 'lucide-react';
 
 // --- CONFIGURATION ---
 const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dn7wnikzp/image/upload";
 const UPLOAD_PRESET = "panneaux"; // Assurez-vous que ce preset est "Unsigned" dans Cloudinary
-
+const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
 const TYPES_SUPPORTS = [
   "Billboard (Classique)", "Digital (LED)", "Abribus", "Grand Format (Totem)",
@@ -1165,10 +1150,8 @@ const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
 export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
 
 
-
-
-
-
+  // Remplacez votre déclaration actuelle par celle-ci :
+  const [conflitMessages, setConflitMessages] = useState<Record<number, string | null>>({});
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -1331,111 +1314,139 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
     setFormData({ ...formData, faces: newFaces });
   };
 
+  const checkDateConflict = (
+    idx: number,
+    dateDebut: string,
+    dateFin: string,
+    reservations: any[]
+  ) => {
+    if (!dateDebut || !dateFin) {
+      setConflitMessages(prev => ({ ...prev, [idx]: null }));
+      return;
+    }
+
+    const d1 = new Date(dateDebut).getTime();
+    const d2 = new Date(dateFin).getTime();
+
+    // 1. Validation : La date de début doit être strictement inférieure à la date de fin
+    if (d1 >= d2) {
+      setConflitMessages(prev => ({
+        ...prev,
+        [idx]: `⚠️ La date de début doit être antérieure à la date de fin.`
+      }));
+      return;
+    }
+
+    // 2. Vérification des conflits avec les autres réservations
+    const conflict = reservations.find((res: any) => {
+      const r1 = new Date(res.dateDebut).getTime();
+      const r2 = new Date(res.dateFin).getTime();
+      return d1 <= r2 && d2 >= r1;
+    });
+
+    if (conflict && conflict.agentEmail !== currentUser?.email) {
+      setConflitMessages(prev => ({
+        ...prev,
+        [idx]: `⚠️ Face déjà réservée par Monsieur :  ${conflict.agentNom}. Veuillez contacter le responsable pour négocier.`
+      }));
+    } else {
+      // Si tout est valide
+      setConflitMessages(prev => ({ ...prev, [idx]: null }));
+    }
+  };
+
   const handleSave = async () => {
-    // 1. Logique de validation des chevauchements de dates
-    const checkOverlap = (newDebut: string, newFin: string, existingReservations: any[]) => {
-      if (!newDebut || !newFin) return false;
-      const d1 = new Date(newDebut).getTime();
-      const d2 = new Date(newFin).getTime();
-      
-      return existingReservations.some(res => {
-        const r1 = new Date(res.dateDebut).getTime();
-        const r2 = new Date(res.dateFin).getTime();
-        // Vérifie si les périodes se croisent
-        return d1 <= r2 && d2 >= r1;
-      });
-    };
-
-    // 2. Validation de sécurité : Est-ce que l'utilisateur peut modifier cette face ?
-    const unauthorizedFace = formData.faces.find((f: any) => {
-      const isLocked = f.statut === "Occupé" || f.statut === "Réservé";
-      const isOwner = f.agentEmail === currentUser?.email;
-      return isLocked && !isOwner; // Bloque si verrouillé par un autre agent
-    });
-
-    if (unauthorizedFace) {
-      alert("ACCÈS REFUSÉ : Cette face est verrouillée par un autre agent.");
+    // 1. Vérification globale des conflits (UI)
+    const hasGlobalConflict = Object.values(conflitMessages).some(msg => msg !== null);
+    if (hasGlobalConflict) {
+      alert("Impossible de sauvegarder : Une ou plusieurs faces ont des conflits de dates.");
       return;
     }
 
-    // 3. Validation des champs obligatoires
-    const faceError = formData.faces.find((f: any) => {
-      const isOccupied = f.statut === "Occupé" || f.statut === "Réservé";
-      if (!isOccupied) return false;
-
-      return !f.photoCampagneUrl || f.photoCampagneUrl.startsWith('blob:') || 
-             !f.clientNom || f.clientNom.trim() === "" || 
-             !f.dateDebut || !f.dateFin;
-    });
-
-    if (faceError) {
-      alert("ERREUR : Pour toute face occupée/réservée, remplissez le Client, les dates et la Photo.");
-      return;
-    }
-
-    // 4. Vérification des conflits de dates (si vous avez un tableau de réservations existantes)
-    const hasConflict = formData.faces.some((f: any) => 
-      (f.statut === "Occupé" || f.statut === "Réservé") && 
-      checkOverlap(f.dateDebut, f.dateFin, f.reservations || [])
+    // 2. Vérification PRÉALABLE des données obligatoires
+    const isInvalid = formData.faces.some((f: any) =>
+      (f.statut !== "Libre" && (!f.dateDebut || !f.dateFin))
     );
-
-    if (hasConflict) {
-      alert("ATTENTION : Cette période chevauche une réservation existante sur ce panneau.");
+    if (isInvalid) {
+      alert("Veuillez remplir les dates pour toutes les faces occupées.");
       return;
     }
 
-    // 5. Sauvegarde vers Firebase
     setIsSaving(true);
     try {
-      const docId = panneau?.id || formData?.id;
-      if (!docId) throw new Error("ID du panneau introuvable.");
+      const docRef = doc(db, "panneaux", panneau?.id || formData?.id);
 
-      const docRef = doc(db, "panneaux", docId);
+      await runTransaction(db, async (transaction) => {
+        const panneauDoc = await transaction.get(docRef);
+        if (!panneauDoc.exists()) throw new Error("Panneau introuvable");
 
-      const dataToUpdate = {
-        adresse: formData.adresse?.toUpperCase() || "",
-        zone: formData.zone || "",
-        type: formData.type || "",
-        dimension: formData.dimension || "",
-        faces: formData.faces.map((f: any) => {
-          const isOccupied = f.statut === "Occupé" || f.statut === "Réservé";
-          
-          return {
-            ...f,
-            statut: f.statut || "Libre",
-            clientNom: isOccupied ? (f.clientNom || "") : "",
-            agentEmail: isOccupied ? (f.agentEmail || currentUser?.email) : "", // Enregistre l'email de l'agent
-            photoCampagneUrl: f.photoCampagneUrl || "",
-            estAujourdhui: isOccupied,
-            // Ajout automatique à l'historique d'audit
-            historique: [
-              ...(f.historique || []), 
-              {
-                agentEmail: currentUser?.email,
+        // 3. Validation de sécurité côté serveur
+        for (const f of formData.faces) {
+          if (f.statut === "Libre") continue;
+
+          const reservations = f.reservations || [];
+          const d1 = new Date(f.dateDebut).getTime();
+          const d2 = new Date(f.dateFin).getTime();
+
+          const conflict = reservations.find((res: any) => {
+            const r1 = new Date(res.dateDebut).getTime();
+            const r2 = new Date(res.dateFin).getTime();
+            return d1 <= r2 && d2 >= r1;
+          });
+
+          if (conflict && conflict.agentEmail !== currentUser?.email) {
+            throw new Error(`CONFLIT : Période déjà réservée par ${conflict.agentNom || 'un autre agent'}.`);
+          }
+        }
+
+        // 4. Construction des données
+        const dataToUpdate = {
+          faces: formData.faces.map((f: any) => {
+            const isOccupied = f.statut === "Occupé" || f.statut === "Réservé";
+            const finalPhotoUrl = (f.photoCampagneUrl && !f.photoCampagneUrl.startsWith('blob:'))
+              ? f.photoCampagneUrl : LOGO_DISPROMALT;
+
+            // Ajout des nouveaux champs requis dans la réservation
+            // Remplacez cette partie dans handleSave
+            const newRes = {
+              id: (f.reservations?.length || 0) + 1,
+              // Forcez la récupération depuis currentUser, pas depuis le formData
+              agentEmail: currentUser?.email || "inconnu@dispromalt.com",
+              agentNom: currentUser?.displayName || "Agent",
+              societeLocatrice: f.clientNom || "Inconnu",
+              dateDebut: f.dateDebut || "",
+              dateFin: f.dateFin || "",
+              photoCampagneUrl: finalPhotoUrl,
+              statut: f.statut,
+              dateModification: new Date().toISOString()
+            };
+
+            return {
+              statut: f.statut || "Libre",
+              clientNom: f.clientNom || "",
+              agentEmail: currentUser?.email || "",
+              photoCampagneUrl: finalPhotoUrl,
+              dateDebut: f.dateDebut || null,
+              dateFin: f.dateFin || null,
+              reservations: isOccupied ? [...(f.reservations || []), newRes] : (f.reservations || []),
+              historique: [...(f.historique || []), {
                 date: new Date().toISOString(),
-                statut: f.statut,
-                client: f.clientNom
-              }
-            ]
-          };
-        }),
-        updatedAt: serverTimestamp()
-      };
+                agent: currentUser?.email || "Inconnu",
+                statut: f.statut // Garde une trace du statut dans l'historique
+              }]
+            };
+          }),
+          updatedAt: serverTimestamp()
+        };
 
-      await updateDoc(docRef, dataToUpdate);
+        transaction.update(docRef, dataToUpdate);
+      });
+
       alert("Mise à jour réussie !");
       onClose();
-      
     } catch (error: any) {
-      console.error("Erreur Firebase:", error);
-      
-      if (error.code === 'unavailable') {
-        alert("Connexion internet instable. Veuillez réessayer.");
-      } else if (error.code === 'permission-denied') {
-        alert("Permission refusée. Vous n'avez pas le droit de modifier cette face.");
-      } else {
-        alert("Erreur système : " + error.message);
-      }
+      console.error("Erreur détaillée:", error);
+      alert("Erreur: " + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -1597,14 +1608,34 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
                             <div className="flex gap-2">
                               {['dateDebut', 'dateFin'].map((dField) => (
                                 <div key={dField} className="space-y-1 flex-1">
-                                  <p className="text-[8px] font-black text-[#d4af37] uppercase italic">{dField === 'dateDebut' ? "Début" : "Fin"}</p>
+                                  <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
+                                    {dField === 'dateDebut' ? "Début" : "Fin"}
+                                  </p>
+
                                   <input
                                     type="date"
-                                    value={face[dField] || ''}
-                                    disabled={isLocked}
-                                    onChange={(e) => updateFace(idx, dField, e.target.value)}
-                                    className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-[10px] [color-scheme:dark]"
+                                    // Dynamise la valeur selon le champ en cours de mapping
+                                    value={face[dField]}
+                                    onChange={(e) => {
+                                      const newValue = e.target.value;
+
+                                      // Met à jour dynamiquement le bon champ
+                                      updateFace(idx, dField, newValue);
+
+                                      // Appelle la vérification avec les valeurs à jour
+                                      const newDebut = dField === 'dateDebut' ? newValue : face.dateDebut;
+                                      const newFin = dField === 'dateFin' ? newValue : face.dateFin;
+
+                                      checkDateConflict(idx, newDebut, newFin, face.reservations || []);
+                                    }}
                                   />
+
+                                  {/* Affiche le message de conflit spécifique à CETTE face (idx) */}
+                                  {conflitMessages[idx] && (
+                                    <div style={{ color: 'red', fontWeight: 'bold', marginTop: '10px', fontSize: '10px' }}>
+                                      {conflitMessages[idx]}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
