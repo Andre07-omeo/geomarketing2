@@ -71,14 +71,22 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
   const getActiveData = (face: any) => {
     const now = new Date();
-    // On cherche une réservation qui couvre la date d'aujourd'hui
-    const currentRes = face.reservations?.find((res: any) =>
-      now >= new Date(res.dateDebut) && now <= new Date(res.dateFin)
-    );
+    // On met les heures à 0 pour ne comparer que les jours
+    now.setHours(0, 0, 0, 0);
+
+    // Chercher une réservation active parmi toutes les réservations de la face
+    const currentRes = face.reservations?.find((res: any) => {
+      const debut = new Date(res.dateDebut);
+      const fin = new Date(res.dateFin);
+      debut.setHours(0, 0, 0, 0);
+      fin.setHours(0, 0, 0, 0);
+
+      return now >= debut && now <= fin;
+    });
 
     if (currentRes) {
       return {
-        hasReservation: true, // Désormais vrai pour tout statut de réservation
+        hasReservation: true,
         label: currentRes.statut || "Occupé",
         photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
         client: currentRes.societeLocatrice,
@@ -86,8 +94,18 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
         dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`
       };
     }
-    return { hasReservation: false, label: "Libre", photo: LOGO_DISPROMALT, client: null, agent: null, dates: null };
+
+    // Si on est ici, aucune réservation n'est active aujourd'hui
+    return {
+      hasReservation: false,
+      label: "Libre",
+      photo: face.photoParDefaut || LOGO_DISPROMALT,
+      client: null,
+      agent: null,
+      dates: null
+    };
   };
+
 
   return (
     <>
@@ -105,7 +123,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
 
       {faces.map((face: any, fIdx: number) => {
         const data = getActiveData(face);
-        const displayId = `${face.id || fIdx + 1}`;
+        const displayId = `${panneau.idPan}-${face.id || fIdx + 1}`;
 
         return (
           <motion.div key={fIdx} className="relative w-full h-[450px] rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 group">
@@ -142,7 +160,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
                 <p className="text-[10px] text-white/60 font-bold uppercase">Dimension: {panneau.dimension}</p>
               </div>
 
-            
+
               {data.hasReservation && (
                 <div className="bg-white/10 p-3 rounded-xl backdrop-blur-md mb-4 border border-white/10">
                   <p className="text-[8px] uppercase text-white/50 font-bold">
@@ -167,7 +185,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
                   Détails
                 </button>
 
-                            </div>
+              </div>
             </div>
           </motion.div>
         );
@@ -1019,8 +1037,8 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
 
   // 2. APPELLE LE HOOK ICI (tout en haut du composant, pas dans handleLogin)
-  
-const { login } = useAuth();
+
+  const { login } = useAuth();
 
 
   if (!isOpen) return null;
@@ -1073,7 +1091,7 @@ const { login } = useAuth();
       const routes: Record<string, string> = {
         visiteur: '/dashboard/visiteurs',
         admin: '/dashboard/admin',
-        superviseurs: '/dashboard/superviseurs',
+        superviseurs: 'dashboard/components',
         commercial: '/dashboard/superviseurs',
         comptable: '/dashboard/Comptable',
         client: '/dashboard/client'

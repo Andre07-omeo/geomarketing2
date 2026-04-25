@@ -449,7 +449,7 @@ export default function UsersPage() {
 
               {/* IDENTIFIANT SYSTÈME (Email) */}
               <div className="bg-black/20 p-4 rounded-2xl mb-8 border border-white/5">
-                <p className="text-[9px] text-blue-200/40 font-black uppercase tracking-widest mb-1">Email    bbbbb</p>
+                <p className="text-[9px] text-blue-200/40 font-black uppercase tracking-widest mb-1">Email</p>
                 <p className="text-sm font-bold text-amber-100/90 truncate">{user.email}</p>
               </div>
 
@@ -509,6 +509,7 @@ export default function UsersPage() {
                           <option value="admin">Admin</option>
                           <option value="comptable">Comptable</option>
                           <option value="commercial">Commercial</option>
+                          <option value="superviseurs">Superviseur</option>
                         </select>
                       </div>
 
@@ -617,6 +618,8 @@ export default function UsersPage() {
                       <option value="comptable">Comptable</option>
                       <option value="commercial">Commercial</option>
                       <option value="visiteur">Client</option>
+                      <option value="superviseurs">Superviseur</option>
+
                     </select>
                   </div>
                   <input

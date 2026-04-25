@@ -26,11 +26,9 @@ import {
   // mais dans ce useEffect précis, c'est le 'doc' du snapshot (pas l'import)
 } from 'firebase/firestore';
 
-import PageEnregistrement from '@/components/PageEnregistrement';
+import PageEnregistrement from '@/app/dashboard/components/page';
 
 // Assurez-vous d'avoir importé useState
-import { } from 'react';
-
 
 const firebaseConfig = {
   apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
@@ -81,14 +79,22 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
 
   const getActiveData = (face: any) => {
     const now = new Date();
-    // On cherche une réservation qui couvre la date d'aujourd'hui
-    const currentRes = face.reservations?.find((res: any) =>
-      now >= new Date(res.dateDebut) && now <= new Date(res.dateFin)
-    );
+    // On met les heures à 0 pour ne comparer que les jours
+    now.setHours(0, 0, 0, 0);
+
+    // Chercher une réservation active parmi toutes les réservations de la face
+    const currentRes = face.reservations?.find((res: any) => {
+      const debut = new Date(res.dateDebut);
+      const fin = new Date(res.dateFin);
+      debut.setHours(0, 0, 0, 0);
+      fin.setHours(0, 0, 0, 0);
+
+      return now >= debut && now <= fin;
+    });
 
     if (currentRes) {
       return {
-        hasReservation: true, // Désormais vrai pour tout statut de réservation
+        hasReservation: true,
         label: currentRes.statut || "Occupé",
         photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
         client: currentRes.societeLocatrice,
@@ -96,7 +102,16 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
         dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`
       };
     }
-    return { hasReservation: false, label: "Libre", photo: LOGO_DISPROMALT, client: null, agent: null, dates: null };
+
+    // Si on est ici, aucune réservation n'est active aujourd'hui
+    return {
+      hasReservation: false,
+      label: "Libre",
+      photo: face.photoParDefaut || LOGO_DISPROMALT,
+      client: null,
+      agent: null,
+      dates: null
+    };
   };
 
   return (
@@ -115,7 +130,8 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
 
       {faces.map((face: any, fIdx: number) => {
         const data = getActiveData(face);
-        const displayId = `${face.id || fIdx + 1}`;
+        //const displayId = `${idPan}-${face.id || fIdx + 1}`;
+        const displayId = `${panneau.idPan}-${face.id || fIdx + 1}`;
 
         return (
           <motion.div key={fIdx} className="relative w-full h-[450px] rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 group">
@@ -152,9 +168,8 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
                 <p className="text-[10px] text-white/60 font-bold uppercase">Dimension: {panneau.dimension}</p>
               </div>
 
-              {/* On utilise une seule condition qui englobe tous les cas de réservations (Occupé, Réservé, etc.)
-  Cela évite de dupliquer le code et le rendu HTML.
-*/}
+
+
               {data.hasReservation && (
                 <div className="bg-white/10 p-3 rounded-xl backdrop-blur-md mb-4 border border-white/10">
                   <p className="text-[8px] uppercase text-white/50 font-bold">
@@ -261,40 +276,6 @@ export default function UltimateSupervisor() {
   // Remplace tes deux anciens useEffect par celui-ci :
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   useEffect(() => {
     // 1. Définition de la référence à l'extérieur de la requête
     const panelsRef = collection(db, "panneaux");
@@ -368,10 +349,6 @@ export default function UltimateSupervisor() {
     );
   }
 
-
-
-
-
   return (
     <div className="min-h-screen relative bg-[#1e40af] text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
       {/* Barre de progression dorée */}
@@ -443,7 +420,7 @@ export default function UltimateSupervisor() {
                     className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-full transition-all border border-red-500/20"
                     title="Déconnexion"
                   >
-                    <img src={user.photoURL || "/default-avatar.png"} className="w-8 h-8 rounded-full border border-[#d4af37]" alt="Profil" />
+                    <img src={user.logoUrl || "/default-avatar.png"} className="w-8 h-8 rounded-full border border-[#d4af37]" alt="Profil" />
                     <LogOut size={14} />
                   </button>
                 </div>
@@ -560,11 +537,7 @@ export default function UltimateSupervisor() {
                     </button>
                   ))}
 
-                  {/* 3. La Modale qui réagit au changement d'état */}
-                  <PageEnregistrement
-                    isOpen={isModalOpen} // Vérifie que c'est bien isModalOpen ici
-                    onClose={() => setIsModalOpen(false)}
-                  />
+
                 </div>
 
                 <div className="space-y-6 pt-8 border-t border-white/20">
@@ -752,9 +725,6 @@ export default function UltimateSupervisor() {
 
       {/* MODALS */}
       <AnimatePresence>
-
-
-
         {isCartOpen && (
           <CartModall
             isOpen={isCartOpen}
@@ -764,21 +734,18 @@ export default function UltimateSupervisor() {
           />
         )}
       </AnimatePresence>
-      <PageEnregistrement
-        isOpen={isModalOpen} // Vérifie que c'est bien isModalOpen ici
-        onClose={() => setIsModalOpen(false)}
-      />
+
       <EditPanneauModal
         isOpen={!!panneauToEdit}
         onClose={() => setPanneauToEdit(null)}
         panneau={panneauToEdit}
+        user={user} // On passe l'utilisateur connecté ici
       />
     </div>
   );
 }
 
 
-// --- MODAL DÉTAILS ---
 
 const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected, ouvrirLaCarte }: any) => {
   if (!isOpen || !face) return null;
@@ -1140,14 +1107,11 @@ const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dn7wnikzp/image/upload";
 const UPLOAD_PRESET = "panneaux"; // Assurez-vous que ce preset est "Unsigned" dans Cloudinary
 const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
-const TYPES_SUPPORTS = [
-  "Billboard (Classique)", "Digital (LED)", "Abribus", "Grand Format (Totem)",
-  "Murale", "Banderole", "Tri-vision", "Sucette", "Portique"
-];
+const TYPES_SUPPORTS = ["LED", "Bache", "Vinyle",];
 
 const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
 
-export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
+export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
 
   // Remplacez votre déclaration actuelle par celle-ci :
@@ -1182,12 +1146,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
     }
     return null;
   };
-
-
-
-
-
-
 
   useEffect(() => {
     if (panneau) {
@@ -1249,55 +1207,10 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
   };
 
 
-  const isFaceReserved = (face: any) => {
-    if (face.statut !== "Occupé") return false;
-    // Vérifiez si une date est passée ou si la réservation est active
-    const now = new Date();
-    const fin = new Date(face.dateFin);
-    return fin >= now; // Si la date de fin est dans le futur, la face est "bloquée"
-  };
-
-  // Vérifie si la face est en cours d'occupation/réservation
-  const isFaceLocked = (face: any) => {
-    if (!face.dateDebut || !face.dateFin || face.statut === "Libre") return false;
-
-    const now = new Date();
-    const debut = new Date(face.dateDebut);
-    const fin = new Date(face.dateFin);
-
-    // Verrouillé si la date actuelle est dans la période
-    return now >= debut && now <= fin;
-  };
-
-  // Vérifie si l'utilisateur actuel est celui qui a posé le verrou
   const isOwner = (face: any) => {
     return face.agentEmail === currentUser?.email;
   };
 
-
-  // Dans votre rendu, remplacez le clic d'édition par une vérification :
-  const handleEditClick = (face: any) => {
-    if (isFaceReserved(face)) {
-      alert(`Cette face est réservée par ${face.agentNom || 'un agent'}. 
-           Période : ${face.dateDebut} au ${face.dateFin}. 
-           Merci de le contacter pour une éventuelle négociation.`);
-      return;
-    }
-  };
-
-
-
-  const tryOpenUpload = (face: any, idx: number) => {
-    if (isFaceLocked(face)) {
-      alert(`ATTENTION : Cette face est réservée par ${face.clientNom || 'un client'}. 
-    Elle est occupée jusqu'au ${face.dateFin}. 
-    Veuillez contacter le responsable pour négocier.`);
-      return;
-    }
-    // Si libre, on ouvre
-    fileInputRef.current!.dataset.idx = idx.toString();
-    fileInputRef.current?.click();
-  };
 
 
 
@@ -1406,13 +1319,12 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
             const finalPhotoUrl = (f.photoCampagneUrl && !f.photoCampagneUrl.startsWith('blob:'))
               ? f.photoCampagneUrl : LOGO_DISPROMALT;
 
-            // Ajout des nouveaux champs requis dans la réservation
-            // Remplacez cette partie dans handleSave
+
             const newRes = {
               id: (f.reservations?.length || 0) + 1,
               // Forcez la récupération depuis currentUser, pas depuis le formData
-              agentEmail: currentUser?.email || "inconnu@dispromalt.com",
-              agentNom: currentUser?.displayName || "Agent",
+              agentNom: isOccupied ? (user?.nom || "Nom non défini") : "",
+              agentEmail: isOccupied ? (user?.email || "non-specifie@mail.com") : "",
               societeLocatrice: f.clientNom || "Inconnu",
               dateDebut: f.dateDebut || "",
               dateFin: f.dateFin || "",
@@ -1451,10 +1363,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
       setIsSaving(false);
     }
   };
-
-
-
-
+  
   return (
     <div className="fixed inset-0 z-[600] flex items-center justify-center p-2 md:p-4 bg-black/90 backdrop-blur-xl">
       <input
@@ -1484,12 +1393,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
               <label className="text-[9px] font-black text-[#d4af37] uppercase ml-1">Adresse</label>
               <input type="text" value={formData.adresse || ''} onChange={(e) => setFormData({ ...formData, adresse: e.target.value })} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-[#d4af37]" />
             </div>
-            <div className="space-y-2">
-              <label className="text-[9px] font-black text-[#d4af37] uppercase ml-1">Commune</label>
-              <select value={formData.zone || ''} onChange={(e) => setFormData({ ...formData, zone: e.target.value })} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white outline-none">
-                {COMMUNES_KINSHASA.map(c => <option key={c} value={c} className="bg-[#1e40af]">{c}</option>)}
-              </select>
-            </div>
+
             <div className="space-y-2">
               <label className="text-[9px] font-black text-[#d4af37] uppercase ml-1">Type</label>
               <select value={formData.type || ''} onChange={(e) => setFormData({ ...formData, type: e.target.value })} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white outline-none">
@@ -1592,19 +1496,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
                               </select>
                             </div>
 
-                            {['agentNom', 'agentEmail'].map((field) => (
-                              <div key={field} className="space-y-1">
-                                <p className="text-[8px] font-black text-[#d4af37] uppercase italic">{field === 'agentNom' ? "Agent" : "Email"}</p>
-                                <input
-                                  type={field === 'agentEmail' ? "email" : "text"}
-                                  value={face[field] || ''}
-                                  disabled={isLocked}
-                                  onChange={(e) => updateFace(idx, field, e.target.value)}
-                                  className="w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-[10px]"
-                                />
-                              </div>
-                            ))}
-
                             <div className="flex gap-2">
                               {['dateDebut', 'dateFin'].map((dField) => (
                                 <div key={dField} className="space-y-1 flex-1">
@@ -1670,7 +1561,4 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau }: any) => {
   );
 };
 
-
-
-const COMMUNES_KINSHASA = ["Bandalungwa", "Barumbu", "Gombe", "Kalamu", "Kasa-Vubu", "Kimbanseke", "Kinshasa", "Kintambo", "Lemba", "Limete", "Lingwala", "Masina", "Matete", "Mont-Ngafula", "Ngaliema", "Ndjili", "Nsele"];
 import Link from 'next/link';
