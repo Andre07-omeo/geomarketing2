@@ -202,15 +202,6 @@ export default function PageEnregistrement({
     };
 
 
-
-
-
-
-
-
-
-
-
     const [isCustom, setIsCustom] = useState({
         province: false,
         ville: false,
@@ -340,6 +331,7 @@ export default function PageEnregistrement({
             setUploadingIndex(null);
         }
     };
+
     const getAlphabetId = (n: number): string => {
         let s = "";
         while (n > 0) {
@@ -491,35 +483,32 @@ export default function PageEnregistrement({
                 <div className="space-y-5">
                     <button
                         type="button"
-                        onClick={() => {
-                            navigator.geolocation.getCurrentPosition(
-                                (pos) => setCoords({
-                                    lat: pos.coords.latitude.toString(),
-                                    lng: pos.coords.longitude.toString()
-                                }),
-                                (err) => alert("Erreur GPS : " + err.message),
-                                {
-                                    enableHighAccuracy: true,
-                                    timeout: 15000,
-                                    maximumAge: 0
-                                }
-                            );
-                        }}
+                        // On désactive le bouton pendant la recherche pour éviter les bugs
+                        disabled={isLocating}
+                        // APPEL DE TA FONCTION CI-DESSOUS
+                        onClick={handleGetLocation}
                         className={`w-full p-5 rounded-2xl font-black flex flex-col items-center justify-center gap-2 border-2 transition-all duration-500 ${coords
                                 ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg'
                                 : 'bg-black/20 border-white/10 text-blue-300 hover:border-blue-500/40'
-                            }`}
+                            } ${isLocating ? 'opacity-70 cursor-wait' : ''}`}
                     >
                         <div className="flex items-center gap-3">
-                            <MapPin size={10} className={coords ? 'animate-bounce' : ''} />
+                            {isLocating ? (
+                                <Loader2 size={18} className="animate-spin text-amber-500" />
+                            ) : (
+                                <MapPin size={18} className={coords ? 'animate-bounce' : ''} />
+                            )}
+
                             <span className="text-[11px] uppercase tracking-[0.2em]">
-                                {coords ? 'Position GPS Verrouillée' : 'Capturer Position GPS *'}
+                                {isLocating
+                                    ? 'Recherche satellites (30s max)...'
+                                    : coords ? 'Position GPS Verrouillée' : 'Capturer Position GPS *'}
                             </span>
                         </div>
 
-                        {/* Affichage des coordonnées réelles dès qu'elles existent */}
-                        {coords && (
-                            <div className="flex flex-col items-center mt-1 pt-2 border-t border-white/20 w-full">
+                        {/* Affichage des coordonnées réelles avec animation si elles existent */}
+                        {coords && !isLocating && (
+                            <div className="flex flex-col items-center mt-1 pt-2 border-t border-white/20 w-full animate-in fade-in slide-in-from-top-1">
                                 <span className="font-mono text-[10px] text-emerald-100 tracking-tighter">
                                     LAT: {coords.lat}
                                 </span>
@@ -529,7 +518,6 @@ export default function PageEnregistrement({
                             </div>
                         )}
                     </button>
-
 
                     <div className="space-y-4">
                         {!isAdresseComplete ? (
