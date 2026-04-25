@@ -1,8 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  // ❌ Supprimez output: 'export'
   images: {
-    unoptimized: true,
+    // ✅ Autorisez Cloudinary pour vos logos
+    domains: ['res.cloudinary.com'], 
+    // Gardez unoptimized à true seulement si vous avez des problèmes de quota d'images
+    unoptimized: true, 
   },
 }
+
 module.exports = nextConfig
