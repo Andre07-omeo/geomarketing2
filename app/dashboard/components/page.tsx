@@ -8,6 +8,7 @@ import { getAuth } from 'firebase/auth'; // Importez ceci
 // Assurez-vous que le chemin est correct selon votre structure
 import { useAuth } from "@/context/AuthContext";
 import { LogOut } from "lucide-react"; // Vérifiez que vous avez bien installé lucide-react
+import { GeoPoint, serverTimestamp } from 'firebase/firestore';
 
 import { useRouter } from 'next/navigation';
 // --- CONFIGURATION FIREBASE ---
@@ -144,6 +145,68 @@ export default function PageEnregistrement({
         avenue: "",
         numero: ""
     });
+
+
+
+
+
+    const [isLocating, setIsLocating] = useState(false);
+
+    const handleGetLocation = () => {
+        setIsLocating(true);
+
+        // Configuration pour forcer l'usage du GPS matériel
+        const highPrecisionOptions: PositionOptions = {
+            enableHighAccuracy: true, // COMMANDE CRITIQUE : Force l'activation de la puce GPS
+            timeout: 30000,           // Laisse 30s (max) pour que la puce accroche les satellites
+            maximumAge: 0             // Interdiction absolue d'utiliser une position en cache
+        };
+
+        if (!navigator.geolocation) {
+            alert("La géolocalisation n'est pas supportée par ce navigateur.");
+            setIsLocating(false);
+            return;
+        }
+
+        // Lancement du prélèvement
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                // Extraction avec une précision maximale (ex: 15 décimales)
+                setCoords({
+                    lat: pos.coords.latitude.toString(),
+                    lng: pos.coords.longitude.toString()
+                });
+
+                // Feedback de qualité du signal
+                const precisionMètres = pos.coords.accuracy;
+                console.log(`Précision matérielle : ${precisionMètres} mètres`);
+
+                if (precisionMètres > 20) {
+                    alert(`Attention : Signal faible (${Math.round(precisionMètres)}m). Sortez pour un meilleur fix.`);
+                }
+
+                setIsLocating(false);
+            },
+            (err) => {
+                console.error("Erreur GPS détaillée:", err);
+                let errorMsg = "Erreur GPS : ";
+                if (err.code === 1) errorMsg += "Accès refusé. Activez le GPS dans vos réglages.";
+                if (err.code === 2) errorMsg += "Position impossible (Vérifiez que vous n'êtes pas en sous-sol).";
+                if (err.code === 3) errorMsg += "Délai dépassé (Le GPS met trop de temps à répondre).";
+
+                alert(errorMsg);
+                setIsLocating(false);
+            },
+            highPrecisionOptions
+        );
+    };
+
+
+
+
+
+
+
 
 
 
@@ -288,91 +351,85 @@ export default function PageEnregistrement({
     };
 
     const enregistrerPanneau = async () => {
-        // 1. Validations de sécurité
-        if (!coords) return alert("ERREUR : La position GPS est obligatoire.");
+        // 1. Validations renforcées
+        if (!coords || !coords.lat || !coords.lng) {
+            return alert("ERREUR : La position GPS n'a pas été capturée avec précision.");
+        }
+
         if (!formData.adresse.trim()) return alert("ERREUR : L'adresse est obligatoire.");
         if (!formData.zone) return alert("ERREUR : La commune est obligatoire.");
-        if (!formData.type) return alert("ERREUR : Le type est obligatoire.");
 
         setLoading(true);
         try {
-            // Calcul de l'ID alphabétique (A, B, C...)
             const snapshot = await getDocs(collection(db, "panneaux"));
             const nextId = getAlphabetId(snapshot.size + 1);
             const now = new Date();
             const isoNow = now.toISOString();
 
-            // 2. Construction de l'objet faces selon votre modèle exact
+            // 2. Conversion sécurisée des coordonnées
+            const latitude = parseFloat(coords.lat);
+            const longitude = parseFloat(coords.lng);
+
+            // Vérification si les nombres sont valides
+            if (isNaN(latitude) || isNaN(longitude)) {
+                throw new Error("Coordonnées GPS invalides.");
+            }
+
+            // 3. Construction des faces (ton code actuel est bon)
             const formattedFaces = formData.faces.map((f, i) => {
                 const isOccupied = f.statut !== "Libre";
-
-                // Création de l'entrée historique initiale
-                const initialHistory = [{
-                    agent: currentUser?.displayName || "Agent",
-                    date: isoNow,
-                    statut: f.statut
-                }];
-
-                // Création de la première réservation si le panneau n'est pas libre
-                const initialReservations = isOccupied ? [{
-                    id: 1,
-                    agentEmail: currentUser?.email || "inconnu@dispromalt.com",
-                    agentNom: currentUser?.displayName || "Agent",
-                    dateDebut: f.dateDebut,
-                    dateFin: f.dateFin,
-                    dateModification: isoNow,
-                    photoCampagneUrl: f.photoCampagneUrl || LOGO_DISPROMALT,
-                    societeLocatrice: f.clientNom || "dispromalt admin",
-                    statut: f.statut
-                }] : [];
-
                 return {
-                    // Champs racines de la face
                     agentEmail: isOccupied ? (currentUser?.email || "") : "",
                     clientNom: isOccupied ? f.clientNom : "",
                     dateDebut: isOccupied ? f.dateDebut : "",
                     dateFin: isOccupied ? f.dateFin : "",
                     photoCampagneUrl: f.photoCampagneUrl || LOGO_DISPROMALT,
                     statut: f.statut,
-
-                    // Sous-tableaux
-                    historique: initialHistory,
-                    reservations: initialReservations
+                    historique: [{
+                        agent: currentUser?.displayName || "Agent",
+                        date: isoNow,
+                        statut: f.statut
+                    }],
+                    reservations: isOccupied ? [{
+                        id: 1,
+                        agentEmail: currentUser?.email || "",
+                        dateDebut: f.dateDebut,
+                        dateFin: f.dateFin,
+                        statut: f.statut
+                    }] : []
                 };
             });
 
-            // 3. Enregistrement final du document Panneau
+            // 4. Envoi à Firestore avec GeoPoint
             await addDoc(collection(db, "panneaux"), {
-                adresse: formData.adresse.toUpperCase(),
-                createdAt: now, // Firebase Timestamp automatique
+                adresse: formData.adresse.trim().toUpperCase(),
+                createdAt: serverTimestamp(), // Utilise le temps du serveur pour la précision
+                updatedAt: serverTimestamp(),
                 dimension: formData.dimension,
                 faces: formattedFaces,
-                gps: {
-                    lat: parseFloat(coords.lat),
-                    lng: parseFloat(coords.lng)
-                },
+
+                // UTILISATION DU GEOPOINT ICI
+                gps: new GeoPoint(latitude, longitude),
+
+                // On peut garder une version texte pour l'affichage rapide si besoin
+                gps_raw: { lat: latitude, lng: longitude },
+
                 idPan: nextId,
                 nbFaces: formData.nbFaces,
                 type: formData.type,
-                updatedAt: now,
-                zone: formData.zone
+                zone: formData.zone.trim()
             });
 
-            alert(`SUCCÈS : Panneau ${nextId} enregistré.`);
+            alert(`SUCCÈS : Panneau ${nextId} enregistré avec position précise.`);
+            if (onClose) onClose();
 
-            if (typeof onClose === 'function') {
-                onClose();
-            } else {
-                console.warn("La fonction onClose n'a pas été fournie au composant.");
-            }
-        } catch (e) {
-            console.error("Erreur lors de l'enregistrement :", e);
-            alert("Une erreur est survenue lors de la communication avec la base de données.");
+        } catch (e: any) {
+            console.error("Erreur d'enregistrement:", e);
+            alert(`Erreur : ${e.message || "Problème de connexion base de données"}`);
         } finally {
             setLoading(false);
         }
     };
-
 
 
 
@@ -433,18 +490,72 @@ export default function PageEnregistrement({
                 </div>
                 <div className="space-y-5">
                     <button
-                        onClick={() => navigator.geolocation.getCurrentPosition((pos) => setCoords({ lat: pos.coords.latitude.toString(), lng: pos.coords.longitude.toString() }))}
-                        className={`w-full p-5 rounded-2xl font-black text-[11px] flex items-center justify-center gap-4 border-2 transition-all ${coords ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-black/20 border-white/10 text-blue-300'}`}
+                        type="button"
+                        onClick={() => {
+                            navigator.geolocation.getCurrentPosition(
+                                (pos) => setCoords({
+                                    lat: pos.coords.latitude.toString(),
+                                    lng: pos.coords.longitude.toString()
+                                }),
+                                (err) => alert("Erreur GPS : " + err.message),
+                                {
+                                    enableHighAccuracy: true,
+                                    timeout: 15000,
+                                    maximumAge: 0
+                                }
+                            );
+                        }}
+                        className={`w-full p-5 rounded-2xl font-black flex flex-col items-center justify-center gap-2 border-2 transition-all duration-500 ${coords
+                                ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg'
+                                : 'bg-black/20 border-white/10 text-blue-300 hover:border-blue-500/40'
+                            }`}
                     >
-                        <MapPin size={20} />
-                        {coords ? `GPS ACTIF : ${coords.lat.slice(0, 8)}` : 'CAPTURER POSITION GPS *'}
+                        <div className="flex items-center gap-3">
+                            <MapPin size={10} className={coords ? 'animate-bounce' : ''} />
+                            <span className="text-[11px] uppercase tracking-[0.2em]">
+                                {coords ? 'Position GPS Verrouillée' : 'Capturer Position GPS *'}
+                            </span>
+                        </div>
+
+                        {/* Affichage des coordonnées réelles dès qu'elles existent */}
+                        {coords && (
+                            <div className="flex flex-col items-center mt-1 pt-2 border-t border-white/20 w-full">
+                                <span className="font-mono text-[10px] text-emerald-100 tracking-tighter">
+                                    LAT: {coords.lat}
+                                </span>
+                                <span className="font-mono text-[10px] text-emerald-100 tracking-tighter">
+                                    LNG: {coords.lng}
+                                </span>
+                            </div>
+                        )}
                     </button>
+
+
                     <div className="space-y-4">
                         {!isAdresseComplete ? (
                             // --- MODE SAISIE ---
                             <div className="space-y-4 animate-in fade-in duration-500">
-                                
+
                                 <div className="grid grid-cols-2 gap-4">
+
+
+                                    {/* AVENUE */}
+                                    <input
+                                        type="text"
+                                        placeholder="Avenue / Rue"
+                                        className="p-3 bg-black/40 rounded-xl border border-white/10 text-white placeholder:text-zinc-500"
+                                        value={geo.avenue || ""}
+                                        onChange={e => setGeo({ ...geo, avenue: e.target.value })}
+                                    />
+
+                                    {/* NUMÉRO */}
+                                    <input
+                                        type="text"
+                                        placeholder="Numéro"
+                                        className="p-3 bg-black/40 rounded-xl border border-white/10 text-white placeholder:text-zinc-500"
+                                        value={geo.numero || ""}
+                                        onChange={e => setGeo({ ...geo, numero: e.target.value })}
+                                    />
                                     {/* PAYS */}
                                     <select className="p-3 bg-black/40 rounded-xl border border-white/10 text-white"
                                         value={geo.pays}
@@ -482,9 +593,11 @@ export default function PageEnregistrement({
                                             {((GEOGRAPHIE[geo.pays as keyof typeof GEOGRAPHIE] as any)?.[geo.province]?.[geo.villeOuDistrict] as string[] || []).map(c => <option key={c} value={c}>{c}</option>)}
                                         </select>
                                     )}
+
+
                                 </div>
 
-                                
+
                             </div>
                         ) : (
                             // --- MODE RÉCAPITULATIF ---
@@ -643,10 +756,17 @@ export default function PageEnregistrement({
                                         </label>
                                     </div>
                                 )}
+
+
+
+
+
+
+
                             </div>
                         ))}
-                    </div>
 
+                    </div>
                     <button
                         onClick={enregistrerPanneau}
                         disabled={loading || uploadingIndex !== null}

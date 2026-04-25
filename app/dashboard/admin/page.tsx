@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [systemStats, setSystemStats] = useState({ cpu: 0, ram: 0 });
   const [dbStats, setDbStats] = useState({ totalPanneaux: 0, totalFaces: 0, totalUsers: 0 });
+  const [loading, setLoading] = useState(true); // 👈 Ajoute ceci
 
   useEffect(() => {
     const fetchRealData = async () => {
@@ -58,10 +59,22 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => { if (!user) router.push('/'); });
-    return () => unsubscribe();
-  }, [router]);
+ // AJOUTE UN ÉTAT D'INITIALISATION
+const [isAuthReady, setIsAuthReady] = useState(false);
+
+// Dans ton useEffect d'authentification
+useEffect(() => {
+    const interval = setInterval(() => {
+      setSystemStats({
+        cpu: Math.floor(Math.random() * 20) + 5,
+        ram: Math.floor(Math.random() * 20) + 40
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+  
+
+
 
   const handleLogout = async () => {
     if (window.confirm("Mettre fin à la session administrative ?")) {
@@ -75,6 +88,7 @@ export default function DashboardPage() {
     { group: 'ACTIFS', items: [{ name: 'Panneaux', icon: MapPin }, { name: 'Utilisateurs', icon: Users }] },
     { group: 'INFRASTRUCTURE', items: [{ name: 'Base de données', icon: Database }, { name: 'Maintenance', icon: Server }] }
   ];
+
 
   return (
     <div className="min-h-screen bg-[#000d1a] flex text-zinc-100 font-sans selection:bg-amber-500/30">

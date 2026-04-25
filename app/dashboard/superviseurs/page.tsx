@@ -1227,12 +1227,15 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     setFormData({ ...formData, faces: newFaces });
   };
 
+
+
   const checkDateConflict = (
     idx: number,
     dateDebut: string,
     dateFin: string,
     reservations: any[]
   ) => {
+    // Si les dates sont vides, on enlève l'erreur pour cette face
     if (!dateDebut || !dateFin) {
       setConflitMessages(prev => ({ ...prev, [idx]: null }));
       return;
@@ -1241,7 +1244,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     const d1 = new Date(dateDebut).getTime();
     const d2 = new Date(dateFin).getTime();
 
-    // 1. Validation : La date de début doit être strictement inférieure à la date de fin
+    // 1. Validation de base (Ordre des dates)
     if (d1 >= d2) {
       setConflitMessages(prev => ({
         ...prev,
@@ -1250,20 +1253,24 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       return;
     }
 
-    // 2. Vérification des conflits avec les autres réservations
-    const conflict = reservations.find((res: any) => {
+    // 2. Vérification des conflits avec la base de données
+    // On cherche un conflit uniquement si la réservation n'appartient pas à l'utilisateur actuel
+    const conflict = reservations?.find((res: any) => {
       const r1 = new Date(res.dateDebut).getTime();
       const r2 = new Date(res.dateFin).getTime();
-      return d1 <= r2 && d2 >= r1;
+
+      // Formule de chevauchement de périodes
+      const overlap = d1 <= r2 && d2 >= r1;
+      return overlap && res.agentEmail !== currentUser?.email;
     });
 
-    if (conflict && conflict.agentEmail !== currentUser?.email) {
+    if (conflict) {
       setConflitMessages(prev => ({
         ...prev,
-        [idx]: `⚠️ Face déjà réservée par Monsieur :  ${conflict.agentNom}. Veuillez contacter le responsable pour négocier.`
+        [idx]: `⚠️ Face déjà réservée par : ${conflict.agentNom}. Veuillez négocier avec lui.`
       }));
     } else {
-      // Si tout est valide
+      // Crucial : On remet à null si le conflit est résolu ou inexistant
       setConflitMessages(prev => ({ ...prev, [idx]: null }));
     }
   };
@@ -1278,14 +1285,15 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
     // 2. Vérification PRÉALABLE des données obligatoires
     const isInvalid = formData.faces.some((f: any) =>
-      (f.statut !== "Libre" && (!f.dateDebut || !f.dateFin))
+      (f.statut !== "Libre" && (!f.dateDebut || !f.dateFin || !f.clientNom))
     );
     if (isInvalid) {
-      alert("Veuillez remplir les dates pour toutes les faces occupées.");
+      alert("Veuillez remplir les dates et le nom du client pour toutes les faces occupées.");
       return;
     }
 
     setIsSaving(true);
+
     try {
       const docRef = doc(db, "panneaux", panneau?.id || formData?.id);
 
@@ -1293,10 +1301,11 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         const panneauDoc = await transaction.get(docRef);
         if (!panneauDoc.exists()) throw new Error("Panneau introuvable");
 
-        // 3. Validation de sécurité côté serveur
-        for (const f of formData.faces) {
+        // --- NOUVEAUTÉ : GESTION DES SOCIÉTÉS ---
+        for (const [idx, f] of formData.faces.entries()) {
           if (f.statut === "Libre") continue;
 
+          // Vérification des conflits côté serveur
           const reservations = f.reservations || [];
           const d1 = new Date(f.dateDebut).getTime();
           const d2 = new Date(f.dateFin).getTime();
@@ -1304,25 +1313,53 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           const conflict = reservations.find((res: any) => {
             const r1 = new Date(res.dateDebut).getTime();
             const r2 = new Date(res.dateFin).getTime();
-            return d1 <= r2 && d2 >= r1;
+            return d1 <= r2 && d2 >= r1 && res.agentEmail !== currentUser?.email;
           });
 
-          if (conflict && conflict.agentEmail !== currentUser?.email) {
-            throw new Error(`CONFLIT : Période déjà réservée par ${conflict.agentNom || 'un autre agent'}.`);
+          if (conflict) {
+            // 1. On affiche le message dans l'interface (sous la face concernée)
+            setConflitMessages(prev => ({
+              ...prev,
+              [idx]: `⚠️ CONFLIT : Période déjà réservée par ${conflict.agentNom || 'un autre agent'}.`
+            }));
+
+            // 2. On arrête le chargement du bouton
+            setIsSaving(false);
+
+            // 3. TRÈS IMPORTANT : On utilise "return" pour sortir de la transaction 
+            // sans provoquer de crash système avec "throw"
+            return;
+          }
+          // --- ENREGISTREMENT DE LA NOUVELLE SOCIÉTÉ ---
+          const nomClientSaisi = f.clientNom?.trim();
+          if (nomClientSaisi) {
+            // On vérifie si elle existe dans la liste actuelle (sensible à la casse)
+            const existeDeja = listeSocietes.some(s =>
+              s && typeof s === 'string' && s.toLowerCase() === nomClientSaisi.toLowerCase()
+            );
+
+            if (!existeDeja) {
+              const societeRef = doc(collection(db, "societes"));
+              transaction.set(societeRef, {
+                nom: nomClientSaisi,
+                createdAt: serverTimestamp(),
+                ajoutePar: currentUser?.email || "Système"
+              });
+              // On l'ajoute localement pour éviter de recréer le doc si plusieurs faces ont le même nouveau client
+              listeSocietes.push(nomClientSaisi);
+            }
           }
         }
 
-        // 4. Construction des données
+        // 4. Construction des données de mise à jour
         const dataToUpdate = {
           faces: formData.faces.map((f: any) => {
             const isOccupied = f.statut === "Occupé" || f.statut === "Réservé";
             const finalPhotoUrl = (f.photoCampagneUrl && !f.photoCampagneUrl.startsWith('blob:'))
               ? f.photoCampagneUrl : LOGO_DISPROMALT;
 
-
             const newRes = {
-              id: (f.reservations?.length || 0) + 1,
-              // Forcez la récupération depuis currentUser, pas depuis le formData
+              id: Date.now(), // ID unique basé sur le timestamp
               agentNom: isOccupied ? (user?.nom || "Nom non défini") : "",
               agentEmail: isOccupied ? (user?.email || "non-specifie@mail.com") : "",
               societeLocatrice: f.clientNom || "Inconnu",
@@ -1340,11 +1377,12 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
               photoCampagneUrl: finalPhotoUrl,
               dateDebut: f.dateDebut || null,
               dateFin: f.dateFin || null,
+              // On n'ajoute la réservation que si la face est occupée
               reservations: isOccupied ? [...(f.reservations || []), newRes] : (f.reservations || []),
               historique: [...(f.historique || []), {
                 date: new Date().toISOString(),
                 agent: currentUser?.email || "Inconnu",
-                statut: f.statut // Garde une trace du statut dans l'historique
+                statut: f.statut
               }]
             };
           }),
@@ -1354,16 +1392,42 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         transaction.update(docRef, dataToUpdate);
       });
 
-      alert("Mise à jour réussie !");
+      alert("Mise à jour et enregistrement des données réussis !");
       onClose();
     } catch (error: any) {
       console.error("Erreur détaillée:", error);
-      alert("Erreur: " + error.message);
+      // Si l'erreur vient du conflit, on ne fait pas d'alert car le message s'affiche dans l'UI
+      if (!error.message.includes("Conflit détecté")) {
+        alert("Erreur: " + error.message);
+      }
     } finally {
       setIsSaving(false);
     }
   };
-  
+
+
+
+
+
+  // Vérifie si une des faces présente un message d'erreur ou de verrouillage
+  const hasBlockingError = formData.faces.some((face: any, idx: number) => {
+    const warning = getReservationWarning(face);
+    const dateConflict = conflitMessages[idx];
+    return warning !== null || dateConflict !== null;
+  });
+
+  // Vérifie si des données obligatoires manquent
+  const isMissingData = formData.faces.some((f: any) =>
+    (f.statut !== "Libre" && (!f.dateDebut || !f.dateFin || !f.clientNom))
+  );
+
+  const isButtonDisabled = isSaving || uploadingIndex !== null || hasBlockingError || isMissingData;
+
+
+
+
+
+
   return (
     <div className="fixed inset-0 z-[600] flex items-center justify-center p-2 md:p-4 bg-black/90 backdrop-blur-xl">
       <input
@@ -1480,20 +1544,25 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                           <>
                             <div className="space-y-1">
                               <p className="text-[8px] font-black text-[#d4af37] uppercase italic">Société (Locataire)</p>
-                              <select
+
+                              <input
+                                list={`list-societes-${idx}`} // ID unique par face
                                 value={face.clientNom || ''}
                                 disabled={isLocked}
+                                placeholder="Sélectionner ou saisir une société..."
                                 onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
-                                onClick={() => isLocked && alert("Accès refusé : Cette face est verrouillée.")}
-                                className={`w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none ${isLocked ? "cursor-not-allowed" : "focus:border-[#d4af37]"}`}
-                              >
-                                <option value="" className="bg-[#1a1a1a]">Sélectionner un client</option>
+                                className={`w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none ${isLocked ? "cursor-not-allowed opacity-50" : "focus:border-[#d4af37]"
+                                  }`}
+                              />
+
+                              {/* La liste de suggestions qui apparaît quand on clique ou tape */}
+                              <datalist id={`list-societes-${idx}`}>
                                 {Array.from(new Set(listeSocietes || []))
                                   .filter(nom => nom && nom.trim() !== "")
                                   .map((nom, i) => (
-                                    <option key={`${nom}-${i}`} value={nom} className="bg-[#1a1a1a]">{nom}</option>
+                                    <option key={`${nom}-${i}`} value={nom} />
                                   ))}
-                              </select>
+                              </datalist>
                             </div>
 
                             <div className="flex gap-2">
@@ -1505,8 +1574,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
                                   <input
                                     type="date"
-                                    // Dynamise la valeur selon le champ en cours de mapping
-                                    value={face[dField]}
+                                    // Si face[dField] est undefined ou null, on passe une chaîne vide
+                                    value={face[dField] || ''}
                                     onChange={(e) => {
                                       const newValue = e.target.value;
 
@@ -1550,10 +1619,35 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
         {/* FOOTER */}
         <div className="p-8 bg-black/40 border-t border-white/10 flex justify-end items-center gap-4">
-          <button onClick={onClose} className="px-8 py-3 text-[10px] font-black uppercase text-white/40 hover:text-white transition-colors">Annuler</button>
-          <button onClick={handleSave} disabled={isSaving || uploadingIndex !== null} className="flex items-center gap-3 bg-[#d4af37] text-black px-12 py-4 rounded-full font-black uppercase text-[10px] hover:scale-105 transition-all shadow-xl disabled:opacity-50">
-            {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-            Enregistrer les modifications
+          <button
+            onClick={onClose}
+            className="px-8 py-3 text-[10px] font-black uppercase text-white/40 hover:text-white transition-colors"
+          >
+            Annuler
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={isButtonDisabled}
+            className={`flex items-center gap-3 px-12 py-4 rounded-full font-black uppercase text-[10px] transition-all shadow-xl
+    ${isButtonDisabled
+                ? "bg-gray-600 text-white/50 cursor-not-allowed opacity-50"
+                : "bg-[#d4af37] text-black hover:scale-105 active:scale-95"
+              }`}
+          >
+            {isSaving ? (
+              <Loader2 className="animate-spin" size={16} />
+            ) : (
+              <Save size={16} />
+            )}
+
+            <span>
+              {hasBlockingError
+                ? "Enregistrement bloqué (Conflit)"
+                : isSaving
+                  ? "Enregistrement..."
+                  : "Enregistrer les modifications"}
+            </span>
           </button>
         </div>
       </motion.div>

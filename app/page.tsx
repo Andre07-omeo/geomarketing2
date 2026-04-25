@@ -1017,7 +1017,7 @@ import {
   serverTimestamp   // <--- Vérifie cet import
 } from 'firebase/firestore';
 
-
+import { signOut } from 'firebase/auth';
 
 
 import { useAuth } from "@/context/AuthContext"; // Si tu es dans app/
@@ -1052,76 +1052,122 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
 
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
+  // Nettoyage des entrées pour éviter les erreurs 400 stupides (espaces, casses)
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanPassword = password.trim();
 
+  if (!cleanEmail || !cleanPassword) {
+    alert("Veuillez remplir tous les champs.");
+    setLoading(false);
+    return;
+  }
+
+  try {
+    let userData: any = null;
+    let userId: string = "";
+
+    // --- ÉTAPE 1 : TENTATIVE DE CONNEXION VIA FIREBASE AUTH ---
     try {
-      let userData: any = null;
-      let userId: string = "";
-
-      // --- ÉTAPE 1 : CONNEXION ---
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-        userId = userCredential.user.uid;
-        const docSnap = await getDoc(doc(db, "societes", userId));
-        if (docSnap.exists()) userData = docSnap.data();
-      } catch (authError) {
-        const q = query(collection(db, "societes"), where("email", "==", cleanEmail), limit(1));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const resDoc = querySnapshot.docs[0];
-          if (resDoc.data().password === cleanPassword) {
-            userId = resDoc.id;
-            userData = resDoc.data();
-          }
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+      userId = userCredential.user.uid;
+      
+      // On cherche les infos dans la collection "societes"
+      const docSnap = await getDoc(doc(db, "societes", userId));
+      if (docSnap.exists()) {
+        userData = docSnap.data();
+      }
+    } catch (authError: any) {
+      console.warn("Auth standard échouée, tentative recherche manuelle Firestore...");
+      
+      // --- ÉTAPE 1B : RECHERCHE MANUELLE (Si l'user n'est pas dans Auth mais uniquement dans Firestore) ---
+      const q = query(
+        collection(db, "societes"), 
+        where("email", "==", cleanEmail), 
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const resDoc = querySnapshot.docs[0];
+        const data = resDoc.data();
+        
+        // VÉRIFICATION DU MOT DE PASSE EN CLAIR (Attention: Sécurité faible)
+        if (data.password === cleanPassword) {
+          userId = resDoc.id;
+          userData = data;
+        } else {
+          throw new Error("Mot de passe incorrect.");
         }
-      }
-
-      if (!userData) throw new Error("Identifiants incorrects.");
-
-      // --- ÉTAPE 2 : VÉRIFICATIONS ---
-      if (userData.actif !== true) {
-        if (auth.currentUser) await auth.signOut();
-        throw new Error("Compte non activé. Contactez l'admin.");
-      }
-
-      const routes: Record<string, string> = {
-        visiteur: '/dashboard/visiteurs',
-        admin: '/dashboard/admin',
-        superviseurs: 'dashboard/components',
-        commercial: '/dashboard/superviseurs',
-        comptable: '/dashboard/Comptable',
-        client: '/dashboard/client'
-      };
-
-      const targetRoute = routes[userData.role?.toLowerCase()];
-
-      if (targetRoute) {
-        // --- ÉTAPE 3 : MISE À JOUR ---
-        await updateDoc(doc(db, "societes", userId), {
-          isOnline: true,
-          lastLogin: serverTimestamp()
-        });
-
-        // Utilisation du contexte
-        login({ id: userId, ...userData });
-
-        onClose();
-        router.push(targetRoute);
       } else {
-        throw new Error("Rôle non configuré.");
+        throw new Error("Utilisateur introuvable.");
+      }
+    }
+
+    if (!userData) {
+      throw new Error("Identifiants incorrects ou compte inexistant.");
+    }
+
+    // --- ÉTAPE 2 : VÉRIFICATION DU STATUT ACTIF ---
+    if (userData.actif !== true) {
+      if (auth.currentUser) await signOut(auth);
+      throw new Error("Compte non activé. Contactez l'administrateur.");
+    }
+
+    // --- ÉTAPE 3 : ROUTAGE ---
+    const routes: Record<string, string> = {
+      visiteur: '/dashboard/visiteurs',
+      admin: '/dashboard/admin',
+      superviseurs: '/dashboard/components', // Ajout du / manquant
+      commercial: '/dashboard/superviseurs',
+      comptable: '/dashboard/Comptable',
+      client: '/dashboard/client'
+    };
+
+    // On récupère le rôle et on nettoie pour la correspondance
+    const userRole = userData.role?.toLowerCase() || "";
+    const targetRoute = routes[userRole];
+
+    if (targetRoute) {
+      // --- ÉTAPE 4 : MISE À JOUR DE L'ÉTAT EN LIGNE ---
+      const userRef = doc(db, "societes", userId);
+      await updateDoc(userRef, {
+        isOnline: true,
+        lastLogin: serverTimestamp()
+      });
+
+      // Utilisation de ton contexte de login
+      if (typeof login === 'function') {
+        login({ id: userId, ...userData });
       }
 
-    } catch (err: any) {
-      console.error("Login Error:", err);
-      alert(err.message);
-    } finally {
-      setLoading(false);
+      // Fermeture du modal et redirection
+      if (typeof onClose === 'function') onClose();
+      
+      router.push(targetRoute);
+    } else {
+      throw new Error(`Le rôle "${userData.role}" n'a pas de route configurée.`);
     }
-  };
+
+  } catch (err: any) {
+    console.error("Login Error Details:", err);
+    
+    // Traduction des messages d'erreur Firebase communs
+    let errorMessage = err.message;
+    if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+      errorMessage = "Email ou mot de passe incorrect.";
+    } else if (err.code === 'auth/too-many-requests') {
+      errorMessage = "Trop de tentatives. Veuillez réessayer plus tard.";
+    }
+    
+    alert(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
 
   return (
