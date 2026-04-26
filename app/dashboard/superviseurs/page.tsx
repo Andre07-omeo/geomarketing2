@@ -1134,10 +1134,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   };
 
   const canEditFace = (face: any) => {
-    const activeRes = getActiveReservation(face);
-    if (!activeRes) return true;
-    return activeRes.agentEmail === currentUser?.email;
-  };
+  return true; 
+};
 
   const getReservationWarning = (face: any) => {
     // Si la face est verrouillée par un autre, on retourne le message
@@ -1275,6 +1273,9 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     }
   };
 
+
+  const isButtonDisabled = isSaving || uploadingIndex !== null;
+
   const handleSave = async () => {
     // 1. Vérification globale des conflits (UI)
     const hasGlobalConflict = Object.values(conflitMessages).some(msg => msg !== null);
@@ -1301,39 +1302,34 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         const panneauDoc = await transaction.get(docRef);
         if (!panneauDoc.exists()) throw new Error("Panneau introuvable");
 
-        // --- NOUVEAUTÉ : GESTION DES SOCIÉTÉS ---
+        const isoNow = new Date().toISOString();
+
+        // --- GESTION DES SOCIÉTÉS ET VÉRIFICATION DES CONFLITS ---
         for (const [idx, f] of formData.faces.entries()) {
           if (f.statut === "Libre") continue;
 
-          // Vérification des conflits côté serveur
-          const reservations = f.reservations || [];
+          const reservationsExistantes = f.reservations || [];
           const d1 = new Date(f.dateDebut).getTime();
           const d2 = new Date(f.dateFin).getTime();
 
-          const conflict = reservations.find((res: any) => {
+          const conflict = reservationsExistantes.find((res: any) => {
             const r1 = new Date(res.dateDebut).getTime();
             const r2 = new Date(res.dateFin).getTime();
             return d1 <= r2 && d2 >= r1 && res.agentEmail !== currentUser?.email;
           });
 
           if (conflict) {
-            // 1. On affiche le message dans l'interface (sous la face concernée)
             setConflitMessages(prev => ({
               ...prev,
               [idx]: `⚠️ CONFLIT : Période déjà réservée par ${conflict.agentNom || 'un autre agent'}.`
             }));
-
-            // 2. On arrête le chargement du bouton
             setIsSaving(false);
-
-            // 3. TRÈS IMPORTANT : On utilise "return" pour sortir de la transaction 
-            // sans provoquer de crash système avec "throw"
             return;
           }
-          // --- ENREGISTREMENT DE LA NOUVELLE SOCIÉTÉ ---
+
+          // Enregistrement de la société si nouvelle
           const nomClientSaisi = f.clientNom?.trim();
           if (nomClientSaisi) {
-            // On vérifie si elle existe dans la liste actuelle (sensible à la casse)
             const existeDeja = listeSocietes.some(s =>
               s && typeof s === 'string' && s.toLowerCase() === nomClientSaisi.toLowerCase()
             );
@@ -1345,45 +1341,43 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                 createdAt: serverTimestamp(),
                 ajoutePar: currentUser?.email || "Système"
               });
-              // On l'ajoute localement pour éviter de recréer le doc si plusieurs faces ont le même nouveau client
               listeSocietes.push(nomClientSaisi);
             }
           }
         }
 
-        // 4. Construction des données de mise à jour
+        // 4. Construction des données de mise à jour (STRUCTURE EXACTE)
         const dataToUpdate = {
-          faces: formData.faces.map((f: any) => {
-            const isOccupied = f.statut === "Occupé" || f.statut === "Réservé";
+          faces: formData.faces.map((f: any, i: number) => {
+            const isOccupied = f.statut !== "Libre";
             const finalPhotoUrl = (f.photoCampagneUrl && !f.photoCampagneUrl.startsWith('blob:'))
-              ? f.photoCampagneUrl : LOGO_DISPROMALT;
+              ? f.photoCampagneUrl : (f.photoCampagneUrl || LOGO_DISPROMALT);
 
-            const newRes = {
-              id: Date.now(), // ID unique basé sur le timestamp
-              agentNom: isOccupied ? (user?.nom || "Nom non défini") : "",
-              agentEmail: isOccupied ? (user?.email || "non-specifie@mail.com") : "",
-              societeLocatrice: f.clientNom || "Inconnu",
+            // Création de la nouvelle réservation selon ton schéma
+            const newRes = isOccupied ? {
+              agentEmail: user?.email || "non-specifie@mail.com",
+              agentNom: user?.nomComplet || user?.displayName || "Agent",
               dateDebut: f.dateDebut || "",
               dateFin: f.dateFin || "",
+              dateModification: isoNow,
               photoCampagneUrl: finalPhotoUrl,
-              statut: f.statut,
-              dateModification: new Date().toISOString()
-            };
+              societeLocatrice: f.clientNom || "Inconnu",
+              statut: f.statut
+            } : null;
+
+            // Logique de l'historique : On peut y pousser les anciennes réservations si nécessaire
+            // Ici, on garde ta structure demandée
+            const historiqueActuel = f.historique || [];
 
             return {
-              statut: f.statut || "Libre",
-              clientNom: f.clientNom || "",
-              agentEmail: currentUser?.email || "",
-              photoCampagneUrl: finalPhotoUrl,
-              dateDebut: f.dateDebut || null,
-              dateFin: f.dateFin || null,
-              // On n'ajoute la réservation que si la face est occupée
-              reservations: isOccupied ? [...(f.reservations || []), newRes] : (f.reservations || []),
-              historique: [...(f.historique || []), {
-                date: new Date().toISOString(),
-                agent: currentUser?.email || "Inconnu",
-                statut: f.statut
-              }]
+              // STRUCTURE DE LA FACE
+              sens: f.sens || f.orientation || `Face ${String.fromCharCode(65 + i)}`,
+
+              // RESERVATIONS : On ajoute la nouvelle réservation au tableau existant
+              reservations: newRes ? [...(f.reservations || []), newRes] : (f.reservations || []),
+
+              // HISTORIQUE : Stockage des réservations selon ton schéma
+              historique: historiqueActuel
             };
           }),
           updatedAt: serverTimestamp()
@@ -1392,20 +1386,15 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         transaction.update(docRef, dataToUpdate);
       });
 
-      alert("Mise à jour et enregistrement des données réussis !");
+      alert("Mise à jour réussie !");
       onClose();
     } catch (error: any) {
       console.error("Erreur détaillée:", error);
-      // Si l'erreur vient du conflit, on ne fait pas d'alert car le message s'affiche dans l'UI
-      if (!error.message.includes("Conflit détecté")) {
-        alert("Erreur: " + error.message);
-      }
+      alert("Erreur: " + error.message);
     } finally {
       setIsSaving(false);
     }
   };
-
-
 
 
 
@@ -1421,7 +1410,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     (f.statut !== "Libre" && (!f.dateDebut || !f.dateFin || !f.clientNom))
   );
 
-  const isButtonDisabled = isSaving || uploadingIndex !== null || hasBlockingError || isMissingData;
 
 
 
@@ -1627,28 +1615,26 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           </button>
 
           <button
-            onClick={handleSave}
-            disabled={isButtonDisabled}
-            className={`flex items-center gap-3 px-12 py-4 rounded-full font-black uppercase text-[10px] transition-all shadow-xl
-    ${isButtonDisabled
-                ? "bg-gray-600 text-white/50 cursor-not-allowed opacity-50"
-                : "bg-[#d4af37] text-black hover:scale-105 active:scale-95"
-              }`}
-          >
-            {isSaving ? (
-              <Loader2 className="animate-spin" size={16} />
-            ) : (
-              <Save size={16} />
-            )}
-
-            <span>
-              {hasBlockingError
-                ? "Enregistrement bloqué (Conflit)"
-                : isSaving
-                  ? "Enregistrement..."
-                  : "Enregistrer les modifications"}
-            </span>
-          </button>
+  onClick={handleSave}
+  disabled={isButtonDisabled}
+  className={`flex items-center gap-3 px-12 py-4 rounded-full font-black uppercase text-[10px] transition-all shadow-xl
+    ${isSaving 
+      ? "bg-gray-500 cursor-not-allowed" 
+      : "bg-[#d4af37] text-black hover:scale-105 active:scale-95"
+    }`}
+>
+  {isSaving ? (
+    <>
+      <Loader2 className="animate-spin" size={16} />
+      <span>Enregistrement...</span>
+    </>
+  ) : (
+    <>
+      <Save size={16} />
+      <span>Enregistrer les modifications</span>
+    </>
+  )}
+</button>
         </div>
       </motion.div>
     </div>
@@ -1656,3 +1642,5 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 };
 
 import Link from 'next/link';
+// Ajoute AlertTriangle ici
+import { AlertTriangle } from 'lucide-react';

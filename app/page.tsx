@@ -265,7 +265,7 @@ export default function UltimateSupervisor() {
   if (loading) {
     return (
       <div className="h-screen bg-[#1e40af] flex flex-col items-center justify-center">
-        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1 }}>
+        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 0.5 }}>
           <img src={logoUrl} className="w-20 h-20 rounded-2xl shadow-2xl shadow-[#d4af37]/20" alt="Loading" />
         </motion.div>
       </div>
@@ -447,15 +447,6 @@ export default function UltimateSupervisor() {
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="p-10 bg-black/20 border-t border-white/20">
-                <button
-                  onClick={handleLogout}
-                  className="w-full py-6 bg-gradient-to-r from-red-600 to-red-500 hover:from-white hover:to-white hover:text-red-600 text-white rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] shadow-[0_15px_30px_rgba(220,38,38,0.3)] transition-all flex items-center justify-center gap-4 active:scale-95"
-                >
-                  <LogOut size={20} /> Quitter la Session
-                </button>
               </div>
             </motion.div>
           </>

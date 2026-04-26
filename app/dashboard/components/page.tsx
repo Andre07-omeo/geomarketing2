@@ -119,7 +119,6 @@ export default function PageEnregistrement({
 
     const [formData, setFormData] = useState({
         adresse: '',
-        zone: '',
         dimension: '',
         type: '', // Initialisé vide pour forcer le choix
         nbFaces: 1,
@@ -209,7 +208,7 @@ export default function PageEnregistrement({
     });
 
     // Ajoutez cet état en haut de votre composant
-    const [listeCommerciaux, setListeCommerciaux] = useState<string[]>([]);
+    const [listeCommerciaux, setListeCommerciaux] = useState<{ nom: string, email: string }[]>([]);
 
 
 
@@ -249,14 +248,26 @@ export default function PageEnregistrement({
 
                 // 2. Extraction propre des Agents Commerciaux
                 // On vérifie le rôle ou la fonction, et on construit le nom
-                const nomsAgents = donneesBrutes
+                // 1. Filtrage et formatage initial
+                const agentsBruts = donneesBrutes
                     .filter(d => d.role === "commercial" && d.fonction === "agent")
-                    .map(d => d.nomComplet || d.nom || "Sans nom")
-                    .filter(nom => nom !== "Sans nom");
+                    .map(d => ({
+                        nom: d.nomComplet || d.nom || "Sans nom",
+                        email: d.email || ""
+                    }))
+                    .filter(a => a.nom !== "Sans nom");
+
+                // 2. Suppression des doublons (La méthode Map est plus sûre)
+                // On utilise le 'nom' comme clé unique
+                const nomsAgents = Array.from(
+                    new Map(agentsBruts.map(agent => [agent.nom, agent])).values()
+                );
+
+                setListeCommerciaux(nomsAgents);
 
                 // On met à jour les états avec des listes uniques (sans doublons)
                 setListeSocietes([...new Set(nomsSocietes)]);
-                setListeCommerciaux([...new Set(nomsAgents)]);
+                //setListeCommerciaux([...new Set(nomsAgents)]);
 
             } catch (err) {
                 console.error("Erreur de récupération :", err);
@@ -266,10 +277,7 @@ export default function PageEnregistrement({
     }, []);
     const [recherche, setRecherche] = useState("");
 
-    // 2. Filtrage automatique
-    const suggestionsSocietes = listeSocietes.filter((societes) =>
-        societes.toLowerCase().startsWith(recherche.toLowerCase())
-    );
+
 
 
     const handleNbFacesChange = (n: number) => {
@@ -331,7 +339,16 @@ export default function PageEnregistrement({
             setUploadingIndex(null);
         }
     };
+    // 1. Transforme "A" en 1, "B" en 2, "AA" en 27, etc.
+    const alphabetToNumber = (s: string): number => {
+        let n = 0;
+        for (let i = 0; i < s.length; i++) {
+            n = n * 26 + (s.charCodeAt(i) - 64);
+        }
+        return n;
+    };
 
+    // 2. Ta fonction originale
     const getAlphabetId = (n: number): string => {
         let s = "";
         while (n > 0) {
@@ -349,12 +366,24 @@ export default function PageEnregistrement({
         }
 
         if (!formData.adresse.trim()) return alert("ERREUR : L'adresse est obligatoire.");
-        if (!formData.zone) return alert("ERREUR : La commune est obligatoire.");
 
         setLoading(true);
         try {
+            // --- LOGIQUE IDPAN SÉCURISÉE ---
             const snapshot = await getDocs(collection(db, "panneaux"));
-            const nextId = getAlphabetId(snapshot.size + 1);
+
+            let maxNumber = 0;
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.idPan) {
+                    const currentNum = alphabetToNumber(data.idPan);
+                    if (currentNum > maxNumber) maxNumber = currentNum;
+                }
+            });
+
+            const nextId = getAlphabetId(maxNumber + 1);
+            // ----------------------------------------
+
             const now = new Date();
             const isoNow = now.toISOString();
 
@@ -362,57 +391,53 @@ export default function PageEnregistrement({
             const latitude = parseFloat(coords.lat);
             const longitude = parseFloat(coords.lng);
 
-            // Vérification si les nombres sont valides
             if (isNaN(latitude) || isNaN(longitude)) {
                 throw new Error("Coordonnées GPS invalides.");
             }
 
-            // 3. Construction des faces (ton code actuel est bon)
+            // 3. Construction des faces selon ta structure exacte
+            // 3. Construction des faces selon ta structure exacte
             const formattedFaces = formData.faces.map((f, i) => {
                 const isOccupied = f.statut !== "Libre";
-                return {
-                    agentEmail: isOccupied ? (currentUser?.email || "") : "",
-                    clientNom: isOccupied ? f.clientNom : "",
-                    dateDebut: isOccupied ? f.dateDebut : "",
-                    dateFin: isOccupied ? f.dateFin : "",
+
+                // Préparation de l'objet de réservation 
+                const reservationData = isOccupied ? {
+                    agentEmail: (f as any).agentEmail || "non-specifie@mail.com",
+                    // On prend le nom sélectionné dans la liste, sinon le nom de l'admin
+                    agentNom: (f as any).agentNom || "Agent inconnu",
+
+                    
+
+                    dateDebut: f.dateDebut || "",
+                    dateFin: f.dateFin || "",
+                    dateModification: isoNow,
                     photoCampagneUrl: f.photoCampagneUrl || LOGO_DISPROMALT,
-                    statut: f.statut,
-                    historique: [{
-                        agent: currentUser?.displayName || "Agent",
-                        date: isoNow,
-                        statut: f.statut
-                    }],
-                    reservations: isOccupied ? [{
-                        id: 1,
-                        agentEmail: currentUser?.email || "",
-                        dateDebut: f.dateDebut,
-                        dateFin: f.dateFin,
-                        statut: f.statut
-                    }] : []
+                    societeLocatrice: f.clientNom || "Inconnu",
+                    statut: f.statut
+                } : null;
+
+                return {
+                    sens: f.sens || `Face ${String.fromCharCode(65 + i)}`,
+                    historique: [],
+                    reservations: reservationData ? [reservationData] : []
                 };
             });
 
-            // 4. Envoi à Firestore avec GeoPoint
+            // 4. Envoi à Firestore avec l'organisation demandée
             await addDoc(collection(db, "panneaux"), {
-                adresse: formData.adresse.trim().toUpperCase(),
-                createdAt: serverTimestamp(), // Utilise le temps du serveur pour la précision
-                updatedAt: serverTimestamp(),
-                dimension: formData.dimension,
-                faces: formattedFaces,
-
-                // UTILISATION DU GEOPOINT ICI
-                gps: new GeoPoint(latitude, longitude),
-
-                // On peut garder une version texte pour l'affichage rapide si besoin
-                gps_raw: { lat: latitude, lng: longitude },
-
                 idPan: nextId,
+                adresse: formData.adresse.trim().toUpperCase(),
+                coords: new GeoPoint(latitude, longitude), // GeoPoint natif
+                gps_raw: { lat: latitude, lng: longitude }, // Pour lecture rapide
+                dimension: formData.dimension,
                 nbFaces: formData.nbFaces,
                 type: formData.type,
-                zone: formData.zone.trim()
+                faces: formattedFaces, // Contient sens, historique, reservations
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
             });
 
-            alert(`SUCCÈS : Panneau ${nextId} enregistré avec position précise.`);
+            alert(`SUCCÈS : Panneau ${nextId} enregistré.`);
             if (onClose) onClose();
 
         } catch (e: any) {
@@ -422,8 +447,6 @@ export default function PageEnregistrement({
             setLoading(false);
         }
     };
-
-
 
 
     return (
@@ -488,8 +511,8 @@ export default function PageEnregistrement({
                         // APPEL DE TA FONCTION CI-DESSOUS
                         onClick={handleGetLocation}
                         className={`w-full p-5 rounded-2xl font-black flex flex-col items-center justify-center gap-2 border-2 transition-all duration-500 ${coords
-                                ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg'
-                                : 'bg-black/20 border-white/10 text-blue-300 hover:border-blue-500/40'
+                            ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg'
+                            : 'bg-black/20 border-white/10 text-blue-300 hover:border-blue-500/40'
                             } ${isLocating ? 'opacity-70 cursor-wait' : ''}`}
                     >
                         <div className="flex items-center gap-3">
@@ -663,99 +686,134 @@ export default function PageEnregistrement({
                             </div>
                         </div>
                     </div>
-                    <div className="max-h-[30vh] overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                        {formData.faces.map((face, i) => (
-                            <div key={i} className="p-6 bg-black/20 rounded-[2.5rem] border border-white/10 space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-amber-500 font-black italic text-xs">FACE {i + 1}</span>
-                                    <select
-                                        className={`text-[10px] font-black rounded-lg p-2 outline-none border ${face.statut === 'Occupé' ? 'bg-amber-500 text-black' : 'bg-white/5 text-white border-white/10'}`}
-                                        value={face.statut}
-                                        onChange={e => { const nf = [...formData.faces]; nf[i].statut = e.target.value; setFormData({ ...formData, faces: nf }); }}
-                                    >
-                                        <option value="Libre">LIBRE</option>
-                                        <option value="Occupé">OCCUPÉ</option>
-                                    </select>
-                                </div>
+                    <div className="max-h-[60vh] overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+    {formData.faces.map((face, i) => (
+        <div key={i} className="p-6 bg-black/20 rounded-[2.5rem] border border-white/10 space-y-6">
+            
+            {/* --- EN-TÊTE DE LA FACE --- */}
+            <div className="flex justify-between items-center">
+                <span className="text-amber-500 font-black italic text-xs uppercase tracking-widest">
+                    FACE {String.fromCharCode(65 + i)}
+                </span>
+                <select
+                    className={`text-[10px] font-black rounded-lg p-2 outline-none border transition-all ${
+                        face.statut === 'Occupé' 
+                        ? 'bg-amber-500 text-black border-amber-500' 
+                        : 'bg-white/5 text-white border-white/10'
+                    }`}
+                    value={face.statut}
+                    onChange={e => { 
+                        const nf = [...formData.faces]; 
+                        nf[i].statut = e.target.value; 
+                        setFormData({ ...formData, faces: nf }); 
+                    }}
+                >
+                    <option value="Libre">LIBRE</option>
+                    <option value="Occupé">OCCUPÉ</option>
+                    <option value="Réservé">RÉSERVÉ</option>
+                </select>
+            </div>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <input placeholder="SENS TRAFIC *" className="bg-black/40 p-4 rounded-xl text-white text-[10px] border border-white/5 outline-none" value={face.sens} onChange={e => { const nf = [...formData.faces]; nf[i].sens = e.target.value; setFormData({ ...formData, faces: nf }); }} />
-                                </div>
+            {/* --- CHAMP SENS (Toujours visible) --- */}
+            <div className="grid grid-cols-1 gap-3">
+                <input 
+                    placeholder="SENS TRAFIC (ex: DIRECTION CENTRE VILLE) *" 
+                    className="bg-black/40 p-4 rounded-xl text-white text-[10px] border border-white/5 outline-none focus:border-amber-500/50" 
+                    value={face.sens} 
+                    onChange={e => { 
+                        const nf = [...formData.faces]; 
+                        nf[i].sens = e.target.value.toUpperCase(); 
+                        setFormData({ ...formData, faces: nf }); 
+                    }} 
+                />
+            </div>
 
-                                {face.statut === 'Occupé' && (
-                                    <div className="space-y-4 p-4 bg-white/5 rounded-2xl border border-amber-500/20">
+            {/* --- DÉTAILS DE LA RÉSERVATION (Si Occupé ou Réservé) --- */}
+            {(face.statut === 'Occupé' || face.statut === 'Réservé') && (
+                <div className="space-y-4 p-5 bg-white/5 rounded-3xl border border-white/10">
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Société */}
+                        <div className="space-y-1">
+                            <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Client / Société</label>
+                            <input
+                                list="suggestions-societes"
+                                placeholder="NOM DE LA SOCIÉTÉ *"
+                                className="w-full p-4 bg-black/60 rounded-xl text-white text-xs border border-white/10 outline-none"
+                                value={face.clientNom || ''}
+                                onChange={e => {
+                                    const nf = [...formData.faces];
+                                    nf[i].clientNom = e.target.value.toUpperCase();
+                                    setFormData({ ...formData, faces: nf });
+                                }}
+                            />
+                        </div>
 
-                                        {/* --- CHAMP SOCIÉTÉ --- */}
-                                        <div className="relative">
-                                            <div className="relative">
-                                                <input
-                                                    list="suggestions-societes"
-                                                    placeholder="NOM DE LA SOCIÉTÉ *"
-                                                    className="w-full p-4 bg-black/60 rounded-xl text-white text-xs border border-white/10 outline-none"
-                                                    value={face.clientNom}
-                                                    onChange={e => {
-                                                        const nf = [...formData.faces];
-                                                        nf[i].clientNom = e.target.value;
-                                                        setFormData({ ...formData, faces: nf });
-                                                    }}
-                                                />
+                        {/* Agent Commercial */}
+                        <div className="space-y-1">
+                            <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Agent Commercial</label>
+                            <input
+                                list="listeCommerciaux"
+                                placeholder="CHOISIR UN AGENT *"
+                                className="w-full p-4 bg-black/60 rounded-xl text-white text-xs border border-white/10 outline-none"
+                                value={(face as any).agentNom || ''}
+                                onChange={(e) => {
+                                    const valeur = e.target.value;
+                                    const nf = [...formData.faces];
+                                    const faceActuelle = nf[i] as any;
+                                    faceActuelle.agentNom = valeur;
 
-                                                {/* La liste des suggestions est alimentée par votre state listeSocietes */}
-                                                <datalist id="suggestions-societes">
-                                                    {listeSocietes.map((nom, idx) => (
-                                                        <option key={idx} value={nom} />
-                                                    ))}
-                                                </datalist>
-                                            </div>
-                                        </div>
-
-                                        {/* --- CHAMP AGENT COMMERCIAL (Ajouté) --- */}
-                                        <div className="relative">
-                                            <input
-                                                list="listeCommerciaux"
-                                                placeholder="AGENT COMMERCIAL *"
-                                                className="w-full p-4 bg-black/60 rounded-xl text-white text-xs border border-white/10 outline-none focus:border-blue-500"
-                                                value={face.agentNom || ''} // Assurez-vous d'avoir ce champ dans votre state initial
-                                                onChange={e => {
-                                                    const nf = [...formData.faces];
-                                                    nf[i].agentNom = e.target.value; // On stocke le nom de l'agent commercial
-                                                    setFormData({ ...formData, faces: nf });
-                                                }}
-                                            />
-                                            <datalist id="listeCommerciaux">
-                                                {listeCommerciaux.map((nom, idx) => <option key={idx} value={nom} />)}
-                                            </datalist>
-                                        </div>
-
-                                        {/* --- DATES --- */}
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <input type="date" className="bg-black/60 p-3 rounded-xl text-white text-[10px]" value={face.dateDebut} onChange={e => { const nf = [...formData.faces]; nf[i].dateDebut = e.target.value; setFormData({ ...formData, faces: nf }); }} />
-                                            <input type="date" className="bg-black/60 p-3 rounded-xl text-white text-[10px]" value={face.dateFin} onChange={e => { const nf = [...formData.faces]; nf[i].dateFin = e.target.value; setFormData({ ...formData, faces: nf }); }} />
-                                        </div>
-
-                                        {/* --- PHOTO --- */}
-                                        <label className={`w-full flex flex-col items-center justify-center py-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer ${face.photoCampagneUrl ? 'border-emerald-500 bg-emerald-500/10' : 'border-amber-500/30'}`}>
-                                            <input type="file" accept="image/*" className="hidden" capture="environment" onChange={(e) => handlePhotoUpload(i, e.target.files?.[0] || null)} />
-                                            {localPreviews[i] || face.photoCampagneUrl ? (
-                                                <img src={localPreviews[i] || face.photoCampagneUrl} className="h-20 w-32 object-cover rounded-lg border-2 border-emerald-500" alt="p" />
-                                            ) : (
-                                                <div className="flex flex-col items-center gap-1 text-amber-500/60"><Camera size={20} /><span className="text-[8px] font-black">PHOTO CAMPAGNE *</span></div>
-                                            )}
-                                        </label>
-                                    </div>
-                                )}
-
-
-
-
-
-
-
-                            </div>
-                        ))}
-
+                                    if (listeCommerciaux) {
+                                        const found = listeCommerciaux.find((c: any) => (c.nom || c) === valeur);
+                                        faceActuelle.agentEmail = found?.email || "";
+                                    }
+                                    setFormData({ ...formData, faces: nf });
+                                }}
+                            />
+                        </div>
                     </div>
-                    <button
+
+                    {/* Dates */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Début</label>
+                            <input type="date" className="w-full bg-black/60 p-3 rounded-xl text-white text-[10px] border border-white/5" value={face.dateDebut} onChange={e => { const nf = [...formData.faces]; nf[i].dateDebut = e.target.value; setFormData({ ...formData, faces: nf }); }} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Fin</label>
+                            <input type="date" className="w-full bg-black/60 p-3 rounded-xl text-white text-[10px] border border-white/5" value={face.dateFin} onChange={e => { const nf = [...formData.faces]; nf[i].dateFin = e.target.value; setFormData({ ...formData, faces: nf }); }} />
+                        </div>
+                    </div>
+
+                    {/* Photo */}
+                    <div className="space-y-1">
+                        <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Preuve d'affichage</label>
+                        <label className={`w-full flex flex-col items-center justify-center py-4 rounded-2xl border-2 border-dashed transition-all cursor-pointer ${face.photoCampagneUrl ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 hover:border-amber-500/50'}`}>
+                            <input type="file" accept="image/*" className="hidden" capture="environment" onChange={(e) => handlePhotoUpload(i, e.target.files?.[0] || null)} />
+                            {localPreviews[i] || face.photoCampagneUrl ? (
+                                <img src={localPreviews[i] || face.photoCampagneUrl} className="h-16 w-28 object-cover rounded-lg border border-white/20" alt="preview" />
+                            ) : (
+                                <div className="flex items-center gap-2 text-white/40 italic text-[9px]"><Camera size={16} /> CLIQUER POUR PHOTO</div>
+                            )}
+                        </label>
+                    </div>
+                </div>
+            )}
+        </div>
+    ))}
+
+    {/* DATA LISTS (Hors de la boucle) */}
+    <datalist id="suggestions-societes">
+        {listeSocietes.map((nom, idx) => <option key={idx} value={nom} />)}
+    </datalist>
+    <datalist id="listeCommerciaux">
+        {listeCommerciaux?.map((c: any, index: number) => (
+            <option key={index} value={typeof c === 'object' ? c.nom : c} />
+        ))}
+    </datalist>
+</div>
+
+<button
                         onClick={enregistrerPanneau}
                         disabled={loading || uploadingIndex !== null}
                         className="w-full bg-amber-500 text-blue-900 p-6 rounded-3xl font-black uppercase text-xs flex justify-center items-center gap-4 active:scale-95 disabled:opacity-50 transition-all"
