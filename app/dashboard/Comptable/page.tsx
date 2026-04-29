@@ -705,31 +705,132 @@ function AuditModule({
   );
 }
 
-// --- MODULE 2: FACTURES (TABLEAU ULTRA-RESPONSIVE) ---
-function FacturesModule({ data }: any) {
+
+
+
+
+
+
+
+
+
+
+
+// Imports Icônes
+import { 
+  User, 
+  DollarSign 
+} from 'lucide-react';
+
+// --- COMPOSANT 1: STATS MINI ---
+const StatMini = ({ label, val, icon: Icon, color = "text-white" }: any) => (
+  <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md">
+    <div className="flex justify-between items-start mb-2">
+      <div className={`p-2 rounded-xl bg-white/5 ${color}`}>
+        <Icon size={20} />
+      </div>
+    </div>
+    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">{label}</p>
+    <p className={`text-2xl font-black italic tracking-tighter ${color}`}>{val}</p>
+  </div>
+);
+
+// --- COMPOSANT 2: LE MODULE TABLEAU ---
+function FacturesModule({ data }: { data: any[] }) {
+  // Tri chronologique (le plus récent en haut)
+  const sortedFactures = [...data].sort((a, b) => {
+    const dateA = a.dateCreation?.seconds || 0;
+    const dateB = b.dateCreation?.seconds || 0;
+    return dateB - dateA;
+  });
+
+  const totalGlobal = data.reduce((acc, curr) => acc + (Number(curr.totalHT) || 0), 0);
+
   return (
-    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
-        <StatMini label="Encours" val="142.000 $" icon={FileText} />
-        <StatMini label="Retards" val="12.500 $" icon={Clock} color="text-red-500" />
-        <StatMini label="KPI Recouvrement" val="94%" icon={TrendingUp} />
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      className="space-y-8"
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <StatMini label="Volume d'affaires" val={`${totalGlobal.toLocaleString()} $`} icon={DollarSign} color="text-[#d4af37]" />
+        <StatMini label="Factures Émises" val={data.length} icon={FileText} />
+        <StatMini label="Taux de Validation" val="100%" icon={TrendingUp} color="text-emerald-400" />
       </div>
 
-      <div className={`${THEME.glass} rounded-[2rem] overflow-hidden`}>
-        <div className="overflow-x-auto shadow-2xl">
-          <table className="w-full text-left min-w-[700px]">
-            <thead className="bg-white/5 text-[9px] uppercase font-black tracking-widest text-blue-200/40">
-              <tr><th className="p-6">Référence</th><th className="p-6">Entité</th><th className="p-6">Date</th><th className="p-6 text-right">Montant</th><th className="p-6 text-center">Statut</th></tr>
+      <div className="bg-[#0a0f1d]/60 border border-white/10 rounded-[2.5rem] overflow-hidden backdrop-blur-xl shadow-2xl">
+        <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+          <div>
+            <h3 className="text-white font-black uppercase text-sm tracking-[0.2em] italic">Registre des Ventes</h3>
+            <p className="text-[10px] text-white/30 font-bold uppercase mt-1">Traçabilité chronologique</p>
+          </div>
+          <div className="px-4 py-2 bg-[#d4af37]/10 border border-[#d4af37]/20 rounded-xl">
+             <span className="text-[#d4af37] text-[10px] font-black uppercase italic">Dispromalt ERP</span>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[900px]">
+            <thead className="bg-black/20 text-[9px] uppercase font-black tracking-[0.2em] text-blue-200/40">
+              <tr>
+                <th className="p-6">Référence & Agent</th>
+                <th className="p-6">Client & Détails</th>
+                <th className="p-6">Date d'Émission</th>
+                <th className="p-6 text-right">Montant HT</th>
+                <th className="p-6 text-center">Statut</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {data.map((item: any) => (
-                <tr key={item.id} className="hover:bg-white/5 transition-colors">
-                  <td className="p-6 font-bold text-sm">FAC-{item.id.slice(0, 5)}</td>
-                  <td className="p-6 text-xs uppercase opacity-70">Dispromalt RDC</td>
-                  <td className="p-6 text-xs opacity-50">26/03/2026</td>
-                  <td className="p-6 text-right font-black text-[#f59e0b] text-lg">{item.amount || '0'} $</td>
-                  <td className="p-6 text-center">
-                    <span className="bg-green-500/10 text-green-500 px-4 py-1.5 rounded-full text-[8px] font-black">VALIDÉ</span>
+              {sortedFactures.map((facture) => (
+                <tr key={facture.id} className="hover:bg-white/5 transition-all group">
+                  <td className="p-6">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-black text-white text-sm tracking-tight group-hover:text-[#d4af37]">
+                        {facture.factureIdFormat || 'N/A'}
+                      </span>
+                      <div className="flex items-center gap-1 text-[9px] text-white/40 font-bold uppercase">
+                        <User size={10} className="text-blue-400" />
+                        <span className="truncate max-w-[150px]">{facture.agentNom || 'Inconnu'}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-6">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-white uppercase italic">
+                        {facture.clientNom || 'Client Anonyme'}
+                      </span>
+                      <span className="text-[9px] text-white/30 font-medium">
+                        {facture.lignes?.length || 0} emplacement(s)
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-6 text-white/60">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={12} className="text-white/20" />
+                      <span className="text-xs font-bold">
+                        {facture.dateCreation?.seconds 
+                          ? new Date(facture.dateCreation.seconds * 1000).toLocaleDateString('fr-FR')
+                          : 'Non datée'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-6 text-right">
+                    <span className="font-black text-xl text-white tracking-tighter">
+                      {Number(facture.totalHT || 0).toLocaleString('fr-FR')} 
+                      <span className="text-[#d4af37] text-xs ml-1">$</span>
+                    </span>
+                  </td>
+                  <td className="p-6">
+                    <div className="flex items-center justify-center">
+                      <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border ${
+                        facture.statut === 'Validée' 
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                        : 'bg-white/5 border-white/10 text-white/30'
+                      }`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${facture.statut === 'Validée' ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
+                        <span className="text-[9px] font-black uppercase italic">{facture.statut || 'Brouillon'}</span>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -740,6 +841,47 @@ function FacturesModule({ data }: any) {
     </motion.div>
   );
 }
+
+// --- COMPOSANT FINAL (PAGE) ---
+ function GestionFactures() {
+  const [factures, setFactures] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Connexion réelle à la collection "factures" de ta BD
+    const q = query(collection(db, "factures"), orderBy("dateCreation", "desc"));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setFactures(docs);
+      setLoading(false);
+    }, (error) => {
+      console.error("Erreur Firestore:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#050810] p-4 md:p-12">
+      {loading ? (
+        <div className="flex flex-col items-center justify-center h-[50vh]">
+          <div className="w-12 h-12 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-white font-black uppercase text-[10px] tracking-widest animate-pulse italic">
+            Synchronisation ERP...
+          </p>
+        </div>
+      ) : (
+        <FacturesModule data={factures} />
+      )}
+    </div>
+  );
+}//export default FacturesModule;
+
 
 
 
@@ -808,18 +950,7 @@ function RapportsModule({ data }: any) {
 
 
 
-// --- HELPERS (RESPONSIVE) ---
-function StatMini({ label, val, icon: Icon, color = "text-[#f59e0b]" }: any) {
-  return (
-    <div className={`${THEME.glass} p-5 md:p-7 rounded-[2rem] flex items-center gap-4 hover:scale-[1.02] transition-transform`}>
-      <div className="p-4 bg-white/5 rounded-2xl"><Icon size={24} className={color} /></div>
-      <div className="overflow-hidden">
-        <p className="text-[8px] md:text-[9px] font-black uppercase opacity-40 tracking-widest truncate">{label}</p>
-        <p className="text-lg md:text-2xl font-black italic truncate">{val}</p>
-      </div>
-    </div>
-  );
-}
+
 
 
 

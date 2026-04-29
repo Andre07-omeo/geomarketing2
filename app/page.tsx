@@ -620,7 +620,8 @@ export default function UltimateSupervisor() {
 
 
 
-// --- MODAL DÉTAILS ---
+
+import {  MinusCircle, Calendar, History, Activity, User } from 'lucide-react';
 
 const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected, ouvrirLaCarte }: any) => {
   if (!isOpen || !face) return null;
@@ -628,176 +629,186 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
   const isLibre = face.statut?.toLowerCase() === 'libre';
   const selectionKey = `${panneau.id}_${face.id}`;
 
-  const metrics = [
-    { label: "Visibilité", value: face.visibilite || 85, color: "bg-blue-400" },
-    { label: "Exposition", value: face.exposition || 70, color: "bg-blue-300" },
-    { label: "Mobimétrie", value: face.mobimetrie || 92, color: "bg-[#d4af37]" },
-    { label: "Audience Est.", value: face.audience || 65, color: "bg-sky-400" },
-  ];
+  const reservations = (face.reservations || [])
+    .sort((a: any, b: any) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
-      onClick={onClose} // CLIC SUR LE FOND NOIR = FERMETURE
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        onClick={(e) => e.stopPropagation()} // CLIC SUR LA MODALE = NE FERME PAS
-        className="bg-[#1e40af] border border-white/10 w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl cursor-default relative"
-      >
-        {/* IMAGE + BOUTON CROIX RENFORCÉ */}
-        <div className="relative aspect-video">
-          <img
-            src={face.photoCampagneUrl || "https://via.placeholder.com/800x600"}
-            className="w-full h-full object-cover"
-            alt={`Panneau ${panneau.idPan}`}
-          />
-
-        </div>
-
-
-        {/* BOUTON FERMER (X) DYNAMIQUE */}
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 md:top-10 md:right-10 z-[100] p-3 rounded-2xl bg-black/20 border border-white/10 text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all duration-300 group"
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[250] flex items-center justify-center sm:p-6 bg-black/40 backdrop-blur-md" onClick={onClose}>
+        <motion.div
+          initial={{ opacity: 0, y: 100, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 100, scale: 0.9 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-slate-950/80 border border-white/20 w-full max-w-5xl h-full sm:h-auto sm:max-h-[85vh] sm:rounded-[3rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col md:flex-row backdrop-saturate-150"
         >
-          <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-        </button>
-
-
-
-
-
-        <div className="p-8 space-y-6">
-          {/* HEADER INFO */}
-          <div className="flex justify-between items-end">
-            <div>
-              <h3 className="text-lg font-black text-white italic uppercase tracking-tighter leading-none">
-                Face: {face.faceId}
-              </h3>
-              <p className="text-[9px] font-black text-[#d4af37] uppercase mt-2 tracking-[0.1em] opacity-90 flex flex-wrap gap-2">
-                <span>ID: {panneau.idPan}</span>
-                <span className="text-white/20">|</span>
-                <span>{panneau.zone}</span>
-                <span className="text-white/20">•</span>
-                <span>{panneau.adresse}</span>
-                <span className="text-white/20">•</span>
-                <span className="text-white/60">{panneau.type}</span>
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[7px] font-bold text-white/40 uppercase tracking-widest">Dimension</p>
-              <p className="text-[10px] font-black text-white">{panneau.dimension || '12x4m'}</p>
-            </div>
-          </div>
-
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-            {/* STATISTIQUES */}
-            <div className="space-y-4">
-              <h3 className="text-white text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-white/80">Performance</h3>
-              {metrics.map((m, i) => (
-                <div key={i} className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold uppercase text-white/70">
-                    <span>{m.label}</span>
-                    <span>{m.value}%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-black/20 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${m.value}%` }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      className={`h-full ${m.color}`}
-                    />
-                  </div>
-                </div>
-              ))}
+          {/* --- SECTION GAUCHE : VISUEL IMMERSIF --- */}
+          <div className="relative w-full md:w-[45%] h-[40vh] md:h-auto group">
+            <img
+              src={face.photoCampagneUrl || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg"}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              alt="Visual"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+            
+            {/* Badge Status Flottant */}
+            <div className="absolute top-6 left-6">
+              <motion.div 
+                initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-2xl backdrop-blur-xl border ${isLibre ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-rose-500/20 border-rose-500/50 text-rose-400'}`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest">{isLibre ? 'Disponible' : 'Occupé'}</span>
+              </motion.div>
             </div>
 
-            {/* FICHE TECHNIQUE */}
-            {/* FICHE TECHNIQUE COMPLÈTE */}
-            <div className="bg-black/10 rounded-3xl p-6 space-y-3 border border-white/5 shadow-inner">
-              <h3 className="text-[#d4af37] text-[10px] font-black uppercase tracking-[0.2em] mb-2">Fiche Technique</h3>
-
-              {/* ADRESSE */}
-              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
-                <span className="text-white/50">Adresse</span>
-                <span className="text-white text-right ml-4">{panneau.adresse || 'Non spécifiée'}</span>
-              </div>
-
-              {/* ZONE / COMMUNE */}
-              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
-                <span className="text-white/50">Zone</span>
-                <span className="text-white">{panneau.zone || 'N/A'}</span>
-              </div>
-
-              {/* TYPE */}
-              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
-                <span className="text-white/50">Type</span>
-                <span className="text-white">{panneau.type || 'Standard'}</span>
-              </div>
-
-              {/* SENS TRAFIC (Vient de la face) */}
-              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
-                <span className="text-white/50">Sens Trafic</span>
-                <span className="text-white">{face.sens || 'N/A'}</span>
-              </div>
-
-              {/* PRIX */}
-              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
-                <span className="text-white/50">Tarif Mensuel</span>
-                <span className="text-[#d4af37] font-black">
-                  {panneau.prix ? `${Number(panneau.prix).toLocaleString()} $` : 'Sur devis'}
+            <div className="absolute bottom-8 left-8 right-8">
+              <h2 className="text-5xl font-black text-white italic tracking-tighter mb-2 drop-shadow-lg">
+                {panneau.idPan}
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-white/10 text-white text-[10px] font-bold px-3 py-1 rounded-lg border border-white/10 uppercase tracking-tighter italic">
+                  {panneau.format}
                 </span>
-              </div>
-
-              {/* STATUT */}
-              <div className="mt-4 p-2 bg-black/20 rounded-lg text-center">
-                <span className={`text-[9px] font-black uppercase px-4 py-1.5 rounded-full ${isLibre ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}>
-                  {face.statut || 'Inconnu'}
+                <span className="bg-[#d4af37] text-black text-[10px] font-black px-3 py-1 rounded-lg uppercase italic">
+                  {face.sens}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* ACTIONS */}
-          <div className="grid grid-cols-2 gap-4 pt-4">
-            <button
-              type="button"
-              className="flex items-center justify-center gap-3 py-4 rounded-2xl border border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37] text-[10px] font-black uppercase tracking-widest hover:bg-[#d4af37] hover:text-black transition-all cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                ouvrirLaCarte();
-                onClose();
-              }} >
-              <MapPin size={16} /> Voir sur la carte
-            </button>
+          {/* --- SECTION DROITE : DATA & TRAÇABILITÉ --- */}
+          <div className="w-full md:w-[55%] flex flex-col bg-slate-900/50">
+            {/* Header Fixe */}
+            <div className="p-8 pb-4 flex justify-between items-start">
+              <div>
+                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-[0.4em] mb-1">Localisation Stratégique</p>
+                <h3 className="text-white text-xl font-bold uppercase">{panneau.adresse}</h3>
+              </div>
+              <button onClick={onClose} className="p-3 bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 rounded-2xl transition-all border border-white/5">
+                <X size={20} />
+              </button>
+            </div>
 
-            <button
-              type="button"
-              disabled={!isLibre}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(selectionKey);
-              }}
-              className={`flex items-center justify-center gap-3 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${!isLibre
-                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50'
-                : isSelected
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-[#d4af37] text-black hover:bg-white hover:scale-[1.02] shadow-[#d4af37]/20 cursor-pointer active:scale-95'
-                }`}
-            >
-              {isSelected ? <X size={16} /> : <PlusCircle size={16} />}
-              {isSelected ? 'Retirer' : 'Ajouter'}
-            </button>
-          </div>
-        </div>
-      </motion.div>
+            {/* Zone Scrollable */}
+            <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-8 custom-scrollbar">
+              
+              {/* Grid Performance Rapide */}
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { icon: <Zap size={14}/>, label: "Visibilité", val: face.visibilite || 90 },
+                  { icon: <Activity size={14}/>, label: "Trafic", val: face.mobimetrie || 85 },
+                  { icon: <ShieldCheck size={14}/>, label: "Score", val: 98 },
+                ].map((m, i) => (
+                  <div key={i} className="bg-white/5 border border-white/10 p-3 rounded-2xl text-center">
+                    <div className="flex justify-center text-[#d4af37] mb-1">{m.icon}</div>
+                    <p className="text-[14px] font-black text-white italic">{m.val}%</p>
+                    <p className="text-[8px] font-bold text-white/40 uppercase">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* TIMELINE DE TRAÇABILITÉ */}
+              {/* TIMELINE DE TRAÇABILITÉ AVEC NOM DE L'AGENT */}
+<section className="space-y-6">
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-2">
+      <Calendar size={16} className="text-[#d4af37]" />
+      <h4 className="text-white text-[11px] font-black uppercase tracking-widest">Chronologie des Occupations</h4>
     </div>
+    <span className="text-[9px] text-white/30 font-bold uppercase italic">Flux en temps réel</span>
+  </div>
+
+  <div className="relative border-l-2 border-white/5 ml-3 pl-8 space-y-8">
+    {reservations.length > 0 ? (
+      reservations.map((res: any, i: number) => (
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }} 
+          whileInView={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.1 }}
+          key={i} 
+          className="relative group"
+        >
+          {/* Indicateur de position sur la ligne */}
+          <div className="absolute -left-[41px] top-1 w-5 h-5 rounded-full bg-[#0f172a] border-2 border-[#d4af37] shadow-[0_0_10px_rgba(212,175,55,0.3)] group-hover:scale-125 transition-transform z-10" />
+          
+          <div className="bg-white/5 border border-white/10 p-5 rounded-[2rem] group-hover:bg-white/10 group-hover:border-white/20 transition-all duration-300 shadow-xl">
+            {/* Header de la réservation */}
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-tighter mb-1">
+                  Client: {res.societeLocatrice || 'Client Inconnu'}
+                </p>
+                <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full w-fit">
+                  <User size={10} className="text-blue-400" />
+                  <span className="text-[9px] font-black text-blue-300 uppercase italic">
+                    Agent: {res.agentNom || 'Système Automatique'}
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className={`text-[8px] font-black px-3 py-1 rounded-lg uppercase border ${res.facturee === 'oui' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
+                  {res.facturee === 'oui' ? 'Facturé' : 'En attente'}
+                </span>
+              </div>
+            </div>
+
+            {/* Dates de réservation */}
+            <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/5">
+              <div className="flex flex-col">
+                <span className="text-[8px] text-white/30 uppercase font-bold">Début diffusion</span>
+                <span className="text-xs text-white font-black italic">{res.dateDebut}</span>
+              </div>
+              <div className="flex flex-col border-l border-white/5 pl-4">
+                <span className="text-[8px] text-white/30 uppercase font-bold">Fin diffusion</span>
+                <span className="text-xs text-white font-black italic">{res.dateFin}</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      ))
+    ) : (
+      <div className="py-12 text-center bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/10">
+        <History size={30} className="mx-auto mb-3 text-white/10" />
+        <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Aucun historique disponible</p>
+      </div>
+    )}
+  </div>
+</section>
+              {/* FOOTER ACTIONS FIXÉ EN BAS SUR MOBILE */}
+              <div className="flex gap-4 pt-4 sticky bottom-0 bg-slate-900/10 backdrop-blur-lg pb-2">
+                <button 
+                  onClick={() => { ouvrirLaCarte(); onClose(); }}
+                  className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all"
+                >
+                  <MapPin size={20} />
+                </button>
+                
+                <button 
+                  disabled={!isLibre && !isSelected}
+                  onClick={() => onSelect(selectionKey)}
+                  className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-2xl ${
+                    isSelected 
+                    ? 'bg-rose-500 text-white shadow-rose-500/20' 
+                    : isLibre 
+                      ? 'bg-[#d4af37] text-black hover:bg-white shadow-[#d4af37]/20' 
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  {isSelected ? <MinusCircle size={18} /> : <PlusCircle size={18} />}
+                  {isSelected ? 'Retirer l\'unité' : isLibre ? 'Réserver la face' : 'Indisponible'}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
   );
 };
+
 
 
 
@@ -849,51 +860,7 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
   const totalPrix = selectedFaces.reduce((acc, curr) => acc + curr.prix, 0);
 
   // 2. Génération du PDF
-  const generatePDF = () => {
-    try {
-      const doc = new jsPDF();
-      const date = new Date().toLocaleDateString('fr-FR');
-      const documentNumber = `GDP-${Math.floor(10000 + Math.random() * 90000)}`;
-
-      doc.setFillColor(30, 64, 175);
-      doc.rect(0, 0, 210, 40, 'F');
-
-      doc.setTextColor(212, 175, 55);
-      doc.setFontSize(22);
-      doc.setFont("helvetica", "bold");
-      doc.text("GDP - DEVIS OFFICIEL", 15, 20);
-
-      doc.setFontSize(10);
-      doc.setTextColor(255, 255, 255);
-      doc.text(`DATE : ${date}`, 150, 15);
-      doc.text(`RÉFÉRENCE : ${documentNumber}`, 150, 22);
-
-      const tableRows = selectedFaces.map(item => [
-        `${item.idPan} (Face ${item.faceId})`,
-        item.adresse,
-        `${item.prix.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} $`
-      ]);
-
-      autoTable(doc, {
-        startY: 50,
-        head: [['RÉFÉRENCE', 'LOCALISATION', 'TARIF MENSUEL (HT)']],
-        body: tableRows,
-        theme: 'grid',
-        headStyles: { fillColor: [30, 64, 175], textColor: [212, 175, 55] },
-        styles: { fontSize: 9 },
-        foot: [[
-          { content: 'TOTAL GÉNÉRAL', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
-          { content: `${totalPrix.toLocaleString('fr-FR')} $ USD`, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }
-        ]]
-      });
-
-      doc.save(`GDP_DEVIS_${documentNumber}.pdf`);
-    } catch (err) {
-      console.error("PDF Generation Error:", err);
-      alert("Erreur lors de la création du PDF.");
-    }
-  };
-
+  
   return (
     <div
       className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl cursor-pointer"
@@ -978,14 +945,7 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
             >
               Modifier
             </button>
-            <button
-              onClick={generatePDF}
-              disabled={selectedFaces.length === 0}
-              className="px-12 py-5 bg-[#d4af37] text-black rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-[#d4af37]/20 hover:bg-white hover:scale-[1.05] active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
-            >
-              <FileText size={18} />
-              Générer le Devis PDF
-            </button>
+            
           </div>
         </div>
       </motion.div>
@@ -1043,122 +1003,122 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
   const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
+    e.preventDefault();
+    setLoading(true);
 
-  // Nettoyage des entrées pour éviter les erreurs 400 stupides (espaces, casses)
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanPassword = password.trim();
+    // Nettoyage des entrées pour éviter les erreurs 400 stupides (espaces, casses)
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
 
-  if (!cleanEmail || !cleanPassword) {
-    alert("Veuillez remplir tous les champs.");
-    setLoading(false);
-    return;
-  }
+    if (!cleanEmail || !cleanPassword) {
+      alert("Veuillez remplir tous les champs.");
+      setLoading(false);
+      return;
+    }
 
-  try {
-    let userData: any = null;
-    let userId: string = "";
-
-    // --- ÉTAPE 1 : TENTATIVE DE CONNEXION VIA FIREBASE AUTH ---
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      userId = userCredential.user.uid;
-      
-      // On cherche les infos dans la collection "societes"
-      const docSnap = await getDoc(doc(db, "societes", userId));
-      if (docSnap.exists()) {
-        userData = docSnap.data();
-      }
-    } catch (authError: any) {
-      console.warn("Auth standard échouée, tentative recherche manuelle Firestore...");
-      
-      // --- ÉTAPE 1B : RECHERCHE MANUELLE (Si l'user n'est pas dans Auth mais uniquement dans Firestore) ---
-      const q = query(
-        collection(db, "societes"), 
-        where("email", "==", cleanEmail), 
-        limit(1)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        const resDoc = querySnapshot.docs[0];
-        const data = resDoc.data();
-        
-        // VÉRIFICATION DU MOT DE PASSE EN CLAIR (Attention: Sécurité faible)
-        if (data.password === cleanPassword) {
-          userId = resDoc.id;
-          userData = data;
-        } else {
-          throw new Error("Mot de passe incorrect.");
+      let userData: any = null;
+      let userId: string = "";
+
+      // --- ÉTAPE 1 : TENTATIVE DE CONNEXION VIA FIREBASE AUTH ---
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        userId = userCredential.user.uid;
+
+        // On cherche les infos dans la collection "societes"
+        const docSnap = await getDoc(doc(db, "societes", userId));
+        if (docSnap.exists()) {
+          userData = docSnap.data();
         }
+      } catch (authError: any) {
+        console.warn("Auth standard échouée, tentative recherche manuelle Firestore...");
+
+        // --- ÉTAPE 1B : RECHERCHE MANUELLE (Si l'user n'est pas dans Auth mais uniquement dans Firestore) ---
+        const q = query(
+          collection(db, "societes"),
+          where("email", "==", cleanEmail),
+          limit(1)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const resDoc = querySnapshot.docs[0];
+          const data = resDoc.data();
+
+          // VÉRIFICATION DU MOT DE PASSE EN CLAIR (Attention: Sécurité faible)
+          if (data.password === cleanPassword) {
+            userId = resDoc.id;
+            userData = data;
+          } else {
+            throw new Error("Mot de passe incorrect.");
+          }
+        } else {
+          throw new Error("Utilisateur introuvable.");
+        }
+      }
+
+      if (!userData) {
+        throw new Error("Identifiants incorrects ou compte inexistant.");
+      }
+
+      // --- ÉTAPE 2 : VÉRIFICATION DU STATUT ACTIF ---
+      if (userData.actif !== true) {
+        if (auth.currentUser) await signOut(auth);
+        throw new Error("Compte non activé. Contactez l'administrateur.");
+      }
+
+      // --- ÉTAPE 3 : ROUTAGE ---
+      const routes: Record<string, string> = {
+        visiteur: '/dashboard/visiteurs',
+        admin: '/dashboard/admin',
+        superviseurs: '/dashboard/components', // Ajout du / manquant
+        commercial: '/dashboard/superviseurs',
+        comptable: '/dashboard/Comptable',
+        client: '/dashboard/client'
+      };
+
+      // On récupère le rôle et on nettoie pour la correspondance
+      const userRole = userData.role?.toLowerCase() || "";
+      const targetRoute = routes[userRole];
+
+      if (targetRoute) {
+        // --- ÉTAPE 4 : MISE À JOUR DE L'ÉTAT EN LIGNE ---
+        const userRef = doc(db, "societes", userId);
+        await updateDoc(userRef, {
+          isOnline: true,
+          lastLogin: serverTimestamp()
+        });
+
+        // Utilisation de ton contexte de login
+        if (typeof login === 'function') {
+          login({ id: userId, ...userData });
+        }
+
+        // Fermeture du modal et redirection
+        if (typeof onClose === 'function') onClose();
+
+        router.push(targetRoute);
       } else {
-        throw new Error("Utilisateur introuvable.");
-      }
-    }
-
-    if (!userData) {
-      throw new Error("Identifiants incorrects ou compte inexistant.");
-    }
-
-    // --- ÉTAPE 2 : VÉRIFICATION DU STATUT ACTIF ---
-    if (userData.actif !== true) {
-      if (auth.currentUser) await signOut(auth);
-      throw new Error("Compte non activé. Contactez l'administrateur.");
-    }
-
-    // --- ÉTAPE 3 : ROUTAGE ---
-    const routes: Record<string, string> = {
-      visiteur: '/dashboard/visiteurs',
-      admin: '/dashboard/admin',
-      superviseurs: '/dashboard/components', // Ajout du / manquant
-      commercial: '/dashboard/superviseurs',
-      comptable: '/dashboard/Comptable',
-      client: '/dashboard/client'
-    };
-
-    // On récupère le rôle et on nettoie pour la correspondance
-    const userRole = userData.role?.toLowerCase() || "";
-    const targetRoute = routes[userRole];
-
-    if (targetRoute) {
-      // --- ÉTAPE 4 : MISE À JOUR DE L'ÉTAT EN LIGNE ---
-      const userRef = doc(db, "societes", userId);
-      await updateDoc(userRef, {
-        isOnline: true,
-        lastLogin: serverTimestamp()
-      });
-
-      // Utilisation de ton contexte de login
-      if (typeof login === 'function') {
-        login({ id: userId, ...userData });
+        throw new Error(`Le rôle "${userData.role}" n'a pas de route configurée.`);
       }
 
-      // Fermeture du modal et redirection
-      if (typeof onClose === 'function') onClose();
-      
-      router.push(targetRoute);
-    } else {
-      throw new Error(`Le rôle "${userData.role}" n'a pas de route configurée.`);
-    }
+    } catch (err: any) {
+      console.error("Login Error Details:", err);
 
-  } catch (err: any) {
-    console.error("Login Error Details:", err);
-    
-    // Traduction des messages d'erreur Firebase communs
-    let errorMessage = err.message;
-    if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-      errorMessage = "Email ou mot de passe incorrect.";
-    } else if (err.code === 'auth/too-many-requests') {
-      errorMessage = "Trop de tentatives. Veuillez réessayer plus tard.";
+      // Traduction des messages d'erreur Firebase communs
+      let errorMessage = err.message;
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        errorMessage = "Email ou mot de passe incorrect.";
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = "Trop de tentatives. Veuillez réessayer plus tard.";
+      }
+
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
     }
-    
-    alert(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
   return (

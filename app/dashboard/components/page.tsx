@@ -406,7 +406,7 @@ export default function PageEnregistrement({
                     // On prend le nom sélectionné dans la liste, sinon le nom de l'admin
                     agentNom: (f as any).agentNom || "Agent inconnu",
 
-                    
+
 
                     dateDebut: f.dateDebut || "",
                     dateFin: f.dateFin || "",
@@ -450,14 +450,17 @@ export default function PageEnregistrement({
 
 
     return (
-        <div className="fixed inset-0 z-[9999] bg-[#000a1a]/95 backdrop-blur-xl flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-[#1e40af] w-full max-w-2xl p-6 md:p-10 rounded-[3rem] border border-white/20 shadow-2xl relative">
+        <div className="fixed inset-0 z-[9999] bg-[#000a1a]/95 backdrop-blur-md flex items-center justify-center p-0 md:p-4">
+            <div className="bg-[#1e40af] w-full h-full md:h-auto md:max-h-[90vh] md:max-w-2xl p-4 md:p-10 md:rounded-[3rem] border-none md:border md:border-white/20 shadow-2xl relative flex flex-col">
 
                 <div className="flex justify-between items-start mb-8">
+                    <div className="flex justify-between items-start mb-6">
                     <div>
-                        <h2 className="text-white font-black text-2xl tracking-tighter italic">NOUVEAU PANNEAU</h2>
-                        <p className="text-[10px] text-blue-200 font-bold uppercase tracking-widest">Saisie obligatoire de tous les champs</p>
+                        <h2 className="text-white font-black text-xl md:text-2xl tracking-tighter italic">NOUVEAU PANNEAU</h2>
+                        <p className="text-[9px] text-blue-200 font-bold uppercase tracking-widest">Saisie obligatoire</p>
                     </div>
+                    <button onClick={onClose} className="p-2 text-white/50 hover:text-white"><X size={24}/></button>
+                </div>
 
                     {user ? (
                         <div className="flex items-center gap-3 pl-6 border-l border-white/10 relative z-[100]">
@@ -503,7 +506,7 @@ export default function PageEnregistrement({
                         </button>
                     )}
                 </div>
-                <div className="space-y-5">
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
                     <button
                         type="button"
                         // On désactive le bouton pendant la recherche pour éviter les bugs
@@ -687,133 +690,132 @@ export default function PageEnregistrement({
                         </div>
                     </div>
                     <div className="max-h-[60vh] overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-    {formData.faces.map((face, i) => (
-        <div key={i} className="p-6 bg-black/20 rounded-[2.5rem] border border-white/10 space-y-6">
-            
-            {/* --- EN-TÊTE DE LA FACE --- */}
-            <div className="flex justify-between items-center">
-                <span className="text-amber-500 font-black italic text-xs uppercase tracking-widest">
-                    FACE {String.fromCharCode(65 + i)}
-                </span>
-                <select
-                    className={`text-[10px] font-black rounded-lg p-2 outline-none border transition-all ${
-                        face.statut === 'Occupé' 
-                        ? 'bg-amber-500 text-black border-amber-500' 
-                        : 'bg-white/5 text-white border-white/10'
-                    }`}
-                    value={face.statut}
-                    onChange={e => { 
-                        const nf = [...formData.faces]; 
-                        nf[i].statut = e.target.value; 
-                        setFormData({ ...formData, faces: nf }); 
-                    }}
-                >
-                    <option value="Libre">LIBRE</option>
-                    <option value="Occupé">OCCUPÉ</option>
-                    <option value="Réservé">RÉSERVÉ</option>
-                </select>
-            </div>
+                        {formData.faces.map((face, i) => (
+                            <div key={i} className="p-6 bg-black/20 rounded-[2.5rem] border border-white/10 space-y-6">
 
-            {/* --- CHAMP SENS (Toujours visible) --- */}
-            <div className="grid grid-cols-1 gap-3">
-                <input 
-                    placeholder="SENS TRAFIC (ex: DIRECTION CENTRE VILLE) *" 
-                    className="bg-black/40 p-4 rounded-xl text-white text-[10px] border border-white/5 outline-none focus:border-amber-500/50" 
-                    value={face.sens} 
-                    onChange={e => { 
-                        const nf = [...formData.faces]; 
-                        nf[i].sens = e.target.value.toUpperCase(); 
-                        setFormData({ ...formData, faces: nf }); 
-                    }} 
-                />
-            </div>
+                                {/* --- EN-TÊTE DE LA FACE --- */}
+                                <div className="flex justify-between items-center">
+                                    <span className="text-amber-500 font-black italic text-xs uppercase tracking-widest">
+                                        FACE {String.fromCharCode(65 + i)}
+                                    </span>
+                                    <select
+                                        className={`text-[10px] font-black rounded-lg p-2 outline-none border transition-all ${face.statut === 'Occupé'
+                                            ? 'bg-amber-500 text-black border-amber-500'
+                                            : 'bg-white/5 text-white border-white/10'
+                                            }`}
+                                        value={face.statut}
+                                        onChange={e => {
+                                            const nf = [...formData.faces];
+                                            nf[i].statut = e.target.value;
+                                            setFormData({ ...formData, faces: nf });
+                                        }}
+                                    >
+                                        <option value="Libre">LIBRE</option>
+                                        <option value="Occupé">OCCUPÉ</option>
+                                        <option value="Réservé">RÉSERVÉ</option>
+                                    </select>
+                                </div>
 
-            {/* --- DÉTAILS DE LA RÉSERVATION (Si Occupé ou Réservé) --- */}
-            {(face.statut === 'Occupé' || face.statut === 'Réservé') && (
-                <div className="space-y-4 p-5 bg-white/5 rounded-3xl border border-white/10">
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Société */}
-                        <div className="space-y-1">
-                            <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Client / Société</label>
-                            <input
-                                list="suggestions-societes"
-                                placeholder="NOM DE LA SOCIÉTÉ *"
-                                className="w-full p-4 bg-black/60 rounded-xl text-white text-xs border border-white/10 outline-none"
-                                value={face.clientNom || ''}
-                                onChange={e => {
-                                    const nf = [...formData.faces];
-                                    nf[i].clientNom = e.target.value.toUpperCase();
-                                    setFormData({ ...formData, faces: nf });
-                                }}
-                            />
-                        </div>
+                                {/* --- CHAMP SENS (Toujours visible) --- */}
+                                <div className="grid grid-cols-1 gap-3">
+                                    <input
+                                        placeholder="SENS TRAFIC (ex: DIRECTION CENTRE VILLE) *"
+                                        className="bg-black/40 p-4 rounded-xl text-white text-[10px] border border-white/5 outline-none focus:border-amber-500/50"
+                                        value={face.sens}
+                                        onChange={e => {
+                                            const nf = [...formData.faces];
+                                            nf[i].sens = e.target.value.toUpperCase();
+                                            setFormData({ ...formData, faces: nf });
+                                        }}
+                                    />
+                                </div>
 
-                        {/* Agent Commercial */}
-                        <div className="space-y-1">
-                            <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Agent Commercial</label>
-                            <input
-                                list="listeCommerciaux"
-                                placeholder="CHOISIR UN AGENT *"
-                                className="w-full p-4 bg-black/60 rounded-xl text-white text-xs border border-white/10 outline-none"
-                                value={(face as any).agentNom || ''}
-                                onChange={(e) => {
-                                    const valeur = e.target.value;
-                                    const nf = [...formData.faces];
-                                    const faceActuelle = nf[i] as any;
-                                    faceActuelle.agentNom = valeur;
+                                {/* --- DÉTAILS DE LA RÉSERVATION (Si Occupé ou Réservé) --- */}
+                                {(face.statut === 'Occupé' || face.statut === 'Réservé') && (
+                                    <div className="space-y-4 p-5 bg-white/5 rounded-3xl border border-white/10">
 
-                                    if (listeCommerciaux) {
-                                        const found = listeCommerciaux.find((c: any) => (c.nom || c) === valeur);
-                                        faceActuelle.agentEmail = found?.email || "";
-                                    }
-                                    setFormData({ ...formData, faces: nf });
-                                }}
-                            />
-                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* Société */}
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Client / Société</label>
+                                                <input
+                                                    list="suggestions-societes"
+                                                    placeholder="NOM DE LA SOCIÉTÉ *"
+                                                    className="w-full p-4 bg-black/60 rounded-xl text-white text-xs border border-white/10 outline-none"
+                                                    value={face.clientNom || ''}
+                                                    onChange={e => {
+                                                        const nf = [...formData.faces];
+                                                        nf[i].clientNom = e.target.value.toUpperCase();
+                                                        setFormData({ ...formData, faces: nf });
+                                                    }}
+                                                />
+                                            </div>
+
+                                            {/* Agent Commercial */}
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Agent Commercial</label>
+                                                <input
+                                                    list="listeCommerciaux"
+                                                    placeholder="CHOISIR UN AGENT *"
+                                                    className="w-full p-4 bg-black/60 rounded-xl text-white text-xs border border-white/10 outline-none"
+                                                    value={(face as any).agentNom || ''}
+                                                    onChange={(e) => {
+                                                        const valeur = e.target.value;
+                                                        const nf = [...formData.faces];
+                                                        const faceActuelle = nf[i] as any;
+                                                        faceActuelle.agentNom = valeur;
+
+                                                        if (listeCommerciaux) {
+                                                            const found = listeCommerciaux.find((c: any) => (c.nom || c) === valeur);
+                                                            faceActuelle.agentEmail = found?.email || "";
+                                                        }
+                                                        setFormData({ ...formData, faces: nf });
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Dates */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Début</label>
+                                                <input type="date" className="w-full bg-black/60 p-3 rounded-xl text-white text-[10px] border border-white/5" value={face.dateDebut} onChange={e => { const nf = [...formData.faces]; nf[i].dateDebut = e.target.value; setFormData({ ...formData, faces: nf }); }} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Fin</label>
+                                                <input type="date" className="w-full bg-black/60 p-3 rounded-xl text-white text-[10px] border border-white/5" value={face.dateFin} onChange={e => { const nf = [...formData.faces]; nf[i].dateFin = e.target.value; setFormData({ ...formData, faces: nf }); }} />
+                                            </div>
+                                        </div>
+
+                                        {/* Photo */}
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Preuve d'affichage</label>
+                                            <label className={`w-full flex flex-col items-center justify-center py-4 rounded-2xl border-2 border-dashed transition-all cursor-pointer ${face.photoCampagneUrl ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 hover:border-amber-500/50'}`}>
+                                                <input type="file" accept="image/*" className="hidden" capture="environment" onChange={(e) => handlePhotoUpload(i, e.target.files?.[0] || null)} />
+                                                {localPreviews[i] || face.photoCampagneUrl ? (
+                                                    <img src={localPreviews[i] || face.photoCampagneUrl} className="h-16 w-28 object-cover rounded-lg border border-white/20" alt="preview" />
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-white/40 italic text-[9px]"><Camera size={16} /> CLIQUER POUR PHOTO</div>
+                                                )}
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+
+                        {/* DATA LISTS (Hors de la boucle) */}
+                        <datalist id="suggestions-societes">
+                            {listeSocietes.map((nom, idx) => <option key={idx} value={nom} />)}
+                        </datalist>
+                        <datalist id="listeCommerciaux">
+                            {listeCommerciaux?.map((c: any, index: number) => (
+                                <option key={index} value={typeof c === 'object' ? c.nom : c} />
+                            ))}
+                        </datalist>
                     </div>
 
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Début</label>
-                            <input type="date" className="w-full bg-black/60 p-3 rounded-xl text-white text-[10px] border border-white/5" value={face.dateDebut} onChange={e => { const nf = [...formData.faces]; nf[i].dateDebut = e.target.value; setFormData({ ...formData, faces: nf }); }} />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Fin</label>
-                            <input type="date" className="w-full bg-black/60 p-3 rounded-xl text-white text-[10px] border border-white/5" value={face.dateFin} onChange={e => { const nf = [...formData.faces]; nf[i].dateFin = e.target.value; setFormData({ ...formData, faces: nf }); }} />
-                        </div>
-                    </div>
-
-                    {/* Photo */}
-                    <div className="space-y-1">
-                        <label className="text-[9px] text-white/30 ml-2 font-bold uppercase">Preuve d'affichage</label>
-                        <label className={`w-full flex flex-col items-center justify-center py-4 rounded-2xl border-2 border-dashed transition-all cursor-pointer ${face.photoCampagneUrl ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 hover:border-amber-500/50'}`}>
-                            <input type="file" accept="image/*" className="hidden" capture="environment" onChange={(e) => handlePhotoUpload(i, e.target.files?.[0] || null)} />
-                            {localPreviews[i] || face.photoCampagneUrl ? (
-                                <img src={localPreviews[i] || face.photoCampagneUrl} className="h-16 w-28 object-cover rounded-lg border border-white/20" alt="preview" />
-                            ) : (
-                                <div className="flex items-center gap-2 text-white/40 italic text-[9px]"><Camera size={16} /> CLIQUER POUR PHOTO</div>
-                            )}
-                        </label>
-                    </div>
-                </div>
-            )}
-        </div>
-    ))}
-
-    {/* DATA LISTS (Hors de la boucle) */}
-    <datalist id="suggestions-societes">
-        {listeSocietes.map((nom, idx) => <option key={idx} value={nom} />)}
-    </datalist>
-    <datalist id="listeCommerciaux">
-        {listeCommerciaux?.map((c: any, index: number) => (
-            <option key={index} value={typeof c === 'object' ? c.nom : c} />
-        ))}
-    </datalist>
-</div>
-
-<button
+                    <button
                         onClick={enregistrerPanneau}
                         disabled={loading || uploadingIndex !== null}
                         className="w-full bg-amber-500 text-blue-900 p-6 rounded-3xl font-black uppercase text-xs flex justify-center items-center gap-4 active:scale-95 disabled:opacity-50 transition-all"

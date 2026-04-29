@@ -26,7 +26,11 @@ import {
   // mais dans ce useEffect précis, c'est le 'doc' du snapshot (pas l'import)
 } from 'firebase/firestore';
 
-import PageEnregistrement from '@/app/dashboard/components/page';
+import { deleteDoc } from "firebase/firestore";
+
+
+import { getDoc } from "firebase/firestore";
+
 
 // Assurez-vous d'avoir importé useState
 
@@ -214,140 +218,632 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
 
 
 
-import { useAuth } from "@/context/AuthContext"; // Si tu es dans app/
 
 
-import { LogOut, User } from "lucide-react";
+import { addDoc } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
+import {
+  LayoutDashboard,
+  FilePieChart,
+  LogOut,
+  User,
+} from "lucide-react";
 
-// Ajoute FilePieChart à la liste des imports existants
-import { LayoutDashboard, FilePieChart, } from 'lucide-react';
-// --- PAGE PRINCIPALE ---
+// --- 1. INTERFACES & TYPES ---
+interface Face {
+  statut?: string;
+  // ajoute d'autres champs si nécessaire
+}
+
+interface Panneau {
+  id: string;
+  idPan?: string;
+  adresse?: string;
+  type?: string;
+  format?: string;
+  faces?: Face[];
+  createdAt?: any;
+}
+
+type Province = Record<string, string[] | Record<string, string[]>>;
+
+// --- 2. CONSTANTES DE RÉFÉRENCE ---
+const GEOGRAPHIE: Record<string, Record<string, Province>> = {
+  "RDC": {
+    "Kinshasa": {
+      "Lukunga": [
+        "Gombe", "Barumbu", "Kinshasa", "Lingwala",
+        "Kintambo", "Ngaliema", "Mont-Ngafula"
+      ],
+      "Funa": [
+        "Bandalungwa", "Kasa-Vubu", "Kalamu", "Ngiri-Ngiri",
+        "Bumbu", "Makala", "Selembao"
+      ],
+      "Mont-Amba": [
+        "Limete", "Lemba", "Matete", "Ngaba",
+        "Kisenso"
+      ],
+      "Tshangu": [
+        "Masina", "Ndjili", "Kimbanseke", "Nsele",
+        "Maluku"
+      ]
+    },
+    "Kongo-Central": {
+      "Matadi": ["Ville Haute", "Ville Basse", "Nzanza", "Sanga-Sanga"],
+      "Boma": ["Nzadi", "Kabondo", "Kalamu"],
+      "Mbanza-Ngungu": ["Noki", "Lukala"],
+      "Inkisi": ["Kisantu", "Inkisi-Ville"]
+    }
+  },
+  "Brazzaville": {
+    "Brazzaville": {
+      "Brazzaville": ["M'Pila", "Talangaï", "Ouenzé", "Poto-Poto", "Bacongo"]
+    },
+    "Pointe-Noire": {
+      "Pointe-Noire": ["Lumumba", "Mvou-Mvou"]
+    }
+  }
+};
+
+
+
+
+
+
+
+
+
+import { useMemo } from 'react'; // Ajoute useMemo ici
+
+
+// Ajoute 'limit' ici
+import {
+  limit,
+} from "firebase/firestore";
+
+const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+
+// --- 3. COMPOSANT PRINCIPAL ---
 export default function UltimateSupervisor() {
-
-
-
-
-  // --- DANS UltimateSupervisor ---
-  const [panneauxData, setPanneauxData] = useState<any[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false); // État pour la modale Nouveau Panneau
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // CORRIGÉ : false par défaut
-
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
-
-
-  const [filters, setFilters] = useState({ zone: '', statut: '', format: '' });
-  const [hidden, setHidden] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const router = useRouter();
   const { user, logout } = useAuth();
 
-  // 2. HOOKS (Framer Motion & Scroll)
+  // --- ÉTATS DES DONNÉES ---
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [panneauToEdit, setPanneauToEdit] = useState<Panneau | null>(null);
+
+  // --- ÉTATS UI (MODALES / SIDEBAR) ---
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isStatsOpen, setIsStatsOpen] = useState(false); // Pour l'Efficacité
+  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [paymentModes, setPaymentModes] = useState<{ [key: string]: 'total' | 'tranche' }>({});
+  const [selectedForPrint, setSelectedForPrint] = useState<{ [key: string]: boolean }>({});
+  const [panneauxData, setPanneauxData] = useState<Panneau[]>([]);
+
+
+
+
+
+
+  const [tranchesCount, setTranchesCount] = useState<{ [key: string]: number }>({});
+
+
+  const [dernierIdFacture, setDernierIdFacture] = useState(0); // <--- DOIT ÊTRE ICI
+  // 2. Place le code ici (il s'exécute une seule fois au chargement)
+  useEffect(() => {
+    const fetchLastId = async () => {
+      try {
+        // On cherche la facture avec l'ID le plus élevé
+        const q = query(
+          collection(db, "factures"),
+          orderBy("factureIdFormat", "desc"),
+          limit(1)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const lastIdStr = querySnapshot.docs[0].data().factureIdFormat;
+          if (lastIdStr && lastIdStr.includes('.')) {
+            const parts = lastIdStr.split('.');
+            const lastNumber = parseInt(parts[parts.length - 1], 10);
+            setDernierIdFacture(isNaN(lastNumber) ? 0 : lastNumber);
+          }
+        } else {
+          setDernierIdFacture(0);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération du dernier ID:", error);
+        setDernierIdFacture(0);
+      }
+    };
+
+    fetchLastId();
+  }, [db]); // Se déclenche une fois au montage
+
+
+
+
+
+
+
+  // --- EFFECT : RÉCUPÉRATION FIRESTORE ---
+  useEffect(() => {
+    if (!db) return;
+
+    const panelsRef = collection(db, "panneaux");
+    const q = query(panelsRef, orderBy("createdAt", "desc"));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<Panneau, "id">)
+      }));
+
+      setPanneauxData(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Erreur Firestore :", error);
+      setLoading(false);
+    }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+
+
+  const processOperations = async (type: 'unique' | 'selection' | 'delete', data?: any, index?: number) => {
+
+    // 1. CAS PARTICULIER : SUPPRESSION
+    if (type === 'delete' && data) {
+      if (window.confirm(`Retirer ${data.societeLocatrice} ?`)) {
+        // Ta logique pour retirer l'élément de la liste visuelle
+        alert("Élément retiré.");
+      }
+      return; // On s'arrête ici pour la suppression
+    }
+
+    // 2. RÉCUPÉRATION DE LA SÉLECTION (Unique ou Groupée)
+    const selection = type === 'unique'
+      ? [data]
+      : reservationsEnAttente.filter(r => selectedForPrint[r.resUniqueId]);
+
+    // 3. --- VÉRIFICATION NOMBRE (Pas 0) ---
+    if (selection.length === 0) {
+      alert("⚠️ Action impossible : Aucune réservation n'est sélectionnée.");
+      return;
+    }
+
+    // 4. --- VÉRIFICATION SOCIÉTÉ UNIQUE ---
+    const premiereSociete = selection[0].societeLocatrice?.trim().toLowerCase();
+    if (!premiereSociete) {
+      alert("⚠️ Erreur : La société locatrice n'est pas renseignée.");
+      return;
+    }
+
+    const erreursSociete = selection.filter(r =>
+      r.societeLocatrice?.trim().toLowerCase() !== premiereSociete
+    );
+
+    if (erreursSociete.length > 0) {
+      alert(`❌ Conflit : Vous ne pouvez pas mélanger plusieurs sociétés sur une facture.`);
+      return;
+    }
+
+    // 5. --- VÉRIFICATIONS TECHNIQUES (Prix, Paiement) ---
+    const erreursTechniques: string[] = [];
+    selection.forEach(res => {
+      const key = res.resUniqueId;
+
+      // Vérification du prix
+      if (!prices[key] || prices[key] <= 0) {
+        erreursTechniques.push(`- ${res.faceLabel} : Prix manquant`);
+      }
+
+      // CORRECTION ICI : On considère 'total' par défaut si paymentModes[key] est vide
+      const modeActuel = paymentModes[key] || 'total';
+
+      // Si c'est en tranche, on vérifie que le nombre de tranches est saisi
+      if (modeActuel === 'tranche' && (!tranchesCount[key] || tranchesCount[key] <= 1)) {
+        erreursTechniques.push(`- ${res.faceLabel} : Précisez le nombre de tranches (min. 2)`);
+      }
+    });
+
+    if (erreursTechniques.length > 0) {
+      alert(`❌ Données incomplètes :\n\n${erreursTechniques.join('\n')}`);
+      return;
+    }
+
+    // 6. --- TOUT EST OK -> ON LANCE LA MACHINE ---
+    // On récupère les IDs et on appelle la fonction de navigation
+    const idsAEnvoyer = selection.map(r => r.resUniqueId);
+    lancerFacturation(selection);
+  };
+
+
+
+  // 7. LA FONCTION QUI FAIT LA NAVIGATION (À placer juste en dessous ou au dessus)
+  const lancerFacturation = (donneesAEnvoyer: any[]) => {
+    if (!donneesAEnvoyer || donneesAEnvoyer.length === 0) {
+      alert("⚠️ Erreur : Aucune donnée à facturer.");
+      return;
+    }
+
+    // A. On ajoute les prix et modes de paiement saisis à l'objet pour ne rien perdre
+    const donneesCompletes = donneesAEnvoyer.map(res => ({
+      ...res,
+      prixSaisi: prices[res.resUniqueId] || 0,
+      modePaiement: paymentModes[res.resUniqueId] || 'total',
+      nombreTranches: tranchesCount[res.resUniqueId] || 1
+    }));
+
+    // B. Utilisation du LocalStorage (plus fiable que l'URL pour les gros objets)
+    localStorage.setItem('facture_preview_data', JSON.stringify(donneesCompletes));
+
+    // C. Navigation vers la page PDF
+    router.push('/generationpdf');
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  const reservationsEnAttente = useMemo(() => {
+
+    //let compteurLocal = Number(dernierIdFacture) || 0;
+    let compteurLocal = Number(dernierIdFacture) || 0;
+    // 1. Sécurité de base
+    if (!panneauxData || !user?.email) return [];
+
+    // 2. Initialisation typée pour éviter l'erreur sur "list"
+    const list: any[] = [];
+    const emailConnecte = user.email.trim().toLowerCase();
+    const annee = new Date().getFullYear();
+    const maintenant = new Date();
+
+    const mois = String(maintenant.getMonth() + 1).padStart(2, '0');
+
+    panneauxData.forEach((panneau: any) => {
+      // Vérification que "faces" existe bien
+      const faces = panneau.faces || [];
+
+      faces.forEach((face: any, faceIdx: number) => {
+        // Accès sécurisé à ".reservations"
+        const reservations = face.reservations || [];
+
+
+        reservations.forEach((res: any, resIdx: number) => {
+
+
+          // --- GÉNÉRATION DE L'ID UNIQUE ---
+          compteurLocal++;
+
+          const sequence = String(compteurLocal).padStart(3, '0');
+
+          // PadStart transforme "1" en "000001"
+          //const numeroSequence = String(compteurLocal).padStart(6, '0');
+          const factureIdFormat = `${annee}.${mois}.${sequence}`;
+
+          // 3. LOGIQUE DE FILTRAGE (selon ta structure BD)
+          const emailReservation = (res.agentEmail || "").trim().toLowerCase();
+          const appartientALutilisateur = emailReservation === emailConnecte;
+
+          const estPretPourFacture =
+            (res.facturee === "non" || !res.facturee) &&
+            (res.statutPaiement === "en attente" || !res.statutPaiement) &&
+            res.validationComptable !== true;
+
+          if (appartientALutilisateur && estPretPourFacture) {
+            // Calcul de la durée
+            const debut = new Date(res.dateDebut);
+            const fin = new Date(res.dateFin);
+            const duree = Math.max(1, (fin.getFullYear() - debut.getFullYear()) * 12 + (fin.getMonth() - debut.getMonth()));
+
+            // 4. RÉCUPÉRATION DES ÉLÉMENTS (y compris "sens")
+            const faceLabel = `${panneau.idPan}-${faceIdx + 1} (${face.sens || 'SANS SENS'})`;
+
+            // Création de l'ID unique pour le panier
+            const resUniqueId = `res-${panneau.id}-${faceIdx}-${resIdx}-${res.dateDebut}`;
+
+            list.push({
+              ...res,
+              resUniqueId,
+              faceLabel,
+              factureIdFormat, // Ton ID : 2026.000.000001
+              idPan: panneau.idPan,
+              panelDocId: panneau.id,
+              faceIndex: faceIdx,
+              faceSens: face.sens,
+              adresse: panneau.adresse,
+              //type: panneau.type,
+              dureeMois: duree,
+
+
+              // 2. FORCE LES DATES ICI POUR LA FACTURE
+              dateDebut: res.dateDebut,
+              dateFin: res.dateFin,
+
+              // 3. RÉCUPÈRE LE TYPE DEPUIS LE PANNEAU (très important !)
+              type: panneau.type || "",
+
+              //dateTri: new Date(res.createdAt).getTime(),
+
+              dateTri: res.createdAt ? new Date(res.createdAt).getTime() : 0
+            });
+          }
+        });
+      });
+    });
+
+    // 5. TRI : LES PLUS RÉCENTS D'ABORD
+    return list.sort((a, b) => b.dateTri - a.dateTri);
+
+  }, [panneauxData, user?.email]);
+
+
+  // --- ÉTATS FILTRES ---
+  const [filters, setFilters] = useState({
+    type: '',
+    statut: '',
+    format: '',
+    pays: '',
+    province: '',
+    commune: '',
+    district: '', // <--- AJOUTE CETTE LIGNE
+
+  });
+
+  // --- HOOKS D'ANIMATION ---
   const { scrollYProgress, scrollY } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
-  const [panneauToEdit, setPanneauToEdit] = useState<any>(null);
-  // 3. ACTIONS
+
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    const previous = scrollY.getPrevious() ?? 0;
+    setHidden(latest > previous && latest > 150);
+  });
+
+  // --- ACTIONS ---
   const ouvrirLaCarte = () => {
     router.push('/dashboard/superviseurs/superviseur');
   };
 
   const handleLogout = () => {
     if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-      // 1. Appel de ta fonction du contexte
       logout();
-
-      // 2. Nettoyage supplémentaire par sécurité
       localStorage.clear();
       sessionStorage.clear();
-
-      // 3. Redirection propre
       router.push('/');
     }
   };
 
 
-  useMotionValueEvent(scrollY, "change", (latest) => {
-    const previous = scrollY.getPrevious() ?? 0;
-    setHidden(latest > previous && latest > 150);
-  });
-  // Remplace tes deux anciens useEffect par celui-ci :
 
 
-  useEffect(() => {
-    // 1. Définition de la référence à l'extérieur de la requête
-    const panelsRef = collection(db, "panneaux");
-    const q = query(panelsRef, orderBy("createdAt", "desc"));
 
-    // 2. Initialisation du snapshot avec gestion d'erreur détaillée
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const panelsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        }));
 
-        setPanneauxData(panelsData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Erreur de synchronisation Firestore :", error);
 
-        // Gestion intelligente des erreurs réseau
-        if (error.code === 'permission-denied') {
-          alert("Accès refusé : Vérifiez vos règles de sécurité Firestore.");
-        } else if (error.code === 'unavailable') {
-          alert("Connexion perdue : Firestore est momentanément indisponible.");
-        }
 
-        setLoading(false);
+
+  const handleDeleteReservation = async (res: any, panneauId: string): Promise<void> => {
+    // 1. Vérification critique
+    if (!panneauId) {
+      console.error("Erreur : panneauId est vide !");
+      alert("Impossible de supprimer : ID du panneau manquant.");
+      return;
+    }
+
+    if (!window.confirm("Confirmer la suppression de cette réservation ?")) return;
+
+    try {
+      // 2. Suppression image Cloudinary
+      if (res.photoCampagneUrl) {
+        await fetch('/api/delete-cloudinary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: res.photoCampagneUrl })
+        });
       }
+
+      // 3. Mise à jour Firestore (Structure imbriquée : faces -> reservations)
+      const panneauRef = doc(db, "panneaux", panneauId);
+      const panneauSnap = await getDoc(panneauRef);
+
+      if (!panneauSnap.exists()) throw new Error("Document introuvable.");
+
+      const data = panneauSnap.data();
+      const currentFaces = [...(data.faces || [])];
+
+      // On cible la face spécifique grâce à faceIndex qu'on a ajouté dans le filtrage
+      if (currentFaces[res.faceIndex]) {
+        const faceReservations = currentFaces[res.faceIndex].reservations || [];
+
+        // Filtrage par date de création (plus précis que dateModification)
+        currentFaces[res.faceIndex].reservations = faceReservations.filter(
+          (r: any) => r.createdAt !== res.createdAt
+        );
+
+        // Mise à jour du document avec le nouveau tableau de faces
+        await updateDoc(panneauRef, {
+          faces: currentFaces
+        });
+
+        alert("Suppression effectuée avec succès.");
+      } else {
+        throw new Error("Index de face invalide.");
+      }
+
+    } catch (err) {
+      console.error("Erreur critique :", err);
+      alert(`Erreur : ${err instanceof Error ? err.message : "Problème de connexion"}`);
+    }
+  };
+
+
+
+  const [statsTab, setStatsTab] = useState<'perf' | 'gestion'>('perf');
+  const [monthRange, setMonthRange] = useState(1);
+  // Gestion de l'onglet actif (Performance ou Gestion)
+  const [activeTab, setActiveTab] = useState<'stats' | 'reservations'>('stats');
+
+  // Filtres pour la partie Gestion
+  const [timeFilter, setTimeFilter] = useState<'avant' | 'present' | 'futur'>('present');
+  const [monthCount, setMonthCount] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<'tous' | 'en_cours' | 'en_attente' | 'expire'>('tous');
+
+  // 2. Calculer l'efficacité
+  const statsEfficacite = () => {
+    const totalAgent = reservationsEnAttente.length;
+
+    const totalGlobal = (panneauxData || []).reduce((acc: number, p: any) => {
+      const currentFaces = p.faces || [];
+      const countReservations = currentFaces.reduce((a: number, f: any) => {
+        // On ne compte que les réservations actives (non supprimées)
+        return a + (f.reservations ? f.reservations.length : 0);
+      }, 0);
+      return acc + countReservations;
+    }, 0);
+
+    // Éviter la division par zéro et NaN
+    const rawPerformance = totalGlobal > 0 ? (totalAgent / totalGlobal) * 100 : 0;
+
+    return {
+      totalAgent,
+      totalGlobal,
+      performance: rawPerformance.toFixed(1)
+    };
+  };
+
+
+  const getFilteredReservations = () => {
+    let allRes: any[] = [];
+
+    // 1. Extraction à plat depuis la structure imbriquée
+    panneauxData?.forEach((panneau: any) => {
+      panneau.faces?.forEach((face: any) => {
+        face.reservations?.forEach((res: any) => {
+          // Filtrage par agent (si applicable) et par statut
+          if (res.agentId === user.uid) {
+            allRes.push({
+              ...res,
+              faceId: face.faceId, // L'ID composé de la face
+              societe: res.societeLocatrice
+            });
+          }
+        });
+      });
+    });
+
+    // 2. Tri par date décroissante (Plus récent en premier)
+    return allRes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  };
+
+
+
+
+  const handlePhotoUpdate = async (e: React.ChangeEvent<HTMLInputElement>, resId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+
+      console.log("Photo mise à jour pour :", resId);
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour :", error);
+    }
+  };
+
+
+
+  // 1. Déclare l'état tout en haut de ton composant
+
+  // --- LOGIQUE DE FILTRAGE ---
+  const getCommunes = () => {
+    const { pays, province, district } = filters;
+
+    // 1. Vérification par étapes pour éviter "Cannot read property of undefined"
+    if (!pays || !GEOGRAPHIE[pays]) return [];
+    if (!province || !GEOGRAPHIE[pays][province]) return [];
+
+    const provinceData = GEOGRAPHIE[pays][province];
+
+    // 2. Si un district est sélectionné
+    if (district) {
+      const communesDuDistrict = provinceData[district];
+      // On vérifie que c'est bien un tableau avant de le renvoyer
+      return Array.isArray(communesDuDistrict) ? communesDuDistrict : [];
+    }
+
+    // 3. Si aucun district (on aplatit tout), on s'assure de ne récupérer que des tableaux
+    const allCommunes = Object.values(provinceData).flatMap(val =>
+      Array.isArray(val) ? val : []
     );
 
-    // 3. Nettoyage essentiel pour libérer la connexion (indispensable sur mobile)
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, []); // Dépendances vides : s'exécute uniquement au chargement
+    return [...new Set(allCommunes)];
+  };
 
 
-  // 5. LOGIQUE DE FILTRAGE
+
   const filtered = panneauxData.filter(p => {
+    const adr = p.adresse?.toUpperCase() || "";
     const term = searchTerm.toLowerCase();
+
     const matchesSearch = !term ||
       p.idPan?.toLowerCase().includes(term) ||
-      p.zone?.toLowerCase().includes(term);
+      adr.toLowerCase().includes(term);
 
-    const matchesZone = filters.zone === '' || p.zone === filters.zone;
-    const matchesFormat = filters.format === '' || (p.type === filters.format || p.format === filters.format);
+    const matchesPays = !filters.pays || adr.includes(filters.pays.toUpperCase());
+    const matchesProv = !filters.province || adr.includes(filters.province.toUpperCase());
+    const matchesCommune = !filters.commune || adr.includes(filters.commune.toUpperCase());
+    const matchesType = !filters.type || p.type === filters.type;
+
     const filterStatut = filters.statut?.toLowerCase();
-    const matchesStatut = !filterStatut || (
-      Array.isArray(p.faces) && p.faces.some((f: any) => f?.statut?.toLowerCase() === filterStatut)
+    const matchesStatut = !filters.statut || (
+      Array.isArray(p.faces) && p.faces.some((f: Face) =>
+        f?.statut?.toLowerCase() === filters.statut.toLowerCase()
+      )
     );
 
-    return matchesSearch && matchesZone && matchesFormat && matchesStatut;
+    return matchesSearch && matchesPays && matchesProv && matchesCommune && matchesType && matchesStatut;
   });
+  const totalFaces = filtered.reduce((acc, p) => acc + (p.faces?.length || 0), 0);
 
-  // 1. Initialiser l'état pour stocker les panneaux
-  const [panels, setPanels] = useState<any[]>([]);
-  // 2. Récupérer les données en temps réel pour avoir le "count" à jour
 
-  const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
+
+
+  // --- RENDU : LOADING ---
   if (loading) {
     return (
       <div className="h-screen bg-[#1e40af] flex flex-col items-center justify-center">
-        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1 }}>
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }}
+          transition={{ repeat: Infinity, duration: 1 }}
+        >
           <img src={logoUrl} className="w-20 h-20 rounded-2xl shadow-2xl shadow-[#d4af37]/20" alt="Loading" />
         </motion.div>
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen relative bg-[#1e40af] text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
@@ -536,52 +1032,10 @@ export default function UltimateSupervisor() {
                       <div className="w-2 h-2 rounded-full bg-[#d4af37] opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   ))}
-
-
-                </div>
-
-                <div className="space-y-6 pt-8 border-t border-white/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Filter size={14} className="text-[#d4af37]" />
-                    <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Filtres Intelligents</p>
-                  </div>
-                  <div className="grid gap-5">
-                    <select
-                      value={filters.zone}
-                      onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
-                      className="w-full bg-black/30 border border-white/10 rounded-2xl p-5 text-[11px] font-black text-white uppercase outline-none focus:border-[#d4af37] cursor-pointer appearance-none shadow-md"
-                    >
-                      <option value="" className="bg-[#1e40af]">Toutes les Communes</option>
-                      {Array.from(new Set(panneauxData.map(p => p.zone))).filter(Boolean).sort().map(z => (
-                        <option key={z} value={z} className="bg-[#1e40af]">{z}</option>
-                      ))}
-                    </select>
-                    <div className="flex gap-3">
-                      {['Libre', 'Occupé'].map(s => (
-                        <button
-                          key={s}
-                          onClick={() => setFilters({ ...filters, statut: filters.statut === s ? '' : s })}
-                          className={`flex-1 py-5 rounded-2xl text-[10px] font-black uppercase border-2 transition-all ${filters.statut === s
-                            ? 'bg-[#d4af37] text-black border-white shadow-[0_0_20px_rgba(212,175,55,0.4)] scale-[1.05]'
-                            : 'bg-black/20 border-white/10 text-white hover:border-white/40'
-                            }`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              <div className="p-10 bg-black/20 border-t border-white/20">
-                <button
-                  onClick={handleLogout}
-                  className="w-full py-6 bg-gradient-to-r from-red-600 to-red-500 hover:from-white hover:to-white hover:text-red-600 text-white rounded-[2rem] font-black uppercase text-[12px] tracking-[0.3em] shadow-[0_15px_30px_rgba(220,38,38,0.3)] transition-all flex items-center justify-center gap-4 active:scale-95"
-                >
-                  <LogOut size={20} /> Quitter la Session
-                </button>
-              </div>
+
             </motion.div>
           </>
         )}
@@ -590,67 +1044,611 @@ export default function UltimateSupervisor() {
       {/* MAIN CONTENT */}
       <main className="relative z-10 max-w-[1500px] mx-auto px-6 pt-44 pb-40">
         <header className="mb-20 relative">
-          {/* HALO DE FOND SUBTIL */}
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
 
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-            <div className="flex items-start gap-6">
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-10">
 
-              {/* INDICATEUR DE LIGNE ROUGE AFFINÉ */}
-              <div className="w-[3px] h-24 bg-gradient-to-b from-red-600 via-red-600/20 to-transparent shadow-[0_0_15px_#ef4444] rounded-full mt-2" />
-
-              <div className="space-y-4">
-                {/* TITRE RÉDUIT ET AJUSTÉ */}
-                <div className="space-y-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[8px] font-black text-red-500 uppercase tracking-[0.4em]">Network Status: Online</span>
-                    <div className="w-1 h-1 bg-red-600 rounded-full animate-ping" />
-                  </div>
-
+              {/* GAUCHE : TITRE ET STATS */}
+              <div className="flex items-start gap-6 flex-1">
+                <div className="w-[3px] h-24 bg-gradient-to-b from-red-600 to-transparent shadow-[0_0_15px_#ef4444] rounded-full mt-2" />
+                <div className="space-y-4">
                   <h1 className="text-4xl lg:text-6xl font-[1000] text-white tracking-tighter uppercase italic leading-[0.9]">
                     GESTION <br />
                     <span className="text-[#d4af37]">DIGITALE</span> <br />
-                    {/* AJOUT DU MOT PANNEAUX EN ROUGE ÉCLATANT */}
-                    <span className="text-red-600 text-3xl lg:text-5xl not-italic tracking-[0.2em] font-black drop-shadow-[0_0_10px_rgba(239,68,68,0.4)]">
-                      PANNEAUX
-                    </span>
+                    <span className="text-red-600 text-3xl lg:text-5xl not-italic tracking-[0.2em] font-black">PANNEAUX</span>
                   </h1>
-                </div>
 
-                {/* BADGE D'INVENTAIRE DASHBOARD STYLE */}
-                <div className="flex flex-wrap items-center gap-4 mt-6">
-                  <div className="flex items-center gap-4 bg-black/40 backdrop-blur-2xl px-6 py-4 rounded-3xl border border-white/10 hover:border-red-600/30 transition-all duration-500">
-
-                    <div className="relative p-2 bg-white/5 rounded-xl">
-                      <Globe size={16} className="text-[#d4af37]" />
-                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />
-                    </div>
-
+                  <div className="flex items-center gap-4 bg-black/40 backdrop-blur-2xl px-6 py-4 rounded-3xl border border-white/10 w-fit">
+                    <Globe size={16} className="text-[#d4af37]" />
                     <div className="flex flex-col">
-                      <span className="text-[7px] font-black text-zinc-500 uppercase tracking-widest">Database Sync</span>
                       <span className="text-lg font-black text-white italic">
-                        {filtered.reduce((acc, p) => acc + (p.faces?.length || 0), 0)}
-                        <span className="text-[9px] text-red-500 not-italic ml-2 tracking-widest uppercase">Faces Actives</span>
+                        {filtered.length} <span className="text-[9px] text-red-500 not-italic ml-1 uppercase">Unités Filtrées</span>
+                      </span>
+                      <span className="text-lg font-black text-white italic">
+                        {totalFaces} <span className="text-[9px] text-red-500 not-italic ml-1 uppercase">Faces Filtrées</span>
                       </span>
                     </div>
-
-                    {/* MICRO PANNEAUX HUD ROUGES */}
-                    <div className="flex gap-0.5 ml-2 border-l border-white/10 pl-4">
-                      <div className="w-1 h-3 bg-red-600 rounded-full animate-[bounce_2s_infinite]" />
-                      <div className="w-1 h-3 bg-red-600/30 rounded-full" />
-                    </div>
                   </div>
+                </div>
+              </div>
 
-                  {/* INDICATEUR DE RÉGIE ROUGE */}
-                  <div className="flex items-center gap-2 px-4 py-2 bg-red-600/10 border border-red-600/20 rounded-xl">
-                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full shadow-[0_0_5px_#ef4444]" />
-                    <span className="text-[8px] font-black text-red-500 uppercase tracking-widest italic">Régie Dispromalt</span>
-                  </div>
+              {/* DROITE : FILTRAGE HIÉRARCHIQUE AGRESSIF */}
+              <div className="w-full lg:w-[550px] space-y-4 bg-white/5 p-6 rounded-[2.5rem] border border-white/5 backdrop-blur-xl shadow-2xl">
+
+                {/* Barre de Recherche principale */}
+                <div className="relative group">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-[#d4af37]" size={18} />
+                  <input
+                    type="text"
+                    placeholder="RECHERCHER ID, AVENUE, RÉFÉRENCE..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-4 pl-14 pr-6 text-[11px] font-black uppercase outline-none focus:border-red-600/40 text-white transition-all"
+                  />
+                </div>
+
+                {/* Grille des Sélecteurs Dynamiques */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                  {/* 1. Sélection PAYS */}
+                  <select
+                    value={filters.pays}
+                    onChange={(e) => setFilters({ ...filters, pays: e.target.value, province: '', district: '', commune: '' })}
+                    className="bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37]"
+                  >
+                    <option value="">Tous les Pays</option>
+                    {Object.keys(GEOGRAPHIE).map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+
+                  {/* 2. Sélection PROVINCE */}
+                  <select
+                    disabled={!filters.pays}
+                    value={filters.province}
+                    onChange={(e) => setFilters({ ...filters, province: e.target.value, district: '', commune: '' })}
+                    className={`bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37] ${!filters.pays && 'opacity-30'}`}
+                  >
+                    <option value="">Provinces / Villes</option>
+                    {filters.pays && Object.keys(GEOGRAPHIE[filters.pays]).map(pr => (
+                      <option key={pr} value={pr}>{pr}</option>
+                    ))}
+                  </select>
+
+                  {/* 3. Sélection DISTRICT (NOUVEAU) */}
+                  <select
+                    disabled={!filters.province}
+                    value={filters.district}
+                    onChange={(e) => setFilters({ ...filters, district: e.target.value, commune: '' })}
+                    className={`bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37] ${!filters.province && 'opacity-30'}`}
+                  >
+                    <option value="">Tous les Districts</option>
+                    {filters.pays && filters.province && GEOGRAPHIE[filters.pays][filters.province] &&
+                      Object.keys(GEOGRAPHIE[filters.pays][filters.province]).map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                  </select>
+
+                  {/* 4. Sélection COMMUNE */}
+                  <select
+                    disabled={!filters.district}
+                    value={filters.commune}
+                    onChange={(e) => setFilters({ ...filters, commune: e.target.value })}
+                    className={`bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37] ${!filters.district && 'opacity-30'}`}
+                  >
+                    <option value="">Toutes les Communes</option>
+                    {/* On force la conversion en tableau au cas où */}
+                    {Array.isArray(getCommunes()) && getCommunes().map((c, index) => (
+                      <option key={`${c}-${index}`} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* 5. Sélection TYPE */}
+                  <select
+                    value={filters.type}
+                    onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+                    className="bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37] sm:col-span-2"
+                  >
+                    <option value="">Tous les Types</option>
+                    {Array.from(new Set(panneauxData.map(p => p.type))).filter(Boolean).map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  {['Libre', 'Occupé', 'Maintenance', 'Réservé'].map(s => {
+                    // Couleurs dynamiques selon le bouton
+                    const colorClass =
+                      s === 'Libre' ? 'bg-green-600' :
+                        s === 'Occupé' ? 'bg-blue-600' :
+                          s === 'Maintenance' ? 'bg-red-600' :
+                            'bg-orange-600';
+
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setFilters({ ...filters, statut: filters.statut === s ? '' : s })}
+                        className={`py-3 rounded-xl text-[9px] font-[1000] uppercase border-2 transition-all ${filters.statut === s
+                          ? `${colorClass} text-white border-white shadow-lg scale-[1.02]`
+                          : 'bg-black/40 border-white/10 text-white hover:border-white/30'
+                          }`}
+                      >
+                        {s}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           </motion.div>
+          {/* BOUTONS D'OUVERTURE DANS LE HEADER */}
+          <div className="flex gap-3 px-6 pb-4 mt-8">
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="flex-1 bg-white/5 border border-white/10 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-[#d4af37]/10 transition-colors"
+            >
+              <FilePieChart size={18} className="text-[#d4af37]" />
+              <span className="text-[10px] font-bold uppercase">Proformas ({reservationsEnAttente.length})</span>
+            </button>
+
+            <button
+              onClick={() => setIsStatsOpen(true)} // Nouvel état à créer
+              className="flex-1 bg-white/5 border border-white/10 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-500/10 transition-colors"
+            >
+              <LayoutDashboard size={18} className="text-blue-400" />
+              <span className="text-[10px] font-bold uppercase">Ma Performance</span>
+            </button>
+          </div>
+
+
+
+          <AnimatePresence>
+            {isCartOpen && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  onClick={() => setIsCartOpen(false)}
+                  className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
+                />
+                <motion.div
+                  initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+                  className="fixed right-0 top-0 h-full w-full max-w-[400px] bg-[#0f0f0f] border-l border-white/10 z-[101] p-6 shadow-2xl flex flex-col"
+                >
+                  <div className="flex justify-between items-center mb-8">
+                    <div>
+                      <h2 className="text-xl font-black uppercase text-white">Mes <span className="text-[#d4af37]">Réservations</span></h2>
+                      <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">En attente de facturation</p>
+                    </div>
+                    <button onClick={() => setIsCartOpen(false)} className="p-2 bg-white/5 rounded-full text-white hover:bg-red-500 transition-colors">✕</button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                    {reservationsEnAttente.map((res: any, index: number) => {
+                      // SOURCE DE VÉRITÉ : On utilise l'ID unique généré dans le useMemo
+                      const key = res.resUniqueId;
+
+                      const unitPrice = prices[key] || 0;
+                      const isTranche = paymentModes[key] === 'tranche';
+                      const isSelected = selectedForPrint[key] || false;
+                      const numeroOrdre = index + 1;
+
+                      // On garde ta logique de sécurité pour la clé de rendu React
+                      const uniqueKey = key || `temp-${index}`;
+                      const currentPanneauId = res.panneauId || res.idPan;
+
+                      return (
+                        <motion.div
+                          key={uniqueKey}
+                          className={`p-5 rounded-[2rem] border transition-all ${isSelected ? 'bg-[#d4af37]/10 border-[#d4af37]' : 'bg-white/5 border-white/10'
+                            }`}
+                        >
+                          {/* HEADER DE LA CARTE */}
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <span className="text-[10px] font-black text-[#d4af37] block uppercase">
+                                Réservation N° {numeroOrdre}
+                              </span>
+                              <span className="text-[11px] text-white font-bold block">
+                                Face : {res.faceLabel}
+                              </span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
+                              className="w-5 h-5 accent-[#d4af37] cursor-pointer"
+                            />
+                          </div>
+
+                          <h4 className="text-white text-sm font-black uppercase mb-4 truncate">
+                            {res.societeLocatrice}
+                          </h4>
+
+                          {/* SECTION PRIX ET CALCULS */}
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <label className="text-[8px] text-white/40 uppercase font-bold block mb-1">Prix/Mois</label>
+                              <input
+                                type="number"
+                                value={unitPrice === 0 ? "" : unitPrice}
+                                onFocus={(e) => e.target.select()}
+                                onPointerDown={(e) => e.stopPropagation()} // Empêche le conflit avec le scroll de la modale
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const numericVal = val === "" ? 0 : Number(val);
+                                  // Mise à jour propre par fonction de rappel pour éviter les collisions
+                                  setPrices(prev => ({ ...prev, [key]: numericVal }));
+                                }}
+                                placeholder="0"
+                                className="w-full bg-transparent border-b border-white/20 text-white font-bold outline-none focus:border-[#d4af37]"
+                              />
+                            </div>
+                            <div className="text-right">
+                              <label className="text-[8px] text-white/40 uppercase font-bold block mb-1">
+                                Total ({res.dureeMois} mois)
+                              </label>
+                              <span className="text-[#d4af37] font-black">
+                                {(unitPrice * res.dureeMois).toLocaleString()} $
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* SECTION DYNAMIQUE DES TRANCHES */}
+                          {isTranche && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              className="mb-4 p-3 bg-[#d4af37]/5 border border-[#d4af37]/20 rounded-xl space-y-2"
+                            >
+                              <div className="flex items-center justify-between">
+                                <label className="text-[8px] text-white/40 uppercase font-bold">Nombre de tranches</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={res.dureeMois}
+                                  value={tranchesCount[key] || ""}
+                                  placeholder="Ex: 2"
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  onChange={(e) => {
+                                    const valStr = e.target.value;
+                                    if (valStr === "") {
+                                      setTranchesCount(prev => ({ ...prev, [key]: "" }));
+                                      return;
+                                    }
+                                    const val = parseInt(valStr);
+                                    const limitedVal = isNaN(val) ? "" : Math.max(1, Math.min(res.dureeMois, val));
+                                    setTranchesCount(prev => ({ ...prev, [key]: limitedVal }));
+                                  }}
+                                  className="w-16 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-[11px] font-black outline-none focus:border-[#d4af37]"
+                                />
+                              </div>
+
+                              <div className="pt-2 border-t border-white/5">
+                                <p className="text-[10px] text-white/80 font-medium">
+                                  Soit <span className="text-[#d4af37] font-black">
+                                    {tranchesCount[key] > 0
+                                      ? ((unitPrice * res.dureeMois) / Number(tranchesCount[key])).toLocaleString()
+                                      : 0} $
+                                  </span> par tranche
+                                </p>
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {/* SÉLECTEUR DE MODE DE PAIEMENT */}
+                          <div className="flex bg-black/40 p-1 rounded-xl mb-4 border border-white/5">
+                            <button
+                              onClick={() => setPaymentModes(prev => ({ ...prev, [key]: 'total' }))}
+                              className={`flex-1 py-2 text-[9px] font-black uppercase rounded-lg transition-all ${!isTranche ? 'bg-[#d4af37] text-black' : 'text-white/40'
+                                }`}
+                            >
+                              Globale
+                            </button>
+                            <button
+                              onClick={() => setPaymentModes(prev => ({ ...prev, [key]: 'tranche' }))}
+                              className={`flex-1 py-2 text-[9px] font-black uppercase rounded-lg transition-all ${isTranche ? 'bg-[#d4af37] text-black' : 'text-white/40'
+                                }`}
+                            >
+                              Tranche
+                            </button>
+                          </div>
+
+                          {/* BOUTONS D'ACTION */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => processOperations('unique', res, index)}
+                              className="flex-[3] py-2.5 bg-white text-black text-[9px] font-black uppercase rounded-xl hover:bg-[#d4af37] transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <path d="M20 6 9 17l-5-5" />
+                              </svg>
+                              Valider
+                            </button>
+
+                            <button
+                              onClick={() => processOperations('delete', res, index)}
+                              className="flex-1 py-2.5 bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-95"
+                              title="Supprimer"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                              </svg>
+                            </button>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ACTIONS CENTRALISÉES EN BAS */}
+                  <div className="pt-6 space-y-3 mt-auto border-t border-white/10">
+
+                    {/* Bouton de sélection (Action principale) */}
+                    <button
+                      disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
+                      onClick={() => processOperations('selection')}
+                      className="w-full bg-[#d4af37] disabled:opacity-30 text-black py-4 rounded-2xl font-black uppercase text-xs flex justify-between px-6 items-center hover:scale-[1.01] transition-transform shadow-lg shadow-[#d4af37]/10"
+                    >
+                      <span>Facturer la sélection</span>
+                      <span className="bg-black/10 px-2 py-1 rounded">
+                        {Object.values(selectedForPrint).filter(v => v).length} Face(s)
+                      </span>
+                    </button>
+
+                    {/* LIGNE DES DEUX BOUTONS (Impression Globale & Fermer) */}
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => processOperations('selection')} // Ici on peut adapter pour tout imprimer
+                        className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-white py-3 rounded-xl font-black uppercase text-[9px] hover:bg-white hover:text-black transition-all"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                        Global
+                      </button>
+
+                      <button
+                        onClick={() => setIsCartOpen(false)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/20 text-red-500 py-3 rounded-xl font-black uppercase text-[9px] hover:bg-red-500 hover:text-white transition-all"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                        Fermer
+                      </button>
+                    </div>
+
+                    {/* INFOS AGENT EN BAS */}
+                    <div className="pt-2 border-t border-white/5 text-center">
+                      <p className="text-[9px] text-white font-black uppercase tracking-widest">{user?.nomComplet || "Agent Kin-Geo"}</p>
+                      <p className="text-[8px] text-white/30 font-medium">{user?.email}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+
+
+          <AnimatePresence>
+            {isStatsOpen && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  onClick={() => setIsStatsOpen(false)}
+                  className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100]"
+                />
+                <motion.div
+                  initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+                  className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-[#0a0a0a] border-l border-white/10 z-[101] flex flex-col shadow-2xl"
+                >
+                  {/* HEADER */}
+                  <div className="p-6 border-b border-white/5 flex justify-between items-center">
+                    <div>
+                      <h2 className="text-xl font-black uppercase text-white leading-none">
+                        Panel <span className="text-blue-500">Agent</span>
+                      </h2>
+                      <p className="text-[10px] text-white/30 uppercase mt-1 font-bold">Performance & Suivi</p>
+                    </div>
+                    <button onClick={() => setIsStatsOpen(false)} className="p-2 bg-white/5 rounded-full text-white hover:bg-red-500 transition-colors">✕</button>
+                  </div>
+
+                  {/* CONTENU SCROLLABLE */}
+                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
+
+                    {activeTab === 'stats' ? (
+                      <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
+                        {/* CERCLE DE PERFORMANCE EXISTANT */}
+                        <div className="flex flex-col items-center py-4">
+                          <div className="relative w-40 h-40 flex items-center justify-center">
+                            <svg className="w-full h-full -rotate-90">
+                              <circle cx="80" cy="80" r="70" fill="none" stroke="currentColor" strokeWidth="8" className="text-white/5" />
+                              <circle cx="80" cy="80" r="70" fill="none" stroke="currentColor" strokeWidth="8" strokeDasharray="440"
+                                strokeDashoffset={440 - (440 * Number(statsEfficacite().performance)) / 100}
+                                className="text-blue-500 transition-all duration-1000"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-3xl font-black text-white">{statsEfficacite().performance}%</span>
+                              <span className="text-[8px] text-white/40 uppercase font-bold tracking-tighter">Efficacité</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* STATS RAPIDES */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-white/5 p-4 rounded-[2rem] border border-white/5">
+                            <p className="text-xl font-black text-white">{statsEfficacite().totalAgent}</p>
+                            <p className="text-[8px] uppercase text-white/30 font-bold">Mes Actions</p>
+                          </div>
+                          <div className="bg-white/5 p-4 rounded-[2rem] border border-white/5">
+                            <p className="text-xl font-black text-white">{statsEfficacite().totalGlobal}</p>
+                            <p className="text-[8px] uppercase text-white/30 font-bold">Global Agence</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        {/* FILTRES TEMPORELS & STATUT */}
+                        <div className="space-y-4">
+                          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1">
+                            {['avant', 'present', 'futur'].map((t) => (
+                              <button
+                                key={t}
+                                onClick={() => setTimeFilter(t as any)}
+                                className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${timeFilter === t ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
+                              >
+                                {t}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            {timeFilter !== 'present' && (
+                              <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-xl border border-white/5">
+                                <span className="text-[8px] text-white/40 font-black uppercase">Mois :</span>
+                                <input type="number" value={monthCount} onChange={(e) => setMonthCount(Math.max(1, parseInt(e.target.value)))} className="w-8 bg-transparent text-right font-black text-blue-500 outline-none text-xs" />
+                              </div>
+                            )}
+                            <select
+                              value={statusFilter}
+                              onChange={(e) => setStatusFilter(e.target.value as any)}
+                              className="flex-1 bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-[9px] font-black uppercase text-white outline-none focus:border-blue-500/50 transition-all"
+                            >
+                              <option value="tous" className="bg-[#0a0a0a]">Tous les statuts</option>
+                              <option value="Occupé" className="bg-[#0a0a0a]">Occupé (En cours)</option>
+                              <option value="Reservé" className="bg-[#0a0a0a]">Réservé (En attente)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* LISTE COMPACTE DES RÉSERVATIONS */}
+                        <div className="space-y-2">
+                          {getFilteredReservations().map((res, idx) => (
+                            <motion.div
+                              key={idx}
+                              className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-2xl hover:border-blue-500/30 transition-all group"
+                            >
+                              {/* PHOTO MINIATURE AVEC INPUT OVERLAY */}
+                              <div className="relative h-10 w-10 shrink-0 rounded-lg overflow-hidden bg-black border border-white/10 group">
+                                <img src={res.photoCampagneUrl} className="w-full h-full object-cover" alt="" />
+
+                                {/* Overlay Update (existant) */}
+                                <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                                  <input type="file" className="hidden" onChange={(e) => handlePhotoUpdate(e, res.id)} />
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                                    <circle cx="12" cy="13" r="4" />
+                                  </svg>
+                                </label>
+
+                                {/* Bouton Suppression Direct */}
+
+                              </div>
+
+                              {/* INFOS GRID COMPACT */}
+                              {/* INFOS GRID COMPACT */}
+                              <div className="flex-1 min-w-0 grid grid-cols-2 items-center gap-2">
+                                <div>
+                                  <p className="text-[8px] font-black text-blue-500 truncate uppercase">{res.faceId}</p>
+                                  <p className="text-[10px] text-white font-bold truncate uppercase leading-tight">{res.societeLocatrice}</p>
+                                </div>
+
+                                {/* COLONNE DE DROITE : Dates + Corbeille */}
+                                <div className="text-right flex flex-col items-end gap-1">
+                                  <div className="flex flex-col">
+                                    <p className="text-[8px] text-white/50 font-bold">{res.dateDebut}</p>
+                                    <p className="text-[7px] text-white/20 uppercase">au {res.dateFin}</p>
+                                  </div>
+
+                                  {/* BOUTON CORBEILLE */}
+                                  <button
+                                    type="button"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={() => handleDeleteReservation(res, res.panelDocId)}
+                                    className="p-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-lg transition-colors"
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="3 6 5 6 21 6"></polyline>
+                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* BOTTOM PANEL (FIXED) */}
+                  <div className="p-6 bg-black border-t border-white/10 space-y-6">
+                    {/* IDENTITÉ + SWITCHER */}
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-600 to-blue-400 flex items-center justify-center text-black font-black uppercase text-sm shadow-lg">
+                          {user?.displayName?.[0] || "A"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-white uppercase truncate">{user?.nomComplet || "Agent Kin-Geo"}</p>
+                          <p className="text-[9px] text-white/30 truncate font-medium">{user?.email}</p>
+                        </div>
+                      </div>
+
+                      {/* LE COMMUTATEUR (SWITCH) JUSTE APRÈS L'IDENTITÉ */}
+                      <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
+                        <button
+                          onClick={() => setActiveTab('stats')}
+                          className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'stats' ? 'bg-blue-500 text-white shadow-lg' : 'text-white/40'}`}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 20V10M18 20V4M6 20v-4" /></svg>
+                          Stats
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('reservations')}
+                          className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'reservations' ? 'bg-blue-500 text-white shadow-lg' : 'text-white/40'}`}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg>
+                          Gestion
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setIsStatsOpen(false)}
+                      className="w-full py-4 bg-white/5 border border-white/10 text-white hover:bg-red-500 hover:text-white transition-all rounded-2xl font-black uppercase text-[10px] tracking-[0.2em]"
+                    >
+                      Fermer le panel
+                    </button>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         </header>
+
+
         {/* GRILLE DES PANNEAUX */}
         <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           <AnimatePresence mode="popLayout">
@@ -684,56 +1682,6 @@ export default function UltimateSupervisor() {
         )}
       </main>
 
-      {/* PANIER FLOTTANT */}
-      <AnimatePresence>
-        {selected.length > 0 && (
-          <motion.div
-            initial={{ y: 150, x: '-50%', opacity: 0 }}
-            animate={{ y: 0, x: '-50%', opacity: 1 }}
-            exit={{ y: 150, x: '-50%', opacity: 0 }}
-            className="fixed bottom-10 left-1/2 w-[90%] max-w-xl z-[200]"
-          >
-            <div className="bg-[#d4af37] p-[2px] rounded-[3rem] shadow-2xl shadow-[#d4af37]/30">
-              <div className="bg-[#1e40af] rounded-[2.9rem] p-4 flex items-center justify-between">
-                <div className="flex items-center gap-5 ml-6">
-                  <div className="bg-[#d4af37] p-3 rounded-full text-black">
-                    <Zap size={20} fill="currentColor" />
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black uppercase text-[#d4af37] tracking-widest">Sélection active</p>
-                    <p className="text-2xl font-black italic leading-none text-white">{selected.length} Face{selected.length > 1 ? 's' : ''}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setSelected([])} className="px-5 text-[10px] font-black uppercase text-zinc-200/60 hover:text-white transition-colors">
-                    Vider
-                  </button>
-                  <button
-                    onClick={() => setIsCartOpen(true)}
-                    className="bg-[#d4af37] text-black px-8 py-4 rounded-full text-[11px] font-black uppercase tracking-[0.15em] hover:bg-white hover:scale-105 transition-all shadow-xl active:scale-95 flex items-center gap-2"
-                  >
-                    Planifier
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-
-
-      {/* MODALS */}
-      <AnimatePresence>
-        {isCartOpen && (
-          <CartModall
-            isOpen={isCartOpen}
-            onClose={() => setIsCartOpen(false)}
-            selectedIds={selected}
-            panneauxData={panneauxData}
-          />
-        )}
-      </AnimatePresence>
 
       <EditPanneauModal
         isOpen={!!panneauToEdit}
@@ -747,150 +1695,197 @@ export default function UltimateSupervisor() {
 
 
 
+import { MinusCircle, Calendar, History, Activity, ShieldCheck, } from 'lucide-react';
+
 const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected, ouvrirLaCarte }: any) => {
   if (!isOpen || !face) return null;
 
   const isLibre = face.statut?.toLowerCase() === 'libre';
   const selectionKey = `${panneau.id}_${face.id}`;
 
-  const metrics = [
-    { label: "Visibilité", value: face.visibilite || 85, color: "bg-blue-400" },
-    { label: "Exposition", value: face.exposition || 70, color: "bg-blue-300" },
-    { label: "Mobimétrie", value: face.mobimetrie || 92, color: "bg-[#d4af37]" },
-    { label: "Audience Est.", value: face.audience || 65, color: "bg-sky-400" },
-  ];
+  const reservations = (face.reservations || [])
+    .sort((a: any, b: any) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
-      onClick={onClose} // CLIC SUR LE FOND NOIR = FERMETURE
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        onClick={(e) => e.stopPropagation()} // CLIC SUR LA MODALE = NE FERME PAS
-        className="bg-[#1e40af] border border-white/10 w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl cursor-default relative"
-      >
-        {/* IMAGE + BOUTON CROIX RENFORCÉ */}
-        <div className="relative aspect-video">
-          <img
-            src={face.photoCampagneUrl || "https://via.placeholder.com/800x600"}
-            className="w-full h-full object-cover"
-            alt={`Panneau ${panneau.idPan}`}
-          />
-
-        </div>
-
-        {/* BOUTON FERMER (X) DYNAMIQUE */}
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 md:top-10 md:right-10 z-[100] p-3 rounded-2xl bg-black/20 border border-white/10 text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/50 transition-all duration-300 group"
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[250] flex items-center justify-center sm:p-6 bg-black/40 backdrop-blur-md" onClick={onClose}>
+        <motion.div
+          initial={{ opacity: 0, y: 100, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 100, scale: 0.9 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-slate-950/80 border border-white/20 w-full max-w-5xl h-full sm:h-auto sm:max-h-[85vh] sm:rounded-[3rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col md:flex-row backdrop-saturate-150"
         >
-          <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-        </button>
+          {/* --- SECTION GAUCHE : VISUEL IMMERSIF --- */}
+          <div className="relative w-full md:w-[45%] h-[40vh] md:h-auto group">
+            <img
+              src={face.photoCampagneUrl || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg"}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              alt="Visual"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
 
+            {/* Badge Status Flottant */}
+            <div className="absolute top-6 left-6">
+              <motion.div
+                initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-2xl backdrop-blur-xl border ${isLibre ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-rose-500/20 border-rose-500/50 text-rose-400'}`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest">{isLibre ? 'Disponible' : 'Occupé'}</span>
+              </motion.div>
+            </div>
 
-
-        <div className="p-8 space-y-6">
-          {/* HEADER INFO */}
-          <div className="flex justify-between items-end">
-            <div>
-              <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter text-white">
-                ID: {panneau.idPan}
+            <div className="absolute bottom-8 left-8 right-8">
+              <h2 className="text-5xl font-black text-white italic tracking-tighter mb-2 drop-shadow-lg">
+                {panneau.idPan}
               </h2>
-              <p className="text-[#d4af37] font-bold text-sm uppercase tracking-widest">
-                Face: {face.id} — {panneau.zone}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-4xl font-black text-white">{face.prix || 0} $</span>
-              <p className="text-white/50 text-[10px] uppercase font-bold">Prix Mensuel HT</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-            {/* STATISTIQUES */}
-            <div className="space-y-4">
-              <h3 className="text-white text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-white/80">Performance</h3>
-              {metrics.map((m, i) => (
-                <div key={i} className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold uppercase text-white/70">
-                    <span>{m.label}</span>
-                    <span>{m.value}%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-black/20 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${m.value}%` }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      className={`h-full ${m.color}`}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* FICHE TECHNIQUE */}
-            <div className="bg-black/10 rounded-3xl p-6 space-y-3 border border-white/5 shadow-inner">
-              <h3 className="text-[#d4af37] text-[10px] font-black uppercase tracking-[0.2em] mb-2">Fiche Technique</h3>
-              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
-                <span className="text-white/50">Format</span>
-                <span className="text-white">{panneau.format || '12m²'}</span>
-              </div>
-              <div className="flex justify-between border-b border-white/5 pb-2 text-[10px] font-bold uppercase">
-                <span className="text-white/50">Type</span>
-                <span className="text-white">{panneau.type || 'Standard'}</span>
-              </div>
-              <div className="flex justify-between text-[10px] font-bold uppercase">
-                <span className="text-white/50">Sens Trafic</span>
-                <span className="text-white">{face.sens || 'N/A'}</span>
-              </div>
-              <div className="mt-4 p-2 bg-[#d4af37]/20 rounded-lg text-center">
-                <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${isLibre ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                  {face.statut || 'Inconnu'}
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-white/10 text-white text-[10px] font-bold px-3 py-1 rounded-lg border border-white/10 uppercase tracking-tighter italic">
+                  {panneau.format}
+                </span>
+                <span className="bg-[#d4af37] text-black text-[10px] font-black px-3 py-1 rounded-lg uppercase italic">
+                  {face.sens}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* ACTIONS */}
-          <div className="grid grid-cols-2 gap-4 pt-4">
-            <button
-              type="button"
-              className="flex items-center justify-center gap-3 py-4 rounded-2xl border border-[#d4af37] bg-[#d4af37]/10 text-[#d4af37] text-[10px] font-black uppercase tracking-widest hover:bg-[#d4af37] hover:text-black transition-all cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                ouvrirLaCarte();
-                onClose();
-              }}
-            >
-              <MapPin size={16} /> Voir sur la carte
-            </button>
+          {/* --- SECTION DROITE : DATA & TRAÇABILITÉ --- */}
+          <div className="w-full md:w-[55%] flex flex-col bg-slate-900/50">
+            {/* Header Fixe */}
+            <div className="p-8 pb-4 flex justify-between items-start">
+              <div>
+                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-[0.4em] mb-1">Localisation Stratégique</p>
+                <h3 className="text-white text-xl font-bold uppercase">{panneau.adresse}</h3>
+              </div>
+              <button onClick={onClose} className="p-3 bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 rounded-2xl transition-all border border-white/5">
+                <X size={20} />
+              </button>
+            </div>
 
-            <button
-              type="button"
-              disabled={!isLibre}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(selectionKey);
-              }}
-              className={`flex items-center justify-center gap-3 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${!isLibre
-                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50'
-                : isSelected
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-[#d4af37] text-black hover:bg-white hover:scale-[1.02] shadow-[#d4af37]/20 cursor-pointer active:scale-95'
-                }`}
-            >
-              {isSelected ? <X size={16} /> : <PlusCircle size={16} />}
-              {isSelected ? 'Retirer' : 'Ajouter'}
-            </button>
+            {/* Zone Scrollable */}
+            <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-8 custom-scrollbar">
+
+              {/* Grid Performance Rapide */}
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { icon: <Zap size={14} />, label: "Visibilité", val: face.visibilite || 90 },
+                  { icon: <Activity size={14} />, label: "Trafic", val: face.mobimetrie || 85 },
+                  { icon: <ShieldCheck size={14} />, label: "Score", val: 98 },
+                ].map((m, i) => (
+                  <div key={i} className="bg-white/5 border border-white/10 p-3 rounded-2xl text-center">
+                    <div className="flex justify-center text-[#d4af37] mb-1">{m.icon}</div>
+                    <p className="text-[14px] font-black text-white italic">{m.val}%</p>
+                    <p className="text-[8px] font-bold text-white/40 uppercase">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* TIMELINE DE TRAÇABILITÉ */}
+              <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={16} className="text-[#d4af37]" />
+                    <h4 className="text-white text-[11px] font-black uppercase tracking-widest">Chronologie des Occupations</h4>
+                  </div>
+                  <span className="text-[9px] text-white/30 font-bold uppercase italic">Flux en temps réel</span>
+                </div>
+              
+                <div className="relative border-l-2 border-white/5 ml-3 pl-8 space-y-8">
+                  {reservations.length > 0 ? (
+                    reservations.map((res: any, i: number) => (
+                      <motion.div 
+                        initial={{ opacity: 0, x: 20 }} 
+                        whileInView={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        key={i} 
+                        className="relative group"
+                      >
+                        {/* Indicateur de position sur la ligne */}
+                        <div className="absolute -left-[41px] top-1 w-5 h-5 rounded-full bg-[#0f172a] border-2 border-[#d4af37] shadow-[0_0_10px_rgba(212,175,55,0.3)] group-hover:scale-125 transition-transform z-10" />
+                        
+                        <div className="bg-white/5 border border-white/10 p-5 rounded-[2rem] group-hover:bg-white/10 group-hover:border-white/20 transition-all duration-300 shadow-xl">
+                          {/* Header de la réservation */}
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-tighter mb-1">
+                                Client: {res.societeLocatrice || 'Client Inconnu'}
+                              </p>
+                              <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full w-fit">
+                                <User size={10} className="text-blue-400" />
+                                <span className="text-[9px] font-black text-blue-300 uppercase italic">
+                                  Agent: {res.agentNom || 'Système Automatique'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-[8px] font-black px-3 py-1 rounded-lg uppercase border ${res.facturee === 'oui' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
+                                {res.facturee === 'oui' ? 'Facturé' : 'En attente'}
+                              </span>
+                            </div>
+                          </div>
+              
+                          {/* Dates de réservation */}
+                          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/5">
+                            <div className="flex flex-col">
+                              <span className="text-[8px] text-white/30 uppercase font-bold">Début diffusion</span>
+                              <span className="text-xs text-white font-black italic">{res.dateDebut}</span>
+                            </div>
+                            <div className="flex flex-col border-l border-white/5 pl-4">
+                              <span className="text-[8px] text-white/30 uppercase font-bold">Fin diffusion</span>
+                              <span className="text-xs text-white font-black italic">{res.dateFin}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="py-12 text-center bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/10">
+                      <History size={30} className="mx-auto mb-3 text-white/10" />
+                      <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Aucun historique disponible</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+              
+              {/* FOOTER ACTIONS FIXÉ EN BAS SUR MOBILE */}
+              <div className="flex gap-4 pt-4 sticky bottom-0 bg-slate-900/10 backdrop-blur-lg pb-2">
+                <button
+                  onClick={() => { ouvrirLaCarte(); onClose(); }}
+                  className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all"
+                >
+                  <MapPin size={20} />
+                </button>
+
+                <button
+                  disabled={!isLibre && !isSelected}
+                  onClick={() => onSelect(selectionKey)}
+                  className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-2xl ${isSelected
+                      ? 'bg-rose-500 text-white shadow-rose-500/20'
+                      : isLibre
+                        ? 'bg-[#d4af37] text-black hover:bg-white shadow-[#d4af37]/20'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    }`}
+                >
+                  {isSelected ? <MinusCircle size={18} /> : <PlusCircle size={18} />}
+                  {isSelected ? 'Retirer l\'unité' : isLibre ? 'Réserver la face' : 'Indisponible'}
+                </button>
+              </div>
+
+            </div>
           </div>
-        </div>
-      </motion.div>
-    </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
   );
 };
+
+
+
+
+
 
 
 interface CartModalProps {
@@ -900,191 +1895,6 @@ interface CartModalProps {
   panneauxData: any[];
 }
 
-const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: CartModalProps) => {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!isOpen) return null;
-
-  // 1. Préparation des données
-  const selectedFaces = (selectedIds || [])
-    .map((fullId: string) => {
-      const [panId, faceId] = fullId.split('_');
-      const panneau = panneauxData?.find((p: any) => p.id === panId);
-      const face = panneau?.faces?.find((f: any) => f.id?.toString() === faceId.toString());
-
-      if (!panneau || !face) return null;
-
-      const loc = [panneau.zone, panneau.adresse].filter(Boolean).join(" — ");
-
-      let rawPrix = face.prix;
-      if (typeof rawPrix === 'string') {
-        rawPrix = rawPrix.replace(/[^\d.-]/g, '');
-      }
-      const prixNumerique = parseFloat(rawPrix) || 0;
-
-      return {
-        idPan: panneau.idPan || 'N/A',
-        faceId: faceId,
-        adresse: loc || 'Localisation non spécifiée',
-        prix: prixNumerique
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null);
-
-  const totalPrix = selectedFaces.reduce((acc, curr) => acc + curr.prix, 0);
-
-  // 2. Génération du PDF avec les nouvelles couleurs (Bleu Roi Profond #1e40af)
-  const generatePDF = () => {
-    try {
-      const doc = new jsPDF();
-      const date = new Date().toLocaleDateString('fr-FR');
-      const documentNumber = `GDP-${Math.floor(10000 + Math.random() * 90000)}`;
-
-      // Header PDF : Bleu Roi Profond #1e40af (RGB: 30, 64, 175)
-      doc.setFillColor(30, 64, 175);
-      doc.rect(0, 0, 210, 40, 'F');
-
-      doc.setTextColor(212, 175, 55); // Doré #d4af37
-      doc.setFontSize(22);
-      doc.setFont("helvetica", "bold");
-      doc.text("GDP - DEVIS OFFICIEL", 15, 20);
-
-      doc.setFontSize(10);
-      doc.setTextColor(255, 255, 255);
-      doc.text(`DATE : ${date}`, 150, 15);
-      doc.text(`RÉFÉRENCE : ${documentNumber}`, 150, 22);
-
-      const tableRows = selectedFaces.map(item => [
-        `${item.idPan} (Face ${item.faceId})`,
-        item.adresse,
-        `${item.prix.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} $`
-      ]);
-
-      autoTable(doc, {
-        startY: 50,
-        head: [['RÉFÉRENCE', 'LOCALISATION', 'TARIF MENSUEL (HT)']],
-        body: tableRows,
-        theme: 'grid',
-        headStyles: { fillColor: [30, 64, 175], textColor: [212, 175, 55] },
-        styles: { fontSize: 9 },
-        foot: [[
-          { content: 'TOTAL GÉNÉRAL', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
-          { content: `${totalPrix.toLocaleString('fr-FR')} $ USD`, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }
-        ]]
-      });
-
-      doc.save(`GDP_DEVIS_${documentNumber}.pdf`);
-    } catch (err) {
-      console.error("PDF Generation Error:", err);
-      alert("Erreur lors de la création du PDF.");
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl cursor-pointer"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-[#1e40af] border border-white/20 w-full max-w-4xl rounded-[3rem] overflow-hidden flex flex-col shadow-2xl cursor-default"
-      >
-        {/* Header Modale */}
-        <div className="p-8 border-b border-white/10 flex justify-between items-center bg-black/[0.1]">
-          <div>
-            <h2 className="text-3xl font-black italic text-white uppercase tracking-tighter">
-              Votre <span className="text-[#d4af37]">Panier</span>
-            </h2>
-            <p className="text-[10px] text-white/60 font-bold uppercase tracking-widest mt-1">
-              {selectedFaces.length} face(s) prête(s) pour votre campagne
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-3 bg-white/10 text-white hover:bg-red-500 transition-all rounded-full cursor-pointer shadow-lg"
-          >
-            <X size={24} />
-          </button>
-        </div>
-
-        {/* Liste défilante */}
-        <div className="flex-1 overflow-y-auto max-h-[50vh] p-8 custom-scrollbar">
-          {selectedFaces.length > 0 ? (
-            <table className="w-full text-left border-separate border-spacing-y-3">
-              <thead>
-                <tr className="text-white/40 text-[10px] uppercase tracking-[0.2em]">
-                  <th className="px-6 pb-2 font-black">Identification</th>
-                  <th className="px-6 pb-2 font-black">Zone & Détails</th>
-                  <th className="px-6 pb-2 text-right font-black">Prix HT</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedFaces.map((item, i) => (
-                  <tr key={i} className="bg-black/20 hover:bg-black/30 transition-colors group rounded-2xl">
-                    <td className="p-6 rounded-l-2xl border-l-4 border-[#d4af37]">
-                      <div className="font-black text-white text-sm">ID: {item.idPan}</div>
-                      <div className="text-[#d4af37] text-[10px] font-black uppercase">Face {item.faceId}</div>
-                    </td>
-                    <td className="p-6">
-                      <p className="text-white/80 text-xs font-medium leading-relaxed max-w-xs italic">{item.adresse}</p>
-                    </td>
-                    <td className="p-6 rounded-r-2xl text-right">
-                      <span className="font-black text-white text-xl">
-                        {item.prix.toLocaleString('fr-FR')} $
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-20 opacity-30 text-white">
-              <FileText size={64} strokeWidth={1} className="mb-4" />
-              <p className="text-sm font-black uppercase tracking-widest">Le panier est vide</p>
-            </div>
-          )}
-        </div>
-
-        {/* Footer avec Total et Actions */}
-        <div className="p-10 bg-black/30 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex flex-col items-center md:items-start">
-            <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.3em]">Total estimé mensuel</span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black text-[#d4af37] italic drop-shadow-lg">
-                {mounted ? totalPrix.toLocaleString('fr-FR') : "0"}
-              </span>
-              <span className="text-xl font-bold text-[#d4af37]">$</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-            <button
-              onClick={onClose}
-              className="px-8 py-5 rounded-2xl border border-white/20 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
-            >
-              Modifier
-            </button>
-            <button
-              onClick={generatePDF}
-              disabled={selectedFaces.length === 0}
-              className="px-12 py-5 bg-[#d4af37] text-black rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-[#d4af37]/20 hover:bg-white hover:scale-[1.05] active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
-            >
-              <FileText size={18} />
-              Générer le Devis PDF
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
 
 
 
@@ -1134,8 +1944,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   };
 
   const canEditFace = (face: any) => {
-  return true; 
-};
+    return true;
+  };
 
   const getReservationWarning = (face: any) => {
     // Si la face est verrouillée par un autre, on retourne le message
@@ -1284,10 +2094,34 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       return;
     }
 
-    // 2. Vérification PRÉALABLE des données obligatoires
-    const isInvalid = formData.faces.some((f: any) =>
-      (f.statut !== "Libre" && (!f.dateDebut || !f.dateFin || !f.clientNom))
-    );
+
+
+
+
+    // --- CORRECTION DU BLOC 2 ---
+
+    // On ne valide que les faces où l'utilisateur a commencé à saisir quelque chose
+    const isInvalid = formData.faces.some((f: any) => {
+      // Une face doit être validée UNIQUEMENT si elle est occupée 
+      // ET qu'elle n'est pas déjà enregistrée (pour ne pas bloquer les anciennes)
+      const aCommenceSaisie = f.dateDebut || f.dateFin || f.clientNom;
+      const estOccupée = f.statut !== "Libre";
+
+      if (estOccupée && aCommenceSaisie) {
+        // Si on a commencé, alors TOUT doit être rempli
+        return !f.dateDebut || !f.dateFin || !f.clientNom;
+      }
+      return false;
+    });
+
+    if (isInvalid) {
+      alert("Veuillez remplir les dates et le nom du client pour la face que vous modifiez.");
+      return;
+    }
+
+
+
+
     if (isInvalid) {
       alert("Veuillez remplir les dates et le nom du client pour toutes les faces occupées.");
       return;
@@ -1347,42 +2181,59 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         }
 
         // 4. Construction des données de mise à jour (STRUCTURE EXACTE)
+        // --- DANS TON handleSave, AU NIVEAU DU MAP ---
+
         const dataToUpdate = {
           faces: formData.faces.map((f: any, i: number) => {
+            // 1. On récupère la face d'origine (avant modification) pour comparer
+            const faceOriginale = panneau.faces[i];
+
+            // 2. CONDITION CRUCIALE : On ne crée une réservation QUE SI :
+            // - Le statut n'est pas Libre
+            // - ET que les dates ou le client ont changé par rapport à l'original
+            const aEteModifiee =
+              f.dateDebut !== faceOriginale?.dateDebut ||
+              f.clientNom !== faceOriginale?.societeLocatrice ||
+              f.dateFin !== faceOriginale?.dateFin;
+
             const isOccupied = f.statut !== "Libre";
-            const finalPhotoUrl = (f.photoCampagneUrl && !f.photoCampagneUrl.startsWith('blob:'))
-              ? f.photoCampagneUrl : (f.photoCampagneUrl || LOGO_DISPROMALT);
 
-            // Création de la nouvelle réservation selon ton schéma
-            const newRes = isOccupied ? {
-              agentEmail: user?.email || "non-specifie@mail.com",
-              agentNom: user?.nomComplet || user?.displayName || "Agent",
-              dateDebut: f.dateDebut || "",
-              dateFin: f.dateFin || "",
-              dateModification: isoNow,
-              photoCampagneUrl: finalPhotoUrl,
-              societeLocatrice: f.clientNom || "Inconnu",
-              statut: f.statut
-            } : null;
+            // 3. Logique de création de la nouvelle réservation
+            let nouvellesReservations = f.reservations || [];
 
-            // Logique de l'historique : On peut y pousser les anciennes réservations si nécessaire
-            // Ici, on garde ta structure demandée
-            const historiqueActuel = f.historique || [];
+            if (isOccupied && aEteModifiee) {
+              const finalPhotoUrl = (f.photoCampagneUrl && !f.photoCampagneUrl.startsWith('blob:'))
+                ? f.photoCampagneUrl : (f.photoCampagneUrl || LOGO_DISPROMALT);
+
+              const newRes = {
+                agentEmail: user?.email || "agent@dispromalt.cd",
+                agentNom: user?.nomComplet || "Agent",
+                dateDebut: f.dateDebut || "",
+                dateFin: f.dateFin || "",
+                validationComptable: false,
+                facturee: "non",
+                statutPaiement: "en attente",
+                modePaiement: "globale",
+                createdAt: isoNow,
+                dateModification: isoNow,
+                photoCampagneUrl: finalPhotoUrl || "",
+                societeLocatrice: f.clientNom || "Inconnu",
+                statut: f.statut || "Occupé"
+              };
+
+              // ON AJOUTE la nouvelle réservation seulement si elle est nouvelle
+              nouvellesReservations = [...nouvellesReservations, newRes];
+            }
 
             return {
-              // STRUCTURE DE LA FACE
-              sens: f.sens || f.orientation || `Face ${String.fromCharCode(65 + i)}`,
-
-              // RESERVATIONS : On ajoute la nouvelle réservation au tableau existant
-              reservations: newRes ? [...(f.reservations || []), newRes] : (f.reservations || []),
-
-              // HISTORIQUE : Stockage des réservations selon ton schéma
-              historique: historiqueActuel
+              sens: f.sens || faceOriginale?.sens || `Face ${i + 1}`,
+              // On rend le tableau mis à jour (avec la nouvelle res) ou l'ancien (si pas de modif)
+              reservations: nouvellesReservations,
+              historique: f.historique || []
             };
           }),
           updatedAt: serverTimestamp()
         };
-
         transaction.update(docRef, dataToUpdate);
       });
 
@@ -1395,25 +2246,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       setIsSaving(false);
     }
   };
-
-
-
-  // Vérifie si une des faces présente un message d'erreur ou de verrouillage
-  const hasBlockingError = formData.faces.some((face: any, idx: number) => {
-    const warning = getReservationWarning(face);
-    const dateConflict = conflitMessages[idx];
-    return warning !== null || dateConflict !== null;
-  });
-
-  // Vérifie si des données obligatoires manquent
-  const isMissingData = formData.faces.some((f: any) =>
-    (f.statut !== "Libre" && (!f.dateDebut || !f.dateFin || !f.clientNom))
-  );
-
-
-
-
-
 
 
   return (
@@ -1615,26 +2447,26 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           </button>
 
           <button
-  onClick={handleSave}
-  disabled={isButtonDisabled}
-  className={`flex items-center gap-3 px-12 py-4 rounded-full font-black uppercase text-[10px] transition-all shadow-xl
-    ${isSaving 
-      ? "bg-gray-500 cursor-not-allowed" 
-      : "bg-[#d4af37] text-black hover:scale-105 active:scale-95"
-    }`}
->
-  {isSaving ? (
-    <>
-      <Loader2 className="animate-spin" size={16} />
-      <span>Enregistrement...</span>
-    </>
-  ) : (
-    <>
-      <Save size={16} />
-      <span>Enregistrer les modifications</span>
-    </>
-  )}
-</button>
+            onClick={handleSave}
+            disabled={isButtonDisabled}
+            className={`flex items-center gap-3 px-12 py-4 rounded-full font-black uppercase text-[10px] transition-all shadow-xl
+    ${isSaving
+                ? "bg-gray-500 cursor-not-allowed"
+                : "bg-[#d4af37] text-black hover:scale-105 active:scale-95"
+              }`}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="animate-spin" size={16} />
+                <span>Enregistrement...</span>
+              </>
+            ) : (
+              <>
+                <Save size={16} />
+                <span>Enregistrer les modifications</span>
+              </>
+            )}
+          </button>
         </div>
       </motion.div>
     </div>
