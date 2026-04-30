@@ -734,29 +734,40 @@ export default function UltimateSupervisor() {
 
 
   const getFilteredReservations = () => {
-    let allRes: any[] = [];
+    const allRes: any[] = [];
 
-    // 1. Extraction à plat depuis la structure imbriquée
     panneauxData?.forEach((panneau: any) => {
-      panneau.faces?.forEach((face: any) => {
-        face.reservations?.forEach((res: any) => {
-          // Filtrage par agent (si applicable) et par statut
-          if (res.agentId === user.uid) {
-            allRes.push({
-              ...res,
-              faceId: face.faceId, // L'ID composé de la face
-              societe: res.societeLocatrice
-            });
-          }
-        });
+      // On récupère l'identifiant du panneau (ex: "B")
+      const idPan = panneau.idPan || "N/A";
+
+      panneau.faces?.forEach((face: any, index: number) => {
+        if (Array.isArray(face.reservations)) {
+          face.reservations.forEach((res: any) => {
+
+            const isMine = res.agentEmail === user?.email;
+            const isFacturee = res.facturee === "oui" || res.facturee === true;
+            const isValide = res.validationComptable === "oui" || res.validationComptable === true;
+
+            if (isMine && isFacturee && isValide) {
+              allRes.push({
+                ...res,
+                // Construction dynamique : idPan + "-" + index (ex: B-0, B-1...)
+                // Si vous voulez commencer à 1 au lieu de 0, utilisez (index + 1)
+                faceId: `${idPan}-${index}`,
+                societe: res.societeLocatrice
+              });
+            }
+          });
+        }
       });
     });
 
-    // 2. Tri par date décroissante (Plus récent en premier)
-    return allRes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return allRes.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
   };
-
-
 
 
   const handlePhotoUpdate = async (e: React.ChangeEvent<HTMLInputElement>, resId: string) => {
@@ -802,28 +813,40 @@ export default function UltimateSupervisor() {
 
 
 
-  const filtered = panneauxData.filter(p => {
-    const adr = p.adresse?.toUpperCase() || "";
-    const term = searchTerm.toLowerCase();
+ const filtered = panneauxData.filter(p => {
+  // 1. RECHERCHE UNIQUEMENT PAR IDPAN
+  const term = searchTerm.toLowerCase().trim();
+  const matchesSearch = !term || p.idPan?.toLowerCase().includes(term);
 
-    const matchesSearch = !term ||
-      p.idPan?.toLowerCase().includes(term) ||
-      adr.toLowerCase().includes(term);
+  // 2. LOGIQUE DE STATUT DYNAMIQUE (DATE DU JOUR)
+  const now = new Date();
+  now.setHours(0, 0, 0, 0); // On se base sur le jour J à minuit
 
-    const matchesPays = !filters.pays || adr.includes(filters.pays.toUpperCase());
-    const matchesProv = !filters.province || adr.includes(filters.province.toUpperCase());
-    const matchesCommune = !filters.commune || adr.includes(filters.commune.toUpperCase());
-    const matchesType = !filters.type || p.type === filters.type;
+  // On vérifie le statut réel pour le filtre "matchesStatut"
+  const hasActiveReservation = p.faces?.some((f: any) => 
+    f.reservations?.some((r: any) => {
+      const debut = new Date(r.dateDebut);
+      const fin = new Date(r.dateFin);
+      // Une réservation est active si aujourd'hui est entre début et fin
+      return now >= debut && now <= fin;
+    })
+  );
 
-    const filterStatut = filters.statut?.toLowerCase();
-    const matchesStatut = !filters.statut || (
-      Array.isArray(p.faces) && p.faces.some((f: Face) =>
-        f?.statut?.toLowerCase() === filters.statut.toLowerCase()
-      )
-    );
+  // Détermination du statut textuel pour la comparaison
+  const currentRealStatut = hasActiveReservation ? "occupé" : "libre";
+  
+  const filterStatut = filters.statut?.toLowerCase();
+  const matchesStatut = !filters.statut || filterStatut === "tous" || currentRealStatut === filterStatut;
 
-    return matchesSearch && matchesPays && matchesProv && matchesCommune && matchesType && matchesStatut;
-  });
+  // 3. AUTRES FILTRES (Type, Commune, etc.)
+  const matchesType = !filters.type || p.type === filters.type;
+  const adr = p.adresse?.toUpperCase() || "";
+  const matchesCommune = !filters.commune || adr.includes(filters.commune.toUpperCase());
+
+  return matchesSearch && matchesStatut && matchesType && matchesCommune;
+});
+
+
   const totalFaces = filtered.reduce((acc, p) => acc + (p.faces?.length || 0), 0);
 
 
@@ -1695,6 +1718,10 @@ export default function UltimateSupervisor() {
 
 
 
+
+
+
+
 import { MinusCircle, Calendar, History, Activity, ShieldCheck, } from 'lucide-react';
 
 const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected, ouvrirLaCarte }: any) => {
@@ -1708,68 +1735,75 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[250] flex items-center justify-center sm:p-6 bg-black/40 backdrop-blur-md" onClick={onClose}>
+      <div className="fixed inset-0 z-[250] flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-md" onClick={onClose}>
         <motion.div
-          initial={{ opacity: 0, y: 100, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 100, scale: 0.9 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          initial={{ opacity: 0, y: "100%" }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: "100%" }}
+          transition={{ type: "spring", damping: 30, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-slate-950/80 border border-white/20 w-full max-w-5xl h-full sm:h-auto sm:max-h-[85vh] sm:rounded-[3rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col md:flex-row backdrop-saturate-150"
+          // h-full sur mobile pour utiliser tout l'écran, h-auto sur PC
+          className="bg-slate-950 border-t sm:border border-white/20 w-full max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:rounded-[3rem] overflow-hidden flex flex-col md:flex-row"
         >
-          {/* --- SECTION GAUCHE : VISUEL IMMERSIF --- */}
-          <div className="relative w-full md:w-[45%] h-[40vh] md:h-auto group">
+          {/* --- SECTION IMAGE (HAUT sur mobile / GAUCHE sur PC) --- */}
+          <div className="relative w-full md:w-[42%] h-[35vh] md:h-auto shrink-0 group">
             <img
               src={face.photoCampagneUrl || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg"}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="w-full h-full object-cover"
               alt="Visual"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/20" />
 
-            {/* Badge Status Flottant */}
-            <div className="absolute top-6 left-6">
-              <motion.div
-                initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-2xl backdrop-blur-xl border ${isLibre ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-rose-500/20 border-rose-500/50 text-rose-400'}`}
-              >
+            {/* Close button mobile uniquement (en haut à droite de l'image) */}
+            <button onClick={onClose} className="md:hidden absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-lg rounded-full text-white">
+              <X size={24} />
+            </button>
+
+            {/* Badge Status */}
+            <div className="absolute top-4 left-4 md:top-8 md:left-8">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border ${isLibre ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-rose-500/20 border-rose-500/50 text-rose-400'}`}>
                 <div className={`w-2 h-2 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                 <span className="text-[10px] font-black uppercase tracking-widest">{isLibre ? 'Disponible' : 'Occupé'}</span>
-              </motion.div>
+              </div>
             </div>
 
-            <div className="absolute bottom-8 left-8 right-8">
-              <h2 className="text-5xl font-black text-white italic tracking-tighter mb-2 drop-shadow-lg">
+            <div className="absolute bottom-6 left-6 right-6">
+              <h2 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter drop-shadow-2xl">
                 {panneau.idPan}
               </h2>
-              <div className="flex flex-wrap gap-2">
-                <span className="bg-white/10 text-white text-[10px] font-bold px-3 py-1 rounded-lg border border-white/10 uppercase tracking-tighter italic">
-                  {panneau.format}
-                </span>
-                <span className="bg-[#d4af37] text-black text-[10px] font-black px-3 py-1 rounded-lg uppercase italic">
+              <div className="flex gap-2 mt-2">
+                <span className="bg-[#d4af37] text-black text-[9px] font-black px-2 py-1 rounded-md uppercase italic">
                   {face.sens}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* --- SECTION DROITE : DATA & TRAÇABILITÉ --- */}
-          <div className="w-full md:w-[55%] flex flex-col bg-slate-900/50">
-            {/* Header Fixe */}
-            <div className="p-8 pb-4 flex justify-between items-start">
+          {/* --- SECTION CONTENU (BAS sur mobile / DROITE sur PC) --- */}
+          <div className="flex-1 flex flex-col min-h-0 bg-slate-900/50 overflow-hidden">
+
+            {/* Header Fixe (Desktop) */}
+            <div className="hidden md:flex p-8 pb-4 justify-between items-start">
               <div>
-                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-[0.4em] mb-1">Localisation Stratégique</p>
+                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-[0.4em] mb-1">Traçabilité</p>
                 <h3 className="text-white text-xl font-bold uppercase">{panneau.adresse}</h3>
               </div>
-              <button onClick={onClose} className="p-3 bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 rounded-2xl transition-all border border-white/5">
+              <button onClick={onClose} className="p-3 bg-white/5 hover:bg-rose-500/20 rounded-2xl transition-all border border-white/5 text-white">
                 <X size={20} />
               </button>
             </div>
 
-            {/* Zone Scrollable */}
-            <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-8 custom-scrollbar">
+            {/* ZONE SCROLLABLE (Optimisée tactile) */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 scroll-smooth">
 
-              {/* Grid Performance Rapide */}
-              <div className="grid grid-cols-3 gap-4">
+              {/* Adresse Mobile uniquement */}
+              <div className="md:hidden space-y-1">
+                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-widest">Localisation</p>
+                <h3 className="text-white text-lg font-bold leading-tight">{panneau.adresse}</h3>
+              </div>
+
+              {/* Grid Performance (Adaptative) */}
+              <div className="grid grid-cols-3 gap-3">
                 {[
                   { icon: <Zap size={14} />, label: "Visibilité", val: face.visibilite || 90 },
                   { icon: <Activity size={14} />, label: "Trafic", val: face.mobimetrie || 85 },
@@ -1777,112 +1811,70 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                 ].map((m, i) => (
                   <div key={i} className="bg-white/5 border border-white/10 p-3 rounded-2xl text-center">
                     <div className="flex justify-center text-[#d4af37] mb-1">{m.icon}</div>
-                    <p className="text-[14px] font-black text-white italic">{m.val}%</p>
-                    <p className="text-[8px] font-bold text-white/40 uppercase">{m.label}</p>
+                    <p className="text-[12px] md:text-[14px] font-black text-white">{m.val}%</p>
+                    <p className="text-[7px] md:text-[8px] font-bold text-white/40 uppercase">{m.label}</p>
                   </div>
                 ))}
               </div>
 
-              {/* TIMELINE DE TRAÇABILITÉ */}
-              <section className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-[#d4af37]" />
-                    <h4 className="text-white text-[11px] font-black uppercase tracking-widest">Chronologie des Occupations</h4>
-                  </div>
-                  <span className="text-[9px] text-white/30 font-bold uppercase italic">Flux en temps réel</span>
+              {/* Timeline Chronologique */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-[#d4af37]" />
+                  <h4 className="text-white text-[11px] font-black uppercase tracking-widest">Chronologie</h4>
                 </div>
-              
-                <div className="relative border-l-2 border-white/5 ml-3 pl-8 space-y-8">
+
+                <div className="relative border-l-2 border-white/5 ml-2 pl-6 space-y-6">
                   {reservations.length > 0 ? (
                     reservations.map((res: any, i: number) => (
-                      <motion.div 
-                        initial={{ opacity: 0, x: 20 }} 
-                        whileInView={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                        key={i} 
-                        className="relative group"
-                      >
-                        {/* Indicateur de position sur la ligne */}
-                        <div className="absolute -left-[41px] top-1 w-5 h-5 rounded-full bg-[#0f172a] border-2 border-[#d4af37] shadow-[0_0_10px_rgba(212,175,55,0.3)] group-hover:scale-125 transition-transform z-10" />
-                        
-                        <div className="bg-white/5 border border-white/10 p-5 rounded-[2rem] group-hover:bg-white/10 group-hover:border-white/20 transition-all duration-300 shadow-xl">
-                          {/* Header de la réservation */}
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-tighter mb-1">
-                                Client: {res.societeLocatrice || 'Client Inconnu'}
-                              </p>
-                              <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full w-fit">
-                                <User size={10} className="text-blue-400" />
-                                <span className="text-[9px] font-black text-blue-300 uppercase italic">
-                                  Agent: {res.agentNom || 'Système Automatique'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className={`text-[8px] font-black px-3 py-1 rounded-lg uppercase border ${res.facturee === 'oui' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
-                                {res.facturee === 'oui' ? 'Facturé' : 'En attente'}
-                              </span>
-                            </div>
-                          </div>
-              
-                          {/* Dates de réservation */}
-                          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/5">
-                            <div className="flex flex-col">
-                              <span className="text-[8px] text-white/30 uppercase font-bold">Début diffusion</span>
-                              <span className="text-xs text-white font-black italic">{res.dateDebut}</span>
-                            </div>
-                            <div className="flex flex-col border-l border-white/5 pl-4">
-                              <span className="text-[8px] text-white/30 uppercase font-bold">Fin diffusion</span>
-                              <span className="text-xs text-white font-black italic">{res.dateFin}</span>
-                            </div>
+                      <div key={i} className="relative">
+                        <div className="absolute -left-[33px] top-1 w-4 h-4 rounded-full bg-slate-950 border-2 border-[#d4af37]" />
+                        <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
+                          <p className="text-[#d4af37] text-[10px] font-black uppercase truncate">{res.societeLocatrice}</p>
+                          <p className="text-[9px] text-white/40 italic mb-2">Agent: {res.agentNom}</p>
+                          <div className="flex justify-between text-[10px] text-white font-bold pt-2 border-t border-white/5">
+                            <span>Du {res.dateDebut}</span>
+                            <span>Au {res.dateFin}</span>
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     ))
                   ) : (
-                    <div className="py-12 text-center bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/10">
-                      <History size={30} className="mx-auto mb-3 text-white/10" />
-                      <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Aucun historique disponible</p>
-                    </div>
+                    <p className="text-[10px] text-white/20 italic">Aucun historique...</p>
                   )}
                 </div>
               </section>
-              
-              {/* FOOTER ACTIONS FIXÉ EN BAS SUR MOBILE */}
-              <div className="flex gap-4 pt-4 sticky bottom-0 bg-slate-900/10 backdrop-blur-lg pb-2">
-                <button
-                  onClick={() => { ouvrirLaCarte(); onClose(); }}
-                  className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all"
-                >
-                  <MapPin size={20} />
-                </button>
 
-                <button
-                  disabled={!isLibre && !isSelected}
-                  onClick={() => onSelect(selectionKey)}
-                  className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-2xl ${isSelected
-                      ? 'bg-rose-500 text-white shadow-rose-500/20'
-                      : isLibre
-                        ? 'bg-[#d4af37] text-black hover:bg-white shadow-[#d4af37]/20'
-                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                    }`}
-                >
-                  {isSelected ? <MinusCircle size={18} /> : <PlusCircle size={18} />}
-                  {isSelected ? 'Retirer l\'unité' : isLibre ? 'Réserver la face' : 'Indisponible'}
-                </button>
-              </div>
-
+              {/* Espace vide pour ne pas être caché par les boutons fixes sur mobile */}
+              <div className="h-24 md:h-0" />
             </div>
+
+            {/* --- ACTIONS FIXES EN BAS (Très important pour Mobile) --- */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 bg-gradient-to-t from-slate-950 via-slate-950 to-transparent flex gap-3">
+              <button
+                onClick={() => { ouvrirLaCarte(); onClose(); }}
+                className="w-14 h-14 shrink-0 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all"
+              >
+                <MapPin size={24} />
+              </button>
+
+              <button
+                disabled={!isLibre && !isSelected}
+                onClick={() => onSelect(selectionKey)}
+                className={`flex-1 h-14 rounded-2xl font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 transition-all ${isSelected ? 'bg-rose-600 text-white' : isLibre ? 'bg-[#d4af37] text-black' : 'bg-slate-800 text-slate-500'
+                  }`}
+              >
+                {isSelected ? <MinusCircle size={20} /> : <PlusCircle size={20} />}
+                {isSelected ? 'Retirer' : isLibre ? 'Réserver la face' : 'Indisponible'}
+              </button>
+            </div>
+
           </div>
         </motion.div>
       </div>
     </AnimatePresence>
   );
 };
-
-
 
 
 
