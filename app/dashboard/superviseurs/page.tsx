@@ -813,38 +813,38 @@ export default function UltimateSupervisor() {
 
 
 
- const filtered = panneauxData.filter(p => {
-  // 1. RECHERCHE UNIQUEMENT PAR IDPAN
-  const term = searchTerm.toLowerCase().trim();
-  const matchesSearch = !term || p.idPan?.toLowerCase().includes(term);
+  const filtered = panneauxData.filter(p => {
+    // 1. RECHERCHE UNIQUEMENT PAR IDPAN
+    const term = searchTerm.toLowerCase().trim();
+    const matchesSearch = !term || p.idPan?.toLowerCase().includes(term);
 
-  // 2. LOGIQUE DE STATUT DYNAMIQUE (DATE DU JOUR)
-  const now = new Date();
-  now.setHours(0, 0, 0, 0); // On se base sur le jour J à minuit
+    // 2. LOGIQUE DE STATUT DYNAMIQUE (DATE DU JOUR)
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // On se base sur le jour J à minuit
 
-  // On vérifie le statut réel pour le filtre "matchesStatut"
-  const hasActiveReservation = p.faces?.some((f: any) => 
-    f.reservations?.some((r: any) => {
-      const debut = new Date(r.dateDebut);
-      const fin = new Date(r.dateFin);
-      // Une réservation est active si aujourd'hui est entre début et fin
-      return now >= debut && now <= fin;
-    })
-  );
+    // On vérifie le statut réel pour le filtre "matchesStatut"
+    const hasActiveReservation = p.faces?.some((f: any) =>
+      f.reservations?.some((r: any) => {
+        const debut = new Date(r.dateDebut);
+        const fin = new Date(r.dateFin);
+        // Une réservation est active si aujourd'hui est entre début et fin
+        return now >= debut && now <= fin;
+      })
+    );
 
-  // Détermination du statut textuel pour la comparaison
-  const currentRealStatut = hasActiveReservation ? "occupé" : "libre";
-  
-  const filterStatut = filters.statut?.toLowerCase();
-  const matchesStatut = !filters.statut || filterStatut === "tous" || currentRealStatut === filterStatut;
+    // Détermination du statut textuel pour la comparaison
+    const currentRealStatut = hasActiveReservation ? "occupé" : "libre";
 
-  // 3. AUTRES FILTRES (Type, Commune, etc.)
-  const matchesType = !filters.type || p.type === filters.type;
-  const adr = p.adresse?.toUpperCase() || "";
-  const matchesCommune = !filters.commune || adr.includes(filters.commune.toUpperCase());
+    const filterStatut = filters.statut?.toLowerCase();
+    const matchesStatut = !filters.statut || filterStatut === "tous" || currentRealStatut === filterStatut;
 
-  return matchesSearch && matchesStatut && matchesType && matchesCommune;
-});
+    // 3. AUTRES FILTRES (Type, Commune, etc.)
+    const matchesType = !filters.type || p.type === filters.type;
+    const adr = p.adresse?.toUpperCase() || "";
+    const matchesCommune = !filters.commune || adr.includes(filters.commune.toUpperCase());
+
+    return matchesSearch && matchesStatut && matchesType && matchesCommune;
+  });
 
 
   const totalFaces = filtered.reduce((acc, p) => acc + (p.faces?.length || 0), 0);
@@ -1818,33 +1818,144 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
               </div>
 
               {/* Timeline Chronologique */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-[#d4af37]" />
-                  <h4 className="text-white text-[11px] font-black uppercase tracking-widest">Chronologie</h4>
+              <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-[#d4af37]/10 rounded-lg">
+                      <Calendar size={18} className="text-[#d4af37]" />
+                    </div>
+                    <div>
+                      <h4 className="text-white text-[12px] font-black uppercase tracking-widest">Chronologie</h4>
+                      <p className="text-[9px] text-white/30 uppercase font-bold">Historique des campagnes</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-white/20 bg-white/5 px-3 py-1 rounded-full">
+                    {reservations.length} Entrées
+                  </span>
                 </div>
 
-                <div className="relative border-l-2 border-white/5 ml-2 pl-6 space-y-6">
+                <div className="relative border-l-2 border-white/5 ml-4 pl-8 space-y-8">
                   {reservations.length > 0 ? (
-                    reservations.map((res: any, i: number) => (
-                      <div key={i} className="relative">
-                        <div className="absolute -left-[33px] top-1 w-4 h-4 rounded-full bg-slate-950 border-2 border-[#d4af37]" />
-                        <div className="bg-white/5 border border-white/10 p-4 rounded-2xl">
-                          <p className="text-[#d4af37] text-[10px] font-black uppercase truncate">{res.societeLocatrice}</p>
-                          <p className="text-[9px] text-white/40 italic mb-2">Agent: {res.agentNom}</p>
-                          <div className="flex justify-between text-[10px] text-white font-bold pt-2 border-t border-white/5">
-                            <span>Du {res.dateDebut}</span>
-                            <span>Au {res.dateFin}</span>
+                    reservations.map((res: any, i: number) => {
+                      // --- LOGIQUE DE TEMPS ---
+                      const now = new Date();
+                      now.setHours(0, 0, 0, 0);
+                      const debut = new Date(res.dateDebut);
+                      const fin = new Date(res.dateFin);
+
+                      // Calcul d'urgence (3 jours avant la fin)
+                      const joursRestants = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                      const isNearEnd = joursRestants <= 3 && joursRestants >= 0;
+                      const isExpired = now > fin;
+
+                      // --- CALCUL DE PROGRESSION ---
+                      const totalDuree = fin.getTime() - debut.getTime();
+                      const ecoule = now.getTime() - debut.getTime();
+                      const progressPercent = Math.min(Math.max((ecoule / totalDuree) * 100, 0), 100);
+
+                      // --- COULEURS DYNAMIQUES ---
+                      let statusLabel = "En attente";
+                      let statusStyle = "text-blue-400 bg-blue-400/10 border-blue-400/20";
+
+                      if (isExpired) {
+                        statusLabel = "Terminée";
+                        statusStyle = "text-white/40 bg-white/5 border-white/10";
+                      } else if (isNearEnd) {
+                        statusLabel = "Expire Bientôt";
+                        statusStyle = "text-orange-500 bg-orange-500/10 border-orange-500/40 animate-pulse";
+                      } else if (now >= debut && now <= fin) {
+                        statusLabel = "Actuelle";
+                        statusStyle = "text-green-400 bg-green-400/10 border-green-400/20";
+                      }
+
+                      return (
+                        <div key={i} className="relative group">
+                          {/* Point sur la ligne de temps */}
+                          <div className={`absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-slate-950 border-2 flex items-center justify-center transition-all duration-500 
+            ${isNearEnd ? 'border-orange-500' : (now >= debut && now <= fin ? 'border-green-400 shadow-[0_0_10px_rgba(74,222,128,0.5)]' : 'border-white/10')}`}>
+                            <div className={`w-2 h-2 rounded-full ${isNearEnd ? 'bg-orange-500 pulse' : (now >= debut && now <= fin ? 'bg-green-400 animate-pulse' : 'bg-white/20')}`} />
+                          </div>
+
+                          <div className={`bg-gradient-to-br from-white/[0.07] to-transparent border p-5 rounded-3xl transition-all duration-300 shadow-xl 
+            ${isNearEnd ? 'border-orange-500/50 shadow-orange-500/5' : 'border-white/10 hover:border-white/20'}`}>
+
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="max-w-[70%]">
+                                <p className="text-[#d4af37] text-[11px] font-black uppercase tracking-tight mb-1">{res.societeLocatrice}</p>
+                                {isNearEnd && (
+                                  <p className="text-orange-500 text-[8px] font-black uppercase flex items-center gap-1">
+                                    <span className="animate-bounce">⚠️</span> Fin de campagne dans {joursRestants} jour{joursRestants > 1 ? 's' : ''}
+                                  </p>
+                                )}
+                                <span className="text-[9px] text-white/40 font-bold uppercase italic">Agent: {res.agentNom}</span>
+                              </div>
+
+                              <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md border ${statusStyle}`}>
+                                {statusLabel}
+                              </span>
+                            </div>
+
+                            {/* Barre de progression intelligente */}
+                            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mb-4">
+                              <div
+                                className={`h-full transition-all duration-1000 ${isExpired ? 'bg-white/10' : (isNearEnd ? 'bg-orange-500' : 'bg-[#d4af37]')}`}
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                              <div className="flex gap-4">
+                                <div className="flex flex-col">
+                                  <span className="text-[7px] text-white/30 uppercase font-black">Début</span>
+                                  <span className="text-[10px] text-white font-bold tracking-tighter">{res.dateDebut}</span>
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-[7px] text-white/30 uppercase font-black">Fin</span>
+                                  <span className={`text-[10px] font-bold tracking-tighter ${isNearEnd ? 'text-orange-500' : 'text-white'}`}>{res.dateFin}</span>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-1">
+                                {res.validationComptable === true && (
+                                  <div className="p-1 bg-blue-500/20 text-blue-400 rounded-md border border-blue-500/30">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                                  </div>
+                                )}
+                                {res.facturee === "oui" && (
+                                  <div className="p-1 bg-amber-500/20 text-amber-500 rounded-md border border-amber-500/30">
+                                    <span className="text-[7px] font-black leading-none">$$</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
-                    <p className="text-[10px] text-white/20 italic">Aucun historique...</p>
+                    /* --- MESSAGE FORT POUR APPEL À LA RÉSERVATION --- */
+                    <div className="relative group">
+                      <div className="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-slate-950 border-2 border-[#d4af37] animate-pulse flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-[#d4af37]" />
+                      </div>
+
+                      <div className="bg-[#d4af37]/5 border-2 border-dashed border-[#d4af37]/30 p-8 rounded-3xl text-center space-y-4 hover:bg-[#d4af37]/10 transition-all cursor-pointer">
+                        <div className="inline-flex p-3 bg-[#d4af37]/20 rounded-full text-[#d4af37] mb-2">
+                          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeLinecap="round" /></svg>
+                        </div>
+                        <h3 className="text-[#d4af37] text-sm font-black uppercase tracking-tighter">Opportunité Disponible !</h3>
+                        <p className="text-white/60 text-[11px] leading-relaxed max-w-[200px] mx-auto">
+                          Cette face n'attend que votre visibilité. <br />
+                          <span className="text-white font-bold italic">Prenez l'avantage sur vos concurrents dès maintenant.</span>
+                        </p>
+                        <button className="bg-[#d4af37] text-black text-[10px] font-black uppercase px-6 py-2 rounded-full hover:scale-105 transition-transform">
+                          Réserver cette face
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               </section>
-
               {/* Espace vide pour ne pas être caché par les boutons fixes sur mobile */}
               <div className="h-24 md:h-0" />
             </div>
