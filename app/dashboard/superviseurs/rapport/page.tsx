@@ -1,28 +1,17 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Search, Download, CheckCircle2, AlertCircle,
-  Calendar, Printer, ArrowUpRight, Loader2, Clock,
-  ChevronDown, Database, LogOut, User, Menu, FileSpreadsheet, FileText
+  Search, Filter, LayoutGrid, Database, CheckCircle2,
+  Clock, MapPin, CreditCard, ChevronDown, Calendar, Image as ImageIcon,
+  Globe, Building2 // Note: 'City' n'existe pas dans lucide-react, utilisez 'Building2'
 } from 'lucide-react';
-import { motion, } from 'framer-motion';
 
+// --- IMPORTATIONS FIREBASE CORRIGÉES ---
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, collection, onSnapshot } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
-import { useAuth } from "@/context/AuthContext"; // Vérifie ton chemin !
-import { useRouter } from 'next/navigation'; // Import pour le App Router
-
-// --- INITIALISATION FIREBASE DIRECTE ---
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, Timestamp, getDocs, } from 'firebase/firestore';
-
-import ExcelJS from 'exceljs'; // <--- NOUVEL IMPORT
-
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-
-import autoTable from 'jspdf-autotable'; // Importation de la fonction directe
-
+// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
   authDomain: "kin-geo-market.firebaseapp.com",
@@ -32,787 +21,440 @@ const firebaseConfig = {
   appId: "1:50335362445:web:44430fdb027a4bec80a1c4"
 };
 
+// Initialisation sécurisée pour Next.js (évite de réinitialiser au refresh)
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-
-
-
-
-
-// 1. Assure-toi d'avoir ces imports en haut de ton fichier
-
-const envoyerAlerteClient = async (item: any) => {
-  // Petite validation de sécurité
-  if (!item || !item.idPan) {
-    alert("Données du panneau manquantes.");
-    return;
-  }
-
-  try {
-    const dateExpirationAlerte = new Date();
-    dateExpirationAlerte.setHours(dateExpirationAlerte.getHours() + 24);
-
-    // Calcul de l'impact financier
-    // Note: Assure-tu que 'prix' existe dans ton objet 'item'
-    const prixMensuel = parseFloat(item.prix) || 0;
-    const perteVisibiliteAnnuelle = (prixMensuel * 12).toLocaleString('fr-FR', {
-      style: 'currency',
-      currency: 'USD',
-    });
-
-    // Construction du message formel
-    const corpsMessage = `
-OBJET : AVIS D'EXPIRATION ET OPPORTUNITÉ DE RENOUVELLEMENT - FACE ${item.idPan}
-
-Cher partenaire ${item.clientNom || 'Client'},
-
-Nous attirons votre attention sur le fait que votre contrat d'occupation pour l'emplacement situé à :
-📍 ${item.adresse} (${item.zone}) 
-arrive à son terme le ${item.dateFin || 'prochainement'}.
-
-Cet emplacement stratégique vous offre actuellement une visibilité premium. En ne renouvelant pas ce contrat, vous libérez cet espace au profit de la concurrence et perdez un investissement publicitaire d'une valeur de ${perteVisibiliteAnnuelle} en impact annuel de visibilité.
-
-Pour garantir le maintien de votre image sur ce site, merci de nous confirmer votre intention de renouvellement sous 24h.
-    `.trim();
-
-    const alerte = {
-      type: "ALERTE_CLIENT",
-      destinataire: item.clientNom || "Inconnu",
-      libelle: `Relance Formelle : ${item.idPan}`,
-      idFace: item.idPan,
-      adresse: item.adresse,
-      messageComplet: corpsMessage,
-      // Utilisation de la classe Timestamp importée
-      dateExpirationAlerte: Timestamp.fromDate(dateExpirationAlerte),
-      metadata: {
-        perteEstimee: perteVisibiliteAnnuelle,
-        idPan: item.idPan,
-        commune: item.zone
-      },
-      statut: "En attente d'envoi",
-      createdAt: Timestamp.now()
-    };
-
-    // Envoi vers la collection 'messages_clients'
-    await addDoc(collection(db, "messages_clients"), alerte);
-
-    alert(`✅ Dossier de relance généré pour ${item.clientNom || 'le client'}.`);
-
-  } catch (error: any) {
-    console.error("Erreur Firestore :", error);
-    alert(`Erreur technique : ${error.message}`);
+// --- CONFIGURATION GÉOGRAPHIQUE ---
+const GEOGRAPHIE: any = {
+  "RDC": {
+    "Kinshasa": {
+      "Lukunga": [
+        "Gombe", "Barumbu", "Kinshasa", "Lingwala",
+        "Kintambo", "Ngaliema", "Mont-Ngafula"
+      ],
+      "Funa": [
+        "Bandalungwa", "Kasa-Vubu", "Kalamu", "Ngiri-Ngiri",
+        "Bumbu", "Makala", "Selembao"
+      ],
+      "Mont-Amba": [
+        "Limete", "Lemba", "Matete", "Ngaba",
+        "Kisenso"
+      ],
+      "Tshangu": [
+        "Masina", "Ndjili", "Kimbanseke", "Nsele",
+        "Maluku"
+      ]
+    },
+    "Kongo-Central": {
+      "Matadi": ["Ville Haute", "Ville Basse", "Nzanza", "Sanga-Sanga"],
+      "Boma": ["Nzadi", "Kabondo", "Kalamu"],
+      "Mbanza-Ngungu": ["Noki", "Lukala"],
+      "Inkisi": ["Kisantu", "Inkisi-Ville"]
+    }
+  },
+  "Brazzaville": {
+    "Brazzaville": {
+      "Brazzaville": ["M'Pila", "Talangaï", "Ouenzé", "Poto-Poto", "Bacongo"]
+    },
+    "Pointe-Noire": {
+      "Pointe-Noire": ["Lumumba", "Mvou-Mvou"]
+    }
   }
 };
 
 
-
-// --- COMPOSANT PRINCIPAL ---
-export default function DisproReporting() {
-
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const { user, logout } = useAuth();
-  const router = useRouter();
-
+// ... la suite de votre composant ReportPage reste la même ...
+const ReportPage = () => {
   // --- ÉTATS ---
-  const [loading, setLoading] = useState(true);
   const [rawPanneaux, setRawPanneaux] = useState<any[]>([]);
-  const [filter, setFilter] = useState({
-    zone: 'Tous',
-    type: 'Tous',
-    statut: 'Tous',
-    search: '',
-    format: 'Tous',
-    support: 'Tous',
+  const [loading, setLoading] = useState(true);
+  const [bgTheme, setBgTheme] = useState('#000a1a');
+  const [textColor, setTextColor] = useState('text-white');
+
+  // États pour le filtrage géographique en cascade
+  const [geoFilter, setGeoFilter] = useState({
+    pays: 'Tous',
+    province: 'Tous',
     district: 'Tous',
-    moisRestants: 'Tous', // <--- IMPORTANT
-    moisLoue: 'Tous',     // <--- IMPORTANT
-    anneeLoue: "2026"
-    // anneeLoue: new Date().getFullYear().toString()
+    commune: 'Tous'
   });
 
+  const [filter, setFilter] = useState({
+    search: '',
+    type: 'Tous',
+    dateX: '',
+    dateY: ''
+  });
 
-  const [editingCell, setEditingCell] = useState<any>(null);
-
-  // RÉCUPÉRATION DES DONNÉES
+  // --- RÉCUPÉRATION FIRESTORE ---
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const snap = await getDocs(collection(db, "panneaux"));
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setRawPanneaux(data);
-      } catch (err) {
-        console.error("Erreur Firebase:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    const unsub = onSnapshot(collection(db, "panneaux"), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setRawPanneaux(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Erreur Firebase:", error);
+      setLoading(false);
+    });
+    return () => unsub();
   }, []);
 
-
-  const handleLogout = () => {
-    if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-      // 1. Appel de ta fonction du contexte
-      logout();
-
-      // 2. Nettoyage supplémentaire par sécurité
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // 3. Redirection propre
-      router.push('/');
+  // --- LOGIQUE DE THÈME ---
+  const handleThemeChange = (color: string) => {
+    setBgTheme(color);
+    // Si le fond est clair (blanc), on met le texte en noir/sombre
+    if (color === '#ffffff' || color === '#f8fafc') {
+      setTextColor('text-slate-900');
+    } else {
+      setTextColor('text-white');
     }
   };
 
+  // --- LOGIQUE DE FILTRAGE & CALCULS ---
+  const processedData = useMemo(() => {
+    if (!rawPanneaux || rawPanneaux.length === 0) return [];
 
+    const now = new Date();
 
+    // 1. Préparation et enrichissement des données
+    const data = rawPanneaux.map((p: any) => {
+      const parts = p.adresse?.split('/') || [];
+      const communeExtrait = parts[4]?.trim() || "Inconnue";
 
+      const facesEnrichies = (p.faces || []).map((f: any, index: number) => {
+        const faceId = `${p.idPan || '?'}-${index + 1}`;
+        const reservations = (f.reservations || []).map((r: any) => {
+          const dDebut = r.dateDebut?.seconds ? new Date(r.dateDebut.seconds * 1000) : new Date(r.dateDebut);
+          const dFin = r.dateFin?.seconds ? new Date(r.dateFin.seconds * 1000) : new Date(r.dateFin);
 
-  const exportToExcel = async () => {
-    if (!filteredData || filteredData.length === 0) return;
+          const diffMs = dFin.getTime() - now.getTime();
+          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+          const startDiffDays = Math.ceil((dDebut.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Inventaire DISPRO');
+          let message = "";
+          let statusColor = "text-gray-400";
 
-    // --- 1. PRÉPARATION DES COLONNES ---
-    const columns = [
-      { name: 'RÉFÉRENCE', filterButton: true },
-      { name: 'SITE / ADRESSE', filterButton: true },
-      { name: 'ZONE GÉOGRAPHIQUE', filterButton: true },
-      { name: 'TYPE DE SUPPORT', filterButton: true },
-      { name: 'STATUT ACTUEL', filterButton: true },
-      { name: 'CLIENT / LOCATAIRE', filterButton: true },
-      { name: "DATE D'ÉCHÉANCE", filterButton: true },
-    ];
+          if (now >= dDebut && now <= dFin) {
+            message = `${diffDays}j restants`;
+            statusColor = "text-emerald-500";
+          } else if (now < dDebut) {
+            message = `Dans ${startDiffDays}j`;
+            statusColor = "text-amber-500";
+          } else {
+            message = "Terminé";
+            statusColor = "text-red-500";
+          }
 
-    // --- 2. PRÉPARATION DES DONNÉES ---
-    const rows = filteredData.map(item => [
-      item.idPan,
-      item.adresse.toUpperCase(),
-      item.zone,
-      item.supportType,
-      item.statut.toUpperCase(),
-      item.clientNom || 'DISPONIBLE (LIBRE)',
-      item.dateFin || '---'
-    ]);
-
-    // --- 3. AJOUT DU TABLEAU NATIF (Style identique à ton image) ---
-    worksheet.addTable({
-      name: 'TableauInventaire',
-      ref: 'A1',
-      headerRow: true,
-      totalsRow: false,
-      style: {
-        theme: 'TableStyleMedium2', // Bleu officiel Excel
-        showRowStripes: true,
-      },
-      columns: columns,
-      rows: rows,
+          const nbrMois = Math.max(1, (dFin.getFullYear() - dDebut.getFullYear()) * 12 + (dFin.getMonth() - dDebut.getMonth()));
+          return { ...r, dDebut, dFin, message, color: statusColor, nbrMois };
+        });
+        return { ...f, faceId, reservations };
+      });
+      return { ...p, commune: communeExtrait, faces: facesEnrichies };
     });
 
-    // --- 4. RÉGLAGES MAGNIFIQUES (Design & Ergonomie) ---
+    // 2. Logique de Filtrage Dynamique Multi-Pays / Multi-Villes
+    return data.filter((p: any) => {
+      // Vérification du Pays
+      const matchPays = geoFilter.pays === 'Tous' || (GEOGRAPHIE[geoFilter.pays] && Object.values(GEOGRAPHIE[geoFilter.pays]).some((v: any) => Object.values(v).flat().includes(p.commune)));
 
-    // Ajustement des largeurs de colonnes
-    const widths = [15, 45, 25, 20, 20, 35, 20];
-    widths.forEach((w, i) => {
-      worksheet.getColumn(i + 1).width = w;
+      // Vérification de la Province / Ville
+      const matchProvince = geoFilter.province === 'Tous' || (GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province] && Object.values(GEOGRAPHIE[geoFilter.pays][geoFilter.province]).flat().includes(p.commune));
+
+      // Vérification du District
+      const matchDistrict = geoFilter.district === 'Tous' || (GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province]?.[geoFilter.district]?.includes(p.commune));
+
+      // Vérification de la Commune
+      const matchCommune = geoFilter.commune === 'Tous' || p.commune.toLowerCase() === geoFilter.commune.toLowerCase();
+
+      // Filtres secondaires
+      const matchType = filter.type === 'Tous' || p.type === filter.type;
+      const searchTerm = filter.search.toLowerCase();
+      const matchSearch = (p.idPan || "").toLowerCase().includes(searchTerm) || (p.adresse || "").toLowerCase().includes(searchTerm);
+
+      // Un panneau est affiché s'il valide toute la chaîne géographique choisie
+      return matchPays && matchProvince && matchDistrict && matchCommune && matchType && matchSearch;
     });
+  }, [rawPanneaux, filter, geoFilter]);
+  // --- STATISTIQUES ---
+  const stats = useMemo(() => {
+    let totalPan = processedData.length;
+    let totalFaces = processedData.reduce((acc, p) => acc + (p.faces?.length || 0), 0);
+    let totalValide = 0;
 
-    // Style des lignes (Hauteur et Alignement)
-    worksheet.eachRow((row, rowNumber) => {
-      row.height = 22; // Lignes plus aérées
-      row.eachCell((cell, colNumber) => {
-        cell.alignment = {
-          vertical: 'middle',
-          horizontal: (colNumber === 1 || colNumber === 5) ? 'center' : 'left'
-        };
+    processedData.forEach(p => {
+      p.faces?.forEach((f: any) => {
+        f.reservations?.forEach((r: any) => {
+          // Correction ici : on force Number() et on vérifie la validation
+          if (r.validationComptable === true) {
+            const mnt = Number(r.montant) || 0;
+            totalValide += mnt;
+          }
+        });
       });
     });
 
-    // --- 5. COLORATION CONDITIONNELLE (Statuts) ---
-    (worksheet as any).addConditionalFormatting({
-      ref: `E2:E${rows.length + 1}`,
-      rules: [
-        {
-          type: 'containsText',
-          operator: 'containsText',
-          text: 'OCCUPÉ',
-          formulae: [`NOT(ISERROR(SEARCH("OCCUPÉ",E2)))`],
-          style: {
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } }, // Vert clair
-            font: { color: { argb: 'FF15803D' }, bold: true } // Texte vert foncé
-          },
-        },
-        {
-          type: 'containsText',
-          operator: 'containsText',
-          text: 'LIBRE',
-          formulae: [`NOT(ISERROR(SEARCH("LIBRE",E2)))`],
-          style: {
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }, // Rouge clair
-            font: { color: { argb: 'FFB91C1C' }, bold: true } // Texte rouge foncé
-          },
-        }
-      ]
-    });
-
-    // --- 6. VUE PROFESSIONNELLE (Volets figés et Grille masquée) ---
-    worksheet.views = [
-      {
-        state: 'frozen',
-        xSplit: 0,
-        ySplit: 1, // L'en-tête reste visible au scroll
-        showGridLines: false, // Rend le fichier beaucoup plus propre (Dashboard style)
-        activeCell: 'A2'
-      }
-    ];
-
-    // --- 7. GÉNÉRATION ET TÉLÉCHARGEMENT ---
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-
-    const dateStr = new Date().toLocaleDateString().replace(/\//g, '-');
-    a.href = url;
-    a.download = `DISPRO_INVENTAIRE_PRO_${dateStr}.xlsx`;
-    a.click();
-
-    window.URL.revokeObjectURL(url);
-  };
+    return { totalPan, totalFaces, totalValide };
+  }, [processedData]);
 
 
 
 
-
-
-
-  const exportToPDF = () => {
-    if (!filteredData || filteredData.length === 0) return;
-
-    const doc = new jsPDF('l', 'mm', 'a4');
-    const now = new Date();
-
-    // Calcul des stats
-    const total = filteredData.length;
-    const occupes = filteredData.filter((i: any) => i.statut === 'Occupé').length;
-    const taux = ((occupes / total) * 100).toFixed(1);
-
-    // --- 1. FONCTION INTERNE POUR LES STATS (Règle l'erreur label, value, x) ---
-    const drawStat = (label: string, value: string, xPos: number) => {
-      doc.setFillColor(30, 41, 59); // Slate 800
-      doc.roundedRect(xPos, 12, 45, 20, 3, 3, 'F');
-
-      doc.setTextColor(148, 163, 184); // Slate 400
-      doc.setFontSize(7);
-      doc.text(label, xPos + 5, 18);
-
-      doc.setTextColor(255, 255, 255); // Blanc
-      doc.setFontSize(12);
-      doc.text(value, xPos + 5, 27);
-    };
-
-    // --- 2. HEADER DESIGN ---
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 297, 40, 'F');
-    doc.setFillColor(212, 175, 55);
-    doc.rect(0, 38, 297, 2, 'F');
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(24);
-    doc.setTextColor(255, 255, 255);
-    doc.text("DISPRO", 14, 20);
-    doc.setTextColor(212, 175, 55);
-    doc.text(".INTEL", 50, 20);
-
-    // Appel des stats (On utilise les paramètres définis plus haut)
-    drawStat("TOTAL FACES", total.toString(), 140);
-    drawStat("OCCUPATION", `${taux}%`, 190);
-    drawStat("GÉNÉRÉ LE", now.toLocaleDateString(), 240);
-
-    // --- 3. TABLEAU ---
-    autoTable(doc, {
-      head: [["ID", "SITE / ADRESSE", "ZONE", "TYPE", "STATUT", "CLIENT", "ÉCHÉANCE"]],
-      body: filteredData.map((item: any) => [
-        item.idPan,
-        item.adresse.toUpperCase(),
-        item.zone,
-        item.supportType,
-        item.statut.toUpperCase(),
-        item.clientNom || '---',
-        item.dateFin || 'DISPONIBLE'
-      ]),
-      startY: 50,
-      styles: { fontSize: 8, cellPadding: 4 },
-      headStyles: { fillColor: [30, 64, 175] },
-
-      // --- FIX ERREUR data.cell.raw ---
-      didParseCell: (data) => {
-        // On vérifie si on est dans le corps du tableau et sur la colonne Statut (index 4)
-        if (data.section === 'body' && data.column.index === 4) {
-          // Sécurisation du contenu de la cellule
-          const rawValue = data.cell.raw ? data.cell.raw.toString().toUpperCase() : '';
-
-          if (rawValue === 'OCCUPÉ') {
-            data.cell.styles.textColor = [22, 163, 74]; // Vert
-          } else if (rawValue === 'LIBRE' || rawValue === 'DISPONIBLE') {
-            data.cell.styles.textColor = [220, 38, 38]; // Rouge
-          }
-        }
-      }
-    });
-
-    doc.save(`RAPPORT_STRATEGIQUE_${now.getTime()}.pdf`);
-  };
-
-
-
-
-
-
-
-
-  const filteredData = useMemo(() => {
-    if (!rawPanneaux || rawPanneaux.length === 0) return []; // <-- Sécurité supplémentaire
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-
-    // --- ÉTAPE 1 : APLATISSEMENT ---
-    // On ajoute :any pour p et f pour supprimer les erreurs de type
-    let flattened = rawPanneaux.flatMap((p: any) =>
-      (p.faces || []).map((f: any) => {
-        const dFin = f.dateFin ? new Date(f.dateFin) : null;
-        const dDebut = f.dateDebut ? new Date(f.dateDebut) : null;
-
-        let moisRestantsCount = -1;
-        if (dFin && f.statut === 'Occupé') {
-          moisRestantsCount = (dFin.getFullYear() - now.getFullYear()) * 12 + (dFin.getMonth() - now.getMonth());
-        }
-
-        return {
-          ...f,
-          parentDocId: p.id,
-          adresse: p.adresse || "N/A",
-          zone: p.zone || "Inconnue",
-          idPan: p.idPan || "N/A",
-          // On récupère le type de support soit sur la face, soit sur le panneau
-          supportType: f.type || p.type || "Inconnu",
-          dFin,
-          dDebut,
-          moisRestantsCount
-        };
-      })
+  if (loading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-[#000a1a] text-[#FFD700]">
+        <div className="w-16 h-16 border-4 border-t-transparent border-[#FFD700] rounded-full animate-spin mb-4"></div>
+        <p className="font-black tracking-widest animate-pulse">SYNCHRONISATION FIRESTORE...</p>
+      </div>
     );
-
-    // --- ÉTAPE 2 : FILTRAGE ---
-    return flattened.filter((item: any) => {
-      // 1. Filtres Classiques
-      const matchZone = filter.zone === 'Tous' || item.zone === filter.zone;
-      const matchStatut = filter.statut === 'Tous' || item.statut === filter.statut;
-      const matchSupport = filter.support === 'Tous' || item.supportType === filter.support;
-
-      // 2. Filtre Échéance
-      let matchEcheance = true;
-      if (filter.moisRestants !== 'Tous') {
-        const limite = parseInt(filter.moisRestants);
-        matchEcheance = item.moisRestantsCount <= limite && item.moisRestantsCount >= 0;
-      }
-
-      // 3. Filtre "Loué en..."
-      let matchMoisLoue = true;
-      if (filter.moisLoue !== 'Tous') {
-        if (item.dDebut && item.dFin) {
-          const moisCible = parseInt(filter.moisLoue as string) - 1;
-
-          // CORRECTION ICI : On force le type ou on utilise currentYear si anneeLoue est absent
-          const anneeChoisie = (filter as any).anneeLoue || currentYear.toString();
-          const anneeCible = parseInt(anneeChoisie);
-
-          const debutMoisCible = new Date(anneeCible, moisCible, 1);
-          const finMoisCible = new Date(anneeCible, moisCible + 1, 0);
-
-          matchMoisLoue = (item.dDebut <= finMoisCible && item.dFin >= debutMoisCible);
-        } else {
-          matchMoisLoue = false;
-        }
-      }
-
-      // 4. Recherche Textuelle
-      const searchTerm = (filter.search || "").toLowerCase();
-      const matchSearch =
-        item.adresse.toLowerCase().includes(searchTerm) ||
-        item.idPan.toLowerCase().includes(searchTerm) ||
-        (item.clientNom && item.clientNom.toLowerCase().includes(searchTerm));
-
-      return matchZone && matchStatut && matchSupport && matchEcheance && matchMoisLoue && matchSearch;
-    });
-  }, [rawPanneaux, filter]);
-
-
-
-  // --- AFFICHAGE CHARGEMENT ---
-  if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-[#000a1a] gap-4">
-      <Loader2 className="animate-spin text-[#FFD700]" size={50} />
-      <p className="text-[#FFD700] font-black text-[10px] uppercase tracking-[0.3em]">
-        Intelligence Dispromalt...
-      </p>
-    </div>
-  );
+  }
 
   return (
-    <div className="min-h-screen bg-[#000a1a] text-white p-4 md:p-10 font-sans selection:bg-[#FFD700] selection:text-black">
+    <div className={`min-h-screen transition-all duration-500 font-sans ${textColor} pb-20`} style={{ backgroundColor: bgTheme }}>
 
-      <header className="flex flex-col gap-6 mb-12 animate-in fade-in duration-500">
-      
-      {/* SECTION HAUTE : Profil et Menu Mobile */}
-      <div className="flex justify-between items-center w-full">
-        {user && (
-          <div className="flex items-center gap-3 ml-auto px-4 py-2 bg-[#1e40af]/20 backdrop-blur-md border border-white/5 rounded-full shadow-xl">
-            <div className="text-right hidden sm:block">
-              <p className="text-[10px] font-black text-white uppercase leading-none">{user.nom}</p>
-              <p className="text-[8px] text-[#d4af37] uppercase">{user.role}</p>
-            </div>
-            <button onClick={handleLogout} className="p-1.5 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">
-              <LogOut size={14} />
-            </button>
+      {/* HEADER */}
+      <div className="p-4 md:p-8 space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-black tracking-tighter text-[#FFD700]">DISPRO <span className="opacity-50">REPORTING</span></h1>
+            <p className="text-xs text-red-500 font-bold tracking-widest uppercase italic">Live Database Monitoring</p>
           </div>
-        )}
-      </div>
 
-      {/* SECTION BASSE : Titre et Actions */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-1 bg-[#E31E24]" />
-            <h1 className="text-4xl lg:text-5xl font-black italic tracking-tighter text-white">
-              Rapport<span className="text-[#FFD700]">.</span>Général
-            </h1>
+          {/* SÉLECTEUR DE THÈME ÉLARGI */}
+          <div className="flex gap-2 bg-black/20 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
+            {[
+              { c: '#000a1a', n: 'Nuit' },
+              { c: '#0806a8', n: 'Bleu Clair' }, // Bleu ciel / Clair
+              { c: '#7f1d1d', n: 'Rouge' },
+              { c: '#656668', n: 'Blanc' },
+              { c: '#000000', n: 'Noir' }
+            ].map(theme => (
+              <button
+                key={theme.c}
+                onClick={() => handleThemeChange(theme.c)}
+                className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-110 ${bgTheme === theme.c ? 'border-[#FFD700] ring-2 ring-[#FFD700]/30' : 'border-transparent'}`}
+                style={{ backgroundColor: theme.c }}
+                title={theme.n}
+              />
+            ))}
           </div>
-          <p className="text-[9px] text-blue-400 font-bold uppercase tracking-[0.3em] flex items-center gap-2">
-            <Database size={10} /> Real-time Inventory Analysis
-          </p>
         </div>
 
-        {/* CONTROLES D'EXPORT (Responsive Grid) */}
-        <div className="grid grid-cols-3 lg:flex items-center gap-2 bg-[#0F172A]/50 p-1.5 rounded-2xl border border-white/5">
-          <button onClick={() => window.print()} className="flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 px-2 py-2 lg:px-4 lg:py-2.5 rounded-xl hover:bg-white/10 transition-all text-[9px] font-black uppercase text-white">
-            <Printer size={14} /> <span className="hidden lg:inline">Print</span>
-          </button>
-          <button onClick={exportToExcel} className="flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 px-2 py-2 lg:px-4 lg:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition-all text-[9px] font-black uppercase text-white">
-            <FileSpreadsheet size={14} /> <span className="hidden lg:inline">Excel</span>
-          </button>
-          <button onClick={exportToPDF} className="flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 px-2 py-2 lg:px-4 lg:py-2.5 rounded-xl bg-[#d4af37] text-black hover:bg-white transition-all text-[9px] font-black uppercase">
-            <FileText size={14} /> <span className="hidden lg:inline">PDF</span>
-          </button>
-        </div>
-      </div>
-    </header>
-    
-    
-    {/* FILTRES AVANCÉS */}
-      <section className="bg-[#1e40af]/60 backdrop-blur-3xl border border-white/10 p-6 rounded-[3rem] mb-10 shadow-2xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 print:hidden relative z-10">
+        {/* BARRE DE FILTRES GÉOGRAPHIQUES EN CASCADE */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white/5 p-4 rounded-3xl border border-white/10 backdrop-blur-md">
+          {/* 1. SÉLECTION PAYS */}
+          <div className="flex items-center gap-2 bg-black/30 p-2 rounded-xl border border-white/5">
+            <Globe size={14} className="text-[#FFD700]" />
+            <select
+              className="bg-transparent text-[11px] font-bold outline-none w-full text-inherit"
+              onChange={(e) => setGeoFilter({ pays: e.target.value, province: 'Tous', district: 'Tous', commune: 'Tous' })}
+            >
+              <option value="Tous">Tous les Pays</option>
+              {Object.keys(GEOGRAPHIE).map(p => <option key={p} value={p} className="text-black">{p}</option>)}
+            </select>
+          </div>
 
-        {/* 1. RECHERCHE PRINCIPALE */}
-        <div className="xl:col-span-2 relative">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-[#d4af37]/60" size={18} />
-          <input
-            type="text"
-            placeholder="SITE, CLIENT, ID..."
-            className="w-full pl-12 pr-4 py-4 bg-black/30 border border-white/10 rounded-2xl outline-none focus:border-[#d4af37] transition-all text-[10px] font-bold uppercase tracking-widest text-white placeholder:text-white/30 focus:bg-black/50"
-            onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-          />
-        </div>
-
-        {/* FILTRE ÉCHÉANCE */}
-        <div className="relative">
-          <select
-            className="w-full px-5 py-4 bg-black/30 border border-white/10 rounded-2xl outline-none focus:border-[#d4af37] appearance-none text-[10px] font-black uppercase text-white/80 cursor-pointer"
-            onChange={(e) => setFilter({ ...filter, moisRestants: e.target.value })}
-          >
-            <option value="Tous" className="bg-[#1e40af]">Échéance : Toutes</option>
-            <option value="0" className="bg-[#1e40af]">Expire ce mois-ci</option>
-            <option value="3" className="bg-[#1e40af]">Expire sous 3 mois</option>
-            <option value="6" className="bg-[#1e40af]">Expire sous 6 mois</option>
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" size={14} />
-        </div>
-
-        {/* FILTRE MOIS DE LOCATION */}
-        <div className="relative">
-          <select
-            className="w-full px-5 py-4 bg-black/30 border border-white/10 rounded-2xl outline-none focus:border-[#d4af37] appearance-none text-[10px] font-black uppercase text-white/80 cursor-pointer"
-            onChange={(e) => setFilter({ ...filter, moisLoue: e.target.value })}
-          >
-            <option value="Tous" className="bg-[#1e40af]">Loué en...</option>
-            {["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"].map((m, i) => (
-              <option key={m} value={i + 1} className="bg-[#1e40af]">{m}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" size={14} />
-        </div>
-
-        {/* 4. SUPPORT */}
-        <div className="relative">
-          <select
-            className="w-full px-5 py-4 bg-black/30 border border-white/10 rounded-2xl outline-none focus:border-[#d4af37] appearance-none text-[10px] font-black uppercase cursor-pointer text-white/80"
-            onChange={(e) => setFilter({ ...filter, support: e.target.value })}
-          >
-            <option value="Tous" className="bg-[#1e40af]">Supports : Tous</option>
-            <option value="Vinyle" className="bg-[#1e40af]">Vinyle</option>
-            <option value="LED" className="bg-[#1e40af]">LED</option>
-            <option value="Bache" className="bg-[#1e40af]">Bâche</option>
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" size={14} />
-        </div>
-
-        {/* 5. COMMUNE / ZONE */}
-        <div className="relative">
-          <select
-            className="w-full px-5 py-4 bg-black/30 border border-white/10 rounded-2xl outline-none focus:border-[#d4af37] appearance-none text-[10px] font-black uppercase cursor-pointer text-white/80"
-            onChange={(e) => setFilter({ ...filter, zone: e.target.value })}
-          >
-            <option value="Tous" className="bg-[#1e40af]">Communes : Toutes</option>
-            {Array.from(new Set(rawPanneaux.map((p: any) => p.zone).filter(Boolean))).map((z) => (
-              <option key={z} value={z} className="bg-[#1e40af]">{z}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" size={14} />
-        </div>
-
-        {/* 6. STATUT (L'élément d'action en OR) */}
-        <div className="relative">
-          <select
-            className="w-full px-5 py-4 bg-[#d4af37] text-black border-none rounded-2xl outline-none font-black text-[10px] uppercase cursor-pointer shadow-lg shadow-[#d4af37]/20 hover:bg-white transition-all appearance-none"
-            onChange={(e) => setFilter({ ...filter, statut: e.target.value })}
-          >
-            <option value="Tous">Statut : Tous</option>
-            <option value="Libre">Disponible</option>
-            <option value="Occupé">Occupé</option>
-            <option value="En Maintenance">Maintenance</option>
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40 pointer-events-none" size={14} />
-        </div>
-
-      </section>
-
-      {/* CONTAINER PRINCIPAL AVEC LA COULEUR DE LA NAV ET BLUR */}
-      <div className="bg-[#1e40af]/60 backdrop-blur-3xl rounded-[3rem] border border-white/10 overflow-hidden shadow-3xl relative z-10">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1200px]">
-            <thead>
-              {/* Header légèrement plus sombre pour le contraste */}
-              <tr className="bg-[#1e40af]/40 border-b border-white/10">
-                <th className="p-8 text-[11px] font-black uppercase text-[#d4af37] tracking-widest">Site / Identifiant</th>
-                <th className="p-8 text-[11px] font-black uppercase text-[#d4af37] tracking-widest">Catégorie</th>
-                <th className="p-8 text-[11px] font-black uppercase text-[#d4af37] tracking-widest text-center">Statut Actuel</th>
-                <th className="p-8 text-[11px] font-black uppercase text-[#d4af37] tracking-widest">Locataire</th>
-                <th className="p-8 text-[11px] font-black uppercase text-[#d4af37] tracking-widest">Échéance</th>
-                <th className="p-8 text-[11px] font-black uppercase text-[#d4af37] tracking-widest text-right">Détails</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-white/5">
-              {filteredData.map((item, idx) => (
-                <motion.tr
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.02 }}
-                  className="hover:bg-white/[0.05] transition-all group"
-                >
-                  {/* COLONNE IDENTIFIANT */}
-                  <td className="p-8">
-                    <div className="flex items-center gap-5">
-                      {/* Utilisation de l'or #d4af37 pour matcher le logo */}
-                      <div className="bg-[#d4af37]/10 h-14 w-14 flex items-center justify-center rounded-2xl border border-[#d4af37]/20 font-black text-[#d4af37]">
-                        {item.idPan}
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-white leading-tight uppercase group-hover:text-[#d4af37] transition-colors">
-                          {item.adresse}
-                        </p>
-                        <p className="text-[9px] font-bold text-blue-200/60 mt-1 tracking-widest uppercase">
-                          {item.zone}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* COLONNE CATÉGORIE */}
-                  <td className="p-8">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-black text-blue-100 uppercase">{item.type}</span>
-                      <span className="text-[9px] font-bold text-white/20 uppercase italic">{item.sens || 'FACE UNIQUE'}</span>
-                    </div>
-                  </td>
-
-                  {/* COLONNE STATUT */}
-                  <td className="p-8 text-center">
-                    <div className={`inline-flex items-center gap-2 px-6 py-2 rounded-xl font-black text-[9px] uppercase italic tracking-tighter ${item.statut === 'Libre'
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                      }`}>
-                      {item.statut === 'Libre' ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-                      {item.statut}
-                    </div>
-                  </td>
-
-                  {/* COLONNE CLIENT */}
-                  <td className="p-8">
-                    <span className="text-xs font-black text-white/80 uppercase">
-                      {item.clientNom || 'DISPONIBLE'}
-                    </span>
-                  </td>
-
-                  {/* COLONNE ÉCHÉANCE */}
-                  <td className="p-8 font-mono text-xs">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 text-[#d4af37]">
-                        <Calendar size={14} />
-                        {item.dateFin || '-- / -- / --'}
-                      </div>
-                      {item.moisRestantsCount <= 2 && item.statut === 'Occupé' && (
-                        <span className="text-[8px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full w-fit animate-pulse">
-                          EXPIRATION ({item.moisRestantsCount} mois)
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* COLONNE ACTIONS */}
-                  <td className="p-8 text-right">
-                    <button
-                      onClick={() => envoyerAlerteClient(item)}
-                      className="p-4 bg-white/5 rounded-2xl hover:bg-[#d4af37] transition-all text-[#d4af37] hover:text-black border border-white/5"
-                    >
-                      <ArrowUpRight size={20} />
-                    </button>
-                  </td>
-                </motion.tr>
+          {/* 2. SÉLECTION PROVINCE / VILLE */}
+          <div className="flex items-center gap-2 bg-black/30 p-2 rounded-xl border border-white/5">
+            <Building2 size={14} className="text-[#FFD700]" />
+            <select
+              className="bg-transparent text-[11px] font-bold outline-none w-full text-inherit"
+              disabled={geoFilter.pays === 'Tous'}
+              onChange={(e) => setGeoFilter({ ...geoFilter, province: e.target.value, district: 'Tous', commune: 'Tous' })}
+            >
+              <option value="Tous">Toutes les Provinces</option>
+              {geoFilter.pays !== 'Tous' && Object.keys(GEOGRAPHIE[geoFilter.pays]).map(pr => (
+                <option key={pr} value={pr} className="text-black">{pr}</option>
               ))}
-            </tbody>
-          </table>
+            </select>
+          </div>
+
+          {/* 3. SÉLECTION DISTRICT */}
+          <div className="flex items-center gap-2 bg-black/30 p-2 rounded-xl border border-white/5">
+            <LayoutGrid size={14} className="text-[#FFD700]" />
+            <select
+              className="bg-transparent text-[11px] font-bold outline-none w-full text-inherit"
+              disabled={geoFilter.province === 'Tous'}
+              onChange={(e) => setGeoFilter({ ...geoFilter, district: e.target.value, commune: 'Tous' })}
+            >
+              <option value="Tous">Tous les Districts</option>
+              {geoFilter.province !== 'Tous' && Object.keys(GEOGRAPHIE[geoFilter.pays][geoFilter.province]).map(d => (
+                <option key={d} value={d} className="text-black">{d}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 4. SÉLECTION COMMUNE */}
+          <div className="flex items-center gap-2 bg-black/30 p-2 rounded-xl border border-white/5">
+            <MapPin size={14} className="text-[#FFD700]" />
+            <select
+              className="bg-transparent text-[11px] font-bold outline-none w-full text-inherit"
+              disabled={geoFilter.district === 'Tous'}
+              onChange={(e) => setGeoFilter({ ...geoFilter, commune: e.target.value })}
+            >
+              <option value="Tous">Toutes les Communes</option>
+              {geoFilter.district !== 'Tous' && GEOGRAPHIE[geoFilter.pays][geoFilter.province][geoFilter.district].map((c: string) => (
+                <option key={c} value={c} className="text-black">{c}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {/* FILTRES RECHERCHE ET TYPES */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#FFD700]" size={16} />
+            <input
+              type="text" placeholder="Rechercher ID ou Adresse..."
+              className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 pl-10 text-xs focus:ring-2 ring-[#FFD700] outline-none transition-all"
+              onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+            />
+          </div>
+
+          <select
+            className="bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs outline-none font-bold"
+            onChange={(e) => setFilter({ ...filter, type: e.target.value })}
+          >
+            <option value="Tous" className="text-black">Tous les Supports</option>
+            <option value="Vinyle" className="text-black">Vinyle</option>
+            <option value="LED" className="text-black">LED</option>
+            <option value="Bache" className="text-black">Bache</option>
+          </select>
+
+          <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-2xl px-4 py-3">
+            <Calendar size={14} className="text-[#FFD700]" />
+            <input type="date" className="bg-transparent text-[10px] outline-none flex-1" onChange={(e) => setFilter({ ...filter, dateX: e.target.value })} />
+            <span className="opacity-20">/</span>
+            <input type="date" className="bg-transparent text-[10px] outline-none flex-1" onChange={(e) => setFilter({ ...filter, dateY: e.target.value })} />
+          </div>
+
+          <button className="flex items-center justify-center bg-[#FFD700] hover:bg-white text-black rounded-2xl font-black text-xs px-4 py-3 shadow-lg shadow-[#FFD700]/10 transition-all active:scale-95">
+            EXPORTER LE RAPPORT (.XLSX)
+          </button>
+        </div>
+
+        {/* STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatCard label="Total Panneaux" value={stats.totalPan} icon={<Database size={24} />} color="#FFD700" />
+          <StatCard label="Faces Actives" value={stats.totalFaces} icon={<LayoutGrid size={24} />} color="#ef4444" />
+          <StatCard label="Revenu Validé" value={`$${stats.totalValide.toLocaleString()}`} icon={<CreditCard size={24} />} color="#10b981" />
         </div>
       </div>
-      {/* FOOTER ANALYTICS */}
-      <footer className="mt-12 flex flex-col md:flex-row justify-between items-center gap-6 p-10 bg-[#1e40af]/60 backdrop-blur-3xl rounded-[3rem] border border-white/10 shadow-2xl relative z-10">
 
-        {/* TEXTE COPYRIGHT AVEC L'OR SIGNATURE */}
-        <div className="flex flex-col gap-1">
-          <div className="text-[10px] font-black uppercase text-white/40 tracking-[0.4em]">
-            Dispromalt Intelligence Service © 2026 Kinshasa
-          </div>
-          <div className="h-0.5 w-12 bg-[#d4af37]/40 rounded-full" />
+      {/* LISTE DES PANNEAUX */}
+      <div className="px-4 md:px-8">
+        <div className="space-y-6">
+          {processedData.length > 0 ? processedData.map((pan) => (
+            <div key={pan.id} className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden backdrop-blur-md hover:border-[#FFD700]/30 transition-all">
+              <div className="flex flex-col lg:flex-row">
+                {/* Info Panneau Latérale */}
+                <div className="lg:w-72 p-6 bg-black/20 border-r border-white/5">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="h-14 w-14 bg-gradient-to-tr from-[#FFD700] to-red-600 rounded-2xl flex items-center justify-center text-black font-black text-xl shadow-xl">
+                      {pan.idPan}
+                    </div>
+                    <div>
+                      <h3 className="font-black text-lg leading-none uppercase">{pan.type}</h3>
+                      <p className="text-[10px] opacity-50 font-bold tracking-widest">{pan.dimension}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <MapPin size={14} className="text-red-500 mt-1 shrink-0" />
+                      <p className="text-[11px] font-medium opacity-80">{pan.adresse}</p>
+                    </div>
+                    <div className="inline-block px-3 py-1 bg-[#FFD700]/10 border border-[#FFD700]/20 rounded-full text-[9px] font-black text-[#FFD700] uppercase italic">
+                      Avenue: {pan.commune}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Liste des Faces */}
+                <div className="flex-1 p-6">
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {pan.faces.map((face: any) => (
+                      <div key={face.faceId} className="bg-white/5 rounded-3xl p-5 border border-white/10">
+                        <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-2">
+                          <span className="font-black text-[#FFD700] text-xs uppercase tracking-tighter">{face.faceId} // {face.sens}</span>
+                          <span className="text-[9px] bg-red-500 text-white px-2 py-0.5 rounded-md font-bold uppercase">{face.reservations.length} Résa</span>
+                        </div>
+
+                        <div className="space-y-4">
+                          {face.reservations.map((res: any, idx: number) => (
+                            <div key={idx} className="flex gap-4 items-center animate-in slide-in-from-right-4 duration-300">
+                              <img src={res.photoCampagneUrl} className="w-14 h-14 rounded-xl object-cover border-2 border-white/10" alt="campaign" />
+                              <div className="flex-1">
+                                <h4 className="text-[11px] font-black uppercase tracking-tight">{res.societeLocatrice}</h4>
+                                <div className="flex items-center gap-2 text-[9px] opacity-60">
+                                  <Clock size={10} />
+                                  <span>{res.dateDebut} au {res.dateFin}</span>
+                                </div>
+                                <span className={`text-[9px] font-black uppercase ${res.color}`}>{res.message}</span>
+                              </div>
+                              {/* Section Finance & Statut Agent */}
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                {/* Statut de Validation */}
+                                <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter shadow-sm ${res.validationComptable
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-amber-500/20 text-amber-500 border border-amber-500/30 animate-pulse'
+                                  }`}>
+                                  {res.validationComptable ? 'Validé par Compta'
+                                   : 'Attente Validation'}
+                                </div>
+
+                                {/* Affichage de l'Agent si non validé */}
+                                {!res.validationComptable && (
+                                  <div className="text-[7px] text-red-400 font-bold uppercase mt-1">
+                                     {res.agentNom || "Agent inconnu"}
+                                  </div>
+                                )}
+                                <p className="text-[11px] text-white/30 uppercase">{res.nbrMois} Mois</p>
+                              </div>
+                            </div>
+                          ))}
+                          {face.reservations.length === 0 && (
+                            <p className="text-center text-[10px] opacity-20 py-4 italic uppercase tracking-widest">Disponible à la location</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )) : (
+            <div className="p-20 text-center bg-black/20 rounded-[3rem] border-2 border-dashed border-white/10">
+              <Database className="mx-auto mb-4 text-[#FFD700]/20" size={48} />
+              <p className="text-xl font-black opacity-30 uppercase tracking-widest">Aucun résultat correspondant aux filtres</p>
+            </div>
+          )}
         </div>
+      </div>
+    </div>
+  );
+};
 
-        <div className="flex gap-10">
-          {/* COMPTEUR LIBRES */}
-          <div className="text-center group">
-            <p className="text-[10px] font-black text-blue-200/40 uppercase mb-1 tracking-widest group-hover:text-blue-200 transition-colors">Libres</p>
-            <p className="text-3xl font-black text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]">
-              {filteredData.filter(d =>
-                d.statut?.toString().toLowerCase().includes('libre') ||
-                d.statut?.toString().toLowerCase().includes('disponible')
-              ).length}
-            </p>
-          </div>
-
-          {/* COMPTEUR OCCUPÉS */}
-          <div className="text-center border-l border-white/10 pl-10 group">
-            <p className="text-[10px] font-black text-blue-200/40 uppercase mb-1 tracking-widest group-hover:text-blue-200 transition-colors">Occupés</p>
-            <p className="text-3xl font-black text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.3)]">
-              {filteredData.filter(d =>
-                d.statut?.toString().toLowerCase().includes('occup')
-              ).length}
-            </p>
-          </div>
-
-          {/* TOTAL AFFICHÉ AVEC L'OR SIGNATURE */}
-          <div className="text-center border-l border-white/10 pl-10 group">
-            <p className="text-[10px] font-black text-[#d4af37]/40 uppercase mb-1 tracking-widest group-hover:text-[#d4af37] transition-colors">Total Affiché</p>
-            <p className="text-3xl font-black text-[#d4af37] drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]">
-              {filteredData.length}
-            </p>
-          </div>
-        </div>
-      </footer>
-      <style jsx global>{`
-  @media print {
-    /* 1. CONFIGURATION DE LA PAGE (Paysage + Marges) */
-    @page {
-      size: landscape;
-      margin: 10mm;
-    }
-
-    /* 2. NETTOYAGE DE L'INTERFACE */
-    /* On cache les boutons, la recherche, les filtres et les éléments décoratifs */
-    nav, 
-    button, 
-    header .flex-wrap, 
-    section, 
-    .print\:hidden,
-    .fixed { 
-      display: none !important; 
-    }
-
-    /* 3. RÉINITIALISATION DU STYLE POUR LE PAPIER */
-    body, .min-h-screen {
-      background: white !important;
-      color: black !important;
-      padding: 0 !important;
-      margin: 0 !important;
-    }
-
-    /* 4. FORCE LE TABLEAU À UTILISER TOUTE LA LARGEUR */
-    /* On casse les limitations de scroll (overflow) */
-    .overflow-x-auto, 
-    div[class*="overflow"] {
-      overflow: visible !important;
-      height: auto !important;
-      display: block !important;
-      width: 100% !important;
-    }
-
-    table {
-      width: 100% !important;
-      border-collapse: collapse !important;
-      table-layout: auto !important; /* Laisse le navigateur ajuster les colonnes */
-    }
-
-    th, td {
-      border: 1px solid #e2e8f0 !important; /* Bordures légères pour la lecture */
-      font-size: 9pt !important; /* Taille de police optimale pour l'impression */
-      padding: 6px !important;
-    }
-
-    /* 5. COULEURS ET BADGES */
-    /* Permet de garder les couleurs des statuts (vert, rouge, etc.) */
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-
-    /* Évite de couper une ligne de données au milieu d'un saut de page */
-    tr {
-      page-break-inside: avoid !important;
-    }
-
-    /* Optionnel : Ajoute un titre spécifique à l'impression si nécessaire */
-    header h1 {
-      font-size: 24pt !important;
-      margin-bottom: 20px !important;
-    }
-  }
-`}</style>
+// --- COMPOSANT STATS ---
+function StatCard({ label, value, icon, color }: any) {
+  return (
+    <div className="relative overflow-hidden bg-white/5 border border-white/10 p-6 rounded-[2.5rem] backdrop-blur-xl transition-all hover:-translate-y-1 hover:bg-white/10 shadow-2xl">
+      <div className="absolute top-0 right-0 p-4 opacity-10" style={{ color: color }}>
+        {icon}
+      </div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-60">{label}</p>
+      <div className="flex items-baseline gap-2">
+        <p className="text-3xl font-black tracking-tighter">{value}</p>
+        <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: color }}></div>
+      </div>
+      <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+        <div className="h-full w-1/3 rounded-full" style={{ backgroundColor: color }}></div>
+      </div>
     </div>
   );
 }
 
-
-
-
+export default ReportPage;

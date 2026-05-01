@@ -494,19 +494,6 @@ export default function UltimateSupervisor() {
   };
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
   const reservationsEnAttente = useMemo(() => {
 
     //let compteurLocal = Number(dernierIdFacture) || 0;
@@ -881,91 +868,101 @@ export default function UltimateSupervisor() {
 
       {/* NAV HEADER */}
       <nav className="fixed top-0 inset-x-0 z-[150] p-4 lg:p-6">
-        <div className="max-w-[1500px] mx-auto">
-          <motion.div
-            animate={{ y: hidden ? -120 : 0 }}
-            className="flex items-center justify-between h-20 px-6 lg:px-10 rounded-[2.5rem] bg-[#1e40af]/60 backdrop-blur-3xl border border-white/10 shadow-2xl"
-          >
-            {/* LOGO */}
-            <div onClick={() => window.location.reload()} className="flex items-center gap-4 cursor-pointer group">
-              <img src={logoUrl} className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl object-cover border border-white/10" alt="Logo" />
-              <div className="flex flex-col leading-[0.75]">
-                <span className="text-2xl lg:text-3xl font-black uppercase italic text-white">G<span className="text-[#d4af37]">D</span>P</span>
-                <span className="text-[6px] font-black uppercase tracking-[0.3em] text-[#d4af37] mt-1">Gestion Digitale</span>
-              </div>
-            </div>
-
-            {/* DESKTOP MENU */}
-            <div className="hidden xl:flex items-center gap-4">
-              <button
-                onClick={() => window.location.reload()}
-                className="bg-[#d4af37] text-black px-6 py-3 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all shadow-lg shadow-[#d4af37]/20 active:scale-95"
-              >
-                Accueil
-              </button>
-
-              <button
-                onClick={ouvrirLaCarte}
-                className="flex items-center gap-2 bg-[#d4af37] text-black px-6 py-3 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all shadow-lg shadow-[#d4af37]/20 active:scale-95"
-              >
-                <MapPin size={14} />
-                Carte interactive
-              </button>
-
-
-              <Link href="/dashboard/superviseurs/rapport">
-                <div className="group flex items-center gap-4 p-4 rounded-2xl bg-[#1e40af]/20 hover:bg-amber-500 transition-all cursor-pointer border border-white/5 hover:border-amber-400">
-                  <FilePieChart className="text-blue-400 group-hover:text-black" size={22} />
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-white group-hover:text-black">
-                      Rapport Intelligent
-                    </p>
-                    <p className="text-[8px] font-bold text-blue-300/50 group-hover:text-black/50 uppercase">
-                      Disponibilité & Ventes
-                    </p>
-                  </div>
-                </div>
-              </Link>
-
-              {/* ZONE UTILISATEUR CONNECTÉ */}
-              {user ? (
-                <div className="flex items-center gap-3 pl-6 border-l border-white/10">
-                  <div className="text-right hidden 2xl:block">
-                    <p className="text-[10px] font-bold text-white uppercase">{user.nom || "Utilisateur"}</p>
-                    <p className="text-[8px] text-[#d4af37] uppercase">{user.role}</p>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-full transition-all border border-red-500/20"
-                    title="Déconnexion"
-                  >
-                    <img src={user.logoUrl || "/default-avatar.png"} className="w-8 h-8 rounded-full border border-[#d4af37]" alt="Profil" />
-                    <LogOut size={14} />
-                  </button>
-                </div>
-              ) : (
-                <button onClick={() => setIsLoginOpen(true)} className="text-[#d4af37] text-[10px] font-bold uppercase">Connexion</button>
-              )}
-            </div>
-
-            {/* MOBILE MENU BUTTON (Ajout du nom en mobile) */}
-            <div className="xl:hidden flex items-center gap-4">
-              {user && (
-                <button onClick={handleLogout} className="p-2 text-white/50 hover:text-red-400">
-                  <LogOut size={24} />
-                </button>
-              )}
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-3 bg-white/5 rounded-2xl border border-white/10 text-[#d4af37] hover:bg-[#d4af37]/10 transition-all"
-              >
-                <Menu size={28} />
-              </button>
-            </div>
-          </motion.div>
+  <div className="max-w-[1500px] mx-auto">
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: hidden ? -120 : 0 }}
+      className="flex items-center justify-between h-20 px-4 lg:px-8 rounded-[2.5rem] bg-black/40 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+    >
+      {/* --- LOGO SECTION --- */}
+      <div 
+        onClick={() => window.location.reload()} 
+        className="flex items-center gap-3 cursor-pointer group shrink-0"
+      >
+        <div className="relative">
+          <div className="absolute inset-0 bg-[#d4af37] blur-md opacity-20 group-hover:opacity-40 transition-opacity" />
+          <img src={logoUrl} className="relative w-10 h-10 lg:w-12 lg:h-12 rounded-2xl object-cover border border-white/20 shadow-2xl" alt="Logo" />
         </div>
-      </nav>
+        <div className="flex flex-col leading-none hidden sm:flex">
+          <span className="text-xl lg:text-2xl font-black uppercase tracking-tighter text-white">
+            G<span className="text-[#d4af37]">D</span>P
+          </span>
+          <span className="text-[7px] font-bold uppercase tracking-[0.4em] text-[#d4af37]">Finance</span>
+        </div>
+      </div>
 
+      {/* --- BOUTONS DE NAVIGATION ÉLÉGANTS --- */}
+      <div className="flex items-center gap-2 md:gap-4">
+        {/* Accueil */}
+        <button
+          onClick={() => window.location.reload()}
+          className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-6 lg:py-3 rounded-2xl transition-all duration-300 hover:bg-white/10 overflow-hidden"
+        >
+          <div className="absolute inset-0 w-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent group-hover:w-full transition-all duration-500" />
+          <Home size={18} className="text-[#d4af37]" />
+          <span className="hidden md:block text-[11px] font-black uppercase tracking-widest text-white/90">Accueil</span>
+        </button>
+
+        {/* Carte Interactive */}
+        <button
+          onClick={ouvrirLaCarte}
+          className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-6 lg:py-3 rounded-2xl transition-all duration-300 hover:bg-white/10 overflow-hidden"
+        >
+          <div className="absolute inset-0 w-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent group-hover:w-full transition-all duration-500" />
+          <MapPin size={18} className="text-[#d4af37]" />
+          <span className="hidden md:block text-[11px] font-black uppercase tracking-widest text-white/90">Carte</span>
+        </button>
+
+        {/* Rapport (Le bouton distinctif) */}
+        <Link href="/dashboard/superviseurs/rapport">
+          <div className="relative group px-4 py-2.5 lg:px-6 lg:py-3 rounded-2xl bg-[#d4af37] hover:bg-white transition-all duration-300 shadow-[0_10px_20px_rgba(212,175,55,0.2)] active:scale-95 flex items-center gap-3">
+            <FilePieChart size={18} className="text-black" />
+            <div className="hidden lg:flex flex-col items-start leading-none">
+              <span className="text-[10px] font-black uppercase text-black">Rapports</span>
+              <span className="text-[7px] font-bold uppercase text-black/60">Analyse Live</span>
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      {/* --- USER SECTION --- */}
+      <div className="flex items-center gap-2 lg:gap-6 shrink-0 pl-2 lg:pl-6 border-l border-white/10">
+        {user ? (
+          <div className="flex items-center gap-3">
+            {/* Infos User (Masqué sur petit mobile) */}
+            <div className="text-right hidden xl:block">
+              <p className="text-[10px] font-black text-white uppercase tracking-tight">{user.nom}</p>
+              <p className="text-[8px] font-bold text-[#d4af37] uppercase opacity-80">{user.role}</p>
+            </div>
+
+            {/* Avatar & Logout Group */}
+            <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#d4af37]/50 transition-colors">
+              <img 
+                src={user.logoUrl || "/default-avatar.png"} 
+                className="w-8 h-8 lg:w-9 lg:h-9 rounded-xl border border-white/10 object-cover" 
+                alt="Profil" 
+              />
+              <button
+                onClick={handleLogout}
+                className="p-2 text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl"
+                title="Déconnexion"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setIsLoginOpen(true)}
+            className="px-6 py-2.5 rounded-xl border border-[#d4af37] text-[#d4af37] text-[10px] font-black uppercase hover:bg-[#d4af37] hover:text-black transition-all shadow-lg"
+          >
+            Connexion
+          </button>
+        )}
+      </div>
+    </motion.div>
+  </div>
+</nav>
 
 
 
@@ -2036,16 +2033,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useAuth();
 
-  // --- LOGIQUE DE SÉCURITÉ ---
-  const getActiveReservation = (face: any) => {
-    const now = new Date();
-    return face.reservations?.find((res: any) => {
-      const debut = new Date(res.dateDebut);
-      const fin = new Date(res.dateFin);
-      return now >= debut && now <= fin;
-    });
-  };
-
+  
   const canEditFace = (face: any) => {
     return true;
   };

@@ -619,6 +619,8 @@ export default function UltimateSupervisor() {
 
 
 
+
+
 import { MinusCircle, Calendar, History, Activity,  } from 'lucide-react';
 
 const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected, ouvrirLaCarte }: any) => {
@@ -845,9 +847,6 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                           Cette face n'attend que votre visibilité. <br />
                           <span className="text-white font-bold italic">Prenez l'avantage sur vos concurrents dès maintenant.</span>
                         </p>
-                        <button className="bg-[#d4af37] text-black text-[10px] font-black uppercase px-6 py-2 rounded-full hover:scale-105 transition-transform">
-                          Réserver cette face
-                        </button>
                       </div>
                     </div>
                   )}

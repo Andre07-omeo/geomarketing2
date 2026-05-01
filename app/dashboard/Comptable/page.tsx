@@ -1,994 +1,453 @@
-"use client";
-
-import React, { useState, useEffect, useMemo } from 'react';
+'use client';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
-  FileText, Download, Search, Calendar,
-  Tag, CreditCard, RefreshCcw,
-  Clock, TrendingUp, PieChart, ArrowDownCircle, ArrowUpCircle, X
+  Search, CheckCircle2, Clock, ArrowUpRight,
+  MapPin, ShieldCheck, LogOut, User,
+  ArrowDownLeft, BarChart3, Layers,
+  Calendar, Building2, Tag, Info, Menu, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
 
-// --- CONFIGURATION FIREBASE ---
+// --- CONFIG FIREBASE (Inchangée) ---
+import { getDocs, query, where, writeBatch } from "firebase/firestore";
+
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, onSnapshot, doc, updateDoc, Timestamp } from "firebase/firestore";
+import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 
 
-import {
-  Monitor, XCircle // <--- AJOUTE CES DEUX-LÀ
-} from 'lucide-react';
+
+import { useRouter } from 'next/navigation'; // Pour Next.js 13/14/15 (App Router)
+// OU import { useRouter } from 'next/router'; // Si tu es sur l'ancien Pages Router
+
+import { useAuth } from '@/context/AuthContext'; // Ajuste le chemin selon ton projet
+
+
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
   authDomain: "kin-geo-market.firebaseapp.com",
   projectId: "kin-geo-market",
-  storageBucket: "kin-geo-market.firebasestorage.app",
-  messagingSenderId: "50335362445",
   appId: "1:50335362445:web:44430fdb027a4bec80a1c4"
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// --- CONFIGURATION THÈME ---
-const THEME = {
-  blue: "#1e3a8a",
-  gold: "#f59e0b",
-  red: "#dc2626",
-  white: "#ffffff",
-  glass: "bg-white/5 backdrop-blur-xl border border-blue-400/20"
-};
+const THEMES = [
+  { id: 1, name: 'Obsidian', bg: '#112066', accent: '#969bb4' },
+  { id: 2, name: 'Deep Sea', bg: '#8a979c', accent: '#021213' },
+  { id: 3, name: 'Forest', bg: '#06100a', accent: '#10b981' },
+  { id: 4, name: 'Midnight', bg: '#0a0a0a', accent: '#8b5cf6' },
+  { id: 5, name: 'Bordeaux', bg: '#110505', accent: '#f87171' }
+];
 
-export default function AdvancedAccountingSystem() {// --- CONFIGURATION ET STATES DU COMPOSANT PARENT ---
+const AccountingMaster = () => {
+  const auth = getAuth(app);
 
-  const [activeTab, setActiveTab] = useState<'Audit' | 'Factures' | 'Paiements' | 'Rapports'>('Audit');
-  const [transactions, setTransactions] = useState<any[]>([]);
+
+  const { user } = useAuth(); // Récupère loading si ton contexte le fournit
+  const router = useRouter();
+
+
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [factures, setFactures] = useState<any[]>([]);
+  const [activeTheme, setActiveTheme] = useState(THEMES[0]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false); // Nouvel état de verrouillage
 
-  // États pour le tiroir (Drawer)
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [societes, setSocietes] = useState<any[]>([]);
-  const [operationType, setOperationType] = useState('');
-
-  // 1. UNIQUE LOGIQUE POUR LES TRANSACTIONS
   useEffect(() => {
-    const q = query(collection(db, "transactions"), orderBy("date", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setTransactions(data);
+    const unsub = onSnapshot(collection(db, "factures"), (snap) => {
+      setFactures(snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        dateFormatted: d.data().createdAt?.seconds ? new Date(d.data().createdAt.seconds * 1000).toLocaleDateString() : 'N/A'
+      })));
       setLoading(false);
     });
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
-
-  // 2. UNIQUE LOGIQUE POUR LES SOCIÉTÉS (Indispensable pour CashInDrawer)
-  // Dans ton fichier principal (AdvancedAccountingSystem.tsx)
-  useEffect(() => {
-    // 1. On cible la collection "societes"
-    const colRef = collection(db, "societes");
-
-    // 2. On écoute en temps réel
-    const unsubscribe = onSnapshot(colRef, (snapshot) => {
-      const listeRecuperee = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // LOG DE DEBUG : Ouvre ta console (F12) pour voir si ça s'affiche ici
-      console.log("SOCIETES DANS LE PARENT :", listeRecuperee);
-
-      setSocietes(listeRecuperee);
-    }, (error) => {
-      console.error("Erreur Firestore :", error);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-
-
-
-  // Gestionnaire d'actions
-  const handleAction = (type: string) => {
-    setOperationType(type);
-    if (type === 'cash_in') {
-      setIsDrawerOpen(true);
-    }
-  };
-
-  // 3. RENDER MODULE CORRIGÉ (Sécurisé)
-  const renderModule = () => {
-    if (loading) {
-      return (
-        <div className="p-20 text-center animate-pulse text-[#f59e0b] uppercase font-black tracking-widest">
-          Initialisation BI Hub...
-        </div>
-      );
-    }
-
-    // On s'assure que les composants existent avant de les appeler
-    switch (activeTab) {
-      case 'Factures':
-        return typeof FacturesModule !== 'undefined' ? <FacturesModule data={transactions} /> : null;
-      case 'Paiements':
-        return typeof PaiementsModule !== 'undefined' ? <PaiementsModule data={transactions} /> : null;
-      case 'Rapports':
-        return typeof RapportsModule !== 'undefined' ? <RapportsModule data={transactions} /> : null;
-      case 'Audit':
-      default:
-        return typeof AuditModule !== 'undefined' ? <AuditModule data={transactions} /> : null;
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#1e3a8a] text-white p-4 md:p-8 lg:p-12 font-sans selection:bg-amber-500 overflow-x-hidden">
-
-      {/* 1. HEADER DYNAMIQUE */}
-      <header className={`${THEME.glass} p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] mb-6 md:mb-8 shadow-2xl`}>
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8 mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-black italic uppercase tracking-tighter">
-              BI <span className="text-[#f59e0b]">Accounting</span>
-            </h1>
-            <p className="text-[9px] md:text-[10px] opacity-50 font-bold uppercase tracking-[0.3em]">
-              Kin-Geo-Market • Andre Omeonga • 2026
-            </p>
-          </div>
-
-          {/* ACTIONS RAPIDES */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 w-full xl:w-auto">
-            <ActionButton
-              icon={ArrowDownCircle}
-              label="Entrée Cash"
-              color="bg-green-600 text-white"
-              onClick={() => handleAction('cash_in')}
-            />
-
-            <div className="hidden sm:block w-[2px] h-10 bg-white/10 mx-2 self-center"></div>
-
-            <ActionButton
-              icon={ArrowUpCircle}
-              label="Sortie Cash"
-              color="bg-red-600 text-white"
-              onClick={() => handleAction('cash_out')}
-            />
-          </div>
-        </div>
-
-        {/* NAVIGATION */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-t border-white/10 pt-6">
-          <nav className="flex overflow-x-auto no-scrollbar gap-2 md:gap-4 w-full md:w-auto">
-            {['Audit', 'Factures', 'Paiements', 'Rapports'].map((tab: any) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`whitespace-nowrap px-6 md:px-8 py-3 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-white text-[#1e3a8a] shadow-lg scale-105' : 'bg-white/5 hover:bg-white/10'
-                  }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </nav>
-
-          <div className="flex gap-2 w-full md:w-auto">
-            <ExportButton icon={FileText} label="PDF" color="bg-red-600/20 text-red-500 border border-red-500/30" className="flex-1" />
-            <ExportButton icon={Download} label="Excel" color="bg-green-600/20 text-green-500 border border-green-500/30" className="flex-1" />
-          </div>
-        </div>
-      </header>
-
-      {/* 2. CONTENU PRINCIPAL ET TIROIR */}
-      <main className="w-full max-w-[1600px] mx-auto">
-        {renderModule()}
-
-        {/* Le tiroir reçoit les sociétés et la base de données */}
-        <CashInDrawer
-          isOpen={isDrawerOpen}
-          onClose={() => setIsDrawerOpen(false)}
-          societes={societes} // <--- CETTE LIGNE EST CRUCIALE
-          db={db}
-        />
-      </main>
-    </div>
-  );
-}
+  // Si on n'est pas prêt, on affiche un écran noir total (Pas de dashboard, pas de redirection)
 
 
 
 
 
+  const handleLogout = async () => {
+    if (!confirm("Voulez-vous vraiment vous déconnecter ?")) return;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import { addDoc, serverTimestamp } from "firebase/firestore";
-
-function CashInDrawer({ isOpen, onClose, societes, db }: any) {
-  const [selectedSocieteId, setSelectedSocieteId] = useState("");
-  const [numPanneaux, setNumPanneaux] = useState(1);
-  const [panneauxDetails, setPanneauxDetails] = useState([{ id_panneau: "", montant: 0 }]);
-  const [nbMois, setNbMois] = useState(1);
-  const [tvaActive, setTvaActive] = useState(true); // Nouvelle fonctionnalité : TVA
-  const [isSaving, setIsSaving] = useState(false);
-
-  const currentSociete = useMemo(() =>
-    societes.find((s: any) => s.id === selectedSocieteId),
-    [selectedSocieteId, societes]);
-
-  // --- LOGIQUE DE CALCUL SÉCURISÉE ---
-  const calculs = useMemo(() => {
-    const sousTotal = panneauxDetails.reduce((acc, curr) => acc + (Number(curr.montant) || 0), 0);
-    const baseMensuelle = sousTotal * (Number(nbMois) || 1);
-    const tva = tvaActive ? baseMensuelle * 0.16 : 0; // 16% de TVA (RDC)
-    const totalFinal = baseMensuelle + tva;
-
-    return { baseMensuelle, tva, totalFinal };
-  }, [panneauxDetails, nbMois, tvaActive]);
-
-  const handleAddPanneau = (val: number) => {
-    const count = Math.max(1, val);
-    setNumPanneaux(count);
-    const newArr = Array.from({ length: count }, (_, i) =>
-      panneauxDetails[i] || { id_panneau: "", montant: 0 }
-    );
-    setPanneauxDetails(newArr);
-  };
-
-  const submitTransaction = async () => {
-    if (!selectedSocieteId) return alert("Sélectionnez une société");
-
-    setIsSaving(true);
     try {
-      await addDoc(collection(db, "transactions"), {
-        type: "ENTRÉE",
-        client_nom: currentSociete?.nom || "Inconnu",
-        societe_id: selectedSocieteId,
-        details_panneaux: panneauxDetails,
-        duree_mois: nbMois,
-        montant_ht: calculs.baseMensuelle,
-        montant_tva: calculs.tva,
-        total_usd: calculs.totalFinal,
-        devise: "USD",
-        valide_par: "Andre Omeonga", // Signature automatique
-        date: serverTimestamp(),
-        status: "Validé"
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // On appelle directement le signOut de Firebase
+      await signOut(auth);
+
+      router.push('/');
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+      router.push('/');
+    }
+  };
+
+
+  // --- AJOUT/MODIFICATION : Synchronisation de l'utilisateur ---
+  useEffect(() => {
+    if (!user) {
+      // Si après le chargement il n'y a pas d'utilisateur, redirection
+      // router.push('/'); // Optionnel : décommenter pour forcer le login
+      return;
+    }
+
+    // On mappe les données du contexte Auth vers ton état local
+    setCurrentUser({
+      name: user.displayName || user.email?.split('@')[0] || "Agent",
+      email: user.email,
+      uid: user.uid
+    });
+  }, [user]);
+
+  // --- TON CODE EXISTANT (Récupération factures) ---
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "factures"), (snap) => {
+      setFactures(snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        dateFormatted: d.data().createdAt?.seconds
+          ? new Date(d.data().createdAt.seconds * 1000).toLocaleDateString()
+          : 'N/A'
+      })));
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleValidation = async (f: any) => {
+    // SÉCURITÉ : Vérifier si l'agent est bien identifié
+    if (!currentUser) {
+      alert("Erreur d'authentification. Veuillez vous reconnecter.");
+      return;
+    }
+
+    const du = Number(f.totalHT) - (Number(f.montantPaye) || 0);
+    const mnt = prompt(`ENCAISSEMENT : ${f.clientNom}\nSomme due : $${du}`, du.toString());
+
+    if (!mnt || isNaN(Number(mnt))) return;
+
+    const v = Number(mnt);
+    const nCumul = (Number(f.montantPaye) || 0) + v;
+    const isDone = nCumul >= Number(f.totalHT);
+
+    try {
+      const batch = writeBatch(db);
+      const docRef = doc(db, "factures", f.id);
+
+      // MISE À JOUR FACTURE AVEC PROTECTION CONTRE LES VALEURS UNDEFINED
+      batch.update(docRef, {
+        validationComptable: isDone,
+        montantPaye: nCumul,
+        statut: isDone ? "Validée" : "Acompte",
+        dateValidation: Timestamp.now(),
+        derniereTransaction: v,
+        valideParNom: currentUser.name || "Anonyme",
+        valideParEmail: currentUser.email || "Non renseigné",
+        statutPaiement: isDone ? "Payé" : "Acompte",
+        valideParUID: user?.uid || currentUser?.uid || "UID_INCONNU", // Protection ici
       });
 
-      alert("Transaction comptabilisée avec succès !");
-      onClose();
+      // 2. SYNCHRONISATION AVEC LES PANNEAUX (Seulement si paiement complet)
+      // 2. SYNCHRONISATION AVEC LES PANNEAUX (Seulement si paiement complet)
+      if (isDone && f.lignes && f.lignes.length > 0) {
+
+        const panneauxSnap = await getDocs(collection(db, "panneaux"));
+
+        panneauxSnap.forEach((panneauDoc) => {
+          const panneauData = panneauDoc.data();
+          let aEteModifie = false;
+
+          // On parcourt les faces du panneau
+          const nouvellesFaces = panneauData.faces.map((face: any) => {
+            if (!face.reservations) return face;
+
+            // On parcourt les réservations de chaque face
+            const nouvellesReservations = face.reservations.map((res: any) => {
+
+              // LOGIQUE CORRIGÉE : On vérifie si CETTE réservation spécifique 
+              // est présente dans l'une des lignes de la facture
+              const matchFacture = f.lignes.find((ligne: any) =>
+                // On compare l'identifiant unique de la face (si présent) ou le nom/code
+                (ligne.faceId === face.id || ligne.faceNom === face.nom) &&
+                res.dateDebut === ligne.dateDebut &&
+                res.dateFin === ligne.dateFin &&
+                res.societeLocatrice === f.clientNom
+              );
+
+              if (matchFacture) {
+                aEteModifie = true;
+                return {
+                  ...res,
+                  validationComptable: true,
+                  statutPaiement: "Payé",
+                  comptableValidateur: currentUser.email || "Email inconnu",
+                  dateValidationComptable: Timestamp.now()
+                };
+              }
+
+              return res;
+            });
+
+            return { ...face, reservations: nouvellesReservations };
+          });
+
+          if (aEteModifie) {
+            const panRef = doc(db, "panneaux", panneauDoc.id);
+            batch.update(panRef, { faces: nouvellesFaces });
+          }
+        });
+      }
+      await batch.commit();
+      alert(`Bravo ${currentUser.name || ""}, la transaction est enregistrée.`);
+
     } catch (e) {
       console.error(e);
-      alert("Erreur lors de la sauvegarde.");
-    } finally {
-      setIsSaving(false);
+      alert("Erreur technique lors de la mise à jour");
     }
   };
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]" />
-          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} className="fixed right-0 top-0 h-full w-full max-w-md bg-[#1e3a8a] border-l border-white/10 shadow-2xl z-[101] p-8 overflow-y-auto custom-scrollbar">
+  const filtered = useMemo(() => {
+  return factures.filter(f =>
+    f.clientNom?.toLowerCase().includes(search.toLowerCase()) ||
+    f.factureIdFormat?.toLowerCase().includes(search.toLowerCase())
+  ).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+}, [factures, search]); // Dès que 'factures' change via le snapshot, 'filtered' et les sommes se mettent à jour.
 
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-black italic uppercase text-[#f59e0b]">Nouveau Revenu</h2>
-              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-white"><X size={24} /></button>
+
+
+  if (loading) return <div className="h-screen flex items-center justify-center bg-[#0a0a0a] text-white font-black tracking-tighter animate-pulse">LEDGER SYNC...</div>;
+  return (
+    <div className="min-h-screen transition-all duration-700 pb-20" style={{ backgroundColor: activeTheme.bg, color: 'white' }}>
+      {/* HEADER RESPONSIVE */}
+      <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-3xl border-b border-white/10">
+        <div className="max-w-[1700px] mx-auto px-4 md:px-10 h-20 md:h-24 flex items-center justify-between">
+
+          {/* Logo & Themes (Cachés sur petit mobile si menu fermé) */}
+          <div className="flex items-center gap-4 md:gap-8">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/10">
+                <BarChart3 size={18} style={{ color: activeTheme.accent }} />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="font-black text-lg tracking-tighter uppercase italic leading-none">Ledger<span className="opacity-20">Pro</span></h1>
+                <p className="text-[6px] font-bold tracking-[0.3em] opacity-40 uppercase">Secure Finance</p>
+              </div>
             </div>
 
-            <div className="space-y-6">
-              {/* SÉLECTEUR SOCIÉTÉ */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase opacity-40 italic text-white">
-                  Partenaire
-                </label>
+            {/* Themes - Desktop only */}
+            <div className="hidden lg:flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
+              {THEMES.map(t => (
+                <button key={t.id} onClick={() => setActiveTheme(t)}
+                  className={`w-6 h-6 rounded-md border transition-all ${activeTheme.id === t.id ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-40'}`}
+                  style={{ backgroundColor: t.bg }}
+                />
+              ))}
+            </div>
+          </div>
 
-                <select
-                  value={selectedSocieteId}
-                  onChange={(e) => setSelectedSocieteId(e.target.value)}
-                  className="w-full bg-white/10 border border-white/10 p-4 rounded-2xl text-white font-bold outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all appearance-none cursor-pointer"
-                >
-                  <option value="" className="bg-slate-900 text-white">
-                    -- Choisir --
-                  </option>
+          {/* Recherche - Adaptative */}
+          <div className="flex-1 max-w-md mx-4 hidden md:block">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
+              <input
+                type="text" placeholder="Rechercher..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-xs outline-none focus:border-white/30 transition-all"
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
 
-                  {/* Sécurisation : on vérifie que societes existe et est un tableau */}
-                  {Array.isArray(societes) && societes.length > 0 ? (
-                    societes.map((s: any) => (
-                      <option
-                        key={s.id}
-                        value={s.id}
-                        className="bg-[#1e3a8a] text-white"
-                      >
-                        {s.nom}
-                      </option>
-                    ))
-                  ) : (
-                    <option disabled className="bg-slate-900 text-white/50">
-                      Chargement des partenaires...
-                    </option>
-                  )}
-                </select>
+          {/* PROFIL & DECONNEXION */}
 
-                {/* Optionnel : Petit indicateur si aucune société n'est trouvée */}
-                {(!societes || societes.length === 0) && (
-                  <p className="text-[9px] text-amber-500/60 font-medium">
-                    Aucune donnée partenaire disponible.
+          <div className="flex items-center gap-2 lg:gap-6 shrink-0 pl-2 lg:pl-6 border-l border-white/10">
+            {user ? (
+              <div className="flex items-center gap-3">
+                {/* Infos User (Masqué sur petit mobile) */}
+                <div className="text-right hidden xl:block">
+                  <p className="text-[10px] font-black text-white uppercase tracking-tight">{user.nom}</p>
+                  <p className="text-[8px] font-bold text-[#d4af37] uppercase opacity-80">{user.role}</p>
+                  <p className="text-[8px] opacity-40 font-mono">
+                    {currentUser?.email || "Vérification session..."}
                   </p>
-                )}
-              </div>
-
-              {/* DURÉE ET OPTIONS */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase opacity-40 text-white">Mois</label>
-                  <input type="number" min="1" value={nbMois} onChange={(e) => setNbMois(parseInt(e.target.value) || 1)} className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl text-white outline-none focus:border-amber-500" />
                 </div>
-                <div className="flex items-end pb-2">
+
+                {/* Avatar & Logout Group */}
+                <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#d4af37]/50 transition-colors">
+                  <img
+                    src={user.logoUrl || "/default-avatar.png"}
+                    className="w-8 h-8 lg:w-9 lg:h-9 rounded-xl border border-white/10 object-cover"
+                    alt="Profil"
+                  />
                   <button
-                    onClick={() => setTvaActive(!tvaActive)}
-                    className={`w-full py-4 rounded-2xl text-[10px] font-black transition-all border ${tvaActive ? 'bg-amber-500/20 border-amber-500 text-amber-500' : 'bg-white/5 border-white/10 text-white/40'}`}
+                    onClick={handleLogout}
+                    className="p-2 text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl"
+                    title="Déconnexion"
                   >
-                    {tvaActive ? "TVA 16% INCLUSE" : "SANS TVA"}
+                    <LogOut size={18} />
                   </button>
                 </div>
               </div>
-
-              {/* LISTE DES PANNEAUX */}
-              <div className="space-y-4 pt-4 border-t border-white/10">
-                <div className="flex justify-between items-center">
-                  <p className="text-[10px] font-black uppercase text-white/40 tracking-widest">Détails Supports</p>
-                  <input type="number" min="1" max="10" value={numPanneaux} onChange={(e) => handleAddPanneau(parseInt(e.target.value) || 1)} className="w-16 bg-white/10 border-none rounded-lg p-1 text-center text-xs text-amber-500 font-bold" />
-                </div>
-
-                {panneauxDetails.map((p, index) => (
-                  <div key={index} className="grid grid-cols-2 gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 group-hover:border-amber-500/30 transition-all">
-                    <input
-                      type="text" placeholder="ID Panneau"
-                      value={p.id_panneau}
-                      onChange={(e) => {
-                        const newP = [...panneauxDetails];
-                        newP[index].id_panneau = e.target.value.toUpperCase();
-                        setPanneauxDetails(newP);
-                      }}
-                      className="bg-transparent border-b border-white/10 text-xs text-white p-2 outline-none focus:border-amber-500"
-                    />
-                    <input
-                      type="number" placeholder="Montant/Mois"
-                      onChange={(e) => {
-                        const newP = [...panneauxDetails];
-                        newP[index].montant = Number(e.target.value);
-                        setPanneauxDetails(newP);
-                      }}
-                      className="bg-transparent border-b border-white/10 text-right font-black text-amber-500 outline-none"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* RÉSUMÉ FINANCIER BI */}
-              <div className="mt-8 p-6 bg-gradient-to-br from-amber-500 to-orange-600 rounded-[2rem] text-[#1e3a8a] shadow-xl">
-                <div className="flex justify-between text-[9px] font-black uppercase opacity-60 mb-1">
-                  <span>Sous-total HT</span>
-                  <span>{calculs.baseMensuelle.toLocaleString()} $</span>
-                </div>
-                <div className="flex justify-between text-[9px] font-black uppercase opacity-60 mb-3 pb-3 border-b border-black/10">
-                  <span>TVA (16%)</span>
-                  <span>{calculs.tva.toLocaleString()} $</span>
-                </div>
-                <div className="flex justify-between items-end">
-                  <span className="text-[10px] font-black uppercase">Total à Encaisser</span>
-                  <span className="text-3xl font-black italic">{calculs.totalFinal.toLocaleString()} $</span>
-                </div>
-              </div>
-
+            ) : (
               <button
-                onClick={submitTransaction}
-                disabled={isSaving || !selectedSocieteId || calculs.totalFinal <= 0}
-                className="w-full bg-white text-[#1e3a8a] py-5 rounded-2xl font-black uppercase hover:bg-amber-500 hover:text-white transition-all disabled:opacity-20 shadow-2xl"
+                onClick={handleLogout}
+                className="px-6 py-2.5 rounded-xl border border-[#d4af37] text-[#d4af37] text-[10px] font-black uppercase hover:bg-[#d4af37] hover:text-black transition-all shadow-lg"
               >
-                {isSaving ? "Synchronisation..." : "Confirmer l'encaissement"}
+                Connexion
               </button>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
-
-
-
-
-
-
-
-
-
-
-
-// --- NOUVEAU SOUS-COMPOSANT : ACTION BUTTON ---
-function ActionButton({ icon: Icon, label, color, onClick }: any) {
-  return (
-    <button
-      onClick={onClick}
-      className={`${color} px-5 py-3 rounded-xl flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-tighter hover:scale-105 active:scale-95 transition-all shadow-xl flex-1 sm:flex-none`}
-    >
-      <Icon size={16} />
-      <span>{label}</span>
-    </button>
-  );
-}
-
-
-
-
-import {
-  Users, AlertTriangle, Send, MapPin,
-  Layers, CheckCircle,
-} from 'lucide-react';
-import {
-  Radar, RadarChart, PolarGrid, PolarAngleAxis,
-  Pie, Cell,
-} from 'recharts';
-
-// ==========================================
-// 1. DONNÉES DE RÉFÉRENCE (PRÉDÉFINIES)
-// ==========================================
-
-const RAW_AUDIT_DATA = [
-  { type: "ENTRÉE", client_nom: "VODACOM", nombre_panneaux: 12, total_usd: 15000 },
-  { type: "ENTRÉE", client_nom: "AIRTEL", nombre_panneaux: 8, total_usd: 9600 },
-  { type: "ENTRÉE", client_nom: "ORANGE", nombre_panneaux: 15, total_usd: 18000 },
-  { type: "ENTRÉE", client_nom: "BRACINGO", nombre_panneaux: 5, total_usd: 5000 },
-  { type: "ENTRÉE", client_nom: "CANAL+", nombre_panneaux: 10, total_usd: 12000 },
-];
-
-const REVENUE_CHART_DATA = [
-  { month: 'Jan', val: 4000 },
-  { month: 'Fév', val: 7500 },
-  { month: 'Mar', val: 5000 },
-  { month: 'Avr', val: 9000 },
-  { month: 'Mai', val: 12000 },
-  { month: 'Juin', val: 15000 },
-];
-
-const AUDIT_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
-
-// ==========================================
-// 2. COMPOSANT PRINCIPAL
-// ==========================================
-
-function AuditModule({
-  data = RAW_AUDIT_DATA,
-  THEME,
-  chartData = REVENUE_CHART_DATA
-}: any) {
-
-  // --- LOGIQUE BI : TRAITEMENT SÉCURISÉ ---
-  const auditAnalytics = useMemo(() => {
-    if (!data) return { marketLeader: { nom: "N/A" }, occupancyTotal: 0, clientList: [] };
-    const clientMap: any = {};
-    const districtStats: any = { "Gombe": 0, "Limete": 0, "Ngaliema": 0, "Ndjili": 0 };
-
-    const supportTypes = [
-      { name: 'Bâche', value: 45 },
-      { name: 'Vinyle', value: 30 },
-      { name: 'Trivision', value: 25 }
-    ];
-
-    if (!data || !Array.isArray(data)) {
-      return {
-        clientList: [],
-        marketLeader: { nom: "N/A", faces: 0 },
-        geoMetrics: [],
-        mediaMetrics: supportTypes,
-        occupancyTotal: 0
-      };
-    }
-
-    data.forEach((entry: any) => {
-      if (entry.type === "ENTRÉE") {
-        const name = entry.client_nom || "Inconnu";
-        if (!clientMap[name]) {
-          clientMap[name] = {
-            nom: name,
-            faces: 0,
-            revenue: 0,
-            daysLeft: Math.floor(Math.random() * 40) + 5
-          };
-        }
-        const count = Number(entry.nombre_panneaux) || 0;
-        clientMap[name].faces += count;
-        clientMap[name].revenue += Number(entry.total_usd) || 0;
-
-        // Répartition par district (Simulation)
-        if (name.length % 2 === 0) districtStats["Gombe"] += count;
-        else districtStats["Limete"] += count;
-      }
-    });
-
-    const sortedList = Object.values(clientMap).sort((a: any, b: any) => b.faces - a.faces);
-
-    return {
-      clientList: sortedList,
-      marketLeader: sortedList[0] || { nom: "N/A", faces: 0 },
-      geoMetrics: Object.entries(districtStats).map(([name, value]) => ({ name, value })),
-      mediaMetrics: supportTypes,
-      occupancyTotal: sortedList.reduce((acc, curr: any) => acc + curr.faces, 0)
-    };
-  }, [data]);
-
-  // --- ACTIONS ---
-  const handleAlert = (name: string) => {
-    alert(`ALERTE : Notification envoyée à ${name} pour renouvellement.`);
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 space-y-8 pb-24">
-
-      {/* SECTION 1: INDICATEURS CLÉS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-white">
-        <div className={`${THEME?.glass || 'bg-white/10'} p-6 rounded-[2rem] border border-white/5`}>
-          <p className="text-[10px] font-black opacity-40 uppercase mb-2">Leader Actuel</p>
-
-
-          <div className="text-xl font-black">
-  {auditAnalytics?.mediaMetrics?.map((item, idx) => (
-    <div key={idx} className="flex items-center gap-2">
-       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: AUDIT_COLORS[idx % AUDIT_COLORS.length] }} />
-       <span className="text-sm">{item.name}</span>
-    </div>
-  ))}
-</div>
-        </div>
-
-        <div className={`${THEME?.glass || 'bg-white/10'} p-6 rounded-[2rem] border border-white/5`}>
-          <p className="text-[10px] font-black opacity-40 uppercase mb-2">Occupation Réseau</p>
-          <p className="text-xl font-black text-white">
-            {typeof auditAnalytics?.occupancyTotal === 'number'
-              ? ((auditAnalytics.occupancyTotal / 203) * 100).toFixed(1)
-              : "0.0"}%
-          </p>
-        </div>
-
-        <div className={`${THEME?.glass || 'bg-white/10'} p-6 rounded-[2rem] border border-white/5`}>
-          <p className="text-[10px] font-black opacity-40 uppercase mb-2">Contrats à Risque</p>
-          <p className="text-xl font-black text-red-500 flex items-center gap-2">
-            <AlertTriangle size={18} /> Urgent
-          </p>
-        </div>
-
-        <button className="bg-amber-500 rounded-[2rem] p-6 flex flex-col items-center justify-center hover:brightness-110 transition-all group shadow-lg shadow-amber-500/20">
-          <Send className="text-[#1e3a8a] mb-1" size={20} />
-          <span className="text-[10px] font-black uppercase text-[#1e3a8a]">Relancer Ventes</span>
-        </button>
-      </div>
-
-      {/* SECTION 2: GRAPHIQUES DE PERFORMANCE */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Graphique Radar Districts */}
-        <div className={`${THEME?.glass || 'bg-white/10'} p-8 rounded-[2.5rem]`}>
-          <h3 className="text-[10px] font-black uppercase mb-6 opacity-40 text-white tracking-tighter">Répartition Districts</h3>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={auditAnalytics.geoMetrics}>
-                <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                <PolarAngleAxis dataKey="name" tick={{ fill: 'white', fontSize: 10 }} />
-                <Radar dataKey="value" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.5} />
-              </RadarChart>
-            </ResponsiveContainer>
+            )}
           </div>
-        </div>
 
-        {/* Graphique Flux Financier */}
-        <div className={`${THEME?.glass || 'bg-white/10'} p-8 rounded-[2.5rem] lg:col-span-2`}>
-          <h3 className="text-[10px] font-black uppercase mb-6 opacity-40 text-white tracking-tighter">Flux Financier (Mensuel)</h3>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="auditGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Tooltip contentStyle={{ background: '#1e3a8a', border: 'none', borderRadius: '12px' }} />
-                <Area type="monotone" dataKey="val" stroke="#f59e0b" fill="url(#auditGrad)" strokeWidth={3} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
         </div>
-      </div>
+      </header>
 
-      {/* SECTION 3: TYPES DE MEDIA (PIE) */}
-      <div className={`${THEME?.glass || 'bg-white/10'} p-8 rounded-[2.5rem] grid grid-cols-1 md:grid-cols-2 items-center`}>
-        <div>
-          <h3 className="text-[10px] font-black uppercase mb-6 opacity-40 text-white">Inventaire par Type de Support</h3>
-          {/* REMPLACE LE <p> PAR UNE <div> ICI */}
-          <div className="space-y-4">
-            {auditAnalytics?.mediaMetrics?.map((item: any, idx: number) => (
-              <div key={idx} className="flex items-center gap-3">
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: AUDIT_COLORS[idx % AUDIT_COLORS.length] }}
-                />
-                <span className="text-white text-[10px] font-bold uppercase">
-                  {item.name} — {item.value}%
-                </span>
+      <main className="p-4 md:p-8 max-w-[1700px] mx-auto">
+
+        {/* STATS : Responsive Grid */}
+        {/* STATS : Responsive Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-8 md:mb-12">
+          {[
+            {
+              label: 'Recettes (Validées)',
+              val: filtered.filter(f => f.validationComptable).reduce((acc, f) => acc + (Number(f.montantPaye) || 0), 0),
+              icon: ArrowUpRight,
+              color: '#10b981'
+            },
+            {
+              label: 'À Recouvrer',
+              val: filtered.filter(f => !f.validationComptable).reduce((acc, f) => acc + (Number(f.totalHT) - (Number(f.montantPaye) || 0)), 0),
+              icon: Clock,
+              color: '#fbbf24'
+            },
+            {
+              label: 'Factures Validées',
+              val: filtered.filter(f => f.validationComptable).length,
+              icon: CheckCircle2,
+              color: '#10b981'
+            },
+           { 
+    label: 'Volume Total HT (Validé)', 
+    val: filtered.filter(f => f.validationComptable).reduce((acc, f) => acc + Number(f.totalHT || 0), 0), 
+    icon: Layers, 
+    color: '#6366f1' 
+  },
+          ].map((s, i) => (
+            <div key={i} className="bg-white/[0.04] border border-white/10 p-4 md:p-6 rounded-[1.5rem] md:rounded-[2.5rem] relative overflow-hidden group">
+              <div className="absolute -right-2 -bottom-2 opacity-[0.05] rotate-12">
+                <s.icon size={60} />
               </div>
-            ))}
-          </div>s
-        </div>
-        <div className="h-[200px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={auditAnalytics?.mediaMetrics || []} innerRadius={60} outerRadius={80} dataKey="value">
-                {auditAnalytics?.mediaMetrics?.map((_: any, i: number) => (
-                  <Cell key={i} fill={AUDIT_COLORS[i % AUDIT_COLORS.length]} stroke="none" />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* SECTION 4: TABLEAU DE GESTION */}
-      <div className={`${THEME?.glass || 'bg-white/10'} rounded-[2.5rem] overflow-hidden`}>
-        <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
-          <h3 className="text-[11px] font-black uppercase text-white tracking-widest flex items-center gap-2">
-            {/* Vérifiez bien que CheckCircle est importé de 'lucide-react' */}
-            <CheckCircle className="text-green-500" size={16} />
-            Locations Actives
-          </h3>
-
-          <span className="text-[10px] font-bold px-4 py-2 bg-amber-500/20 text-amber-500 rounded-full border border-amber-500/20">
-            FACES TOTALES
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-white/5 text-[9px] uppercase font-black text-white/40">
-              <tr>
-                <th className="p-6">Partenaire</th>
-                <th className="p-6">Panneaux</th>
-                <th className="p-6">Échéance</th>
-                <th className="p-6">Volume CA</th>
-                <th className="p-6 text-right">Gestion</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5 text-white">
-              {auditAnalytics.clientList.map((client: any, i: number) => (
-                <tr key={i} className="hover:bg-white/5 transition-colors">
-                  <td className="p-6 font-bold text-sm">{client.nom}</td>
-                  <td className="p-6"><span className="text-amber-500 font-black">{client.faces} FACES</span></td>
-                  <td className="p-6">
-                    <div className="w-32 h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
-                      <div
-                        className={`h-full ${client.daysLeft < 15 ? 'bg-red-500' : 'bg-green-500'}`}
-                        style={{ width: `${(client.daysLeft / 45) * 100}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-[9px] font-bold opacity-40">{client.daysLeft} JOURS RESTANTS</span>
-                  </td>
-                  <td className="p-6 font-black">{client.revenue.toLocaleString()} $</td>
-                  <td className="p-6 text-right">
-                    <button
-                      onClick={() => handleAlert(client.nom)}
-                      className="bg-white/10 hover:bg-white hover:text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all"
-                    >
-                      Relancer
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-
-
-
-
-
-
-
-
-
-
-
-// Imports Icônes
-import { 
-  User, 
-  DollarSign 
-} from 'lucide-react';
-
-// --- COMPOSANT 1: STATS MINI ---
-const StatMini = ({ label, val, icon: Icon, color = "text-white" }: any) => (
-  <div className="bg-slate-900/40 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md">
-    <div className="flex justify-between items-start mb-2">
-      <div className={`p-2 rounded-xl bg-white/5 ${color}`}>
-        <Icon size={20} />
-      </div>
-    </div>
-    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">{label}</p>
-    <p className={`text-2xl font-black italic tracking-tighter ${color}`}>{val}</p>
-  </div>
-);
-
-// --- COMPOSANT 2: LE MODULE TABLEAU ---
-function FacturesModule({ data }: { data: any[] }) {
-  // Tri chronologique (le plus récent en haut)
-  const sortedFactures = [...data].sort((a, b) => {
-    const dateA = a.dateCreation?.seconds || 0;
-    const dateB = b.dateCreation?.seconds || 0;
-    return dateB - dateA;
-  });
-
-  const totalGlobal = data.reduce((acc, curr) => acc + (Number(curr.totalHT) || 0), 0);
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      className="space-y-8"
-    >
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <StatMini label="Volume d'affaires" val={`${totalGlobal.toLocaleString()} $`} icon={DollarSign} color="text-[#d4af37]" />
-        <StatMini label="Factures Émises" val={data.length} icon={FileText} />
-        <StatMini label="Taux de Validation" val="100%" icon={TrendingUp} color="text-emerald-400" />
-      </div>
-
-      <div className="bg-[#0a0f1d]/60 border border-white/10 rounded-[2.5rem] overflow-hidden backdrop-blur-xl shadow-2xl">
-        <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
-          <div>
-            <h3 className="text-white font-black uppercase text-sm tracking-[0.2em] italic">Registre des Ventes</h3>
-            <p className="text-[10px] text-white/30 font-bold uppercase mt-1">Traçabilité chronologique</p>
-          </div>
-          <div className="px-4 py-2 bg-[#d4af37]/10 border border-[#d4af37]/20 rounded-xl">
-             <span className="text-[#d4af37] text-[10px] font-black uppercase italic">Dispromalt ERP</span>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[900px]">
-            <thead className="bg-black/20 text-[9px] uppercase font-black tracking-[0.2em] text-blue-200/40">
-              <tr>
-                <th className="p-6">Référence & Agent</th>
-                <th className="p-6">Client & Détails</th>
-                <th className="p-6">Date d'Émission</th>
-                <th className="p-6 text-right">Montant HT</th>
-                <th className="p-6 text-center">Statut</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {sortedFactures.map((facture) => (
-                <tr key={facture.id} className="hover:bg-white/5 transition-all group">
-                  <td className="p-6">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-black text-white text-sm tracking-tight group-hover:text-[#d4af37]">
-                        {facture.factureIdFormat || 'N/A'}
-                      </span>
-                      <div className="flex items-center gap-1 text-[9px] text-white/40 font-bold uppercase">
-                        <User size={10} className="text-blue-400" />
-                        <span className="truncate max-w-[150px]">{facture.agentNom || 'Inconnu'}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-6">
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black text-white uppercase italic">
-                        {facture.clientNom || 'Client Anonyme'}
-                      </span>
-                      <span className="text-[9px] text-white/30 font-medium">
-                        {facture.lignes?.length || 0} emplacement(s)
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-6 text-white/60">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={12} className="text-white/20" />
-                      <span className="text-xs font-bold">
-                        {facture.dateCreation?.seconds 
-                          ? new Date(facture.dateCreation.seconds * 1000).toLocaleDateString('fr-FR')
-                          : 'Non datée'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-6 text-right">
-                    <span className="font-black text-xl text-white tracking-tighter">
-                      {Number(facture.totalHT || 0).toLocaleString('fr-FR')} 
-                      <span className="text-[#d4af37] text-xs ml-1">$</span>
-                    </span>
-                  </td>
-                  <td className="p-6">
-                    <div className="flex items-center justify-center">
-                      <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl border ${
-                        facture.statut === 'Validée' 
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
-                        : 'bg-white/5 border-white/10 text-white/30'
-                      }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${facture.statut === 'Validée' ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
-                        <span className="text-[9px] font-black uppercase italic">{facture.statut || 'Brouillon'}</span>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// --- COMPOSANT FINAL (PAGE) ---
- function GestionFactures() {
-  const [factures, setFactures] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Connexion réelle à la collection "factures" de ta BD
-    const q = query(collection(db, "factures"), orderBy("dateCreation", "desc"));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setFactures(docs);
-      setLoading(false);
-    }, (error) => {
-      console.error("Erreur Firestore:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-[#050810] p-4 md:p-12">
-      {loading ? (
-        <div className="flex flex-col items-center justify-center h-[50vh]">
-          <div className="w-12 h-12 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-white font-black uppercase text-[10px] tracking-widest animate-pulse italic">
-            Synchronisation ERP...
-          </p>
-        </div>
-      ) : (
-        <FacturesModule data={factures} />
-      )}
-    </div>
-  );
-}//export default FacturesModule;
-
-
-
-
-
-// --- MODULE 3: PAIEMENTS (TRACABILITÉ) ---
-function PaiementsModule({ data }: any) {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div className={`${THEME.glass} p-6 md:p-10 rounded-[2.5rem]`}>
-        <h3 className="text-[11px] font-black uppercase mb-8 flex items-center gap-3"><ArrowDownCircle className="text-green-500" /> Journal d'Entrée</h3>
-        <div className="space-y-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="flex justify-between items-center p-5 bg-white/5 rounded-2xl border-l-4 border-green-500 group hover:bg-white/10 transition-all">
-              <div className="space-y-1">
-                <p className="font-black text-xs md:text-sm">Revenue Publicitaire Kinshasa</p>
-                <p className="text-[9px] opacity-40 uppercase tracking-widest">Via Mobile Money • 14:20</p>
-              </div>
-              <p className="font-black text-green-400 text-lg md:text-xl">+ 850 $</p>
+              <p className="text-[8px] md:text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">{s.label}</p>
+              <p className="text-lg md:text-3xl font-black tabular-nums tracking-tighter" style={{ color: s.color }}>
+                {/* Affichage formaté : $ pour les montants, nombre simple pour le reste */}
+                {i === 2 ? s.val : `$${s.val.toLocaleString()}`}
+              </p>
             </div>
           ))}
         </div>
-      </div>
-      <div className={`${THEME.glass} p-6 md:p-10 rounded-[2.5rem]`}>
-        <h3 className="text-[11px] font-black uppercase mb-8 flex items-center gap-3"><ArrowUpCircle className="text-red-400" /> Sorties Opérationnelles</h3>
-        <div className="space-y-4 text-center py-20 opacity-20 italic text-sm">
-          Trassage des flux en attente de synchronisation...
+
+        {/* LISTE RESPONSIVE */}
+        <div className="space-y-4">
+          {/* Header de liste caché sur mobile */}
+          <div className="px-8 hidden lg:flex items-center text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">
+            <div className="w-[30%]">Client / Réf</div>
+            <div className="w-[25%]">Localisation</div>
+            <div className="w-[25%] text-right font-mono">Montant HT</div>
+            <div className="w-[20%] text-right text-right">Statut</div>
+          </div>
+
+          <AnimatePresence>
+            {filtered.map((f, idx) => (
+              <motion.div
+                key={f.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                className={`relative rounded-[1.5rem] md:rounded-[2.2rem] border p-5 md:p-7 transition-all ${f.validationComptable ? 'bg-white/[0.01] border-white/5 opacity-60' : 'bg-white/[0.06] border-white/10 hover:border-white/20 shadow-xl'}`}
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+
+                  {/* CLIENT & REF */}
+                  <div className="lg:w-[30%] flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center ${f.validationComptable ? 'bg-emerald-500/10 text-emerald-500' : 'bg-black/20'}`}>
+                      <Building2 size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-sm uppercase truncate max-w-[200px]">{f.clientNom || 'Sans Nom'}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[8px] font-mono text-[#d4af37]">{f.factureIdFormat}</span>
+                        <span className="text-[8px] opacity-30 px-2 border border-white/10 rounded-full">{f.nombreFaces} faces</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* MOBILE ROW: GEO & DATE */}
+                  <div className="flex items-center justify-between lg:w-[25%] lg:flex-col lg:items-start lg:justify-center gap-2">
+                    <div className="flex items-center gap-2 opacity-60">
+                      <MapPin size={12} className="text-white/40" />
+                      <p className="text-[10px] font-bold uppercase truncate">{f.province} • {f.commune}</p>
+                    </div>
+                    <div className="flex items-center gap-2 opacity-30">
+                      <Calendar size={11} />
+                      <p className="text-[9px] font-bold">{f.dateFormatted}</p>
+                    </div>
+                  </div>
+
+                  {/* MONTANT */}
+                  <div className="lg:w-[25%] flex lg:flex-col items-center lg:items-end justify-between lg:justify-center border-t border-white/5 lg:border-none pt-3 lg:pt-0">
+                    <p className="lg:hidden text-[9px] font-black opacity-30 uppercase tracking-widest">Total</p>
+                    <div className="text-right">
+                      <p className="text-lg md:text-xl font-mono font-black tracking-tighter">${Number(f.totalHT).toLocaleString()}</p>
+                      {f.montantPaye > 0 && <p className="text-[9px] text-emerald-400 font-bold italic">Payé: ${f.montantPaye.toLocaleString()}</p>}
+                    </div>
+                  </div>
+
+                  {/* ACTIONS */}
+                  <div className="lg:w-[20%] flex items-center justify-between lg:justify-end gap-4">
+                    <span className={`text-[7px] md:text-[8px] font-black px-3 py-1 rounded-full border tracking-widest ${f.validationComptable ? 'border-emerald-500/20 text-emerald-500 bg-emerald-500/5' : 'border-amber-500/20 text-amber-500 bg-amber-500/5'}`}>
+                      {f.validationComptable ? 'SÉCURISÉ' : 'EN ATTENTE'}
+                    </span>
+
+                    {!f.validationComptable ? (
+                      <button
+                        onClick={() => handleValidation(f)}
+                        className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-white/10"
+                      >
+                        <ArrowDownLeft size={18} />
+                      </button>
+                    ) : (
+                      <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
+                        <ShieldCheck size={18} />
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
-      </div>
-    </div>
-  );
-}
+      </main>
 
-
-
-
-// --- MODULE 4: RAPPORTS (DEEP BI) ---
-function RapportsModule({ data }: any) {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div className={`${THEME.glass} p-8 rounded-[2.5rem] lg:col-span-2`}>
-        <h3 className="text-xs font-black uppercase mb-8 opacity-40 italic">Croissance Mensuelle Analytique</h3>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={mockBI}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="name" hide />
-              <YAxis hide />
-              <Tooltip contentStyle={{ background: '#1e3a8a', border: 'none' }} />
-              <Line type="stepAfter" dataKey="val" stroke={THEME.red} strokeWidth={4} dot={{ r: 6, fill: THEME.red }} />
-            </LineChart>
-          </ResponsiveContainer>
+      {/* FOOTER MOBILE OPTIMIZED */}
+      <footer className="fixed bottom-0 w-full px-4 md:px-10 py-3 border-t border-white/5 bg-black/80 backdrop-blur-md flex items-center justify-between text-[7px] md:text-[8px] font-black opacity-40 uppercase tracking-[0.2em] md:tracking-[0.5em]">
+        <div className="flex gap-4 md:gap-10">
+          <span className="hidden sm:inline">DB: Kin-Geo-Market</span>
+          <span>Node: {activeTheme.name}</span>
         </div>
-      </div>
-      <div className={`${THEME.glass} p-10 rounded-[2.5rem] bg-gradient-to-b from-white/5 to-red-900/20 flex flex-col justify-center items-center text-center`}>
-        <PieChart size={30} className="text-[#f59e0b] mb-6" />
-        <h2 className="text-5xl font-black italic tracking-tighter mb-2">64%</h2>
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 mb-8">Marge Opérationnelle</p>
-        <button className="w-full bg-white text-[#1e3a8a] py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#f59e0b] hover:text-white transition-all shadow-2xl">
-          Générer Rapport ONIP
-        </button>
-      </div>
+
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+          <span>Encrypted Session</span>
+        </div>
+      </footer>
     </div>
   );
-}
+};
 
-
-
-
-
-
-
-
-
-function FilterSelect({ icon: Icon, label, options }: any) {
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="text-[8px] font-black uppercase opacity-30 flex items-center gap-2"><Icon size={12} /> {label}</label>
-      <select className="bg-white/10 border border-white/5 rounded-xl p-3.5 text-[10px] font-bold outline-none cursor-pointer focus:border-[#f59e0b]/50 transition-colors">
-        {options.map((opt: string) => <option key={opt} value={opt} className="bg-[#1e3a8a]">{opt}</option>)}
-      </select>
-    </div>
-  );
-}
-
-
-
-function FilterInput({ icon: Icon, placeholder, type = "text" }: any) {
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="text-[8px] font-black uppercase opacity-30 flex items-center gap-2"><Icon size={12} /> {placeholder}</label>
-      <input type={type} placeholder={placeholder} className="bg-white/10 border border-white/5 rounded-xl p-3.5 text-[10px] font-bold outline-none focus:border-[#f59e0b]/50 transition-colors placeholder:opacity-20 w-full" />
-    </div>
-  );
-}
-
-function ExportButton({ icon: Icon, label, color, className = "" }: any) {
-  return (
-    <button className={`${color} ${className} px-6 py-4 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg`}>
-      <Icon size={16} /> <span className="hidden sm:inline">{label}</span>
-    </button>
-  );
-}
-
-// Structure correcte pour Recharts ou tes graphiques BI
-const mockBI = [
-  { name: 'Semaine 1', val: 4000 },
-  { name: 'Semaine 2', val: 9500 },
-  { name: 'Semaine 3', val: 6200 },
-  { name: 'Semaine 4', val: 12800 },
-];
+export default AccountingMaster;
