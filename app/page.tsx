@@ -891,325 +891,265 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
 
   const isLibre = face.statut?.toLowerCase() === 'libre';
   const selectionKey = `${panneau.id}_${face.id}`;
-  const [startY, setStartY] = useState(0);
-  const [isSwiping, setIsSwiping] = useState(false);
 
   const reservations = (face.reservations || [])
     .sort((a: any, b: any) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
 
-  // Gestion du swipe vers le bas pour fermer sur mobile
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartY(e.touches[0].clientY);
-    setIsSwiping(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isSwiping) return;
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - startY;
-
-    if (diff > 50) {
-      onClose();
-      setIsSwiping(false);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    setIsSwiping(false);
-  };
-
   return (
     <AnimatePresence>
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-black/80 backdrop-blur-md"
-          onClick={onClose}
+      <div className="fixed inset-0 z-[250] flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-md" onClick={onClose}>
+        <motion.div
+          initial={{ opacity: 0, y: "100%" }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: "100%" }}
+          transition={{ type: "spring", damping: 30, stiffness: 300 }}
+          onClick={(e) => e.stopPropagation()}
+          // h-full sur mobile pour utiliser tout l'écran, h-auto sur PC
+          className="bg-slate-950 border-t sm:border border-white/20 w-full max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:rounded-[3rem] overflow-hidden flex flex-col md:flex-row"
         >
-          <motion.div
-            initial={{ opacity: 0, y: "100%" }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            className="relative w-full max-w-5xl mx-auto bg-gradient-to-br from-black/95 via-black/90 to-black/95 backdrop-blur-xl border-t sm:border border-white/10 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-black/50"
-          >
-            {/* Effet de glow doré */}
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
+          {/* --- SECTION IMAGE (HAUT sur mobile / GAUCHE sur PC) --- */}
+          <div className="relative w-full md:w-[42%] h-[35vh] md:h-auto shrink-0 group">
+            <img
+              src={face.photoCampagneUrl || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg"}
+              className="w-full h-full object-cover"
+              alt="Visual"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/20" />
 
-            {/* === INDICATEUR DE SWIPE (mobile) === */}
-            <div className="sm:hidden flex justify-center pt-2 pb-1">
-              <div className="w-10 h-1 bg-white/30 rounded-full" />
-            </div>
-
-            {/* === BOUTONS DE FERMETURE === */}
-            <button
-              onClick={onClose}
-              className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-black/60 backdrop-blur-xl hover:bg-red-500/80 rounded-full transition-all duration-300 border border-white/10 active:scale-95"
-            >
-              <X size={14} className="sm:w-4 sm:h-4 text-white" />
+            {/* Close button mobile uniquement (en haut à droite de l'image) */}
+            <button onClick={onClose} className="md:hidden absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-lg rounded-full text-white">
+              <X size={24} />
             </button>
 
-            {/* Bouton Fermer mobile */}
-            <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 text-white text-[9px] font-black uppercase tracking-wider active:scale-95"
-              >
-                ✕ Fermer
+            {/* Badge Status */}
+            <div className="absolute top-4 left-4 md:top-8 md:left-8">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border ${isLibre ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-rose-500/20 border-rose-500/50 text-rose-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest">{isLibre ? 'Disponible' : 'Occupé'}</span>
+              </div>
+            </div>
+
+            <div className="absolute bottom-6 left-6 right-6">
+              <h2 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter drop-shadow-2xl">
+                {panneau.idPan}
+              </h2>
+              <div className="flex gap-2 mt-2">
+                <span className="bg-[#d4af37] text-black text-[9px] font-black px-2 py-1 rounded-md uppercase italic">
+                  {face.sens}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* --- SECTION CONTENU (BAS sur mobile / DROITE sur PC) --- */}
+          <div className="flex-1 flex flex-col min-h-0 bg-slate-900/50 overflow-hidden">
+
+            {/* Header Fixe (Desktop) */}
+            <div className="hidden md:flex p-8 pb-4 justify-between items-start">
+              <div>
+                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-[0.4em] mb-1">Traçabilité</p>
+                <h3 className="text-white text-xl font-bold uppercase">{panneau.adresse}</h3>
+              </div>
+              <button onClick={onClose} className="p-3 bg-white/5 hover:bg-rose-500/20 rounded-2xl transition-all border border-white/5 text-white">
+                <X size={20} />
               </button>
             </div>
 
-            {/* Layout : photo compacte + contenu */}
-            <div className="flex flex-col md:flex-row max-h-[90vh] sm:max-h-[85vh]">
+            {/* ZONE SCROLLABLE (Optimisée tactile) */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 scroll-smooth">
 
-              {/* --- SECTION PHOTO COMPACTE (30% de la hauteur sur mobile, 35% sur desktop) --- */}
-              <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
-                <img
-                  src={face.photoCampagneUrl || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg"}
-                  className="w-full h-full object-cover"
-                  alt="Visual"
-                />
-
-                {/* Overlay léger */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
-
-                {/* Badge Status compact */}
-                <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
-                  <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${isLibre
-                    ? 'bg-emerald-500/20 border-emerald-500/50'
-                    : 'bg-rose-500/20 border-rose-500/50'}`}>
-                    <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                    <span className="text-[6px] sm:text-[7px] font-black uppercase">{isLibre ? 'Dispo' : 'Occ'}</span>
-                  </div>
-                </div>
-
-                {/* Infos compactes sur l'image */}
-                <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white italic leading-tight">
-                    {panneau.idPan}
-                  </h2>
-                  <div className="flex gap-1 mt-0.5">
-                    <span className="bg-amber-500 text-black text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
-                      {face.sens}
-                    </span>
-                  </div>
-                </div>
+              {/* Adresse Mobile uniquement */}
+              <div className="md:hidden space-y-1">
+                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-widest">Localisation</p>
+                <h3 className="text-white text-lg font-bold leading-tight">{panneau.adresse}</h3>
               </div>
 
-              {/* --- SECTION CONTENU (plus d'espace) --- */}
-              <div className="flex-1 flex flex-col bg-gradient-to-b from-black/50 to-black/30 overflow-hidden">
+              {/* Grid Performance (Adaptative) */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { icon: <Zap size={14} />, label: "Visibilité", val: face.visibilite || 90 },
+                  { icon: <Activity size={14} />, label: "Trafic", val: face.mobimetrie || 85 },
+                  { icon: <ShieldCheck size={14} />, label: "Score", val: 98 },
+                ].map((m, i) => (
+                  <div key={i} className="bg-white/5 border border-white/10 p-3 rounded-2xl text-center">
+                    <div className="flex justify-center text-[#d4af37] mb-1">{m.icon}</div>
+                    <p className="text-[12px] md:text-[14px] font-black text-white">{m.val}%</p>
+                    <p className="text-[7px] md:text-[8px] font-bold text-white/40 uppercase">{m.label}</p>
+                  </div>
+                ))}
+              </div>
 
-                {/* Header compact */}
-                <div className="p-2 sm:p-3 md:p-4 border-b border-white/10">
-                  <p className="text-amber-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider">
-                    📍 {panneau.adresse?.substring(0, 50)}{panneau.adresse?.length > 50 ? '...' : ''}
-                  </p>
-                  {isSelected && (
-                    <span className="inline-block mt-1 text-amber-400 text-[6px] sm:text-[7px] font-black bg-amber-400/20 px-1.5 py-0.5 rounded-full">
-                      ✓ Sélectionné
-                    </span>
-                  )}
+              {/* Timeline Chronologique */}
+              <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-[#d4af37]/10 rounded-lg">
+                      <Calendar size={18} className="text-[#d4af37]" />
+                    </div>
+                    <div>
+                      <h4 className="text-white text-[12px] font-black uppercase tracking-widest">Chronologie</h4>
+                      <p className="text-[9px] text-white/30 uppercase font-bold">Historique des campagnes</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-white/20 bg-white/5 px-3 py-1 rounded-full">
+                    {reservations.length} Entrées
+                  </span>
                 </div>
 
-                {/* ZONE SCROLLABLE OPTIMISÉE */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar">
+                <div className="relative border-l-2 border-white/5 ml-4 pl-8 space-y-8">
+                  {reservations.length > 0 ? (
+                    reservations.map((res: any, i: number) => {
+                      // --- LOGIQUE DE TEMPS ---
+                      const now = new Date();
+                      now.setHours(0, 0, 0, 0);
+                      const debut = new Date(res.dateDebut);
+                      const fin = new Date(res.dateFin);
 
-                  {/* Métriques compactes - 3 cartes en ligne */}
-                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                    {[
-                      { icon: <Zap size={10} className="sm:w-3 sm:h-3" />, label: "Visibilité", val: face.visibilite || 90 },
-                      { icon: <Activity size={10} className="sm:w-3 sm:h-3" />, label: "Trafic", val: face.mobimetrie || 85 },
-                      { icon: <ShieldCheck size={10} className="sm:w-3 sm:h-3" />, label: "Score", val: 98 },
-                    ].map((m, i) => (
-                      <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-2 sm:p-3 text-center">
-                        <div className="flex justify-center text-amber-400 mb-0.5">{m.icon}</div>
-                        <p className="text-sm sm:text-base md:text-lg font-black text-white">{m.val}%</p>
-                        <p className="text-[6px] sm:text-[7px] font-bold text-white/40 uppercase">{m.label}</p>
-                      </div>
-                    ))}
-                  </div>
+                      // Calcul d'urgence (3 jours avant la fin)
+                      const joursRestants = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                      const isNearEnd = joursRestants <= 3 && joursRestants >= 0;
+                      const isExpired = now > fin;
 
-                  {/* Timeline compacte */}
-                  <section className="space-y-3 sm:space-y-4">
-                    <div className="flex items-center gap-2 sm:gap-2.5">
-                      <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-amber-400" />
-                      <h4 className="text-white text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-wider">Chronologie</h4>
-                      <span className="text-[8px] sm:text-[9px] text-white/40 bg-white/10 px-2 py-0.5 rounded-full">
-                        {reservations.length} campagne{reservations.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
+                      // --- CALCUL DE PROGRESSION ---
+                      const totalDuree = fin.getTime() - debut.getTime();
+                      const ecoule = now.getTime() - debut.getTime();
+                      const progressPercent = Math.min(Math.max((ecoule / totalDuree) * 100, 0), 100);
 
-                    <div className="relative border-l-2 border-white/15 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
-                      {reservations.length > 0 ? (
-                        reservations.map((res: any, i: number) => {
-                          const now = new Date();
-                          now.setHours(0, 0, 0, 0);
-                          const debut = new Date(res.dateDebut);
-                          const fin = new Date(res.dateFin);
-                          const joursRestants = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                          const isNearEnd = joursRestants <= 3 && joursRestants >= 0;
-                          const isExpired = now > fin;
-                          const isActive = now >= debut && now <= fin;
+                      // --- COULEURS DYNAMIQUES ---
+                      let statusLabel = "En attente";
+                      let statusStyle = "text-blue-400 bg-blue-400/10 border-blue-400/20";
 
-                          let statusLabel = "En attente";
-                          let statusColor = "text-blue-400 bg-blue-400/10 border-blue-400/30";
+                      if (isExpired) {
+                        statusLabel = "Terminée";
+                        statusStyle = "text-white/40 bg-white/5 border-white/10";
+                      } else if (isNearEnd) {
+                        statusLabel = "Expire Bientôt";
+                        statusStyle = "text-orange-500 bg-orange-500/10 border-orange-500/40 animate-pulse";
+                      } else if (now >= debut && now <= fin) {
+                        statusLabel = "Actuelle";
+                        statusStyle = "text-green-400 bg-green-400/10 border-green-400/20";
+                      }
 
-                          if (isExpired) {
-                            statusLabel = "Terminée";
-                            statusColor = "text-white/40 bg-white/5 border-white/10";
-                          } else if (isNearEnd) {
-                            statusLabel = "Expire bientôt";
-                            statusColor = "text-orange-500 bg-orange-500/10 border-orange-500/30";
-                          } else if (isActive) {
-                            statusLabel = "En cours";
-                            statusColor = "text-emerald-400 bg-emerald-400/10 border-emerald-400/30";
-                          }
-
-                          return (
-                            <div key={i} className="relative group">
-                              {/* Point sur la timeline - agrandi */}
-                              <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-black flex items-center justify-center
-              ${isNearEnd ? 'border-orange-500 shadow-orange-500/50' :
-                                  isActive ? 'border-emerald-400 shadow-emerald-400/50' :
-                                    'border-white/30'}`}>
-                                <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full 
-                ${isNearEnd ? 'bg-orange-500 animate-pulse' :
-                                    isActive ? 'bg-emerald-400 animate-pulse' :
-                                      'bg-white/40'}`} />
-                              </div>
-
-                              {/* Carte de réservation - agrandie */}
-                              <div className={`bg-gradient-to-br from-white/8 to-transparent backdrop-blur-sm border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg
-              ${isNearEnd ? 'border-orange-500/40 shadow-orange-500/5' :
-                                  isActive ? 'border-emerald-400/30' :
-                                    'border-white/10 hover:border-white/20'}`}>
-
-                                {/* En-tête de la carte */}
-                                <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-amber-400 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-tight truncate">
-                                      {res.societeLocatrice}
-                                    </p>
-                                    {isNearEnd && (
-                                      <p className="text-orange-500 text-[8px] sm:text-[9px] font-black uppercase flex items-center gap-1 mt-1">
-                                        <span className="animate-pulse">⚠️</span>
-                                        Fin dans {joursRestants} jour{joursRestants > 1 ? 's' : ''}
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  {/* Badge de statut */}
-                                  <span className={`shrink-0 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded-md border ${statusColor}`}>
-                                    {statusLabel}
-                                  </span>
-                                </div>
-
-                                {/* Dates - agrandies */}
-                                <div className="flex justify-between items-center gap-2 pt-2 border-t border-white/10">
-                                  <div className="flex gap-3 sm:gap-4">
-                                    <div className="flex flex-col">
-                                      <span className="text-[7px] sm:text-[8px] text-white/40 uppercase font-black">Début</span>
-                                      <span className="text-[9px] sm:text-[10px] md:text-[11px] text-white font-bold">
-                                        {new Date(res.dateDebut).toLocaleDateString('fr-FR')}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-end pb-1">
-                                      <span className="text-white/30 text-[10px]">→</span>
-                                    </div>
-                                    <div className="flex flex-col">
-                                      <span className="text-[7px] sm:text-[8px] text-white/40 uppercase font-black">Fin</span>
-                                      <span className={`text-[9px] sm:text-[10px] md:text-[11px] font-bold ${isNearEnd ? 'text-orange-500' : 'text-white'}`}>
-                                        {new Date(res.dateFin).toLocaleDateString('fr-FR')}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {/* Badges supplémentaires */}
-                                  <div className="flex gap-1">
-                                    {res.validationComptable === true && (
-                                      <div className="p-1 bg-blue-500/20 text-blue-400 rounded-md border border-blue-500/30" title="Validé comptablement">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
-                                      </div>
-                                    )}
-                                    {res.facturee === "oui" && (
-                                      <div className="p-1 bg-amber-500/20 text-amber-500 rounded-md border border-amber-500/30" title="Facturée">
-                                        <span className="text-[9px] font-black">€</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        /* Message opportunité - agrandi */
-                        <div className="relative">
-                          <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-amber-400 bg-black flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      return (
+                        <div key={i} className="relative group">
+                          {/* Point sur la ligne de temps */}
+                          <div className={`absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-slate-950 border-2 flex items-center justify-center transition-all duration-500 
+            ${isNearEnd ? 'border-orange-500' : (now >= debut && now <= fin ? 'border-green-400 shadow-[0_0_10px_rgba(74,222,128,0.5)]' : 'border-white/10')}`}>
+                            <div className={`w-2 h-2 rounded-full ${isNearEnd ? 'bg-orange-500 pulse' : (now >= debut && now <= fin ? 'bg-green-400 animate-pulse' : 'bg-white/20')}`} />
                           </div>
 
-                          <div className="bg-gradient-to-br from-amber-500/10 to-transparent border-2 border-dashed border-amber-500/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-amber-500/15 transition-all cursor-pointer">
-                            <div className="inline-flex p-2 bg-amber-500/20 rounded-full text-amber-400">
-                              <PlusCircle size={16} className="sm:w-5 sm:h-5" />
+                          <div className={`bg-gradient-to-br from-white/[0.07] to-transparent border p-5 rounded-3xl transition-all duration-300 shadow-xl 
+            ${isNearEnd ? 'border-orange-500/50 shadow-orange-500/5' : 'border-white/10 hover:border-white/20'}`}>
+
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="max-w-[70%]">
+                                <p className="text-[#d4af37] text-[11px] font-black uppercase tracking-tight mb-1">{res.societeLocatrice}</p>
+                                {isNearEnd && (
+                                  <p className="text-orange-500 text-[8px] font-black uppercase flex items-center gap-1">
+                                    <span className="animate-bounce">⚠️</span> Fin de campagne dans {joursRestants} jour{joursRestants > 1 ? 's' : ''}
+                                  </p>
+                                )}
+                                <span className="text-[9px] text-white/40 font-bold uppercase italic">Agent: {res.agentNom}</span>
+                              </div>
+
+                              <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md border ${statusStyle}`}>
+                                {statusLabel}
+                              </span>
                             </div>
-                            <h3 className="text-amber-400 text-[11px] sm:text-[12px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
-                            <p className="text-white/60 text-[9px] sm:text-[10px] leading-relaxed max-w-[250px] mx-auto">
-                              Cette face n'attend que votre visibilité.<br />
-                              <span className="text-white font-bold italic">Réservez-la dès maintenant.</span>
-                            </p>
+
+                            {/* Barre de progression intelligente */}
+                            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mb-4">
+                              <div
+                                className={`h-full transition-all duration-1000 ${isExpired ? 'bg-white/10' : (isNearEnd ? 'bg-orange-500' : 'bg-[#d4af37]')}`}
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                              <div className="flex gap-4">
+                                <div className="flex flex-col">
+                                  <span className="text-[7px] text-white/30 uppercase font-black">Début</span>
+                                  <span className="text-[10px] text-white font-bold tracking-tighter">{res.dateDebut}</span>
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-[7px] text-white/30 uppercase font-black">Fin</span>
+                                  <span className={`text-[10px] font-bold tracking-tighter ${isNearEnd ? 'text-orange-500' : 'text-white'}`}>{res.dateFin}</span>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-1">
+                                {res.validationComptable === true && (
+                                  <div className="p-1 bg-blue-500/20 text-blue-400 rounded-md border border-blue-500/30">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                                  </div>
+                                )}
+                                {res.facturee === "oui" && (
+                                  <div className="p-1 bg-amber-500/20 text-amber-500 rounded-md border border-amber-500/30">
+                                    <span className="text-[7px] font-black leading-none">$$</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      )}
+                      );
+                    })
+                  ) : (
+                    /* --- MESSAGE FORT POUR APPEL À LA RÉSERVATION --- */
+                    <div className="relative group">
+                      <div className="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-slate-950 border-2 border-[#d4af37] animate-pulse flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-[#d4af37]" />
+                      </div>
+
+                      <div className="bg-[#d4af37]/5 border-2 border-dashed border-[#d4af37]/30 p-8 rounded-3xl text-center space-y-4 hover:bg-[#d4af37]/10 transition-all cursor-pointer">
+                        <div className="inline-flex p-3 bg-[#d4af37]/20 rounded-full text-[#d4af37] mb-2">
+                          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeLinecap="round" /></svg>
+                        </div>
+                        <h3 className="text-[#d4af37] text-sm font-black uppercase tracking-tighter">Opportunité Disponible !</h3>
+                        <p className="text-white/60 text-[11px] leading-relaxed max-w-[200px] mx-auto">
+                          Cette face n'attend que votre visibilité. <br />
+                          <span className="text-white font-bold italic">Prenez l'avantage sur vos concurrents dès maintenant.</span>
+                        </p>
+                        <button className="bg-[#d4af37] text-black text-[10px] font-black uppercase px-6 py-2 rounded-full hover:scale-105 transition-transform">
+                          Réserver cette face
+                        </button>
+                      </div>
                     </div>
-                  </section>
-                  {/* Espace pour boutons fixes */}
-                  <div className="h-12 sm:h-14" />
+                  )}
                 </div>
-
-                {/* Actions fixes en bas - compactes */}
-                <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-black/95 via-black/90 to-black/80 md:bg-transparent border-t border-white/10 md:border-t-0 mt-auto">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => { ouvrirLaCarte(); onClose(); }}
-                      className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg text-white transition-all active:scale-95 border border-white/10"
-                    >
-                      <MapPin size={14} className="sm:w-4 sm:h-4" />
-                    </button>
-
-                    <button
-                      disabled={!isLibre && !isSelected}
-                      onClick={() => onSelect(selectionKey)}
-                      className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
-        ${isSelected
-                          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30'
-                          : isLibre
-                            ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-amber-500/30 hover:shadow-amber-500/50'
-                            : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
-                    >
-                      {isSelected ? (
-                        <><MinusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RETIRER</span><span className="xs:hidden">RETIRER</span></>
-                      ) : isLibre ? (
-                        <><PlusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RÉSERVER</span><span className="xs:hidden">RÉSERV</span></>
-                      ) : (
-                        <span className="hidden xs:inline">INDISPONIBLE</span>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
+              </section>
+              {/* Espace vide pour ne pas être caché par les boutons fixes sur mobile */}
+              <div className="h-24 md:h-0" />
             </div>
-          </motion.div>
-        </div>
-      )}
+
+            {/* --- ACTIONS FIXES EN BAS (Très important pour Mobile) --- */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 bg-gradient-to-t from-slate-950 via-slate-950 to-transparent flex gap-3">
+              <button
+                onClick={() => { ouvrirLaCarte(); onClose(); }}
+                className="w-14 h-14 shrink-0 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all"
+              >
+                <MapPin size={24} />
+              </button>
+
+              <button
+                disabled={!isLibre && !isSelected}
+                onClick={() => onSelect(selectionKey)}
+                className={`flex-1 h-14 rounded-2xl font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 transition-all ${isSelected ? 'bg-rose-600 text-white' : isLibre ? 'bg-[#d4af37] text-black' : 'bg-slate-800 text-slate-500'
+                  }`}
+              >
+                {isSelected ? <MinusCircle size={20} /> : <PlusCircle size={20} />}
+                {isSelected ? 'Retirer' : isLibre ? 'Réserver la face' : 'Indisponible'}
+              </button>
+            </div>
+
+          </div>
+        </motion.div>
+      </div>
     </AnimatePresence>
   );
 };
+
+
 
 
 
