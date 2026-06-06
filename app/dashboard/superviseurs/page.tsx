@@ -31,21 +31,27 @@ import { deleteDoc } from "firebase/firestore";
 
 import { getDoc } from "firebase/firestore";
 
+// ✅ Version require avec chemin correct
+const config = require('../../../config/db');
 
-// Assurez-vous d'avoir importé useState
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
-  authDomain: "kin-geo-market.firebaseapp.com",
-  projectId: "kin-geo-market",
-  storageBucket: "kin-geo-market.firebasestorage.app",
-  messagingSenderId: "50335362445",
-  appId: "1:50335362445:web:44430fdb027a4bec80a1c4"
-};
+
+// Toutes ces variables fonctionneront maintenant :
+const firebaseConfig = config.firebaseConfig;
+const GEOGRAPHIE = config.GEOGRAPHIE;
+
+// Ou utilise directement l'objet
+console.log(config.GEOGRAPHIE);
+console.log(config.LOGO_DISPROMALT);
+
+
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+const logo = config.LOGO_DISPROMALT;
 
 
 
@@ -169,7 +175,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
             <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
               <div className="mb-4">
                 <h3 className="text-2xl font-black italic uppercase">Face : {displayId}</h3>
-                <p className="text-[10px] text-[#d4af37] font-bold uppercase">{panneau.adresse} • Zone: {panneau.zone}</p>
+                <p className="text-[10px] text-[#d4af37] font-bold uppercase">{panneau.adresse}</p>
                 <p className="text-[10px] text-white/60 font-bold uppercase">Dimension: {panneau.dimension}</p>
               </div>
 
@@ -222,7 +228,6 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
 
 
 
-import { addDoc } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard,
@@ -247,50 +252,6 @@ interface Panneau {
   createdAt?: any;
 }
 
-type Province = Record<string, string[] | Record<string, string[]>>;
-
-// --- 2. CONSTANTES DE RÉFÉRENCE ---
-const GEOGRAPHIE: Record<string, Record<string, Province>> = {
-  "RDC": {
-    "Kinshasa": {
-      "Lukunga": [
-        "Gombe", "Barumbu", "Kinshasa", "Lingwala",
-        "Kintambo", "Ngaliema", "Mont-Ngafula"
-      ],
-      "Funa": [
-        "Bandalungwa", "Kasa-Vubu", "Kalamu", "Ngiri-Ngiri",
-        "Bumbu", "Makala", "Selembao"
-      ],
-      "Mont-Amba": [
-        "Limete", "Lemba", "Matete", "Ngaba",
-        "Kisenso"
-      ],
-      "Tshangu": [
-        "Masina", "Ndjili", "Kimbanseke", "Nsele",
-        "Maluku"
-      ]
-    },
-    "Kongo-Central": {
-      "Matadi": ["Ville Haute", "Ville Basse", "Nzanza", "Sanga-Sanga"],
-      "Boma": ["Nzadi", "Kabondo", "Kalamu"],
-      "Mbanza-Ngungu": ["Noki", "Lukala"],
-      "Inkisi": ["Kisantu", "Inkisi-Ville"]
-    }
-  },
-  "Brazzaville": {
-    "Brazzaville": {
-      "Brazzaville": ["M'Pila", "Talangaï", "Ouenzé", "Poto-Poto", "Bacongo"]
-    },
-    "Pointe-Noire": {
-      "Pointe-Noire": ["Lumumba", "Mvou-Mvou"]
-    }
-  }
-};
-
-
-
-
-
 
 
 
@@ -304,7 +265,7 @@ import {
   limit,
 } from "firebase/firestore";
 
-const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+const logoUrl = logo;
 
 // --- 3. COMPOSANT PRINCIPAL ---
 export default function UltimateSupervisor() {
@@ -1359,7 +1320,7 @@ export default function UltimateSupervisor() {
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                 <path d="M18 6L6 18M6 6l12 12" />
                               </svg>
-                              Fermer le panier
+                              Fermer
                             </button>
                           </div>
                         </div>
@@ -1380,8 +1341,8 @@ export default function UltimateSupervisor() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.05 }}
                               className={`group relative p-4 rounded-2xl border transition-all duration-300 ${isSelected
-                                  ? 'bg-gradient-to-r from-amber-500/15 to-amber-500/5 border-amber-400/50 shadow-lg shadow-amber-500/10'
-                                  : 'bg-white/5 border-white/10 hover:border-amber-400/30 hover:bg-white/10'
+                                ? 'bg-gradient-to-r from-amber-500/15 to-amber-500/5 border-amber-400/50 shadow-lg shadow-amber-500/10'
+                                : 'bg-white/5 border-white/10 hover:border-amber-400/30 hover:bg-white/10'
                                 }`}
                             >
                               {/* HEADER CARTE */}
@@ -1395,8 +1356,8 @@ export default function UltimateSupervisor() {
                                 <button
                                   onClick={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
                                   className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isSelected
-                                      ? 'bg-amber-500 border-amber-500'
-                                      : 'border-white/30 hover:border-amber-400'
+                                    ? 'bg-amber-500 border-amber-500'
+                                    : 'border-white/30 hover:border-amber-400'
                                     }`}
                                 >
                                   {isSelected && (
@@ -1448,8 +1409,8 @@ export default function UltimateSupervisor() {
                                     key={mode}
                                     onClick={() => setPaymentModes(prev => ({ ...prev, [key]: mode }))}
                                     className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${paymentModes[key] === mode || (!isTranche && mode === 'total')
-                                        ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black'
-                                        : 'bg-white/10 text-white/40 hover:text-white'
+                                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black'
+                                      : 'bg-white/10 text-white/40 hover:text-white'
                                       }`}
                                   >
                                     {mode === 'total' ? 'Global' : 'Tranches'}
@@ -1688,8 +1649,8 @@ export default function UltimateSupervisor() {
                                 key={t}
                                 onClick={() => setTimeFilter(t as any)}
                                 className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${timeFilter === t
-                                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                                    : 'text-white/40 hover:text-white'
+                                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                                  : 'text-white/40 hover:text-white'
                                   }`}
                               >
                                 {t === 'avant' ? 'Passé' : t === 'present' ? 'Présent' : 'Futur'}
@@ -1806,8 +1767,8 @@ export default function UltimateSupervisor() {
                       <button
                         onClick={() => setActiveTab('stats')}
                         className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'stats'
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                            : 'text-white/40 hover:text-white'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                          : 'text-white/40 hover:text-white'
                           }`}
                       >
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -1818,8 +1779,8 @@ export default function UltimateSupervisor() {
                       <button
                         onClick={() => setActiveTab('reservations')}
                         className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'reservations'
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                            : 'text-white/40 hover:text-white'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                          : 'text-white/40 hover:text-white'
                           }`}
                       >
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -1980,7 +1941,7 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
               {/* --- SECTION PHOTO COMPACTE (30% de la hauteur sur mobile, 35% sur desktop) --- */}
               <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
                 <img
-                  src={face.photoCampagneUrl || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg"}
+                  src={face.photoCampagneUrl || logo}
                   className="w-full h-full object-cover"
                   alt="Visual"
                 />
@@ -2255,18 +2216,17 @@ import { doc, updateDoc, runTransaction, getDocs, } from 'firebase/firestore';
 import { Layout, Upload, } from 'lucide-react';
 
 // --- CONFIGURATION ---
-const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dn7wnikzp/image/upload";
-const UPLOAD_PRESET = "panneaux"; // Assurez-vous que ce preset est "Unsigned" dans Cloudinary
-const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+const CLOUDINARY_URL = config.CLOUDINARY_URL;
+const UPLOAD_PRESET = config.UPLOAD_PRESET;
+const LOGO_DISPROMALT = logo;
 
-const TYPES_SUPPORTS = ["LED", "Bache", "Vinyle",];
 
 const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
 
 export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
 
-  // Remplacez votre déclaration actuelle par celle-ci :
+
   const [conflitMessages, setConflitMessages] = useState<Record<number, string | null>>({});
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>(null);
@@ -2276,17 +2236,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   const { currentUser } = useAuth();
 
 
-  const canEditFace = (face: any) => {
-    return true;
-  };
 
-  const getReservationWarning = (face: any) => {
-    // Si la face est verrouillée par un autre, on retourne le message
-    if ((face.statut === "Occupé" || face.statut === "Réservé") && !canEditFace(face)) {
-      return `Face réservée par un autre agent. Veuillez contacter le responsable pour négocier.`;
-    }
-    return null;
-  };
+
 
   useEffect(() => {
     if (panneau) {
@@ -2307,8 +2258,54 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     fetchSocietes();
   }, []);
 
-  // 3. CONDITION DE SORTIE (Après les hooks)
+
+
+  useEffect(() => {
+    if (!formData?.faces) return;
+
+    formData.faces.forEach((face: any, idx: number) => {
+      if (face.statut === 'Occupé' || face.statut === 'Réservé') {
+        if (!face.clientNom || !face.dateDebut || !face.dateFin) {
+          setConflitMessages(prev => ({
+            ...prev,
+            [idx]: "⚠️ Complétez : Société, Date début et Date fin pour ce statut"
+          }));
+        } else {
+          // Vérifier aussi les dates
+          const d1 = new Date(face.dateDebut);
+          const d2 = new Date(face.dateFin);
+          if (d1 >= d2) {
+            setConflitMessages(prev => ({
+              ...prev,
+              [idx]: "⚠️ La date de début doit être antérieure à la date de fin"
+            }));
+          } else {
+            setConflitMessages(prev => ({ ...prev, [idx]: null }));
+          }
+        }
+      }
+    });
+  }, [formData?.faces]);
+
+
   if (!isOpen || !formData) return null;
+
+
+
+  const canEditFace = (face: any) => {
+    return true;
+  };
+
+  const getReservationWarning = (face: any) => {
+    // Si la face est verrouillée par un autre, on retourne le message
+    if ((face.statut === "Occupé" || face.statut === "Réservé") && !canEditFace(face)) {
+      return `Face réservée par un autre agent. Veuillez contacter le responsable pour négocier.`;
+    }
+    return null;
+  };
+
+
+  // 3. CONDITION DE SORTIE (Après les hooks)
 
   // 4. LES FONCTIONS DE LOGIQUE
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -2361,11 +2358,32 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     // Si on supprime la photo, on réinitialise souvent le statut ou on laisse l'utilisateur choisir
     setFormData({ ...formData, faces: newFaces });
   };
-
   const updateFace = (index: number, field: string, value: any) => {
     const newFaces = [...formData.faces];
     newFaces[index] = { ...newFaces[index], [field]: value };
     setFormData({ ...formData, faces: newFaces });
+
+    // Vérification des dates en temps réel
+    if (field === 'dateDebut' || field === 'dateFin') {
+      const dateDebut = field === 'dateDebut' ? value : newFaces[index].dateDebut;
+      const dateFin = field === 'dateFin' ? value : newFaces[index].dateFin;
+      const reservationsExistantes = newFaces[index].reservations || [];
+
+      // Passer l'ID de réservation si on édite une existante
+      const currentResId = newFaces[index].currentReservationId;
+      checkDateConflict(index, dateDebut, dateFin, reservationsExistantes, currentResId);
+    }
+
+    // Si on change le statut vers Occupé ou Réservé, vérifier les champs obligatoires
+    if (field === 'statut' && (value === 'Occupé' || value === 'Réservé')) {
+      const face = newFaces[index];
+      if (!face.clientNom || !face.dateDebut || !face.dateFin) {
+        setConflitMessages(prev => ({
+          ...prev,
+          [index]: "⚠️ Pour un statut Occupé/Réservé, veuillez remplir : Société, Date début et Date fin"
+        }));
+      }
+    }
   };
 
 
@@ -2374,65 +2392,179 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     idx: number,
     dateDebut: string,
     dateFin: string,
-    reservations: any[]
+    reservations: any[],
+    currentReservationId?: string // Pour identifier la réservation en cours d'édition
   ) => {
-    // Si les dates sont vides, on enlève l'erreur pour cette face
+    // 1. Vérification des champs obligatoires
     if (!dateDebut || !dateFin) {
-      setConflitMessages(prev => ({ ...prev, [idx]: null }));
-      return;
+      setConflitMessages(prev => ({
+        ...prev,
+        [idx]: "⚠️ Les dates de début et de fin sont obligatoires"
+      }));
+      return false;
     }
 
-    const d1 = new Date(dateDebut).getTime();
-    const d2 = new Date(dateFin).getTime();
+    const d1 = new Date(dateDebut);
+    const d2 = new Date(dateFin);
 
-    // 1. Validation de base (Ordre des dates)
+    // 2. Vérifier que les dates sont valides
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
+      setConflitMessages(prev => ({
+        ...prev,
+        [idx]: "⚠️ Dates invalides"
+      }));
+      return false;
+    }
+
+    // 3. Vérification CRITIQUE : date début MUST BE < date fin
     if (d1 >= d2) {
       setConflitMessages(prev => ({
         ...prev,
-        [idx]: `⚠️ La date de début doit être antérieure à la date de fin.`
+        [idx]: `⚠️ La date de début (${dateDebut}) doit être STRICTEMENT antérieure à la date de fin (${dateFin})`
       }));
-      return;
+      return false;
     }
 
-    // 2. Vérification des conflits avec la base de données
-    // On cherche un conflit uniquement si la réservation n'appartient pas à l'utilisateur actuel
-    const conflict = reservations?.find((res: any) => {
-      const r1 = new Date(res.dateDebut).getTime();
-      const r2 = new Date(res.dateFin).getTime();
-
-      // Formule de chevauchement de périodes
-      const overlap = d1 <= r2 && d2 >= r1;
-      return overlap && res.agentEmail !== currentUser?.email;
-    });
-
-    if (conflict) {
+    // 4. Vérification que la date début n'est pas dans le passé (optionnel)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (d1 < today) {
       setConflitMessages(prev => ({
         ...prev,
-        [idx]: `⚠️ Face déjà réservée par : ${conflict.agentNom}. Veuillez négocier avec lui.`
+        [idx]: `⚠️ La date de début ne peut pas être dans le passé`
       }));
-    } else {
-      // Crucial : On remet à null si le conflit est résolu ou inexistant
-      setConflitMessages(prev => ({ ...prev, [idx]: null }));
+      return false;
     }
+
+    // 5. Vérification des chevauchements avec les réservations existantes
+    // Une réservation ne peut PAS inclure ou chevaucher une autre réservation
+    const hasOverlap = reservations.some((res) => {
+      // Ignorer la réservation en cours d'édition
+      if (currentReservationId && res.id === currentReservationId) return false;
+
+      if (!res.dateDebut || !res.dateFin) return false;
+
+      const r1 = new Date(res.dateDebut);
+      const r2 = new Date(res.dateFin);
+
+      // Vérification stricte de chevauchement :
+      // Une réservation chevauche si :
+      // - La nouvelle date début est entre une réservation existante
+      // - OU la nouvelle date fin est entre une réservation existante
+      // - OU la nouvelle période englobe complètement une réservation existante
+      const overlap = (d1 <= r2 && d2 >= r1);
+
+      return overlap;
+    });
+
+    if (hasOverlap) {
+      setConflitMessages(prev => ({
+        ...prev,
+        [idx]: `⚠️ CONFLIT : Cette période chevauche une réservation existante. Les périodes ne peuvent pas se chevaucher, même partiellement.`
+      }));
+      return false;
+    }
+
+    // 6. Plus de conflit
+    setConflitMessages(prev => ({ ...prev, [idx]: null }));
+    return true;
   };
+
+
 
 
   const isButtonDisabled = isSaving || uploadingIndex !== null;
 
   const handleSave = async () => {
-    // 1. Vérification globale des conflits (UI)
-    const hasGlobalConflict = Object.values(conflitMessages).some(msg => msg !== null);
-    if (hasGlobalConflict) {
-      alert("Impossible de sauvegarder : Une ou plusieurs faces ont des conflits de dates.");
+    // === 1. VALIDATION COMPLÈTE DE TOUTES LES FACES ===
+    const validationErrors: string[] = [];
+
+    for (let idx = 0; idx < formData.faces.length; idx++) {
+      const face = formData.faces[idx];
+      const statut = face.statut;
+
+      // Cas 1: Statut Libre - Pas de validation supplémentaire
+      if (statut === 'Libre') continue;
+
+      // Cas 2: Statut Occupé ou Réservé - Validation stricte
+      if (statut === 'Occupé' || statut === 'Réservé') {
+        // Vérifier que tous les champs sont remplis
+        if (!face.clientNom || face.clientNom.trim() === '') {
+          validationErrors.push(`Face ${idx + 1}: Le nom du client est obligatoire`);
+        }
+        if (!face.dateDebut) {
+          validationErrors.push(`Face ${idx + 1}: La date de début est obligatoire`);
+        }
+        if (!face.dateFin) {
+          validationErrors.push(`Face ${idx + 1}: La date de fin est obligatoire`);
+        }
+
+        // Vérifier l'ordre des dates si elles existent
+        if (face.dateDebut && face.dateFin) {
+          const d1 = new Date(face.dateDebut);
+          const d2 = new Date(face.dateFin);
+          if (d1 >= d2) {
+            validationErrors.push(`Face ${idx + 1}: La date de début doit être antérieure à la date de fin`);
+          }
+        }
+      }
+    }
+
+    // Afficher les erreurs de validation
+    if (validationErrors.length > 0) {
+      alert(`❌ Erreurs de validation :\n\n${validationErrors.join('\n')}`);
       return;
     }
 
+    // === 2. VÉRIFICATION DES CONFLITS AVEC LES RÉSERVATIONS EXISTANTES ===
+    const conflictErrors: string[] = [];
 
+    for (let idx = 0; idx < formData.faces.length; idx++) {
+      const face = formData.faces[idx];
+      if (face.statut === 'Libre') continue;
 
+      const dateDebut = face.dateDebut;
+      const dateFin = face.dateFin;
 
+      if (!dateDebut || !dateFin) continue;
 
-    // --- CORRECTION DU BLOC 2 ---
+      const d1 = new Date(dateDebut);
+      const d2 = new Date(dateFin);
+      const reservationsExistantes = face.reservations || [];
 
+      // Vérifier les chevauchements (exclure la réservation en cours d'édition)
+      const conflict = reservationsExistantes.find((res: any) => {
+        // Si c'est une nouvelle réservation, on vérifie tout
+        if (!res.dateDebut || !res.dateFin) return false;
+
+        const r1 = new Date(res.dateDebut);
+        const r2 = new Date(res.dateFin);
+
+        // Chevauchement strict
+        return (d1 <= r2 && d2 >= r1);
+      });
+
+      if (conflict) {
+        conflictErrors.push(
+          `Face ${idx + 1}: Conflit avec une réservation existante (${conflict.societeLocatrice || 'Autre client'}) du ${conflict.dateDebut} au ${conflict.dateFin}`
+        );
+      }
+    }
+
+    if (conflictErrors.length > 0) {
+      alert(`❌ CONFLITS DE RÉSERVATION :\n\n${conflictErrors.join('\n')}\n\nUne réservation ne peut pas chevaucher une autre réservation, même partiellement.`);
+      return;
+    }
+
+    // === 3. Vérification des messages de conflit existants ===
+    const hasGlobalConflict = Object.values(conflitMessages).some(msg => msg !== null);
+    if (hasGlobalConflict) {
+      alert("Impossible de sauvegarder : Veuillez résoudre les conflits de dates avant d'enregistrer.");
+      return;
+    }
+
+    // === 4. SUITE DE LA SAUVEGARDE ===
+    setIsSaving(true)
     // On ne valide que les faces où l'utilisateur a commencé à saisir quelque chose
     const isInvalid = formData.faces.some((f: any) => {
       // Une face doit être validée UNIQUEMENT si elle est occupée 
@@ -2451,9 +2583,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       alert("Veuillez remplir les dates et le nom du client pour la face que vous modifiez.");
       return;
     }
-
-
-
 
     if (isInvalid) {
       alert("Veuillez remplir les dates et le nom du client pour toutes les faces occupées.");
@@ -2581,6 +2710,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   };
 
 
+  // Surveiller les changements de statut pour valider les champs
+
   return (
     <div className="fixed inset-0 z-[600] flex items-center justify-center p-2 sm:p-3 md:p-4">
       {/* IMAGE DE FOND AVEC EFFET FLOU */}
@@ -2688,29 +2819,58 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}
-                    className={`bg-gradient-to-br from-white/5 to-transparent backdrop-blur-sm border rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 sm:gap-5 group hover:border-amber-400/40 transition-all duration-300 ${isLocked ? "opacity-75" : ""}`}
+                    className={`bg-gradient-to-br from-white/5 to-transparent backdrop-blur-sm border rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-3 sm:gap-4 md:gap-5 group hover:border-amber-400/40 transition-all duration-300 ${isLocked ? "opacity-75" : ""}`}
                   >
-                    <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 w-full">
+                    {/* ========== EN-TÊTE AVEC NUMÉRO DE FACE ========== */}
+                    <div className="flex flex-row items-center justify-between gap-2 pb-2 sm:pb-3 border-b border-white/10">
+                      <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-1 min-w-0">
+                        <div className="w-0.5 h-4 sm:h-5 md:h-6 bg-gradient-to-b from-amber-400 to-yellow-500 rounded-full" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[6px] sm:text-[7px] md:text-[8px] text-amber-400 font-black uppercase tracking-wider">Face</p>
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <h3 className="text-white text-sm sm:text-base md:text-lg font-black uppercase leading-tight truncate max-w-[120px] sm:max-w-none">
+                              {formData?.idPan}{idx + 1}
+                            </h3>
+                            {face.sens && (
+                              <span className="bg-amber-500/20 border border-amber-500/30 rounded-md px-1.5 py-0.5 sm:px-2 sm:py-0.5">
+                                <span className="text-amber-400 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase">
+                                  {face.sens}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {warning && (
+                        <div className="flex items-center gap-1 text-red-400 bg-red-500/10 px-1.5 py-1 rounded-md shrink-0">
+                          <AlertTriangle size={10} className="sm:w-3 sm:h-3" />
+                          <span className="text-[6px] sm:text-[7px] font-medium uppercase hidden xs:inline">Alerte</span>
+                        </div>
+                      )}
+                    </div>
 
-                      {/* ZONE PHOTO */}
+                    {/* ========== CONTENU PRINCIPAL ========== */}
+                    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-5 lg:gap-6 w-full">
+
+                      {/* ========== ZONE PHOTO (plus petite sur mobile) ========== */}
                       {(face.statut === "Occupé" || face.statut === "Réservé") && (
-                        <div className="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-xl sm:rounded-2xl overflow-hidden bg-black/50 border border-white/10 shadow-xl flex-shrink-0 mx-auto lg:mx-0">
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 xl:w-32 xl:h-32 rounded-lg sm:rounded-xl md:rounded-2xl overflow-hidden bg-black/50 border border-white/10 shadow-xl flex-shrink-0 mx-auto lg:mx-0">
                           {face.photoCampagneUrl ? (
                             <>
                               <img src={face.photoCampagneUrl} className="w-full h-full object-cover" alt="Face" />
                               {(!isLocked || isOwner(face)) && (
                                 <button
                                   onClick={() => removePhoto(idx)}
-                                  className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white hover:scale-110 transition-transform"
+                                  className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 p-0.5 sm:p-1 bg-red-500 rounded-full text-white hover:scale-110 transition-transform"
                                 >
-                                  <X size={12} />
+                                  <X size={8} className="sm:w-2.5 sm:h-2.5 md:w-3 md:h-3" />
                                 </button>
                               )}
                             </>
                           ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-[7px] text-white/40 bg-black/30">
-                              <Camera size={16} className="mb-1" />
-                              <span className="hidden sm:inline">PHOTO</span>
+                            <div className="w-full h-full flex flex-col items-center justify-center text-[5px] sm:text-[6px] text-white/40 bg-black/30">
+                              <Camera size={10} className="sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 mb-0.5" />
+                              <span className="hidden sm:inline text-[5px] sm:text-[6px]">PHOTO</span>
                             </div>
                           )}
 
@@ -2721,87 +2881,94 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                                   fileInputRef.current!.dataset.idx = idx.toString();
                                   fileInputRef.current?.click();
                                 }}
-                                className="p-2 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full text-black hover:scale-110 transition-transform"
+                                className="p-1 sm:p-1.5 md:p-2 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full text-black hover:scale-110 transition-transform"
                               >
-                                <Upload size={14} />
+                                <Upload size={8} className="sm:w-2.5 sm:h-2.5 md:w-3 md:h-3" />
                               </button>
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* CHAMPS DE SAISIE */}
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                      {/* ========== CHAMPS DE SAISIE ========== */}
+                      <div className="flex-1 grid grid-cols-1 gap-2 sm:gap-3 md:gap-4">
+                        {/* Sur mobile: 1 colonne, sur desktop: 4 colonnes */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
 
-                        {/* Statut */}
-                        <div className="space-y-1">
-                          <label className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
-                            <div className="w-1 h-1 bg-amber-400 rounded-full" /> Statut
-                          </label>
-                          <select
-                            value={face.statut || ''}
-                            onChange={(e) => updateFace(idx, 'statut', e.target.value)}
-                            disabled={isLocked}
-                            className="w-full bg-black/40 border border-white/10 rounded-lg text-[11px] sm:text-xs font-bold text-amber-400 p-2.5 outline-none focus:border-amber-400 transition-all"
-                          >
-                            {STATUTS_POSSIBLES.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
+                          {/* Statut */}
+                          <div className="space-y-0.5 sm:space-y-1">
+                            <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
+                              <div className="w-0.5 h-0.5 bg-amber-400 rounded-full" /> Statut
+                            </label>
+                            <select
+                              value={face.statut || ''}
+                              onChange={(e) => updateFace(idx, 'statut', e.target.value)}
+                              disabled={isLocked}
+                              className="w-full bg-black/40 border border-white/10 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs font-bold text-amber-400 p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-amber-400 transition-all truncate"
+                            >
+                              {STATUTS_POSSIBLES.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </div>
+
+                          {/* Champs conditionnels */}
+                          {(face.statut === "Occupé" || face.statut === "Réservé") && (
+                            <>
+                              {/* Société */}
+                              <div className="space-y-0.5 sm:space-y-1">
+                                <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
+                                  <div className="w-0.5 h-0.5 bg-amber-400 rounded-full" /> Société
+                                </label>
+                                <input
+                                  list={`list-societes-${idx}`}
+                                  value={face.clientNom || ''}
+                                  disabled={isLocked}
+                                  placeholder="Sélectionner..."
+                                  onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-white p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-amber-400 transition-all placeholder:text-white/30 truncate"
+                                />
+                                <datalist id={`list-societes-${idx}`}>
+                                  {Array.from(new Set(listeSocietes || [])).filter(nom => nom?.trim()).map((nom, i) => (
+                                    <option key={i} value={nom} />
+                                  ))}
+                                </datalist>
+                              </div>
+
+                              {/* Dates */}
+                              <div className="space-y-0.5 sm:space-y-1 lg:col-span-2">
+                                <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
+                                  <div className="w-0.5 h-0.5 bg-amber-400 rounded-full" /> Période
+                                </label>
+                                <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2">
+                                  <input
+                                    type="date"
+                                    value={face.dateDebut || ''}
+                                    onChange={(e) => updateFace(idx, 'dateDebut', e.target.value)}
+                                    className="flex-1 bg-black/40 border border-white/10 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-white p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-amber-400"
+                                  />
+                                  <span className="text-white/30 self-center text-center hidden sm:inline">→</span>
+                                  <input
+                                    type="date"
+                                    value={face.dateFin || ''}
+                                    onChange={(e) => updateFace(idx, 'dateFin', e.target.value)}
+                                    className="flex-1 bg-black/40 border border-white/10 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-white p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-amber-400"
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
 
-                        {/* Champs conditionnels */}
-                        {(face.statut === "Occupé" || face.statut === "Réservé") && (
-                          <>
-                            {/* Société */}
-                            <div className="space-y-1">
-                              <label className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
-                                <div className="w-1 h-1 bg-amber-400 rounded-full" /> Société
-                              </label>
-                              <input
-                                list={`list-societes-${idx}`}
-                                value={face.clientNom || ''}
-                                disabled={isLocked}
-                                placeholder="Sélectionner..."
-                                onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded-lg text-[11px] sm:text-xs text-white p-2.5 outline-none focus:border-amber-400 transition-all"
-                              />
-                              <datalist id={`list-societes-${idx}`}>
-                                {Array.from(new Set(listeSocietes || [])).filter(nom => nom?.trim()).map((nom, i) => (
-                                  <option key={i} value={nom} />
-                                ))}
-                              </datalist>
-                            </div>
-
-                            {/* Dates */}
-                            <div className="space-y-1 col-span-2">
-                              <label className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
-                                <div className="w-1 h-1 bg-amber-400 rounded-full" /> Période
-                              </label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="date"
-                                  value={face.dateDebut || ''}
-                                  onChange={(e) => updateFace(idx, 'dateDebut', e.target.value)}
-                                  className="flex-1 bg-black/40 border border-white/10 rounded-lg text-[11px] sm:text-xs text-white p-2.5 outline-none focus:border-amber-400"
-                                />
-                                <span className="text-white/30 self-center">→</span>
-                                <input
-                                  type="date"
-                                  value={face.dateFin || ''}
-                                  onChange={(e) => updateFace(idx, 'dateFin', e.target.value)}
-                                  className="flex-1 bg-black/40 border border-white/10 rounded-lg text-[11px] sm:text-xs text-white p-2.5 outline-none focus:border-amber-400"
-                                />
-                              </div>
-                              {conflitMessages[idx] && (
-                                <p className="text-[8px] text-red-400 font-medium mt-1">{conflitMessages[idx]}</p>
-                              )}
-                            </div>
-                          </>
+                        {/* Message d'avertissement */}
+                        {warning && !(face.statut === "Occupé" || face.statut === "Réservé") && (
+                          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-1.5 sm:p-2 mt-0.5 sm:mt-1">
+                            <p className="text-[6px] sm:text-[7px] md:text-[8px] text-red-400 font-medium truncate">⚠️ {warning}</p>
+                          </div>
                         )}
 
-                        {/* Message d'avertissement */}
-                        {warning && (
-                          <div className="col-span-full bg-red-500/10 border border-red-500/30 rounded-lg p-2.5 mt-1">
-                            <p className="text-[8px] sm:text-[9px] text-red-400 font-medium">⚠️ {warning}</p>
+                        {/* Message de conflit de dates */}
+                        {conflitMessages[idx] && (face.statut === "Occupé" || face.statut === "Réservé") && (
+                          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-1.5 sm:p-2 mt-0.5 sm:mt-1">
+                            <p className="text-[6px] sm:text-[7px] md:text-[8px] text-red-400 font-medium">{conflitMessages[idx]}</p>
                           </div>
                         )}
                       </div>
