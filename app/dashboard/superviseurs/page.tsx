@@ -118,6 +118,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
     };
   };
 
+
   return (
     <>
       <AnimatePresence>
@@ -206,7 +207,8 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
                   className="relative z-20 py-3 px-6 bg-[#d4af37] rounded-xl text-black font-black text-[10px] uppercase hover:bg-white transition-all"
                 >
                   <Settings size={14} />
-                </button>              </div>
+                </button>
+              </div>
             </div>
           </motion.div>
         );
@@ -295,6 +297,7 @@ const GEOGRAPHIE: Record<string, Record<string, Province>> = {
 
 import { useMemo } from 'react'; // Ajoute useMemo ici
 
+import { useTransform } from 'framer-motion';
 
 // Ajoute 'limit' ici
 import {
@@ -836,233 +839,205 @@ export default function UltimateSupervisor() {
 
   const totalFaces = filtered.reduce((acc, p) => acc + (p.faces?.length || 0), 0);
 
+  // 2. HOOKS (Framer Motion & Scroll)
+
+  // On crée d'abord scrollYProgress grâce à useScroll()
+
+  // Maintenant qu'elle existe, on peut l'utiliser pour yBg et scaleX !
+  const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "-12%"]);
 
 
 
-
-  // --- RENDU : LOADING ---
+  // --- RENDU : LOADING PREMIUM ---
   if (loading) {
     return (
-      <div className="h-screen bg-[#1e40af] flex flex-col items-center justify-center">
+      <div className="h-screen relative flex flex-col items-center justify-center overflow-hidden bg-[#1e40af]">
+
+        {/* 1. LA TEXTURE DE FOND : Présente dès le départ pour éliminer le flash bleu brut */}
+        <img
+          src="/fond.jpg"
+          alt="Background Texture"
+          className="absolute inset-0 w-full h-full object-cover opacity-20 blur-[1px]"
+        />
+
+        {/* 2. L'EFFET D'ÉCHANGE (Le Halo Doré qui pulse en arrière-plan) */}
         <motion.div
-          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }}
-          transition={{ repeat: Infinity, duration: 1 }}
+          animate={{
+            scale: [1, 1.4, 1],      // Le halo s'agrandit...
+            opacity: [0.1, 0.35, 0.1] // ...et devient plus lumineux en rythme
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 2.5,           // Animation fluide et lente
+            ease: "easeInOut"
+          }}
+          className="absolute w-[350px] h-[350px] bg-[#d4af37]/30 rounded-full blur-[90px]"
+        />
+
+        {/* 3. LE LOGO (En parfaite harmonie avec le fond) */}
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],       // Respiration légère du logo
+            rotate: [0, 3, -3, 0]     // Micro-rotation haut de gamme
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 2.5,           // Calé exactement sur la même durée que le halo
+            ease: "easeInOut"
+          }}
+          className="relative z-10"
         >
-          <img src={logoUrl} className="w-20 h-20 rounded-2xl shadow-2xl shadow-[#d4af37]/20" alt="Loading" />
+          <img
+            src={logoUrl}
+            className="w-24 h-24 rounded-3xl border border-white/20 shadow-[0_0_50px_rgba(212,175,55,0.25)] object-cover"
+            alt="Loading GDP"
+          />
         </motion.div>
+
+        {/* 4. PETIT TEXTE HUD OPTIONNEL */}
+        <motion.p
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+          className="relative z-10 mt-6 text-[9px] font-black uppercase tracking-[0.5em] text-[#d4af37]/80"
+        >
+          Connexion au système...
+        </motion.p>
+
       </div>
     );
   }
 
-
   return (
-    <div className="min-h-screen relative bg-[#1e40af] text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
+    <div className="min-h-screen relative text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
+
       {/* Barre de progression dorée */}
       <motion.div style={{ scaleX }} className="fixed top-0 left-0 right-0 h-1 bg-[#d4af37] z-[250] origin-left" />
 
-      {/* BACKGROUND EFFECTS - Bleu profond & Doré */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] bg-[#2563eb]/10 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#d4af37]/5 rounded-full blur-[120px]" />
+      {/* BACKGROUND EFFECTS - Image nette-floutée avec effet Parallaxe au scroll */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-[#1e40af]">
+
+        {/* On utilise motion.img pour l'animer */}
+        <motion.img
+          src="/fond.jpg"
+          alt="Background Texture"
+          style={{ y: yBg }} // Actionne le mouvement subtil au scroll
+          className="absolute top-0 left-0 w-full h-[115%] object-cover opacity-75 blur-[2px]"
+        // h-[115%] : TRÈS IMPORTANT. On rend l'image un peu plus haute que l'écran (115% au lieu de 100%)
+        // pour éviter qu'un espace vide ou bleu n'apparaisse en bas de l'écran quand l'image se déplace !
+        // blur-[2px] : Un flou très léger qui garde la photo claire mais adoucit les contours.
+        />
+
       </div>
+
 
       {/* NAV HEADER */}
       <nav className="fixed top-0 inset-x-0 z-[150] p-4 lg:p-6">
-  <div className="max-w-[1500px] mx-auto">
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: hidden ? -120 : 0 }}
-      className="flex items-center justify-between h-20 px-4 lg:px-8 rounded-[2.5rem] bg-black/40 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
-    >
-      {/* --- LOGO SECTION --- */}
-      <div 
-        onClick={() => window.location.reload()} 
-        className="flex items-center gap-3 cursor-pointer group shrink-0"
-      >
-        <div className="relative">
-          <div className="absolute inset-0 bg-[#d4af37] blur-md opacity-20 group-hover:opacity-40 transition-opacity" />
-          <img src={logoUrl} className="relative w-10 h-10 lg:w-12 lg:h-12 rounded-2xl object-cover border border-white/20 shadow-2xl" alt="Logo" />
-        </div>
-        <div className="flex flex-col leading-none hidden sm:flex">
-          <span className="text-xl lg:text-2xl font-black uppercase tracking-tighter text-white">
-            G<span className="text-[#d4af37]">D</span>P
-          </span>
-          <span className="text-[7px] font-bold uppercase tracking-[0.4em] text-[#d4af37]">Finance</span>
-        </div>
-      </div>
-
-      {/* --- BOUTONS DE NAVIGATION ÉLÉGANTS --- */}
-      <div className="flex items-center gap-2 md:gap-4">
-        {/* Accueil */}
-        <button
-          onClick={() => window.location.reload()}
-          className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-6 lg:py-3 rounded-2xl transition-all duration-300 hover:bg-white/10 overflow-hidden"
-        >
-          <div className="absolute inset-0 w-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent group-hover:w-full transition-all duration-500" />
-          <Home size={18} className="text-[#d4af37]" />
-          <span className="hidden md:block text-[11px] font-black uppercase tracking-widest text-white/90">Accueil</span>
-        </button>
-
-        {/* Carte Interactive */}
-        <button
-          onClick={ouvrirLaCarte}
-          className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-6 lg:py-3 rounded-2xl transition-all duration-300 hover:bg-white/10 overflow-hidden"
-        >
-          <div className="absolute inset-0 w-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent group-hover:w-full transition-all duration-500" />
-          <MapPin size={18} className="text-[#d4af37]" />
-          <span className="hidden md:block text-[11px] font-black uppercase tracking-widest text-white/90">Carte</span>
-        </button>
-
-        {/* Rapport (Le bouton distinctif) */}
-        <Link href="/dashboard/superviseurs/rapport">
-          <div className="relative group px-4 py-2.5 lg:px-6 lg:py-3 rounded-2xl bg-[#d4af37] hover:bg-white transition-all duration-300 shadow-[0_10px_20px_rgba(212,175,55,0.2)] active:scale-95 flex items-center gap-3">
-            <FilePieChart size={18} className="text-black" />
-            <div className="hidden lg:flex flex-col items-start leading-none">
-              <span className="text-[10px] font-black uppercase text-black">Rapports</span>
-              <span className="text-[7px] font-bold uppercase text-black/60">Analyse Live</span>
-            </div>
-          </div>
-        </Link>
-      </div>
-
-      {/* --- USER SECTION --- */}
-      <div className="flex items-center gap-2 lg:gap-6 shrink-0 pl-2 lg:pl-6 border-l border-white/10">
-        {user ? (
-          <div className="flex items-center gap-3">
-            {/* Infos User (Masqué sur petit mobile) */}
-            <div className="text-right hidden xl:block">
-              <p className="text-[10px] font-black text-white uppercase tracking-tight">{user.nom}</p>
-              <p className="text-[8px] font-bold text-[#d4af37] uppercase opacity-80">{user.role}</p>
-            </div>
-
-            {/* Avatar & Logout Group */}
-            <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#d4af37]/50 transition-colors">
-              <img 
-                src={user.logoUrl || "/default-avatar.png"} 
-                className="w-8 h-8 lg:w-9 lg:h-9 rounded-xl border border-white/10 object-cover" 
-                alt="Profil" 
-              />
-              <button
-                onClick={handleLogout}
-                className="p-2 text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl"
-                title="Déconnexion"
-              >
-                <LogOut size={18} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button 
-            onClick={() => setIsLoginOpen(true)}
-            className="px-6 py-2.5 rounded-xl border border-[#d4af37] text-[#d4af37] text-[10px] font-black uppercase hover:bg-[#d4af37] hover:text-black transition-all shadow-lg"
+        <div className="max-w-[1800px] mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: hidden ? -120 : 0 }}
+            className="flex items-center justify-between h-20 px-4 lg:px-8 rounded-[2.5rem] bg-black/40 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
           >
-            Connexion
-          </button>
-        )}
-      </div>
-    </motion.div>
-  </div>
-</nav>
-
-
-
-
-
-
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-white/[0.02] backdrop-blur-[3px] z-[250] cursor-pointer"
-            />
-            <motion.div
-              initial={{ x: "100%", opacity: 0.5 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "100%", opacity: 0.5 }}
-              transition={{ type: "spring", damping: 25, stiffness: 150 }}
-              className="fixed right-0 top-0 h-full w-full max-w-sm bg-[#1e40af] border-l border-white/30 z-[300] flex flex-col shadow-[-40px_0_80px_rgba(0,0,0,0.4)]"
+            {/* --- LOGO SECTION --- */}
+            <div
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-3 cursor-pointer group shrink-0"
             >
-              <div className="p-10 flex justify-between items-center border-b border-white/20 bg-black/10">
-                <div className="flex flex-col">
-                  <span className="text-2xl font-black italic uppercase text-white tracking-tighter leading-none">
-                    Menu <span className="text-[#d4af37] drop-shadow-[0_2px_10px_rgba(212,175,55,0.4)]">Général</span>
-                  </span>
-                  <span className="text-[7px] font-black uppercase tracking-[0.5em] text-white/40 mt-1">Système de Supervision</span>
-                </div>
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="group p-3 bg-white/5 hover:bg-red-500/80 rounded-2xl transition-all border border-white/10 shadow-xl"
-                >
-                  <X size={22} className="text-white group-hover:rotate-90 transition-transform" />
-                </button>
+              <div className="relative">
+                <div className="absolute inset-0 bg-[#d4af37] blur-md opacity-20 group-hover:opacity-40 transition-opacity" />
+                <img src={logoUrl} className="relative w-10 h-10 lg:w-12 lg:h-12 rounded-2xl object-cover border border-white/20 shadow-2xl" alt="Logo" />
               </div>
+              <div className="flex flex-col leading-none hidden sm:flex">
+                <span className="text-xl lg:text-2xl font-black uppercase tracking-tighter text-white">
+                  G<span className="text-[#d4af37]">D</span>P
+                </span>
+                <span className="text-[7px] font-bold uppercase tracking-[0.4em] text-[#d4af37]">Finance</span>
+              </div>
+            </div>
 
-              <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
-                <div className="relative group">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-[#d4af37] group-focus-within:scale-110 transition-transform" size={20} />
-                  <input
-                    type="text"
-                    placeholder="RECHERCHER UN ÉLÉMENT..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-6 pl-14 pr-6 text-[12px] font-black uppercase outline-none focus:border-[#d4af37]/50 focus:bg-black/60 text-white placeholder:text-white/20 shadow-inner transition-all"
-                  />
+            {/* --- BOUTONS DE NAVIGATION ÉLÉGANTS (ADAPTATIFS) --- */}
+            <div className="flex items-center gap-1 md:gap-4">
+              {/* Accueil */}
+              <button
+                onClick={() => window.location.reload()}
+                className="group relative flex items-center gap-2 px-3 py-2.5 lg:px-6 lg:py-3 rounded-2xl transition-all duration-300 hover:bg-white/10 overflow-hidden"
+              >
+                <div className="absolute inset-0 w-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent group-hover:w-full transition-all duration-500" />
+                <Home size={20} className="text-[#d4af37]" />
+                {/* Texte affiché uniquement à partir de 'lg' (PC) pour laisser la place aux icônes sur tablette/mobile */}
+                <span className="hidden lg:block text-[11px] font-black uppercase tracking-widest text-white/90">Accueil</span>
+              </button>
+
+              {/* Carte Interactive */}
+              <button
+                onClick={ouvrirLaCarte}
+                className="group relative flex items-center gap-2 px-3 py-2.5 lg:px-6 lg:py-3 rounded-2xl transition-all duration-300 hover:bg-white/10 overflow-hidden"
+              >
+                <div className="absolute inset-0 w-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent group-hover:w-full transition-all duration-500" />
+                <MapPin size={20} className="text-[#d4af37]" />
+                <span className="hidden lg:block text-[11px] font-black uppercase tracking-widest text-white/90">Carte</span>
+              </button>
+
+              {/* Rapport (Le bouton distinctif) */}
+              <Link href="/dashboard/superviseurs/rapport">
+                <div className="relative group px-3 py-2.5 lg:px-6 lg:py-3 rounded-2xl bg-[#d4af37] hover:bg-white transition-all duration-300 shadow-[0_10px_20px_rgba(212,175,55,0.2)] active:scale-95 flex items-center gap-3">
+                  <FilePieChart size={20} className="text-black" />
+                  {/* Masqué sur mobile/tablette, affiché sur Desktop */}
+                  <div className="hidden lg:flex flex-col items-start leading-none">
+                    <span className="text-[10px] font-black uppercase text-black">Rapports</span>
+                    <span className="text-[7px] font-bold uppercase text-black/60">Analyse Live</span>
+                  </div>
                 </div>
+              </Link>
+            </div>
 
+            {/* --- USER SECTION (ULTRA COMPACTE) --- */}
+            <div className="flex items-center gap-2 lg:gap-6 shrink-0 pl-2 lg:pl-6 border-l border-white/10">
+              {user ? (
+                <div className="flex items-center gap-2 md:gap-3">
 
-                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-[#d4af37] uppercase tracking-[0.4em] mb-6 opacity-80">
-                    Exploration
-                  </p>
-
-                  {/* 2. Ton menu qui utilise l'état */}
-                  {[
-                    { icon: <Home size={20} />, label: "Tableau de Bord", action: () => window.location.reload() },
-                    { icon: <MapPin size={20} />, label: "Carte Interactive", action: ouvrirLaCarte },
-                    { icon: <PlusCircle size={20} />, label: "Nouveau Panneau", action: () => setIsModalOpen(true) },
-                  ].map((item, i) => (
+                  <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/5 border border-white/10">
+                    {/* Logout masqué sur petit mobile, visible sur tablette et + */}
+                    <div className="text-right hidden xl:block">
+                      <p className="text-[10px] font-black text-white uppercase tracking-tight">{user.nom}</p>
+                      <p className="text-[8px] font-bold text-[#d4af37] uppercase opacity-80">{user.role}</p>
+                    </div>
                     <button
-                      key={i}
+                      type="button"
                       onClick={(e) => {
-                        // 1. On empêche le clic de remonter vers les parents (comme le fond de la sidebar)
                         e.preventDefault();
-                        e.stopPropagation();
-
-                        // 2. On exécute l'action (ouvrir la modale)
-                        item.action();
-
-                        // 3. On ferme la sidebar SEULEMENT si l'action n'est pas "Nouveau Panneau" 
-                        // ou alors on s'assure que la modale a la priorité.
-                        if (typeof setIsSidebarOpen === 'function') {
-                          setIsSidebarOpen(false);
-                        }
+                        e.stopPropagation(); // Évite que le clic ne déclenche d'autres événements parents
+                        handleLogout();
                       }}
-                      className="w-full flex items-center justify-between p-6 rounded-[1.5rem] bg-white/5 hover:bg-white hover:text-[#1e40af] border border-white/10 text-white font-black uppercase text-[11px] tracking-widest transition-all shadow-lg active:scale-95 group"
+                      className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-full transition-all border border-red-500/20 cursor-pointer pointer-events-auto active:scale-95"
+                      title="Déconnexion"
                     >
-                      <div className="flex items-center gap-5">
-                        <span className="group-hover:text-[#1e40af] transition-colors">
-                          {item.icon}
-                        </span>
-                        {item.label}
-                      </div>
-                      <div className="w-2 h-2 rounded-full bg-[#d4af37] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <img
+                        src={logoUrl}
+                        className="w-8 h-8 rounded-full border border-[#d4af37] object-cover bg-black"
+                        alt="Profil"
+                        onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
+                      />
+                      <LogOut size={14} className="flex-shrink-0" />
                     </button>
-                  ))}
+                  </div>
                 </div>
-              </div>
-
-
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+              ) : (
+                <button
+                  onClick={() => setIsLoginOpen(true)}
+                  className="px-4 md:px-6 py-2.5 rounded-xl border border-[#d4af37] text-[#d4af37] text-[10px] font-black uppercase hover:bg-[#d4af37] hover:text-black transition-all"
+                >
+                  <span className="md:hidden">Connexion</span> {/* Texte court mobile */}
+                  <span className="hidden md:inline">Se Connecter</span>
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      </nav>
 
       {/* MAIN CONTENT */}
-      <main className="relative z-10 max-w-[1500px] mx-auto px-6 pt-44 pb-40">
+      <main className="relative z-20 max-w-[1800px] mx-auto px-6 pt-44 pb-40">
         <header className="mb-20 relative">
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
 
@@ -1093,106 +1068,112 @@ export default function UltimateSupervisor() {
                 </div>
               </div>
 
-              {/* DROITE : FILTRAGE HIÉRARCHIQUE AGRESSIF */}
-              <div className="w-full lg:w-[550px] space-y-4 bg-white/5 p-6 rounded-[2.5rem] border border-white/5 backdrop-blur-xl shadow-2xl">
+              {/* CONTENEUR : Mode "Phone" forcé (étroit) même sur PC */}
+              <div className="w-full lg:w-[320px] space-y-2 bg-white/5 p-3 rounded-[1.5rem] border border-white/5 backdrop-blur-xl shadow-2xl mx-auto">
 
-                {/* Barre de Recherche principale */}
+                {/* Barre de Recherche : Version Mini */}
                 <div className="relative group">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-[#d4af37]" size={18} />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#d4af37]" size={14} />
                   <input
                     type="text"
-                    placeholder="RECHERCHER ID, AVENUE, RÉFÉRENCE..."
+                    placeholder="RECHERCHER..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-4 pl-14 pr-6 text-[11px] font-black uppercase outline-none focus:border-red-600/40 text-white transition-all"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl py-2 pl-9 pr-3 text-[9px] font-black uppercase outline-none focus:border-[#d4af37] text-white transition-all"
                   />
                 </div>
 
-                {/* Grille des Sélecteurs Dynamiques */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-                  {/* 1. Sélection PAYS */}
+                {/* Grille des Sélecteurs : 3 colonnes partout pour un gain de place vertical */}
+                <div className="grid grid-cols-3 gap-1.5">
+                  {/* 1. PAYS */}
                   <select
                     value={filters.pays}
                     onChange={(e) => setFilters({ ...filters, pays: e.target.value, province: '', district: '', commune: '' })}
-                    className="bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37]"
+                    className="bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none"
                   >
-                    <option value="">Tous les Pays</option>
+                    <option value="">Pays</option>
                     {Object.keys(GEOGRAPHIE).map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
 
-                  {/* 2. Sélection PROVINCE */}
+                  {/* 2. PROVINCE */}
                   <select
                     disabled={!filters.pays}
                     value={filters.province}
                     onChange={(e) => setFilters({ ...filters, province: e.target.value, district: '', commune: '' })}
-                    className={`bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37] ${!filters.pays && 'opacity-30'}`}
+                    className="bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none disabled:opacity-20"
                   >
-                    <option value="">Provinces / Villes</option>
+                    <option value="">Prov.</option>
                     {filters.pays && Object.keys(GEOGRAPHIE[filters.pays]).map(pr => (
                       <option key={pr} value={pr}>{pr}</option>
                     ))}
                   </select>
 
-                  {/* 3. Sélection DISTRICT (NOUVEAU) */}
+                  {/* 3. DISTRICT */}
                   <select
                     disabled={!filters.province}
                     value={filters.district}
                     onChange={(e) => setFilters({ ...filters, district: e.target.value, commune: '' })}
-                    className={`bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37] ${!filters.province && 'opacity-30'}`}
+                    className="bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none disabled:opacity-20"
                   >
-                    <option value="">Tous les Districts</option>
+                    <option value="">Dist.</option>
                     {filters.pays && filters.province && GEOGRAPHIE[filters.pays][filters.province] &&
                       Object.keys(GEOGRAPHIE[filters.pays][filters.province]).map(d => (
                         <option key={d} value={d}>{d}</option>
                       ))}
                   </select>
 
-                  {/* 4. Sélection COMMUNE */}
+                  {/* 4. COMMUNE (Prend 2 colonnes pour rester lisible) */}
                   <select
                     disabled={!filters.district}
                     value={filters.commune}
                     onChange={(e) => setFilters({ ...filters, commune: e.target.value })}
-                    className={`bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37] ${!filters.district && 'opacity-30'}`}
+                    className="col-span-2 bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none disabled:opacity-20"
                   >
-                    <option value="">Toutes les Communes</option>
-                    {/* On force la conversion en tableau au cas où */}
+                    <option value="">Commune</option>
                     {Array.isArray(getCommunes()) && getCommunes().map((c, index) => (
-                      <option key={`${c}-${index}`} value={c}>
-                        {c}
-                      </option>
+                      <option key={`${c}-${index}`} value={c}>{c}</option>
                     ))}
                   </select>
 
-                  {/* 5. Sélection TYPE */}
+                  {/* 5. TYPE (Prend 1 colonne) */}
                   <select
                     value={filters.type}
                     onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                    className="bg-black/60 border border-white/10 rounded-xl p-4 text-[10px] font-black text-white uppercase outline-none focus:border-[#d4af37] sm:col-span-2"
+                    className="col-span-1 bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none"
                   >
-                    <option value="">Tous les Types</option>
+                    <option value="">Type</option>
                     {Array.from(new Set(panneauxData.map(p => p.type))).filter(Boolean).map(t => (
                       <option key={t} value={t}>{t}</option>
                     ))}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  {['Libre', 'Occupé', 'Maintenance', 'Réservé'].map(s => {
-                    // Couleurs dynamiques selon le bouton
+
+                {/* Boutons de Statut : Version Mini-Pills */}
+                <div className="grid grid-cols-4 gap-1 pt-1">
+                  {['Libre', 'Occupé', 'Maint.', 'Rés.'].map(s => {
+                    // Mapping des noms courts vers les noms complets pour le filtrage
+                    const statusMap: { [key: string]: string } = {
+                      'Libre': 'Libre',
+                      'Occupé': 'Occupé',
+                      'Maint.': 'Maintenance',
+                      'Rés.': 'Réservé'
+                    };
+                    const fullStatus = statusMap[s];
+
                     const colorClass =
                       s === 'Libre' ? 'bg-green-600' :
                         s === 'Occupé' ? 'bg-blue-600' :
-                          s === 'Maintenance' ? 'bg-red-600' :
+                          s === 'Maint.' ? 'bg-red-600' :
                             'bg-orange-600';
 
                     return (
                       <button
                         key={s}
                         type="button"
-                        onClick={() => setFilters({ ...filters, statut: filters.statut === s ? '' : s })}
-                        className={`py-3 rounded-xl text-[9px] font-[1000] uppercase border-2 transition-all ${filters.statut === s
-                          ? `${colorClass} text-white border-white shadow-lg scale-[1.02]`
-                          : 'bg-black/40 border-white/10 text-white hover:border-white/30'
+                        onClick={() => setFilters({ ...filters, statut: filters.statut === fullStatus ? '' : fullStatus })}
+                        className={`py-1.5 rounded-md text-[7px] font-black uppercase border transition-all ${filters.statut === fullStatus
+                          ? `${colorClass} text-white border-white`
+                          : 'bg-black/40 border-white/5 text-white/60'
                           }`}
                       >
                         {s}
@@ -1207,18 +1188,18 @@ export default function UltimateSupervisor() {
           <div className="flex gap-3 px-6 pb-4 mt-8">
             <button
               onClick={() => setIsCartOpen(true)}
-              className="flex-1 bg-white/5 border border-white/10 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-[#d4af37]/10 transition-colors"
+              className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-[#d4af37]/20 hover:border-[#d4af37]/50 transition-all duration-300 group"
             >
-              <FilePieChart size={18} className="text-[#d4af37]" />
-              <span className="text-[10px] font-bold uppercase">Proformas ({reservationsEnAttente.length})</span>
+              <FilePieChart size={18} className="text-[#d4af37] group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-bold uppercase text-white/90">Proformas ({reservationsEnAttente.length})</span>
             </button>
 
             <button
-              onClick={() => setIsStatsOpen(true)} // Nouvel état à créer
-              className="flex-1 bg-white/5 border border-white/10 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-500/10 transition-colors"
+              onClick={() => setIsStatsOpen(true)}
+              className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-500/20 hover:border-blue-500/50 transition-all duration-300 group"
             >
-              <LayoutDashboard size={18} className="text-blue-400" />
-              <span className="text-[10px] font-bold uppercase">Ma Performance</span>
+              <LayoutDashboard size={18} className="text-blue-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-bold uppercase text-white/90">Ma Performance</span>
             </button>
           </div>
 
@@ -1244,164 +1225,146 @@ export default function UltimateSupervisor() {
                     <button onClick={() => setIsCartOpen(false)} className="p-2 bg-white/5 rounded-full text-white hover:bg-red-500 transition-colors">✕</button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                    {reservationsEnAttente.map((res: any, index: number) => {
-                      // SOURCE DE VÉRITÉ : On utilise l'ID unique généré dans le useMemo
-                      const key = res.resUniqueId;
+                  <div className="flex-1 overflow-y-auto space-y-3 md:space-y-4 pr-2 custom-scrollbar">
+                    {/* AJOUT D'UNE GRILLE : 1 colonne sur phone, 2 sur tablette, 1 sur desktop (si dans une sidebar) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 md:gap-4">
+                      {reservationsEnAttente.map((res: any, index: number) => {
+                        const key = res.resUniqueId;
+                        const unitPrice = prices[key] || 0;
+                        const isTranche = paymentModes[key] === 'tranche';
+                        const isSelected = selectedForPrint[key] || false;
+                        const numeroOrdre = index + 1;
+                        const uniqueKey = key || `temp-${index}`;
 
-                      const unitPrice = prices[key] || 0;
-                      const isTranche = paymentModes[key] === 'tranche';
-                      const isSelected = selectedForPrint[key] || false;
-                      const numeroOrdre = index + 1;
-
-                      // On garde ta logique de sécurité pour la clé de rendu React
-                      const uniqueKey = key || `temp-${index}`;
-                      const currentPanneauId = res.panneauId || res.idPan;
-
-                      return (
-                        <motion.div
-                          key={uniqueKey}
-                          className={`p-5 rounded-[2rem] border transition-all ${isSelected ? 'bg-[#d4af37]/10 border-[#d4af37]' : 'bg-white/5 border-white/10'
-                            }`}
-                        >
-                          {/* HEADER DE LA CARTE */}
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <span className="text-[10px] font-black text-[#d4af37] block uppercase">
-                                Réservation N° {numeroOrdre}
-                              </span>
-                              <span className="text-[11px] text-white font-bold block">
-                                Face : {res.faceLabel}
-                              </span>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
-                              className="w-5 h-5 accent-[#d4af37] cursor-pointer"
-                            />
-                          </div>
-
-                          <h4 className="text-white text-sm font-black uppercase mb-4 truncate">
-                            {res.societeLocatrice}
-                          </h4>
-
-                          {/* SECTION PRIX ET CALCULS */}
-                          <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                              <label className="text-[8px] text-white/40 uppercase font-bold block mb-1">Prix/Mois</label>
+                        return (
+                          <motion.div
+                            key={uniqueKey}
+                            className={`p-3 md:p-4 rounded-[1.5rem] md:rounded-[2rem] border transition-all ${isSelected ? 'bg-[#d4af37]/10 border-[#d4af37]' : 'bg-white/5 border-white/10'
+                              }`}
+                          >
+                            {/* HEADER RÉDUIT */}
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <span className="text-[8px] md:text-[10px] font-black text-[#d4af37] block uppercase">
+                                  Rés. N° {numeroOrdre}
+                                </span>
+                                <span className="text-[10px] md:text-[11px] text-white font-bold block truncate max-w-[120px]">
+                                  Face : {res.faceLabel}
+                                </span>
+                              </div>
                               <input
-                                type="number"
-                                value={unitPrice === 0 ? "" : unitPrice}
-                                onFocus={(e) => e.target.select()}
-                                onPointerDown={(e) => e.stopPropagation()} // Empêche le conflit avec le scroll de la modale
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const numericVal = val === "" ? 0 : Number(val);
-                                  // Mise à jour propre par fonction de rappel pour éviter les collisions
-                                  setPrices(prev => ({ ...prev, [key]: numericVal }));
-                                }}
-                                placeholder="0"
-                                className="w-full bg-transparent border-b border-white/20 text-white font-bold outline-none focus:border-[#d4af37]"
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
+                                className="w-4 h-4 md:w-5 md:h-5 accent-[#d4af37] cursor-pointer"
                               />
                             </div>
-                            <div className="text-right">
-                              <label className="text-[8px] text-white/40 uppercase font-bold block mb-1">
-                                Total ({res.dureeMois} mois)
-                              </label>
-                              <span className="text-[#d4af37] font-black">
-                                {(unitPrice * res.dureeMois).toLocaleString()} $
-                              </span>
+
+                            {/* NOM SOCIÉTÉ RÉDUIT */}
+                            <h4 className="text-white text-xs md:text-sm font-black uppercase mb-3 truncate">
+                              {res.societeLocatrice}
+                            </h4>
+
+                            {/* SECTION PRIX COMPACTE */}
+                            <div className="grid grid-cols-2 gap-2 md:gap-4 mb-3">
+                              <div>
+                                <label className="text-[7px] md:text-[8px] text-white/40 uppercase font-bold block mb-0.5">Prix/Mois</label>
+                                <div className="flex items-center gap-1 border-b border-white/20 focus-within:border-[#d4af37]">
+                                  <input
+                                    type="number"
+                                    value={unitPrice === 0 ? "" : unitPrice}
+                                    onFocus={(e) => e.target.select()}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const numericVal = val === "" ? 0 : Number(val);
+                                      setPrices(prev => ({ ...prev, [key]: numericVal }));
+                                    }}
+                                    placeholder="0"
+                                    className="w-full bg-transparent text-[11px] md:text-sm text-white font-bold outline-none"
+                                  />
+                                  <span className="text-[10px] text-white/40">$</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <label className="text-[7px] md:text-[8px] text-white/40 uppercase font-bold block mb-0.5">
+                                  Total ({res.dureeMois}m)
+                                </label>
+                                <span className="text-[#d4af37] text-[11px] md:text-sm font-black whitespace-nowrap">
+                                  {(unitPrice * res.dureeMois).toLocaleString()} $
+                                </span>
+                              </div>
                             </div>
-                          </div>
 
-                          {/* SECTION DYNAMIQUE DES TRANCHES */}
-                          {isTranche && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              className="mb-4 p-3 bg-[#d4af37]/5 border border-[#d4af37]/20 rounded-xl space-y-2"
-                            >
-                              <div className="flex items-center justify-between">
-                                <label className="text-[8px] text-white/40 uppercase font-bold">Nombre de tranches</label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max={res.dureeMois}
-                                  value={tranchesCount[key] || ""}
-                                  placeholder="Ex: 2"
-                                  onPointerDown={(e) => e.stopPropagation()}
-                                  onChange={(e) => {
-                                    const valStr = e.target.value;
-                                    if (valStr === "") {
-                                      setTranchesCount(prev => ({ ...prev, [key]: "" }));
-                                      return;
-                                    }
-                                    const val = parseInt(valStr);
-                                    const limitedVal = isNaN(val) ? "" : Math.max(1, Math.min(res.dureeMois, val));
-                                    setTranchesCount(prev => ({ ...prev, [key]: limitedVal }));
-                                  }}
-                                  className="w-16 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-[11px] font-black outline-none focus:border-[#d4af37]"
-                                />
-                              </div>
-
-                              <div className="pt-2 border-t border-white/5">
-                                <p className="text-[10px] text-white/80 font-medium">
-                                  Soit <span className="text-[#d4af37] font-black">
-                                    {tranchesCount[key] > 0
-                                      ? ((unitPrice * res.dureeMois) / Number(tranchesCount[key])).toLocaleString()
-                                      : 0} $
-                                  </span> par tranche
+                            {/* TRANCHES VERSION MINI */}
+                            {isTranche && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="mb-3 p-2 bg-[#d4af37]/5 border border-[#d4af37]/20 rounded-xl"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <label className="text-[7px] md:text-[8px] text-white/40 uppercase font-bold">Tranches</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={res.dureeMois}
+                                    value={tranchesCount[key] || ""}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value);
+                                      const limitedVal = isNaN(val) ? "" : Math.max(1, Math.min(res.dureeMois, val));
+                                      setTranchesCount(prev => ({ ...prev, [key]: limitedVal }));
+                                    }}
+                                    className="w-10 md:w-12 bg-white/10 border border-white/20 rounded px-1 py-0.5 text-white text-[10px] font-black outline-none"
+                                  />
+                                </div>
+                                <p className="text-[8px] md:text-[9px] text-[#d4af37] font-bold mt-1 text-center border-t border-white/5 pt-1">
+                                  {tranchesCount[key] > 0 ? ((unitPrice * res.dureeMois) / Number(tranchesCount[key])).toLocaleString() : 0} $/tranche
                                 </p>
-                              </div>
-                            </motion.div>
-                          )}
+                              </motion.div>
+                            )}
 
-                          {/* SÉLECTEUR DE MODE DE PAIEMENT */}
-                          <div className="flex bg-black/40 p-1 rounded-xl mb-4 border border-white/5">
-                            <button
-                              onClick={() => setPaymentModes(prev => ({ ...prev, [key]: 'total' }))}
-                              className={`flex-1 py-2 text-[9px] font-black uppercase rounded-lg transition-all ${!isTranche ? 'bg-[#d4af37] text-black' : 'text-white/40'
-                                }`}
-                            >
-                              Globale
-                            </button>
-                            <button
-                              onClick={() => setPaymentModes(prev => ({ ...prev, [key]: 'tranche' }))}
-                              className={`flex-1 py-2 text-[9px] font-black uppercase rounded-lg transition-all ${isTranche ? 'bg-[#d4af37] text-black' : 'text-white/40'
-                                }`}
-                            >
-                              Tranche
-                            </button>
-                          </div>
+                            {/* SÉLECTEUR DE MODE MINI */}
+                            <div className="flex bg-black/40 p-1 rounded-lg mb-3 border border-white/5">
+                              {['total', 'tranche'].map((m) => (
+                                <button
+                                  key={m}
+                                  onClick={() => setPaymentModes(prev => ({ ...prev, [key]: m }))}
+                                  className={`flex-1 py-1 text-[8px] md:text-[9px] font-black uppercase rounded-md transition-all ${paymentModes[key] === m || (!isTranche && m === 'total') ? 'bg-[#d4af37] text-black' : 'text-white/40'
+                                    }`}
+                                >
+                                  {m === 'total' ? 'Globale' : 'Tranche'}
+                                </button>
+                              ))}
+                            </div>
 
-                          {/* BOUTONS D'ACTION */}
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => processOperations('unique', res, index)}
-                              className="flex-[3] py-2.5 bg-white text-black text-[9px] font-black uppercase rounded-xl hover:bg-[#d4af37] transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95"
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                <path d="M20 6 9 17l-5-5" />
-                              </svg>
-                              Valider
-                            </button>
+                            {/* BOUTONS D'ACTION PLUS COMPACTS */}
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => processOperations('unique', res, index)}
+                                className="flex-[3] py-2 bg-white text-black text-[8px] md:text-[9px] font-black uppercase rounded-lg hover:bg-[#d4af37] transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
+                                  <path d="M20 6 9 17l-5-5" />
+                                </svg>
+                                Valider
+                              </button>
 
-                            <button
-                              onClick={() => processOperations('delete', res, index)}
-                              className="flex-1 py-2.5 bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-95"
-                              title="Supprimer"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                              </svg>
-                            </button>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                              <button
+                                onClick={() => processOperations('delete', res, index)}
+                                className="flex-1 py-2 bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center rounded-lg hover:bg-red-500 hover:text-white transition-all active:scale-95"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
                   </div>
-
                   {/* ACTIONS CENTRALISÉES EN BAS */}
                   <div className="pt-6 space-y-3 mt-auto border-t border-white/10">
 
@@ -1645,26 +1608,6 @@ export default function UltimateSupervisor() {
               </>
             )}
           </AnimatePresence>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         </header>
 
@@ -2033,7 +1976,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useAuth();
 
-  
+
   const canEditFace = (face: any) => {
     return true;
   };
@@ -2528,37 +2471,54 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           </div>
         </div>
 
-        {/* FOOTER */}
-        <div className="p-8 bg-black/40 border-t border-white/10 flex justify-end items-center gap-4">
+        {/* FOOTER ULTRA-COMPACT & PREMIUM */}
+        <div className="p-4 md:p-8 bg-black/60 backdrop-blur-xl border-t border-white/10 flex justify-end items-center gap-2 md:gap-4">
+
+          {/* Bouton Annuler : Plus discret sur mobile */}
           <button
             onClick={onClose}
-            className="px-8 py-3 text-[10px] font-black uppercase text-white/40 hover:text-white transition-colors"
+            className="px-4 md:px-8 py-2 md:py-3 text-[9px] md:text-[10px] font-black uppercase text-white/30 hover:text-white transition-all tracking-tighter md:tracking-widest"
           >
             Annuler
           </button>
 
+          {/* Bouton Enregistrer : Style "Golden Glass" */}
           <button
             onClick={handleSave}
             disabled={isButtonDisabled}
-            className={`flex items-center gap-3 px-12 py-4 rounded-full font-black uppercase text-[10px] transition-all shadow-xl
-    ${isSaving
-                ? "bg-gray-500 cursor-not-allowed"
-                : "bg-[#d4af37] text-black hover:scale-105 active:scale-95"
-              }`}
+            className={`
+      relative overflow-hidden flex items-center gap-2 md:gap-3 px-6 md:px-12 py-3 md:py-4 rounded-xl md:rounded-full 
+      font-black uppercase text-[9px] md:text-[10px] transition-all duration-300 shadow-2xl
+      ${isSaving
+                ? "bg-white/10 text-white/20 cursor-not-allowed"
+                : "bg-[#d4af37] text-black hover:shadow-[#d4af37]/20 hover:scale-[1.02] active:scale-95 group"
+              }
+    `}
           >
+            {/* Effet de reflet brillant (Glint) au survol */}
+            {!isSaving && (
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
+            )}
+
             {isSaving ? (
               <>
-                <Loader2 className="animate-spin" size={16} />
-                <span>Enregistrement...</span>
+                <Loader2 className="animate-spin" size={14} />
+                <span className="hidden md:inline">Enregistrement...</span>
+                <span className="md:hidden">Patientez...</span>
               </>
             ) : (
               <>
-                <Save size={16} />
-                <span>Enregistrer les modifications</span>
+                <Save size={14} className="md:w-4 md:h-4" />
+                <span>
+                  <span className="md:hidden">Enregistrer</span>
+                  <span className="hidden md:inline">Enregistrer les modifications</span>
+                </span>
               </>
             )}
           </button>
         </div>
+
+
       </motion.div>
     </div>
   );

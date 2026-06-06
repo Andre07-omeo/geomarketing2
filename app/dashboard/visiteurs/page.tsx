@@ -10,12 +10,6 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-
-
-
-
-
-
 // --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",

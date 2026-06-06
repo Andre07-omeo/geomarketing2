@@ -196,6 +196,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
 
 
 import { LogOut, } from 'lucide-react';
+import { useTransform } from 'framer-motion';
 
 // --- PAGE PRINCIPALE ---
 export default function UltimateSupervisor() {
@@ -214,9 +215,13 @@ export default function UltimateSupervisor() {
   const router = useRouter();
 
   // 2. HOOKS (Framer Motion & Scroll)
-  const { scrollYProgress, scrollY } = useScroll();
-  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
 
+  // On crée d'abord scrollYProgress grâce à useScroll()
+  const { scrollYProgress, scrollY } = useScroll();
+
+  // Maintenant qu'elle existe, on peut l'utiliser pour yBg et scaleX !
+  const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "-12%"]);
+  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
   // 3. ACTIONS
   const ouvrirLaCarte = () => {
     router.push('/dashboard/client');
@@ -259,194 +264,453 @@ export default function UltimateSupervisor() {
 
     return matchesSearch && matchesZone && matchesFormat && matchesStatut;
   });
-
   const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
+  // --- RENDU : LOADING PREMIUM ---
   if (loading) {
     return (
-      <div className="h-screen bg-[#1e40af] flex flex-col items-center justify-center">
-        <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 0.5 }}>
-          <img src={logoUrl} className="w-20 h-20 rounded-2xl shadow-2xl shadow-[#d4af37]/20" alt="Loading" />
+      <div className="h-screen relative flex flex-col items-center justify-center overflow-hidden bg-[#1e40af]">
+
+        {/* 1. LA TEXTURE DE FOND : Présente dès le départ pour éliminer le flash bleu brut */}
+        <img
+          src="/fond.jpg"
+          alt="Background Texture"
+          className="absolute inset-0 w-full h-full object-cover opacity-20 blur-[1px]"
+        />
+
+        {/* 2. L'EFFET D'ÉCHANGE (Le Halo Doré qui pulse en arrière-plan) */}
+        <motion.div
+          animate={{
+            scale: [1, 1.4, 1],      // Le halo s'agrandit...
+            opacity: [0.1, 0.35, 0.1] // ...et devient plus lumineux en rythme
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 2.5,           // Animation fluide et lente
+            ease: "easeInOut"
+          }}
+          className="absolute w-[350px] h-[350px] bg-[#d4af37]/30 rounded-full blur-[90px]"
+        />
+
+        {/* 3. LE LOGO (En parfaite harmonie avec le fond) */}
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],       // Respiration légère du logo
+            rotate: [0, 3, -3, 0]     // Micro-rotation haut de gamme
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 2.5,           // Calé exactement sur la même durée que le halo
+            ease: "easeInOut"
+          }}
+          className="relative z-10"
+        >
+          <img
+            src={logoUrl}
+            className="w-24 h-24 rounded-3xl border border-white/20 shadow-[0_0_50px_rgba(212,175,55,0.25)] object-cover"
+            alt="Loading GDP"
+          />
         </motion.div>
+
+        {/* 4. PETIT TEXTE HUD OPTIONNEL */}
+        <motion.p
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+          className="relative z-10 mt-6 text-[9px] font-black uppercase tracking-[0.5em] text-[#d4af37]/80"
+        >
+          Connexion au système...
+        </motion.p>
+
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen relative bg-[#1e40af] text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
+    // 1. On retire "bg-[#1e40af]" d'ici pour éviter qu'il ne recouvre l'image
+    <div className="min-h-screen relative text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
+
       {/* Barre de progression dorée */}
       <motion.div style={{ scaleX }} className="fixed top-0 left-0 right-0 h-1 bg-[#d4af37] z-[250] origin-left" />
 
-      {/* BACKGROUND EFFECTS - Bleu profond & Doré */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] bg-[#2563eb]/10 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#d4af37]/5 rounded-full blur-[120px]" />
+      {/* BACKGROUND EFFECTS - Image nette-floutée avec effet Parallaxe au scroll */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-[#1e40af]">
+
+        {/* On utilise motion.img pour l'animer */}
+        <motion.img
+          src="/fond.jpg"
+          alt="Background Texture"
+          style={{ y: yBg }} // Actionne le mouvement subtil au scroll
+          className="absolute top-0 left-0 w-full h-[115%] object-cover opacity-75 blur-[2px]"
+        // h-[115%] : TRÈS IMPORTANT. On rend l'image un peu plus haute que l'écran (115% au lieu de 100%)
+        // pour éviter qu'un espace vide ou bleu n'apparaisse en bas de l'écran quand l'image se déplace !
+        // blur-[2px] : Un flou très léger qui garde la photo claire mais adoucit les contours.
+        />
+
       </div>
 
-      {/* NAV HEADER */}
-      <nav className="fixed top-0 inset-x-0 z-[150] p-4 lg:p-6">
-        <div className="max-w-[1500px] mx-auto">
+      {/* NAV HEADER - VERSION PREMIUM ULTRA MODERNE & FIXE */}
+      <nav className={`
+  fixed top-0 inset-x-0 z-[150] 
+  p-2 sm:p-3 md:p-4 lg:p-6
+  ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'}
+  transition-all duration-500
+`}>
+        <div className="max-w-[1800px] mx-auto">
           <motion.div
-            animate={{ y: hidden ? -120 : 0 }}
-            className="flex items-center justify-between h-20 px-6 lg:px-10 rounded-[2.5rem] bg-[#1e40af]/60 backdrop-blur-3xl border border-white/10 shadow-2xl"
+            initial={{ y: 0, opacity: 0 }}
+            animate={{
+              y: hidden ? -120 : 0,
+              opacity: 1,
+              scale: hidden ? 0.95 : 1
+            }}
+            transition={{
+              type: "spring",
+              damping: 25,
+              stiffness: 300,
+              opacity: { duration: 0.3 }
+            }}
+            className={`
+        relative group overflow-visible
+        flex items-center justify-between 
+        h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
+        px-3 sm:px-5 md:px-6 lg:px-8
+        rounded-xl sm:rounded-2xl md:rounded-3xl lg:rounded-[2rem]
+        transition-all duration-500
+        ${hidden
+                ? 'bg-black/80 backdrop-blur-xl border-white/5 shadow-lg'
+                : 'bg-gradient-to-r from-black/50 via-black/40 to-black/50 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/50'
+              }
+        border
+        hover:border-amber-400/40
+        hover:shadow-2xl hover:shadow-amber-400/10
+      `}
           >
-            {/* LOGO */}
-            <div onClick={() => window.location.reload()} className="flex items-center gap-4 cursor-pointer group">
-              <img src={logoUrl} className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl object-cover border border-white/10" alt="Logo" />
-              <div className="flex flex-col leading-[0.75]">
-                <span className="text-2xl lg:text-3xl font-black uppercase italic text-white">G<span className="text-[#d4af37]">D</span>P</span>
-                <span className="text-[6px] font-black uppercase tracking-[0.3em] text-[#d4af37] mt-1">Gestion Digitale</span>
+            {/* Effet de brillance premium au survol */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+
+            {/* Effet de glow doré premium */}
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/8 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+
+            {/* Bordure animée premium */}
+            <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
+
+            {/* Effet de verre dépoli supplémentaire */}
+            <div className="absolute inset-0 rounded-inherit bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+            {/* LOGO - Version premium */}
+            <div
+              onClick={() => window.location.reload()}
+              className="relative flex items-center gap-2 sm:gap-3 md:gap-4 cursor-pointer group/logo"
+            >
+              {/* Anneau lumineux premium */}
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-400 opacity-0 group-hover/logo:opacity-100 blur-xl transition-opacity duration-500" />
+
+              {/* Cercle extérieur animé */}
+              <div className="absolute -inset-1 rounded-xl border-2 border-amber-400/0 group-hover/logo:border-amber-400/30 transition-all duration-500" />
+
+              <div className="relative">
+                <img
+                  src={logoUrl}
+                  className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-xl object-cover border-2 border-white/20 group-hover/logo:border-amber-400/50 transition-all duration-300 shadow-lg group-hover/logo:shadow-amber-400/30"
+                  alt="Logo"
+                />
+                {/* Badge premium animé */}
+                <div className="absolute -top-1 -right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-lg shadow-amber-400/50" />
+              </div>
+
+              <div className="flex flex-col leading-[0.7] sm:leading-[0.75]">
+                <span className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black italic uppercase tracking-tighter">
+                  <span className="text-white drop-shadow-lg group-hover/logo:drop-shadow-amber-400/50 transition-all">G</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500 drop-shadow-lg">D</span>
+                  <span className="text-white drop-shadow-lg group-hover/logo:drop-shadow-amber-400/50 transition-all">P</span>
+                </span>
+                <span className="text-[4px] sm:text-[5px] md:text-[6px] lg:text-[7px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.3em] text-amber-400/70 mt-0.5 whitespace-nowrap">
+                  GESTION DIGITALE
+                </span>
               </div>
             </div>
 
-            {/* DESKTOP MENU */}
-            <div className="hidden xl:flex items-center gap-4">
-              <button
+            {/* DESKTOP MENU - Version ultra premium */}
+            <div className="hidden lg:flex items-center gap-2 md:gap-3 lg:gap-4">
+
+              {/* Bouton Accueil premium */}
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => window.location.reload()}
-                className="bg-[#d4af37] text-black px-6 py-3 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all shadow-lg shadow-[#d4af37]/20 active:scale-95"
+                className="relative overflow-hidden group/btn px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider shadow-lg"
               >
-                Accueil
-              </button>
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-400 bg-[length:200%_100%] animate-shimmer" />
+                <div className="absolute inset-0 bg-black/30 group-hover/btn:bg-black/0 transition-colors duration-300" />
+                <div className="absolute inset-0 rounded-full ring-2 ring-amber-400/0 group-hover/btn:ring-amber-400/50 transition-all duration-300" />
+                <span className="relative flex items-center gap-1.5 text-black font-black">
+                  <span className="text-xs md:text-sm">🏠</span>
+                  <span className="hidden md:inline">ACCUEIL</span>
+                  <span className="md:hidden">HOME</span>
+                </span>
+              </motion.button>
 
-              <button
+              {/* Bouton Carte premium */}
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={ouvrirLaCarte}
-                className="flex items-center gap-2 bg-[#d4af37] text-black px-6 py-3 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-white transition-all shadow-lg shadow-[#d4af37]/20 active:scale-95"
+                className="relative overflow-hidden group/btn px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider shadow-lg bg-gradient-to-r from-amber-400 to-yellow-500"
               >
-                <MapPin size={14} />
-                Carte interactive
-              </button>
+                <div className="absolute inset-0 bg-gradient-to-r from-yellow-500 to-amber-400 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
+                <span className="relative flex items-center gap-1.5 text-black">
+                  <MapPin size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] group-hover/btn:rotate-12 transition-transform duration-300" />
+                  <span className="hidden md:inline">🗺️ CARTE</span>
+                  <span className="md:hidden">MAP</span>
+                </span>
+              </motion.button>
 
-              <button
-
-                className="bg-red-600 text-white px-8 py-4 rounded-full font-[1000] uppercase text-[11px] tracking-[0.2em] hover:bg-red-700 transition-all shadow-xl shadow-red-600/30 active:scale-95 border border-white/10"
+              {/* Bouton CTA premium - Effet néon amélioré */}
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative group/cta px-5 md:px-6 lg:px-7 py-2.5 md:py-3 lg:py-3.5 rounded-full font-black uppercase text-[9px] md:text-[10px] lg:text-[11px] tracking-[0.12em] md:tracking-[0.15em] shadow-xl shadow-red-500/30 border border-red-400/40"
               >
-                Vous avez une commande
-              </button>
+                <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-500 rounded-full" />
+                <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-red-300 rounded-full opacity-0 group-hover/cta:opacity-100 transition-opacity duration-300" />
+                <div className="absolute -inset-1 bg-gradient-to-r from-red-500 to-red-400 rounded-full opacity-0 group-hover/cta:opacity-40 blur-xl transition-opacity duration-500" />
+                <div className="absolute inset-0 rounded-full ring-2 ring-red-400/0 group-hover/cta:ring-red-400/50 transition-all duration-300" />
 
-              <div className="h-6 w-px bg-white/10 mx-2" />
+                <span className="relative flex items-center gap-1.5 text-white">
+                  <span className="text-sm md:text-base animate-bounce">✨</span>
+                  <span className="hidden sm:inline">COMMANDE</span>
+                  <span className="sm:hidden">CMD</span>
+                  <span className="text-sm md:text-base animate-pulse">⚡</span>
+                </span>
+              </motion.button>
 
-              <button
+              {/* Séparateur premium */}
+              <div className="h-6 md:h-7 lg:h-8 w-px bg-gradient-to-b from-transparent via-amber-400/40 to-transparent mx-1 md:mx-2" />
+
+              {/* Bouton Menu Filtre premium - Glassmorphism avancé */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setIsSidebarOpen(true)}
-                className="flex items-center gap-2 bg-white/5 border border-[#d4af37]/30 text-[#d4af37] px-6 py-3 rounded-full font-black uppercase text-[10px] tracking-widest hover:bg-[#d4af37] hover:text-black transition-all"
+                className="group/filter relative overflow-hidden px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider transition-all duration-300 bg-white/5 backdrop-blur-sm border border-amber-400/30 hover:bg-amber-400 hover:text-black shadow-lg hover:shadow-amber-400/30"
               >
-                <Filter size={14} /> Menu Filtre
-              </button>
+                {/* Effet de ripple premium */}
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-500 translate-y-full group-hover/filter:translate-y-0 transition-transform duration-300" />
+
+                {/* Effet de brillance */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/filter:translate-x-full transition-transform duration-700" />
+
+                <span className="relative flex items-center gap-1.5 z-10">
+                  <Filter size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] text-amber-400 group-hover/filter:text-black transition-colors duration-300" />
+                  <span className="hidden lg:inline">MENU FILTRE</span>
+                  <span className="hidden md:inline lg:hidden">FILTRES</span>
+                  <span className="md:hidden">MENU</span>
+                </span>
+              </motion.button>
             </div>
 
-            {/* Mobile Menu Button */}
-            <button
+            {/* Mobile & Tablet Menu Button - Premium */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               onClick={() => setIsSidebarOpen(true)}
-              className="xl:hidden p-3 bg-white/5 rounded-2xl border border-white/10 text-[#d4af37] hover:bg-[#d4af37]/10 transition-all"
+              className="relative lg:hidden p-2 sm:p-2.5 md:p-3 rounded-xl sm:rounded-2xl bg-white/10 backdrop-blur-sm border border-white/15 hover:border-amber-400/60 hover:bg-amber-400/20 transition-all duration-300 group/mobile"
             >
-              <Menu size={28} />
-            </button>
+              {/* Effet de vague premium */}
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400/20 to-yellow-500/20 opacity-0 group-active/mobile:opacity-100 transition-opacity duration-300 scale-0 group-active/mobile:scale-100" />
+
+              <Menu size={20} className="sm:w-[22px] sm:h-[22px] md:w-[24px] md:h-[24px] text-amber-400 relative z-10" />
+
+              {/* Indicateur de notification premium */}
+              <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-gradient-to-r from-red-500 to-red-400 rounded-full animate-pulse shadow-lg shadow-red-500/50" />
+              <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-ping bg-red-400/50" />
+            </motion.button>
+
+            {/* Indicateur de scroll pour desktop */}
+            <div className="hidden lg:block absolute -bottom-6 left-1/2 -translate-x-1/2">
+              <div className="w-8 h-8 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="w-1 h-2 bg-amber-400 rounded-full animate-bounce" />
+              </div>
+            </div>
           </motion.div>
         </div>
       </nav>
-
-      {/* SIDEBAR / MENU LATÉRAL */}
+      {/* SIDEBAR / MENU LATÉRAL - ULTRA RESPONSIVE SANS ERREURS */}
       <AnimatePresence>
         {isSidebarOpen && (
           <>
+            {/* Overlay - fond noir transparent */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-white/[0.02] backdrop-blur-[3px] z-[250] cursor-pointer"
+              className="fixed inset-0 bg-black/40 z-[250] cursor-pointer"
             />
+
+            {/* Boîte de dialogue - ULTRA RESPONSIVE */}
             <motion.div
-              initial={{ x: "100%", opacity: 0.5 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "100%", opacity: 0.5 }}
-              transition={{ type: "spring", damping: 25, stiffness: 150 }}
-              className="fixed right-0 top-0 h-full w-full max-w-sm bg-[#1e40af] border-l border-white/30 z-[300] flex flex-col shadow-[-40px_0_80px_rgba(0,0,0,0.4)]"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className={`
+          fixed z-[300] flex flex-col overflow-hidden shadow-2xl shadow-black/50
+          border border-white/20 rounded-3xl
+          bg-black/80 backdrop-blur-sm
+          
+          /* TRÈS PETITS ÉCRANS (moins de 480px) */
+          inset-2
+          
+          /* PETITS ÉCRANS (480px - 640px) */
+          sm:inset-4 sm:max-w-[calc(100%-2rem)] sm:mx-auto
+          
+          /* MOYENS ÉCRANS (640px - 768px) */
+          md:inset-6 md:max-w-md md:right-6 md:top-6 md:bottom-6 md:left-auto
+          
+          /* GRANDS ÉCRANS (768px - 1024px) */
+          lg:inset-8 lg:max-w-lg lg:right-8 lg:top-8 lg:bottom-8
+          
+          /* TRÈS GRANDS ÉCRANS (1024px+) */
+          xl:inset-10 xl:max-w-xl xl:right-10 xl:top-10 xl:bottom-10
+          
+          /* 4K+ ÉCRANS */
+          2xl:inset-12 2xl:max-w-2xl 2xl:right-12 2xl:top-12 2xl:bottom-12
+        `}
             >
-              <div className="p-10 flex justify-between items-center border-b border-white/20 bg-black/10">
+              {/* En-tête responsive */}
+              <div className="p-4 sm:p-6 md:p-8 flex justify-between items-center border-b border-white/10 bg-black/30">
                 <div className="flex flex-col">
-                  <span className="text-2xl font-black italic uppercase text-white tracking-tighter leading-none">
-                    Menu <span className="text-[#d4af37] drop-shadow-[0_2px_10px_rgba(212,175,55,0.4)]">Général</span>
+                  <span className="text-xl sm:text-2xl md:text-3xl font-black italic uppercase text-white tracking-tighter leading-none">
+                    Menu <span className="text-amber-400 drop-shadow-lg">Général</span>
                   </span>
-                  <span className="text-[7px] font-black uppercase tracking-[0.5em] text-white/40 mt-1">Système de Supervision</span>
+                  <span className="text-[6px] sm:text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.5em] text-white/50 mt-1">
+                    Système de Supervision
+                  </span>
                 </div>
                 <button
                   onClick={() => setIsSidebarOpen(false)}
-                  className="group p-3 bg-white/5 hover:bg-red-500/80 rounded-2xl transition-all border border-white/10 shadow-xl"
+                  className="group p-2 sm:p-2.5 md:p-3 bg-white/10 hover:bg-red-500/80 rounded-xl sm:rounded-2xl transition-all duration-300 border border-white/20 shadow-xl hover:scale-105 active:scale-95"
                 >
-                  <X size={22} className="text-white group-hover:rotate-90 transition-transform" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 md:w-[22px] md:h-[22px] text-white group-hover:rotate-90 transition-transform duration-300" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
+              {/* Contenu scrollable - responsive */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 custom-scrollbar bg-black/20">
+
+                {/* Barre de recherche responsive */}
                 <div className="relative group">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-[#d4af37] group-focus-within:scale-110 transition-transform" size={20} />
+                  <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-amber-400 group-focus-within:scale-110 transition-all duration-300 w-4 h-4 sm:w-[18px] sm:h-[18px] md:w-5 md:h-5" />
                   <input
                     type="text"
-                    placeholder="RECHERCHER UN ÉLÉMENT..."
+                    placeholder="RECHERCHER..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-6 pl-14 pr-6 text-[12px] font-black uppercase outline-none focus:border-[#d4af37]/50 focus:bg-black/60 text-white placeholder:text-white/20 shadow-inner transition-all"
+                    className="w-full bg-black/50 border-2 border-white/10 rounded-xl sm:rounded-2xl py-3 sm:py-4 md:py-5 pl-10 sm:pl-12 md:pl-14 pr-3 sm:pr-4 md:pr-6 
+                       text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase 
+                       outline-none focus:border-amber-400/50 focus:bg-black/70 
+                       text-white placeholder:text-white/30 shadow-inner transition-all duration-300"
                   />
                 </div>
 
-                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-[#d4af37] uppercase tracking-[0.4em] mb-6 opacity-80">Exploration</p>
+                {/* Navigation responsive */}
+                <div className="space-y-2 sm:space-y-3">
+                  <p className="text-[8px] sm:text-[9px] md:text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.4em] mb-2 sm:mb-3 md:mb-4">
+                    Exploration
+                  </p>
                   {[
-                    { icon: <Home size={20} />, label: "Tableau de Bord", action: () => window.location.reload() },
-                    { icon: <MapPin size={20} />, label: "Carte Interactive", action: ouvrirLaCarte },
-                    {
-                      icon: <PlusCircle size={20} />,
-                      label: "Réservé aux Admins",
-                      action: () => setIsLoginOpen(true)
-                    },].map((item, i) => (
-                      <button
-                        key={i}
-                        onClick={() => { item.action(); setIsSidebarOpen(false); }}
-                        className="w-full flex items-center justify-between p-6 rounded-[1.5rem] bg-white/5 hover:bg-white 
-                      hover:text-[#1e40af] border border-white/10 text-white font-black uppercase text-[11px] 
-                      tracking-widest transition-all shadow-lg active:scale-95 group"
-                      >
-                        <div className="flex items-center gap-5">
-                          <span className="group-hover:text-[#1e40af] transition-colors">{item.icon}</span>
-                          {item.label}
-                        </div>
-                        <div className="w-2 h-2 rounded-full bg-[#d4af37] opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </button>
-                    ))}
+                    { icon: <Home className="w-4 h-4 sm:w-[18px] sm:h-[18px] md:w-5 md:h-5" />, label: "Tableau de Bord", action: () => window.location.reload() },
+                    { icon: <MapPin className="w-4 h-4 sm:w-[18px] sm:h-[18px] md:w-5 md:h-5" />, label: "Carte Interactive", action: ouvrirLaCarte },
+                    { icon: <PlusCircle className="w-4 h-4 sm:w-[18px] sm:h-[18px] md:w-5 md:h-5" />, label: "Réservé aux Admins", action: () => setIsLoginOpen(true) },
+                  ].map((item, i) => (
+                    <motion.button
+                      key={i}
+                      whileHover={{ x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        item.action();
+                        setIsSidebarOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl 
+                          bg-white/10 hover:bg-white/20 border border-white/15 
+                          text-white font-black uppercase text-[9px] sm:text-[10px] md:text-[11px] 
+                          tracking-wider transition-all duration-300 shadow-lg group"
+                    >
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <span className="text-amber-400 group-hover:text-amber-300 transition-colors duration-300">
+                          {item.icon}
+                        </span>
+                        <span className="hidden xs:inline">{item.label}</span>
+                        <span className="xs:hidden">
+                          {item.label === "Tableau de Bord" ? "Dashboard" :
+                            item.label === "Carte Interactive" ? "Carte" : "Admin"}
+                        </span>
+                      </div>
+                      <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-amber-400 opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                    </motion.button>
+                  ))}
                 </div>
 
-                <div className="space-y-6 pt-8 border-t border-white/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Filter size={14} className="text-[#d4af37]" />
-                    <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Filtres Intelligents</p>
+                {/* Filtres responsive */}
+                <div className="space-y-3 sm:space-y-4 pt-3 sm:pt-4 border-t border-white/10">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Filter className="w-[10px] h-[10px] sm:w-3 sm:h-3 text-amber-400" />
+                    <p className="text-[8px] sm:text-[9px] font-black text-white/70 uppercase tracking-[0.15em] sm:tracking-[0.2em]">
+                      Filtres Intelligents
+                    </p>
                   </div>
-                  <div className="grid gap-5">
-                    <select
-                      value={filters.zone}
-                      onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
-                      className="w-full bg-black/30 border border-white/10 rounded-2xl p-5 text-[11px] font-black text-white uppercase outline-none focus:border-[#d4af37] cursor-pointer appearance-none shadow-md"
-                    >
-                      <option value="" className="bg-[#1e40af]">Toutes les Communes</option>
-                      {Array.from(new Set(panneauxData.map(p => p.zone))).filter(Boolean).sort().map(z => (
-                        <option key={z} value={z} className="bg-[#1e40af]">{z}</option>
-                      ))}
-                    </select>
-                    <div className="flex gap-3">
-                      {['Libre', 'Occupé'].map(s => (
-                        <button
-                          key={s}
-                          onClick={() => setFilters({ ...filters, statut: filters.statut === s ? '' : s })}
-                          className={`flex-1 py-5 rounded-2xl text-[10px] font-black uppercase border-2 transition-all ${filters.statut === s
-                            ? 'bg-[#d4af37] text-black border-white shadow-[0_0_20px_rgba(212,175,55,0.4)] scale-[1.05]'
-                            : 'bg-black/20 border-white/10 text-white hover:border-white/40'
-                            }`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
+
+                  <select
+                    value={filters.zone}
+                    onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
+                    className="w-full bg-black/50 border border-white/15 rounded-xl sm:rounded-2xl 
+                       p-3 sm:p-4 text-[9px] sm:text-[10px] md:text-[11px] font-black 
+                       text-white uppercase outline-none focus:border-amber-400 
+                       cursor-pointer appearance-none shadow-md transition-all duration-300"
+                  >
+                    <option value="" className="bg-black">Toutes les Communes</option>
+                    {Array.from(new Set(panneauxData.map(p => p.zone))).filter(Boolean).sort().map(z => (
+                      <option key={z} value={z} className="bg-black">{z}</option>
+                    ))}
+                  </select>
+
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    {['Libre', 'Occupé'].map(s => (
+                      <motion.button
+                        key={s}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setFilters({ ...filters, statut: filters.statut === s ? '' : s })}
+                        className={`py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl 
+                           text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase 
+                           border-2 transition-all duration-300
+                    ${filters.statut === s
+                            ? 'bg-amber-500 text-black border-amber-400 shadow-lg shadow-amber-500/30 scale-[1.02]'
+                            : 'bg-black/30 border-white/15 text-white/90 hover:bg-black/50 hover:border-white/30'
+                          }`}
+                      >
+                        {s}
+                      </motion.button>
+                    ))}
+                  </div>
+
+                  {/* Indicateur de résultats - responsive */}
+                  <div className="mt-3 sm:mt-4 p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
+                    <p className="text-[7px] sm:text-[8px] md:text-[9px] text-white/40 text-center uppercase tracking-wider">
+                      {panneauxData.filter(p =>
+                        (!filters.zone || p.zone === filters.zone) &&
+                        (!filters.statut || p.statut === filters.statut)
+                      ).length} élément(s) trouvé(s)
+                    </p>
                   </div>
                 </div>
+              </div>
+
+              {/* Pied de page responsive */}
+              <div className="p-3 sm:p-4 border-t border-white/10 bg-black/30">
+                <p className="text-[6px] sm:text-[7px] text-center text-white/30 uppercase tracking-[0.15em] sm:tracking-[0.2em]">
+                  Système de Supervision v2.0
+                </p>
               </div>
             </motion.div>
           </>
@@ -454,7 +718,7 @@ export default function UltimateSupervisor() {
       </AnimatePresence>
 
       {/* MAIN CONTENT */}
-      <main className="relative z-10 max-w-[1500px] mx-auto px-6 pt-44 pb-40">
+      <main className="relative z-20 max-w-[1800px] mx-auto px-6 pt-44 pb-40">
         <header className="mb-20 relative">
           {/* HALO DE FOND SUBTIL */}
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
@@ -620,271 +884,332 @@ export default function UltimateSupervisor() {
 
 
 
-
-import { MinusCircle, Calendar, History, Activity,  } from 'lucide-react';
+import { Calendar, Activity, MinusCircle } from 'lucide-react';
 
 const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected, ouvrirLaCarte }: any) => {
   if (!isOpen || !face) return null;
 
   const isLibre = face.statut?.toLowerCase() === 'libre';
   const selectionKey = `${panneau.id}_${face.id}`;
+  const [startY, setStartY] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
 
   const reservations = (face.reservations || [])
     .sort((a: any, b: any) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
 
+  // Gestion du swipe vers le bas pour fermer sur mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setStartY(e.touches[0].clientY);
+    setIsSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - startY;
+
+    if (diff > 50) {
+      onClose();
+      setIsSwiping(false);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsSwiping(false);
+  };
+
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[250] flex items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-md" onClick={onClose}>
-        <motion.div
-          initial={{ opacity: 0, y: "100%" }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: "100%" }}
-          transition={{ type: "spring", damping: 30, stiffness: 300 }}
-          onClick={(e) => e.stopPropagation()}
-          // h-full sur mobile pour utiliser tout l'écran, h-auto sur PC
-          className="bg-slate-950 border-t sm:border border-white/20 w-full max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:rounded-[3rem] overflow-hidden flex flex-col md:flex-row"
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-black/80 backdrop-blur-md"
+          onClick={onClose}
         >
-          {/* --- SECTION IMAGE (HAUT sur mobile / GAUCHE sur PC) --- */}
-          <div className="relative w-full md:w-[42%] h-[35vh] md:h-auto shrink-0 group">
-            <img
-              src={face.photoCampagneUrl || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg"}
-              className="w-full h-full object-cover"
-              alt="Visual"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/20" />
+          <motion.div
+            initial={{ opacity: 0, y: "100%" }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="relative w-full max-w-5xl mx-auto bg-gradient-to-br from-black/95 via-black/90 to-black/95 backdrop-blur-xl border-t sm:border border-white/10 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-black/50"
+          >
+            {/* Effet de glow doré */}
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
+            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
 
-            {/* Close button mobile uniquement (en haut à droite de l'image) */}
-            <button onClick={onClose} className="md:hidden absolute top-4 right-4 p-3 bg-black/50 backdrop-blur-lg rounded-full text-white">
-              <X size={24} />
+            {/* === INDICATEUR DE SWIPE (mobile) === */}
+            <div className="sm:hidden flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 bg-white/30 rounded-full" />
+            </div>
+
+            {/* === BOUTONS DE FERMETURE === */}
+            <button
+              onClick={onClose}
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-black/60 backdrop-blur-xl hover:bg-red-500/80 rounded-full transition-all duration-300 border border-white/10 active:scale-95"
+            >
+              <X size={14} className="sm:w-4 sm:h-4 text-white" />
             </button>
 
-            {/* Badge Status */}
-            <div className="absolute top-4 left-4 md:top-8 md:left-8">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border ${isLibre ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-rose-500/20 border-rose-500/50 text-rose-400'}`}>
-                <div className={`w-2 h-2 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                <span className="text-[10px] font-black uppercase tracking-widest">{isLibre ? 'Disponible' : 'Occupé'}</span>
-              </div>
-            </div>
-
-            <div className="absolute bottom-6 left-6 right-6">
-              <h2 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter drop-shadow-2xl">
-                {panneau.idPan}
-              </h2>
-              <div className="flex gap-2 mt-2">
-                <span className="bg-[#d4af37] text-black text-[9px] font-black px-2 py-1 rounded-md uppercase italic">
-                  {face.sens}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* --- SECTION CONTENU (BAS sur mobile / DROITE sur PC) --- */}
-          <div className="flex-1 flex flex-col min-h-0 bg-slate-900/50 overflow-hidden">
-
-            {/* Header Fixe (Desktop) */}
-            <div className="hidden md:flex p-8 pb-4 justify-between items-start">
-              <div>
-                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-[0.4em] mb-1">Traçabilité</p>
-                <h3 className="text-white text-xl font-bold uppercase">{panneau.adresse}</h3>
-              </div>
-              <button onClick={onClose} className="p-3 bg-white/5 hover:bg-rose-500/20 rounded-2xl transition-all border border-white/5 text-white">
-                <X size={20} />
+            {/* Bouton Fermer mobile */}
+            <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 text-white text-[9px] font-black uppercase tracking-wider active:scale-95"
+              >
+                ✕ Fermer
               </button>
             </div>
 
-            {/* ZONE SCROLLABLE (Optimisée tactile) */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 scroll-smooth">
+            {/* Layout : photo compacte + contenu */}
+            <div className="flex flex-col md:flex-row max-h-[90vh] sm:max-h-[85vh]">
 
-              {/* Adresse Mobile uniquement */}
-              <div className="md:hidden space-y-1">
-                <p className="text-[#d4af37] text-[10px] font-black uppercase tracking-widest">Localisation</p>
-                <h3 className="text-white text-lg font-bold leading-tight">{panneau.adresse}</h3>
-              </div>
+              {/* --- SECTION PHOTO COMPACTE (30% de la hauteur sur mobile, 35% sur desktop) --- */}
+              <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
+                <img
+                  src={face.photoCampagneUrl || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg"}
+                  className="w-full h-full object-cover"
+                  alt="Visual"
+                />
 
-              {/* Grid Performance (Adaptative) */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { icon: <Zap size={14} />, label: "Visibilité", val: face.visibilite || 90 },
-                  { icon: <Activity size={14} />, label: "Trafic", val: face.mobimetrie || 85 },
-                  { icon: <ShieldCheck size={14} />, label: "Score", val: 98 },
-                ].map((m, i) => (
-                  <div key={i} className="bg-white/5 border border-white/10 p-3 rounded-2xl text-center">
-                    <div className="flex justify-center text-[#d4af37] mb-1">{m.icon}</div>
-                    <p className="text-[12px] md:text-[14px] font-black text-white">{m.val}%</p>
-                    <p className="text-[7px] md:text-[8px] font-bold text-white/40 uppercase">{m.label}</p>
+                {/* Overlay léger */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
+
+                {/* Badge Status compact */}
+                <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+                  <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${isLibre
+                    ? 'bg-emerald-500/20 border-emerald-500/50'
+                    : 'bg-rose-500/20 border-rose-500/50'}`}>
+                    <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                    <span className="text-[6px] sm:text-[7px] font-black uppercase">{isLibre ? 'Dispo' : 'Occ'}</span>
                   </div>
-                ))}
-              </div>
-
-              {/* Timeline Chronologique */}
-              <section className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-[#d4af37]/10 rounded-lg">
-                      <Calendar size={18} className="text-[#d4af37]" />
-                    </div>
-                    <div>
-                      <h4 className="text-white text-[12px] font-black uppercase tracking-widest">Chronologie</h4>
-                      <p className="text-[9px] text-white/30 uppercase font-bold">Historique des campagnes</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold text-white/20 bg-white/5 px-3 py-1 rounded-full">
-                    {reservations.length} Entrées
-                  </span>
                 </div>
 
-                <div className="relative border-l-2 border-white/5 ml-4 pl-8 space-y-8">
-                  {reservations.length > 0 ? (
-                    reservations.map((res: any, i: number) => {
-                      // --- LOGIQUE DE TEMPS ---
-                      const now = new Date();
-                      now.setHours(0, 0, 0, 0);
-                      const debut = new Date(res.dateDebut);
-                      const fin = new Date(res.dateFin);
+                {/* Infos compactes sur l'image */}
+                <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white italic leading-tight">
+                    {panneau.idPan}
+                  </h2>
+                  <div className="flex gap-1 mt-0.5">
+                    <span className="bg-amber-500 text-black text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
+                      {face.sens}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-                      // Calcul d'urgence (3 jours avant la fin)
-                      const joursRestants = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                      const isNearEnd = joursRestants <= 3 && joursRestants >= 0;
-                      const isExpired = now > fin;
+              {/* --- SECTION CONTENU (plus d'espace) --- */}
+              <div className="flex-1 flex flex-col bg-gradient-to-b from-black/50 to-black/30 overflow-hidden">
 
-                      // --- CALCUL DE PROGRESSION ---
-                      const totalDuree = fin.getTime() - debut.getTime();
-                      const ecoule = now.getTime() - debut.getTime();
-                      const progressPercent = Math.min(Math.max((ecoule / totalDuree) * 100, 0), 100);
-
-                      // --- COULEURS DYNAMIQUES ---
-                      let statusLabel = "En attente";
-                      let statusStyle = "text-blue-400 bg-blue-400/10 border-blue-400/20";
-
-                      if (isExpired) {
-                        statusLabel = "Terminée";
-                        statusStyle = "text-white/40 bg-white/5 border-white/10";
-                      } else if (isNearEnd) {
-                        statusLabel = "Expire Bientôt";
-                        statusStyle = "text-orange-500 bg-orange-500/10 border-orange-500/40 animate-pulse";
-                      } else if (now >= debut && now <= fin) {
-                        statusLabel = "Actuelle";
-                        statusStyle = "text-green-400 bg-green-400/10 border-green-400/20";
-                      }
-
-                      return (
-                        <div key={i} className="relative group">
-                          {/* Point sur la ligne de temps */}
-                          <div className={`absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-slate-950 border-2 flex items-center justify-center transition-all duration-500 
-            ${isNearEnd ? 'border-orange-500' : (now >= debut && now <= fin ? 'border-green-400 shadow-[0_0_10px_rgba(74,222,128,0.5)]' : 'border-white/10')}`}>
-                            <div className={`w-2 h-2 rounded-full ${isNearEnd ? 'bg-orange-500 pulse' : (now >= debut && now <= fin ? 'bg-green-400 animate-pulse' : 'bg-white/20')}`} />
-                          </div>
-
-                          <div className={`bg-gradient-to-br from-white/[0.07] to-transparent border p-5 rounded-3xl transition-all duration-300 shadow-xl 
-            ${isNearEnd ? 'border-orange-500/50 shadow-orange-500/5' : 'border-white/10 hover:border-white/20'}`}>
-
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="max-w-[70%]">
-                                <p className="text-[#d4af37] text-[11px] font-black uppercase tracking-tight mb-1">{res.societeLocatrice}</p>
-                                {isNearEnd && (
-                                  <p className="text-orange-500 text-[8px] font-black uppercase flex items-center gap-1">
-                                    <span className="animate-bounce">⚠️</span> Fin de campagne dans {joursRestants} jour{joursRestants > 1 ? 's' : ''}
-                                  </p>
-                                )}
-                                <span className="text-[9px] text-white/40 font-bold uppercase italic">Agent: {res.agentNom}</span>
-                              </div>
-
-                              <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md border ${statusStyle}`}>
-                                {statusLabel}
-                              </span>
-                            </div>
-
-                            {/* Barre de progression intelligente */}
-                            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mb-4">
-                              <div
-                                className={`h-full transition-all duration-1000 ${isExpired ? 'bg-white/10' : (isNearEnd ? 'bg-orange-500' : 'bg-[#d4af37]')}`}
-                                style={{ width: `${progressPercent}%` }}
-                              />
-                            </div>
-
-                            <div className="flex justify-between items-center pt-3 border-t border-white/5">
-                              <div className="flex gap-4">
-                                <div className="flex flex-col">
-                                  <span className="text-[7px] text-white/30 uppercase font-black">Début</span>
-                                  <span className="text-[10px] text-white font-bold tracking-tighter">{res.dateDebut}</span>
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[7px] text-white/30 uppercase font-black">Fin</span>
-                                  <span className={`text-[10px] font-bold tracking-tighter ${isNearEnd ? 'text-orange-500' : 'text-white'}`}>{res.dateFin}</span>
-                                </div>
-                              </div>
-
-                              <div className="flex gap-1">
-                                {res.validationComptable === true && (
-                                  <div className="p-1 bg-blue-500/20 text-blue-400 rounded-md border border-blue-500/30">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
-                                  </div>
-                                )}
-                                {res.facturee === "oui" && (
-                                  <div className="p-1 bg-amber-500/20 text-amber-500 rounded-md border border-amber-500/30">
-                                    <span className="text-[7px] font-black leading-none">$$</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    /* --- MESSAGE FORT POUR APPEL À LA RÉSERVATION --- */
-                    <div className="relative group">
-                      <div className="absolute -left-[41px] top-1 w-6 h-6 rounded-full bg-slate-950 border-2 border-[#d4af37] animate-pulse flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-[#d4af37]" />
-                      </div>
-
-                      <div className="bg-[#d4af37]/5 border-2 border-dashed border-[#d4af37]/30 p-8 rounded-3xl text-center space-y-4 hover:bg-[#d4af37]/10 transition-all cursor-pointer">
-                        <div className="inline-flex p-3 bg-[#d4af37]/20 rounded-full text-[#d4af37] mb-2">
-                          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeLinecap="round" /></svg>
-                        </div>
-                        <h3 className="text-[#d4af37] text-sm font-black uppercase tracking-tighter">Opportunité Disponible !</h3>
-                        <p className="text-white/60 text-[11px] leading-relaxed max-w-[200px] mx-auto">
-                          Cette face n'attend que votre visibilité. <br />
-                          <span className="text-white font-bold italic">Prenez l'avantage sur vos concurrents dès maintenant.</span>
-                        </p>
-                      </div>
-                    </div>
+                {/* Header compact */}
+                <div className="p-2 sm:p-3 md:p-4 border-b border-white/10">
+                  <p className="text-amber-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider">
+                    📍 {panneau.adresse?.substring(0, 50)}{panneau.adresse?.length > 50 ? '...' : ''}
+                  </p>
+                  {isSelected && (
+                    <span className="inline-block mt-1 text-amber-400 text-[6px] sm:text-[7px] font-black bg-amber-400/20 px-1.5 py-0.5 rounded-full">
+                      ✓ Sélectionné
+                    </span>
                   )}
                 </div>
-              </section>
-              {/* Espace vide pour ne pas être caché par les boutons fixes sur mobile */}
-              <div className="h-24 md:h-0" />
+
+                {/* ZONE SCROLLABLE OPTIMISÉE */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar">
+
+                  {/* Métriques compactes - 3 cartes en ligne */}
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                    {[
+                      { icon: <Zap size={10} className="sm:w-3 sm:h-3" />, label: "Visibilité", val: face.visibilite || 90 },
+                      { icon: <Activity size={10} className="sm:w-3 sm:h-3" />, label: "Trafic", val: face.mobimetrie || 85 },
+                      { icon: <ShieldCheck size={10} className="sm:w-3 sm:h-3" />, label: "Score", val: 98 },
+                    ].map((m, i) => (
+                      <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-2 sm:p-3 text-center">
+                        <div className="flex justify-center text-amber-400 mb-0.5">{m.icon}</div>
+                        <p className="text-sm sm:text-base md:text-lg font-black text-white">{m.val}%</p>
+                        <p className="text-[6px] sm:text-[7px] font-bold text-white/40 uppercase">{m.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Timeline compacte */}
+                  <section className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center gap-2 sm:gap-2.5">
+                      <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-amber-400" />
+                      <h4 className="text-white text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-wider">Chronologie</h4>
+                      <span className="text-[8px] sm:text-[9px] text-white/40 bg-white/10 px-2 py-0.5 rounded-full">
+                        {reservations.length} campagne{reservations.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    <div className="relative border-l-2 border-white/15 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
+                      {reservations.length > 0 ? (
+                        reservations.map((res: any, i: number) => {
+                          const now = new Date();
+                          now.setHours(0, 0, 0, 0);
+                          const debut = new Date(res.dateDebut);
+                          const fin = new Date(res.dateFin);
+                          const joursRestants = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                          const isNearEnd = joursRestants <= 3 && joursRestants >= 0;
+                          const isExpired = now > fin;
+                          const isActive = now >= debut && now <= fin;
+
+                          let statusLabel = "En attente";
+                          let statusColor = "text-blue-400 bg-blue-400/10 border-blue-400/30";
+
+                          if (isExpired) {
+                            statusLabel = "Terminée";
+                            statusColor = "text-white/40 bg-white/5 border-white/10";
+                          } else if (isNearEnd) {
+                            statusLabel = "Expire bientôt";
+                            statusColor = "text-orange-500 bg-orange-500/10 border-orange-500/30";
+                          } else if (isActive) {
+                            statusLabel = "En cours";
+                            statusColor = "text-emerald-400 bg-emerald-400/10 border-emerald-400/30";
+                          }
+
+                          return (
+                            <div key={i} className="relative group">
+                              {/* Point sur la timeline - agrandi */}
+                              <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-black flex items-center justify-center
+              ${isNearEnd ? 'border-orange-500 shadow-orange-500/50' :
+                                  isActive ? 'border-emerald-400 shadow-emerald-400/50' :
+                                    'border-white/30'}`}>
+                                <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full 
+                ${isNearEnd ? 'bg-orange-500 animate-pulse' :
+                                    isActive ? 'bg-emerald-400 animate-pulse' :
+                                      'bg-white/40'}`} />
+                              </div>
+
+                              {/* Carte de réservation - agrandie */}
+                              <div className={`bg-gradient-to-br from-white/8 to-transparent backdrop-blur-sm border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg
+              ${isNearEnd ? 'border-orange-500/40 shadow-orange-500/5' :
+                                  isActive ? 'border-emerald-400/30' :
+                                    'border-white/10 hover:border-white/20'}`}>
+
+                                {/* En-tête de la carte */}
+                                <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-amber-400 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-tight truncate">
+                                      {res.societeLocatrice}
+                                    </p>
+                                    {isNearEnd && (
+                                      <p className="text-orange-500 text-[8px] sm:text-[9px] font-black uppercase flex items-center gap-1 mt-1">
+                                        <span className="animate-pulse">⚠️</span>
+                                        Fin dans {joursRestants} jour{joursRestants > 1 ? 's' : ''}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* Badge de statut */}
+                                  <span className={`shrink-0 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded-md border ${statusColor}`}>
+                                    {statusLabel}
+                                  </span>
+                                </div>
+
+                                {/* Dates - agrandies */}
+                                <div className="flex justify-between items-center gap-2 pt-2 border-t border-white/10">
+                                  <div className="flex gap-3 sm:gap-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-[7px] sm:text-[8px] text-white/40 uppercase font-black">Début</span>
+                                      <span className="text-[9px] sm:text-[10px] md:text-[11px] text-white font-bold">
+                                        {new Date(res.dateDebut).toLocaleDateString('fr-FR')}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-end pb-1">
+                                      <span className="text-white/30 text-[10px]">→</span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-[7px] sm:text-[8px] text-white/40 uppercase font-black">Fin</span>
+                                      <span className={`text-[9px] sm:text-[10px] md:text-[11px] font-bold ${isNearEnd ? 'text-orange-500' : 'text-white'}`}>
+                                        {new Date(res.dateFin).toLocaleDateString('fr-FR')}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Badges supplémentaires */}
+                                  <div className="flex gap-1">
+                                    {res.validationComptable === true && (
+                                      <div className="p-1 bg-blue-500/20 text-blue-400 rounded-md border border-blue-500/30" title="Validé comptablement">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                                      </div>
+                                    )}
+                                    {res.facturee === "oui" && (
+                                      <div className="p-1 bg-amber-500/20 text-amber-500 rounded-md border border-amber-500/30" title="Facturée">
+                                        <span className="text-[9px] font-black">€</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        /* Message opportunité - agrandi */
+                        <div className="relative">
+                          <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-amber-400 bg-black flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          </div>
+
+                          <div className="bg-gradient-to-br from-amber-500/10 to-transparent border-2 border-dashed border-amber-500/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-amber-500/15 transition-all cursor-pointer">
+                            <div className="inline-flex p-2 bg-amber-500/20 rounded-full text-amber-400">
+                              <PlusCircle size={16} className="sm:w-5 sm:h-5" />
+                            </div>
+                            <h3 className="text-amber-400 text-[11px] sm:text-[12px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
+                            <p className="text-white/60 text-[9px] sm:text-[10px] leading-relaxed max-w-[250px] mx-auto">
+                              Cette face n'attend que votre visibilité.<br />
+                              <span className="text-white font-bold italic">Réservez-la dès maintenant.</span>
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                  {/* Espace pour boutons fixes */}
+                  <div className="h-12 sm:h-14" />
+                </div>
+
+                {/* Actions fixes en bas - compactes */}
+                <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-black/95 via-black/90 to-black/80 md:bg-transparent border-t border-white/10 md:border-t-0 mt-auto">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { ouvrirLaCarte(); onClose(); }}
+                      className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg text-white transition-all active:scale-95 border border-white/10"
+                    >
+                      <MapPin size={14} className="sm:w-4 sm:h-4" />
+                    </button>
+
+                    <button
+                      disabled={!isLibre && !isSelected}
+                      onClick={() => onSelect(selectionKey)}
+                      className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
+        ${isSelected
+                          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30'
+                          : isLibre
+                            ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-amber-500/30 hover:shadow-amber-500/50'
+                            : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+                    >
+                      {isSelected ? (
+                        <><MinusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RETIRER</span><span className="xs:hidden">RETIRER</span></>
+                      ) : isLibre ? (
+                        <><PlusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RÉSERVER</span><span className="xs:hidden">RÉSERV</span></>
+                      ) : (
+                        <span className="hidden xs:inline">INDISPONIBLE</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            {/* --- ACTIONS FIXES EN BAS (Très important pour Mobile) --- */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 bg-gradient-to-t from-slate-950 via-slate-950 to-transparent flex gap-3">
-              <button
-                onClick={() => { ouvrirLaCarte(); onClose(); }}
-                className="w-14 h-14 shrink-0 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all"
-              >
-                <MapPin size={24} />
-              </button>
-
-              <button
-                disabled={!isLibre && !isSelected}
-                onClick={() => onSelect(selectionKey)}
-                className={`flex-1 h-14 rounded-2xl font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 transition-all ${isSelected ? 'bg-rose-600 text-white' : isLibre ? 'bg-[#d4af37] text-black' : 'bg-slate-800 text-slate-500'
-                  }`}
-              >
-                {isSelected ? <MinusCircle size={20} /> : <PlusCircle size={20} />}
-                {isSelected ? 'Retirer' : isLibre ? 'Réserver la face' : 'Indisponible'}
-              </button>
-            </div>
-
-          </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        </div>
+      )}
     </AnimatePresence>
   );
 };
-
-
-
 
 
 
@@ -936,7 +1261,7 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
   const totalPrix = selectedFaces.reduce((acc, curr) => acc + curr.prix, 0);
 
   // 2. Génération du PDF
-  
+
   return (
     <div
       className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl cursor-pointer"
@@ -1021,7 +1346,7 @@ const CartModall = ({ isOpen, onClose, selectedIds = [], panneauxData = [] }: Ca
             >
               Modifier
             </button>
-            
+
           </div>
         </div>
       </motion.div>
@@ -1198,103 +1523,153 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
 
   return (
-    <div className="fixed inset-0 z-[2000] bg-[#020617]/90 backdrop-blur-xl flex items-center justify-center p-4">
-      {/* BOUTON FERMER STYLE AÉRONAUTIQUE */}
-      <button
-        onClick={onClose}
-        className="fixed top-6 right-6 z-[2100] p-4 bg-red-600 text-white rounded-full shadow-[0_0_30px_rgba(239,68,68,0.5)] hover:scale-110 hover:bg-white hover:text-red-600 transition-all duration-500 border border-white/20"
-      >
-        <X size={24} strokeWidth={3} />
-      </button>
+  <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+    {/* BOUTON FERMER MODERNE */}
+    <button
+      onClick={onClose}
+      className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[2100] p-3 sm:p-4 bg-white/10 backdrop-blur-xl text-white rounded-full hover:bg-red-500 hover:scale-110 transition-all duration-300 border border-white/20 group"
+    >
+      <X size={20} className="sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" strokeWidth={2} />
+    </button>
 
-      <motion.div
-        initial={{ y: 50, opacity: 0, scale: 0.95 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        className="w-full max-w-lg bg-[#1e3a8a] rounded-[3rem] lg:rounded-[4rem] border-4 border-white/10 shadow-[0_60px_150px_-20px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden relative"
-      >
-        {/* TEXTURE DE FOND */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-500/20 via-transparent to-black/60 pointer-events-none" />
+    <motion.div
+      initial={{ y: 50, opacity: 0, scale: 0.95 }}
+      animate={{ y: 0, opacity: 1, scale: 1 }}
+      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      className="relative w-full max-w-md sm:max-w-lg bg-black/40 backdrop-blur-2xl rounded-3xl sm:rounded-[3rem] border border-white/15 shadow-2xl overflow-hidden"
+    >
+      {/* Effet de glow doré en arrière-plan */}
+      <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+      
+      {/* Effet de brillance */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
 
-        {/* HEADER STYLE DASHBOARD */}
-        <div className="relative px-10 py-12 bg-black/40 backdrop-blur-3xl border-b border-white/10 text-center">
-          <div className="flex justify-center mb-6">
-            <div className="relative p-1 bg-white/10 rounded-[2rem] border border-white/20">
-              <img src={logoUrl} className="w-20 h-20 rounded-[1.8rem] object-cover" alt="Logo" />
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full border-2 border-[#1e3a8a] animate-pulse" />
+      {/* HEADER */}
+      <div className="relative px-6 sm:px-10 py-8 sm:py-12 bg-gradient-to-b from-white/5 to-transparent border-b border-white/10 text-center">
+        {/* Logo avec anneau animé */}
+        <div className="flex justify-center mb-4 sm:mb-6">
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-2xl opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500" />
+            <div className="relative p-1 bg-white/10 rounded-2xl border border-white/20">
+              <img src={logoUrl} className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl object-cover" alt="Logo" />
             </div>
+            {/* Badge actif */}
+            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-lg shadow-emerald-500/50" />
           </div>
-
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="w-1.5 h-4 bg-red-600 shadow-[0_0_10px_#ef4444]" />
-            <p className="text-[#d4af37] text-[9px] font-[1000] uppercase tracking-[0.5em]">
-              Système d'authentification
-            </p>
-          </div>
-
-          <h2 className="text-4xl font-[1000] text-white uppercase italic tracking-tighter">
-            ACCÈS <span className="text-[#d4af37]">G</span>DP
-          </h2>
         </div>
 
-        {/* FORMULAIRE */}
-        <form onSubmit={handleLogin} className="relative z-10 p-10 space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-2 italic">ID Terminal</label>
-            <div className="relative group">
-              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-[#d4af37]" size={20} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white text-sm focus:border-[#d4af37] outline-none transition-all font-bold"
-                placeholder="votre-id@dispromalt.com"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-2 italic">Clé de Sécurité</label>
-            <div className="relative group">
-              <ShieldCheck className="absolute left-5 top-1/2 -translate-y-1/2 text-[#d4af37]" size={20} />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black/40 border-2 border-white/5 rounded-2xl py-5 pl-14 pr-6 text-white text-sm focus:border-[#d4af37] outline-none transition-all font-bold"
-                placeholder="••••••••••••"
-              />
-            </div>
-          </div>
-
-          <div className="pt-6">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#d4af37] hover:bg-white text-black font-[1000] py-6 rounded-[2rem] uppercase text-[12px] tracking-[0.3em] shadow-[0_20px_40px_rgba(212,175,55,0.2)] transition-all active:scale-95 flex items-center justify-center gap-4 group"
-            >
-              {loading ? <Loader2 className="animate-spin" /> : (
-                <><Zap size={18} className="group-hover:animate-bounce" /> Lancer la Session</>
-              )}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-center gap-3 opacity-40 pt-4">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-            <p className="text-[8px] font-black text-white uppercase tracking-[0.4em]">Cryptage 256-bit actif</p>
-          </div>
-        </form>
-
-        {/* LIGNE DE SCAN ROUGE INFÉRIEURE */}
-        <div className="h-2 w-full bg-red-600/20 relative overflow-hidden">
-          <motion.div
-            animate={{ x: ["-100%", "100%"] }}
-            transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-            className="absolute inset-0 w-40 bg-gradient-to-r from-transparent via-red-600 to-transparent shadow-[0_0_15px_#ef4444]"
-          />
+        {/* Titre */}
+        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-2">
+          <div className="w-1 h-3 sm:w-1.5 sm:h-4 bg-gradient-to-t from-amber-500 to-yellow-500 rounded-full" />
+          <p className="text-amber-400/80 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.3em] sm:tracking-[0.5em]">
+            Authentification sécurisée
+          </p>
         </div>
-      </motion.div>
-    </div>
-  );
+
+        <h2 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tighter">
+          ACCÈS <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">GDPS</span>
+        </h2>
+        <p className="text-white/30 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mt-2">
+          Système de supervision digital
+        </p>
+      </div>
+
+      {/* FORMULAIRE */}
+      <form onSubmit={handleLogin} className="relative z-10 p-6 sm:p-10 space-y-5 sm:space-y-6">
+        {/* Champ Email */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <label className="text-[8px] sm:text-[10px] font-black text-white/50 uppercase tracking-wider ml-2 flex items-center gap-1">
+            <span className="w-1 h-1 bg-amber-400 rounded-full" />
+            Identifiant
+          </label>
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 -z-10" />
+            <Mail className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-amber-400/60 group-focus-within:text-amber-400 transition-colors" size={16} />
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-xl sm:rounded-2xl py-3.5 sm:py-5 pl-11 sm:pl-14 pr-4 sm:pr-6 text-white text-xs sm:text-sm focus:border-amber-400/50 outline-none transition-all font-medium placeholder:text-white/20"
+              placeholder="identifiant@dispromalt.com"
+            />
+          </div>
+        </div>
+
+        {/* Champ Mot de passe */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <label className="text-[8px] sm:text-[10px] font-black text-white/50 uppercase tracking-wider ml-2 flex items-center gap-1">
+            <span className="w-1 h-1 bg-amber-400 rounded-full" />
+            Mot de passe
+          </label>
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 -z-10" />
+            <ShieldCheck className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-amber-400/60 group-focus-within:text-amber-400 transition-colors" size={16} />
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-xl sm:rounded-2xl py-3.5 sm:py-5 pl-11 sm:pl-14 pr-4 sm:pr-6 text-white text-xs sm:text-sm focus:border-amber-400/50 outline-none transition-all font-medium placeholder:text-white/20"
+              placeholder="••••••••••••"
+            />
+          </div>
+        </div>
+
+        {/* Lien mot de passe oublié */}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            className="text-white/30 hover:text-amber-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider transition-colors"
+          >
+            Mot de passe oublié ?
+          </button>
+        </div>
+
+        {/* Bouton Connexion */}
+        <div className="pt-2 sm:pt-4">
+          <button
+            type="submit"
+            disabled={loading}
+            className="relative group w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-black py-4 sm:py-6 rounded-xl sm:rounded-2xl uppercase text-[10px] sm:text-[12px] tracking-[0.2em] sm:tracking-[0.3em] shadow-lg shadow-amber-500/30 transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden"
+          >
+            {/* Effet de brillance */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+            
+            {loading ? (
+              <Loader2 className="animate-spin" size={16} />
+            ) : (
+              <>
+                <Zap size={14} className="group-hover:animate-bounce" />
+                <span>Connexion sécurisée</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Indicateur de sécurité */}
+        <div className="flex items-center justify-center gap-2 opacity-60 pt-2 sm:pt-4">
+          <div className="flex gap-0.5">
+            <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="w-1 h-1 rounded-full bg-emerald-500/60 animate-pulse delay-300" />
+            <div className="w-1 h-1 rounded-full bg-emerald-500/30 animate-pulse delay-600" />
+          </div>
+          <p className="text-[6px] sm:text-[7px] font-black text-white/60 uppercase tracking-[0.2em] sm:tracking-[0.3em]">
+            Chiffrement AES-256 • Connexion sécurisée
+          </p>
+        </div>
+      </form>
+
+      {/* Barre de progression animée en bas */}
+      <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-amber-500 to-transparent relative overflow-hidden">
+        <motion.div
+          animate={{ x: ["-100%", "100%"] }}
+          transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+          className="absolute inset-0 w-32 bg-gradient-to-r from-transparent via-amber-400 to-transparent"
+        />
+      </div>
+    </motion.div>
+  </div>
+);
 }

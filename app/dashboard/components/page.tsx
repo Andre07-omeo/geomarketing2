@@ -358,6 +358,8 @@ export default function PageEnregistrement({
         }
         return s || "A";
     };
+    const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+
 
     const enregistrerPanneau = async () => {
         // 1. Validations renforcées
@@ -450,17 +452,25 @@ export default function PageEnregistrement({
 
 
     return (
-        <div className="fixed inset-0 z-[9999] bg-[#000a1a]/95 backdrop-blur-md flex items-center justify-center p-0 md:p-4">
-            <div className="bg-[#1e40af] w-full h-full md:h-auto md:max-h-[90vh] md:max-w-2xl p-4 md:p-10 md:rounded-[3rem] border-none md:border md:border-white/20 shadow-2xl relative flex flex-col">
+<div className="fixed inset-0 z-[9999] flex items-center justify-center p-0 md:p-4">
+    {/* IMAGE DE FOND */}
+    <div className="absolute inset-0 z-0">
+        <img
+            src="/fond.jpg"
+            alt="Background"
+            className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+    </div>            <div className="bg-black/40 backdrop-blur-xl w-full h-full md:h-auto md:max-h-[90vh] md:max-w-2xl p-4 md:p-10 md:rounded-[3rem] border md:border border-white/20 shadow-2xl relative flex flex-col">
 
                 <div className="flex justify-between items-start mb-8">
                     <div className="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 className="text-white font-black text-xl md:text-2xl tracking-tighter italic">NOUVEAU PANNEAU</h2>
-                        <p className="text-[9px] text-blue-200 font-bold uppercase tracking-widest">Saisie obligatoire</p>
+                        <div>
+                            <h2 className="text-white font-black text-xl md:text-2xl tracking-tighter italic">NOUVEAU PANNEAU</h2>
+                            <p className="text-[9px] text-blue-200 font-bold uppercase tracking-widest">Saisie obligatoire</p>
+                        </div>
+                        <button onClick={onClose} className="p-2 text-white/50 hover:text-white"><X size={24} /></button>
                     </div>
-                    <button onClick={onClose} className="p-2 text-white/50 hover:text-white"><X size={24}/></button>
-                </div>
 
                     {user ? (
                         <div className="flex items-center gap-3 pl-6 border-l border-white/10 relative z-[100]">
@@ -485,7 +495,7 @@ export default function PageEnregistrement({
                                 title="Déconnexion"
                             >
                                 <img
-                                    src={user.logoUrl || user.photoURL || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg"}
+                        src={logoUrl}
                                     className="w-8 h-8 rounded-full border border-[#d4af37] object-cover bg-black"
                                     alt="Profil"
                                     onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
@@ -506,7 +516,7 @@ export default function PageEnregistrement({
                         </button>
                     )}
                 </div>
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
                     <button
                         type="button"
                         // On désactive le bouton pendant la recherche pour éviter les bugs

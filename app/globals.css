@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+/* ============================================
+   THEME & VARIABLES
+   ============================================ */
 @theme {
   --color-background: #001a33;
   --color-foreground: #ffffff;
@@ -15,29 +18,9 @@
   --accent-gold: #d4af37;
 }
 
-@layer utilities {
-  .bg-gold-gradient {
-    background: linear-gradient(135deg, #d4af37 0%, #f1c40f 100%);
-  }
-  
-  .text-gold {
-    color: #d4af37;
-  }
-
-  /* Scrollbar personnalisée */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #001a33;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #d4af37;
-    border-radius: 10px;
-    border: 2px solid #001a33;
-  }
-}
-
+/* ============================================
+   BASE STYLES
+   ============================================ */
 body {
   background: var(--background);
   color: var(--foreground);
@@ -46,9 +29,222 @@ body {
   padding: 0;
   background-image: radial-gradient(circle at top right, #002a52 0%, #001a33 100%);
   background-attachment: fixed;
+  overflow-x: hidden;
 }
 
-/* --- CORRECTIFS LEAFLET --- */
+/* ============================================
+   UTILITIES PERSONNALISÉES
+   ============================================ */
+@layer utilities {
+  /* Gradients */
+  .bg-gold-gradient {
+    background: linear-gradient(135deg, #d4af37 0%, #f1c40f 100%);
+  }
+  
+  .text-gold {
+    color: #d4af37;
+  }
+
+  /* Glassmorphism */
+  .glassmorphism {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.3) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glassmorphism-gold {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+  }
+
+  .glass-premium {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Texte responsive */
+  .text-responsive {
+    font-size: clamp(12px, 4vw, 18px);
+  }
+  
+  .p-responsive {
+    padding: clamp(12px, 4vw, 24px);
+  }
+  
+  .m-responsive {
+    margin: clamp(8px, 3vw, 16px);
+  }
+  
+  .min-h-responsive {
+    min-height: clamp(400px, 60vh, 600px);
+  }
+
+  /* Particules flottantes */
+  .floating-particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .particle {
+    position: absolute;
+    background: rgba(212, 175, 55, 0.1);
+    border-radius: 50%;
+    filter: blur(40px);
+    animation: float 8s ease-in-out infinite;
+  }
+
+  .particle-delayed {
+    animation-delay: 4s;
+  }
+}
+
+/* ============================================
+   KEYFRAMES & ANIMATIONS
+   ============================================ */
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(20px, -20px) scale(1.2);
+    opacity: 0.6;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}
+
+@keyframes pulse-gold {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(212, 175, 55, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+  }
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) rotate(45deg);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Animation Classes */
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2s ease infinite;
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 3s ease-in-out infinite;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ============================================
+   SCROLLBAR PERSONNALISÉE
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #001a33;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d4af37;
+  border-radius: 10px;
+  border: 2px solid #001a33;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #f1c40f;
+}
+
+/* Support Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d4af37 #001a33;
+}
+
+/* Custom scrollbar pour composants spécifiques */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.4);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.6);
+}
+
+/* ============================================
+   LEAFLET CORRECTIFS
+   ============================================ */
 .map-wrapper {
   height: 100% !important;
   width: 100% !important;
@@ -65,10 +261,11 @@ body {
   background: #001a33 !important;
 }
 
-.leaflet-popup-content-wrapper, .leaflet-popup-tip {
-    background: #001a33 !important;
-    color: white !important;
-    border: 1px solid #d4af37;
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #001a33 !important;
+  color: white !important;
+  border: 1px solid #d4af37;
 }
 
 .custom-popup .leaflet-popup-content-wrapper {
@@ -83,6 +280,146 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
+/* ============================================
+   BREAKPOINTS & RESPONSIVE
+   ============================================ */
+
+/* Breakpoint pour très petits écrans (xs) */
+@media (min-width: 480px) {
+  .xs\:inline {
+    display: inline;
+  }
+  .xs\:hidden {
+    display: none;
+  }
+}
+
+@media (max-width: 479px) {
+  .xs\:inline {
+    display: none;
+  }
+  .xs\:hidden {
+    display: inline;
+  }
+}
+
+/* Très petits écrans (moins de 360px) */
+@media (max-width: 360px) {
+  .custom-scrollbar {
+    padding: 12px !important;
+  }
+}
+
+/* Écrans très larges (plus de 1440px) */
+@media (min-width: 1440px) {
+  .menu-dialog {
+    max-width: 600px !important;
+  }
+}
+
+/* Tablettes en mode portrait */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .menu-dialog {
+    max-width: 500px !important;
+    right: 2rem !important;
+  }
+}
+
+/* Téléphones en mode paysage */
+@media (max-width: 896px) and (orientation: landscape) {
+  .menu-dialog {
+    inset: 1rem !important;
+    max-width: none !important;
+    border-radius: 20px !important;
+  }
+}
+
+/* Navbar fixe sur tablette et PC */
+@media (min-width: 768px) {
+  nav {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITÉ
+   ============================================ */
+
+/* Réduction de mouvement pour les personnes sensibles */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================
+   UTILITAIRES SUPPLÉMENTAIRES
+   ============================================ */
+
+/* Bordure animée */
+.hover-border-glow {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-border-glow:hover {
+  border-color: rgba(212, 175, 55, 0.5);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+}
+
+/* Texte avec outline pour meilleure lisibilité */
+.text-outline {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.text-outline-strong {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Effet de brillance sur les cartes */
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.card-shine:hover::after {
+  left: 100%;
+}
 
 
+/* Ajoutez dans votre fichier global.css */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
 
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.4);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.6);
+}
