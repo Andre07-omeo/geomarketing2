@@ -349,12 +349,7 @@ export default function UltimateSupervisor() {
       </div>
 
       {/* NAV HEADER - VERSION PREMIUM ULTRA MODERNE & FIXE */}
-      <nav className={`
-  fixed top-0 inset-x-0 z-[150] 
-  p-2 sm:p-3 md:p-4 lg:p-6
-  ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'}
-  transition-all duration-500
-`}>
+      <nav className={`fixed top-0 inset-x-0 z-[150] p-2 sm:p-3 md:p-4 lg:p-6 ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'} transition-all duration-500`}>
         <div className="max-w-[1800px] mx-auto">
           <motion.div
             initial={{ y: 0, opacity: 0 }}
@@ -377,12 +372,12 @@ export default function UltimateSupervisor() {
         rounded-xl sm:rounded-2xl md:rounded-3xl lg:rounded-[2rem]
         transition-all duration-500
         ${hidden
-                ? 'bg-black/80 backdrop-blur-xl border-white/5 shadow-lg'
-                : 'bg-gradient-to-r from-black/50 via-black/40 to-black/50 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/50'
+                ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-lg'  // Changé
+                : 'bg-gradient-to-r from-white/80 via-white/70 to-white/80 backdrop-blur-2xl border-white/30 shadow-2xl shadow-black/10'  // Changé
               }
         border
-        hover:border-amber-400/40
-        hover:shadow-2xl hover:shadow-amber-400/10
+        hover:border-amber-400/60  // Changé (plus visible)
+        hover:shadow-2xl hover:shadow-amber-400/20
       `}
           >
             {/* Effet de brillance premium au survol */}
@@ -409,22 +404,25 @@ export default function UltimateSupervisor() {
               <div className="absolute -inset-1 rounded-xl border-2 border-amber-400/0 group-hover/logo:border-amber-400/30 transition-all duration-500" />
 
               <div className="relative">
+                {/* Cercle de fond derrière le logo */}
+                <div className="absolute inset-0 bg-white rounded-xl shadow-sm" />
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 to-yellow-500/10 rounded-xl" />
+
                 <img
                   src={logoUrl}
-                  className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-xl object-cover border-2 border-white/20 group-hover/logo:border-amber-400/50 transition-all duration-300 shadow-lg group-hover/logo:shadow-amber-400/30"
+                  className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-xl object-cover border-2 border-amber-400/30 group-hover/logo:border-amber-400/70 transition-all duration-300 shadow-md group-hover/logo:shadow-amber-400/30"
                   alt="Logo"
                 />
-                {/* Badge premium animé */}
                 <div className="absolute -top-1 -right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-lg shadow-amber-400/50" />
               </div>
 
               <div className="flex flex-col leading-[0.7] sm:leading-[0.75]">
                 <span className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black italic uppercase tracking-tighter">
-                  <span className="text-white drop-shadow-lg group-hover/logo:drop-shadow-amber-400/50 transition-all">G</span>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500 drop-shadow-lg">D</span>
-                  <span className="text-white drop-shadow-lg group-hover/logo:drop-shadow-amber-400/50 transition-all">P</span>
+                  <span className="text-gray-900 drop-shadow-none group-hover/logo:text-amber-600 transition-all">G</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-yellow-600 drop-shadow-none">D</span>
+                  <span className="text-gray-900 drop-shadow-none group-hover/logo:text-amber-600 transition-all">P</span>
                 </span>
-                <span className="text-[4px] sm:text-[5px] md:text-[6px] lg:text-[7px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.3em] text-amber-400/70 mt-0.5 whitespace-nowrap">
+                <span className="text-[4px] sm:text-[5px] md:text-[6px] lg:text-[7px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.3em] text-amber-600/80 mt-0.5 whitespace-nowrap">
                   GESTION DIGITALE
                 </span>
               </div>
@@ -489,24 +487,24 @@ export default function UltimateSupervisor() {
 
               {/* Bouton Menu Filtre premium - Glassmorphism avancé */}
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsSidebarOpen(true)}
-                className="group/filter relative overflow-hidden px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider transition-all duration-300 bg-white/5 backdrop-blur-sm border border-amber-400/30 hover:bg-amber-400 hover:text-black shadow-lg hover:shadow-amber-400/30"
-              >
-                {/* Effet de ripple premium */}
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-500 translate-y-full group-hover/filter:translate-y-0 transition-transform duration-300" />
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+  onClick={() => setIsSidebarOpen(true)}
+  className="group/filter relative overflow-hidden px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider transition-all duration-300 bg-gray-100 border border-gray-200 hover:bg-amber-500 hover:text-white shadow-md hover:shadow-amber-500/30"
+>
+  {/* Effet de ripple premium */}
+  <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 translate-y-full group-hover/filter:translate-y-0 transition-transform duration-300" />
 
-                {/* Effet de brillance */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/filter:translate-x-full transition-transform duration-700" />
+  {/* Effet de brillance */}
+  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover/filter:translate-x-full transition-transform duration-700" />
 
-                <span className="relative flex items-center gap-1.5 z-10">
-                  <Filter size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] text-amber-400 group-hover/filter:text-black transition-colors duration-300" />
-                  <span className="hidden lg:inline">MENU FILTRE</span>
-                  <span className="hidden md:inline lg:hidden">FILTRES</span>
-                  <span className="md:hidden">MENU</span>
-                </span>
-              </motion.button>
+  <span className="relative flex items-center gap-1.5 z-10">
+    <Filter size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] text-gray-700 group-hover/filter:text-white transition-colors duration-300" />
+    <span className="hidden lg:inline text-gray-800 group-hover/filter:text-white transition-colors">MENU FILTRE</span>
+    <span className="hidden md:inline lg:hidden text-gray-800 group-hover/filter:text-white transition-colors">FILTRES</span>
+    <span className="md:hidden text-gray-800 group-hover/filter:text-white transition-colors">MENU</span>
+  </span>
+</motion.button>
             </div>
 
             {/* Mobile & Tablet Menu Button - Premium */}
@@ -1523,153 +1521,153 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
 
   return (
-  <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-    {/* BOUTON FERMER MODERNE */}
-    <button
-      onClick={onClose}
-      className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[2100] p-3 sm:p-4 bg-white/10 backdrop-blur-xl text-white rounded-full hover:bg-red-500 hover:scale-110 transition-all duration-300 border border-white/20 group"
-    >
-      <X size={20} className="sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" strokeWidth={2} />
-    </button>
+    <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+      {/* BOUTON FERMER MODERNE */}
+      <button
+        onClick={onClose}
+        className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[2100] p-3 sm:p-4 bg-white/10 backdrop-blur-xl text-white rounded-full hover:bg-red-500 hover:scale-110 transition-all duration-300 border border-white/20 group"
+      >
+        <X size={20} className="sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" strokeWidth={2} />
+      </button>
 
-    <motion.div
-      initial={{ y: 50, opacity: 0, scale: 0.95 }}
-      animate={{ y: 0, opacity: 1, scale: 1 }}
-      transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      className="relative w-full max-w-md sm:max-w-lg bg-black/40 backdrop-blur-2xl rounded-3xl sm:rounded-[3rem] border border-white/15 shadow-2xl overflow-hidden"
-    >
-      {/* Effet de glow doré en arrière-plan */}
-      <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
-      
-      {/* Effet de brillance */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
+      <motion.div
+        initial={{ y: 50, opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="relative w-full max-w-md sm:max-w-lg bg-black/40 backdrop-blur-2xl rounded-3xl sm:rounded-[3rem] border border-white/15 shadow-2xl overflow-hidden"
+      >
+        {/* Effet de glow doré en arrière-plan */}
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
 
-      {/* HEADER */}
-      <div className="relative px-6 sm:px-10 py-8 sm:py-12 bg-gradient-to-b from-white/5 to-transparent border-b border-white/10 text-center">
-        {/* Logo avec anneau animé */}
-        <div className="flex justify-center mb-4 sm:mb-6">
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-2xl opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500" />
-            <div className="relative p-1 bg-white/10 rounded-2xl border border-white/20">
-              <img src={logoUrl} className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl object-cover" alt="Logo" />
+        {/* Effet de brillance */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
+
+        {/* HEADER */}
+        <div className="relative px-6 sm:px-10 py-8 sm:py-12 bg-gradient-to-b from-white/5 to-transparent border-b border-white/10 text-center">
+          {/* Logo avec anneau animé */}
+          <div className="flex justify-center mb-4 sm:mb-6">
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-2xl opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500" />
+              <div className="relative p-1 bg-white/10 rounded-2xl border border-white/20">
+                <img src={logoUrl} className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl object-cover" alt="Logo" />
+              </div>
+              {/* Badge actif */}
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-lg shadow-emerald-500/50" />
             </div>
-            {/* Badge actif */}
-            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-lg shadow-emerald-500/50" />
           </div>
-        </div>
 
-        {/* Titre */}
-        <div className="flex items-center justify-center gap-2 sm:gap-3 mb-2">
-          <div className="w-1 h-3 sm:w-1.5 sm:h-4 bg-gradient-to-t from-amber-500 to-yellow-500 rounded-full" />
-          <p className="text-amber-400/80 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.3em] sm:tracking-[0.5em]">
-            Authentification sécurisée
+          {/* Titre */}
+          <div className="flex items-center justify-center gap-2 sm:gap-3 mb-2">
+            <div className="w-1 h-3 sm:w-1.5 sm:h-4 bg-gradient-to-t from-amber-500 to-yellow-500 rounded-full" />
+            <p className="text-amber-400/80 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.3em] sm:tracking-[0.5em]">
+              Authentification sécurisée
+            </p>
+          </div>
+
+          <h2 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tighter">
+            ACCÈS <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">GDPS</span>
+          </h2>
+          <p className="text-white/30 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mt-2">
+            Système de supervision digital
           </p>
         </div>
 
-        <h2 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tighter">
-          ACCÈS <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">GDPS</span>
-        </h2>
-        <p className="text-white/30 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider mt-2">
-          Système de supervision digital
-        </p>
-      </div>
-
-      {/* FORMULAIRE */}
-      <form onSubmit={handleLogin} className="relative z-10 p-6 sm:p-10 space-y-5 sm:space-y-6">
-        {/* Champ Email */}
-        <div className="space-y-1.5 sm:space-y-2">
-          <label className="text-[8px] sm:text-[10px] font-black text-white/50 uppercase tracking-wider ml-2 flex items-center gap-1">
-            <span className="w-1 h-1 bg-amber-400 rounded-full" />
-            Identifiant
-          </label>
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 -z-10" />
-            <Mail className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-amber-400/60 group-focus-within:text-amber-400 transition-colors" size={16} />
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-xl sm:rounded-2xl py-3.5 sm:py-5 pl-11 sm:pl-14 pr-4 sm:pr-6 text-white text-xs sm:text-sm focus:border-amber-400/50 outline-none transition-all font-medium placeholder:text-white/20"
-              placeholder="identifiant@dispromalt.com"
-            />
+        {/* FORMULAIRE */}
+        <form onSubmit={handleLogin} className="relative z-10 p-6 sm:p-10 space-y-5 sm:space-y-6">
+          {/* Champ Email */}
+          <div className="space-y-1.5 sm:space-y-2">
+            <label className="text-[8px] sm:text-[10px] font-black text-white/50 uppercase tracking-wider ml-2 flex items-center gap-1">
+              <span className="w-1 h-1 bg-amber-400 rounded-full" />
+              Identifiant
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 -z-10" />
+              <Mail className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-amber-400/60 group-focus-within:text-amber-400 transition-colors" size={16} />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-xl sm:rounded-2xl py-3.5 sm:py-5 pl-11 sm:pl-14 pr-4 sm:pr-6 text-white text-xs sm:text-sm focus:border-amber-400/50 outline-none transition-all font-medium placeholder:text-white/20"
+                placeholder="identifiant@dispromalt.com"
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Champ Mot de passe */}
-        <div className="space-y-1.5 sm:space-y-2">
-          <label className="text-[8px] sm:text-[10px] font-black text-white/50 uppercase tracking-wider ml-2 flex items-center gap-1">
-            <span className="w-1 h-1 bg-amber-400 rounded-full" />
-            Mot de passe
-          </label>
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 -z-10" />
-            <ShieldCheck className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-amber-400/60 group-focus-within:text-amber-400 transition-colors" size={16} />
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-xl sm:rounded-2xl py-3.5 sm:py-5 pl-11 sm:pl-14 pr-4 sm:pr-6 text-white text-xs sm:text-sm focus:border-amber-400/50 outline-none transition-all font-medium placeholder:text-white/20"
-              placeholder="••••••••••••"
-            />
+          {/* Champ Mot de passe */}
+          <div className="space-y-1.5 sm:space-y-2">
+            <label className="text-[8px] sm:text-[10px] font-black text-white/50 uppercase tracking-wider ml-2 flex items-center gap-1">
+              <span className="w-1 h-1 bg-amber-400 rounded-full" />
+              Mot de passe
+            </label>
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 -z-10" />
+              <ShieldCheck className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-amber-400/60 group-focus-within:text-amber-400 transition-colors" size={16} />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-xl sm:rounded-2xl py-3.5 sm:py-5 pl-11 sm:pl-14 pr-4 sm:pr-6 text-white text-xs sm:text-sm focus:border-amber-400/50 outline-none transition-all font-medium placeholder:text-white/20"
+                placeholder="••••••••••••"
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Lien mot de passe oublié */}
-        <div className="flex justify-end">
-          <button
-            type="button"
-            className="text-white/30 hover:text-amber-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider transition-colors"
-          >
-            Mot de passe oublié ?
-          </button>
-        </div>
-
-        {/* Bouton Connexion */}
-        <div className="pt-2 sm:pt-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="relative group w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-black py-4 sm:py-6 rounded-xl sm:rounded-2xl uppercase text-[10px] sm:text-[12px] tracking-[0.2em] sm:tracking-[0.3em] shadow-lg shadow-amber-500/30 transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden"
-          >
-            {/* Effet de brillance */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            
-            {loading ? (
-              <Loader2 className="animate-spin" size={16} />
-            ) : (
-              <>
-                <Zap size={14} className="group-hover:animate-bounce" />
-                <span>Connexion sécurisée</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Indicateur de sécurité */}
-        <div className="flex items-center justify-center gap-2 opacity-60 pt-2 sm:pt-4">
-          <div className="flex gap-0.5">
-            <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-            <div className="w-1 h-1 rounded-full bg-emerald-500/60 animate-pulse delay-300" />
-            <div className="w-1 h-1 rounded-full bg-emerald-500/30 animate-pulse delay-600" />
+          {/* Lien mot de passe oublié */}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="text-white/30 hover:text-amber-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider transition-colors"
+            >
+              Mot de passe oublié ?
+            </button>
           </div>
-          <p className="text-[6px] sm:text-[7px] font-black text-white/60 uppercase tracking-[0.2em] sm:tracking-[0.3em]">
-            Chiffrement AES-256 • Connexion sécurisée
-          </p>
-        </div>
-      </form>
 
-      {/* Barre de progression animée en bas */}
-      <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-amber-500 to-transparent relative overflow-hidden">
-        <motion.div
-          animate={{ x: ["-100%", "100%"] }}
-          transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
-          className="absolute inset-0 w-32 bg-gradient-to-r from-transparent via-amber-400 to-transparent"
-        />
-      </div>
-    </motion.div>
-  </div>
-);
+          {/* Bouton Connexion */}
+          <div className="pt-2 sm:pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className="relative group w-full bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black font-black py-4 sm:py-6 rounded-xl sm:rounded-2xl uppercase text-[10px] sm:text-[12px] tracking-[0.2em] sm:tracking-[0.3em] shadow-lg shadow-amber-500/30 transition-all active:scale-95 flex items-center justify-center gap-2 sm:gap-3 overflow-hidden"
+            >
+              {/* Effet de brillance */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+
+              {loading ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <>
+                  <Zap size={14} className="group-hover:animate-bounce" />
+                  <span>Connexion sécurisée</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Indicateur de sécurité */}
+          <div className="flex items-center justify-center gap-2 opacity-60 pt-2 sm:pt-4">
+            <div className="flex gap-0.5">
+              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="w-1 h-1 rounded-full bg-emerald-500/60 animate-pulse delay-300" />
+              <div className="w-1 h-1 rounded-full bg-emerald-500/30 animate-pulse delay-600" />
+            </div>
+            <p className="text-[6px] sm:text-[7px] font-black text-white/60 uppercase tracking-[0.2em] sm:tracking-[0.3em]">
+              Chiffrement AES-256 • Connexion sécurisée
+            </p>
+          </div>
+        </form>
+
+        {/* Barre de progression animée en bas */}
+        <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-amber-500 to-transparent relative overflow-hidden">
+          <motion.div
+            animate={{ x: ["-100%", "100%"] }}
+            transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+            className="absolute inset-0 w-32 bg-gradient-to-r from-transparent via-amber-400 to-transparent"
+          />
+        </div>
+      </motion.div>
+    </div>
+  );
 }

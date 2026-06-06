@@ -931,104 +931,168 @@ export default function UltimateSupervisor() {
 
 
       {/* NAV HEADER */}
-      <nav className="fixed top-0 inset-x-0 z-[150] p-4 lg:p-6">
+      <nav className={`fixed top-0 inset-x-0 z-[150] p-2 sm:p-3 md:p-4 lg:p-6 ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'} transition-all duration-500`}>
         <div className="max-w-[1800px] mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: hidden ? -120 : 0 }}
-            className="flex items-center justify-between h-20 px-4 lg:px-8 rounded-[2.5rem] bg-black/40 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+            initial={{ y: 0, opacity: 0 }}
+            animate={{
+              y: hidden ? -120 : 0,
+              opacity: 1,
+              scale: hidden ? 0.95 : 1
+            }}
+            transition={{
+              type: "spring",
+              damping: 25,
+              stiffness: 300,
+              opacity: { duration: 0.3 }
+            }}
+            className={`
+              relative group overflow-visible
+              flex items-center justify-between 
+              h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
+              px-3 sm:px-5 md:px-6 lg:px-8
+              rounded-xl sm:rounded-2xl md:rounded-3xl lg:rounded-[2rem]
+              transition-all duration-500
+              ${hidden
+                ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-lg'  // Changé
+                : 'bg-gradient-to-r from-white/80 via-white/70 to-white/80 backdrop-blur-2xl border-white/30 shadow-2xl shadow-black/10'  // Changé
+              }
+              border
+              hover:border-amber-400/60  // Changé (plus visible)
+              hover:shadow-2xl hover:shadow-amber-400/20
+            `}
           >
-            {/* --- LOGO SECTION --- */}
+            {/* Effet de brillance premium au survol */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+
+            {/* Effet de glow doré premium */}
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/8 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+
+            {/* Bordure animée premium */}
+            <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
+
+            {/* Effet de verre dépoli supplémentaire */}
+            <div className="absolute inset-0 rounded-inherit bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+            {/* LOGO - Version premium */}
             <div
               onClick={() => window.location.reload()}
-              className="flex items-center gap-3 cursor-pointer group shrink-0"
+              className="relative flex items-center gap-2 sm:gap-3 md:gap-4 cursor-pointer group/logo"
             >
+              {/* Anneau lumineux premium */}
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-400 opacity-0 group-hover/logo:opacity-100 blur-xl transition-opacity duration-500" />
+
+              {/* Cercle extérieur animé */}
+              <div className="absolute -inset-1 rounded-xl border-2 border-amber-400/0 group-hover/logo:border-amber-400/30 transition-all duration-500" />
+
               <div className="relative">
-                <div className="absolute inset-0 bg-[#d4af37] blur-md opacity-20 group-hover:opacity-40 transition-opacity" />
-                <img src={logoUrl} className="relative w-10 h-10 lg:w-12 lg:h-12 rounded-2xl object-cover border border-white/20 shadow-2xl" alt="Logo" />
+                {/* Cercle de fond derrière le logo */}
+                <div className="absolute inset-0 bg-white rounded-xl shadow-sm" />
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 to-yellow-500/10 rounded-xl" />
+
+                <img
+                  src={logoUrl}
+                  className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-xl object-cover border-2 border-amber-400/30 group-hover/logo:border-amber-400/70 transition-all duration-300 shadow-md group-hover/logo:shadow-amber-400/30"
+                  alt="Logo"
+                />
+                <div className="absolute -top-1 -right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-lg shadow-amber-400/50" />
               </div>
-              <div className="flex flex-col leading-none hidden sm:flex">
-                <span className="text-xl lg:text-2xl font-black uppercase tracking-tighter text-white">
-                  G<span className="text-[#d4af37]">D</span>P
+
+              <div className="flex flex-col leading-[0.7] sm:leading-[0.75]">
+                <span className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black italic uppercase tracking-tighter">
+                  <span className="text-gray-900 drop-shadow-none group-hover/logo:text-amber-600 transition-all">G</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-yellow-600 drop-shadow-none">D</span>
+                  <span className="text-gray-900 drop-shadow-none group-hover/logo:text-amber-600 transition-all">P</span>
                 </span>
-                <span className="text-[7px] font-bold uppercase tracking-[0.4em] text-[#d4af37]">Finance</span>
+                <span className="text-[4px] sm:text-[5px] md:text-[6px] lg:text-[7px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.3em] text-amber-600/80 mt-0.5 whitespace-nowrap">
+                  GESTION DIGITALE
+                </span>
               </div>
             </div>
 
             {/* --- BOUTONS DE NAVIGATION ÉLÉGANTS (ADAPTATIFS) --- */}
-            <div className="flex items-center gap-1 md:gap-4">
+            <div className="flex items-center gap-2 md:gap-3">
               {/* Accueil */}
-              <button
+              <motion.button
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => window.location.reload()}
-                className="group relative flex items-center gap-2 px-3 py-2.5 lg:px-6 lg:py-3 rounded-2xl transition-all duration-300 hover:bg-white/10 overflow-hidden"
+                className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-5 lg:py-3 rounded-2xl transition-all duration-300 bg-white text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100"
               >
-                <div className="absolute inset-0 w-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent group-hover:w-full transition-all duration-500" />
-                <Home size={20} className="text-[#d4af37]" />
-                {/* Texte affiché uniquement à partir de 'lg' (PC) pour laisser la place aux icônes sur tablette/mobile */}
-                <span className="hidden lg:block text-[11px] font-black uppercase tracking-widest text-white/90">Accueil</span>
-              </button>
+                <Home size={18} className="text-gray-400 group-hover:text-amber-500 transition-all" />
+                <span className="hidden lg:inline text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">Accueil</span>
+              </motion.button>
 
-              {/* Carte Interactive */}
-              <button
+              {/* Carte */}
+              <motion.button
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={ouvrirLaCarte}
-                className="group relative flex items-center gap-2 px-3 py-2.5 lg:px-6 lg:py-3 rounded-2xl transition-all duration-300 hover:bg-white/10 overflow-hidden"
+                className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-5 lg:py-3 rounded-2xl transition-all duration-300 bg-white text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100"
               >
-                <div className="absolute inset-0 w-0 bg-gradient-to-r from-[#d4af37]/20 to-transparent group-hover:w-full transition-all duration-500" />
-                <MapPin size={20} className="text-[#d4af37]" />
-                <span className="hidden lg:block text-[11px] font-black uppercase tracking-widest text-white/90">Carte</span>
-              </button>
+                <MapPin size={18} className="text-gray-400 group-hover:text-amber-500 transition-all group-hover:rotate-6" />
+                <span className="hidden lg:inline text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">Carte</span>
+              </motion.button>
 
-              {/* Rapport (Le bouton distinctif) */}
+              {/* Rapport */}
               <Link href="/dashboard/superviseurs/rapport">
-                <div className="relative group px-3 py-2.5 lg:px-6 lg:py-3 rounded-2xl bg-[#d4af37] hover:bg-white transition-all duration-300 shadow-[0_10px_20px_rgba(212,175,55,0.2)] active:scale-95 flex items-center gap-3">
-                  <FilePieChart size={20} className="text-black" />
-                  {/* Masqué sur mobile/tablette, affiché sur Desktop */}
-                  <div className="hidden lg:flex flex-col items-start leading-none">
-                    <span className="text-[10px] font-black uppercase text-black">Rapports</span>
-                    <span className="text-[7px] font-bold uppercase text-black/60">Analyse Live</span>
-                  </div>
-                </div>
+                <motion.div
+                  whileHover={{ y: -2, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-5 lg:py-3 rounded-2xl transition-all duration-300 bg-white text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100"
+                >
+                  {/* Effet shine */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />
+                  <FilePieChart size={18} className="text-gray-400 group-hover:text-amber-500 transition-all group-hover:rotate-6" />
+                  <span className="hidden lg:inline text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">Rapports</span>
+                  <span className="relative z-10 text-[8px] bg-white/20 px-1.5 py-0.5 rounded-full ml-1">LIVE</span>
+                </motion.div>
               </Link>
             </div>
-
             {/* --- USER SECTION (ULTRA COMPACTE) --- */}
-            <div className="flex items-center gap-2 lg:gap-6 shrink-0 pl-2 lg:pl-6 border-l border-white/10">
+            <div className="flex items-center gap-2 lg:gap-6 shrink-0 pl-2 lg:pl-6 border-l border-gray-200">
               {user ? (
                 <div className="flex items-center gap-2 md:gap-3">
-
-                  <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/5 border border-white/10">
-                    {/* Logout masqué sur petit mobile, visible sur tablette et + */}
-                    <div className="text-right hidden xl:block">
-                      <p className="text-[10px] font-black text-white uppercase tracking-tight">{user.nom}</p>
-                      <p className="text-[8px] font-bold text-[#d4af37] uppercase opacity-80">{user.role}</p>
+                  <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-gradient-to-r from-gray-50 to-white border border-gray-200 shadow-sm">
+                    {/* Info utilisateur */}
+                    <div className="text-right hidden xl:block px-2">
+                      <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">{user.nom}</p>
+                      <p className="text-[7px] font-bold text-amber-500 uppercase tracking-wider">{user.role || "Utilisateur"}</p>
                     </div>
+
+                    {/* Bouton déconnexion */}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.preventDefault();
-                        e.stopPropagation(); // Évite que le clic ne déclenche d'autres événements parents
+                        e.stopPropagation();
                         handleLogout();
                       }}
-                      className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-full transition-all border border-red-500/20 cursor-pointer pointer-events-auto active:scale-95"
+                      className="group flex items-center gap-2 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 text-red-500 px-4 py-2 rounded-full transition-all border border-red-200 cursor-pointer active:scale-95 shadow-sm hover:shadow-md"
                       title="Déconnexion"
                     >
                       <img
                         src={logoUrl}
-                        className="w-8 h-8 rounded-full border border-[#d4af37] object-cover bg-black"
+                        className="w-8 h-8 rounded-full border-2 border-amber-400 object-cover bg-white shadow-sm"
                         alt="Profil"
                         onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
                       />
-                      <LogOut size={14} className="flex-shrink-0" />
+                      <LogOut size={14} className="flex-shrink-0 group-hover:scale-110 transition-transform" />
+                      <span className="hidden sm:inline text-[10px] font-bold uppercase">Déconnexion</span>
                     </button>
                   </div>
                 </div>
               ) : (
                 <button
                   onClick={() => setIsLoginOpen(true)}
-                  className="px-4 md:px-6 py-2.5 rounded-xl border border-[#d4af37] text-[#d4af37] text-[10px] font-black uppercase hover:bg-[#d4af37] hover:text-black transition-all"
+                  className="group relative overflow-hidden px-5 md:px-7 py-2.5 rounded-xl font-black uppercase text-[10px] transition-all duration-300 bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-md hover:shadow-lg active:scale-95"
                 >
-                  <span className="md:hidden">Connexion</span> {/* Texte court mobile */}
-                  <span className="hidden md:inline">Se Connecter</span>
+                  {/* Effet de brillance */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  <span className="relative z-10">
+                    <span className="md:hidden">🔐 Connexion</span>
+                    <span className="hidden md:inline">🔐 Se Connecter</span>
+                  </span>
                 </button>
               )}
             </div>
@@ -1184,6 +1248,7 @@ export default function UltimateSupervisor() {
               </div>
             </div>
           </motion.div>
+
           {/* BOUTONS D'OUVERTURE DANS LE HEADER */}
           <div className="flex gap-3 px-6 pb-4 mt-8">
             <button
@@ -1208,231 +1273,361 @@ export default function UltimateSupervisor() {
           <AnimatePresence>
             {isCartOpen && (
               <>
+                {/* OVERLAY AVEC FOND PHOTO FLOU */}
                 <motion.div
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   onClick={() => setIsCartOpen(false)}
-                  className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
-                />
-                <motion.div
-                  initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-                  className="fixed right-0 top-0 h-full w-full max-w-[400px] bg-[#0f0f0f] border-l border-white/10 z-[101] p-6 shadow-2xl flex flex-col"
+                  className="fixed inset-0 z-[100]"
                 >
-                  <div className="flex justify-between items-center mb-8">
-                    <div>
-                      <h2 className="text-xl font-black uppercase text-white">Mes <span className="text-[#d4af37]">Réservations</span></h2>
-                      <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">En attente de facturation</p>
-                    </div>
-                    <button onClick={() => setIsCartOpen(false)} className="p-2 bg-white/5 rounded-full text-white hover:bg-red-500 transition-colors">✕</button>
+                  {/* Image de fond floutée */}
+                  <div className="absolute inset-0">
+                    <img
+                      src="/fond.jpg"
+                      alt="Background"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
                   </div>
+                </motion.div>
 
-                  <div className="flex-1 overflow-y-auto space-y-3 md:space-y-4 pr-2 custom-scrollbar">
-                    {/* AJOUT D'UNE GRILLE : 1 colonne sur phone, 2 sur tablette, 1 sur desktop (si dans une sidebar) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 md:gap-4">
-                      {reservationsEnAttente.map((res: any, index: number) => {
-                        const key = res.resUniqueId;
-                        const unitPrice = prices[key] || 0;
-                        const isTranche = paymentModes[key] === 'tranche';
-                        const isSelected = selectedForPrint[key] || false;
-                        const numeroOrdre = index + 1;
-                        const uniqueKey = key || `temp-${index}`;
+                {/* PANEL LATÉRAL PREMIUM */}
+                <motion.div
+                  initial={{ x: "100%", opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: "100%", opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-black/40 backdrop-blur-2xl border-l border-white/20 z-[101] shadow-2xl flex flex-col"
+                >
+                  {/* HEADER PREMIUM */}
+                  <div className="relative p-5 sm:p-6 border-b border-white/10 bg-gradient-to-r from-white/5 to-transparent">
+                    {/* Effet de brillance */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
 
-                        return (
-                          <motion.div
-                            key={uniqueKey}
-                            className={`p-3 md:p-4 rounded-[1.5rem] md:rounded-[2rem] border transition-all ${isSelected ? 'bg-[#d4af37]/10 border-[#d4af37]' : 'bg-white/5 border-white/10'
-                              }`}
-                          >
-                            {/* HEADER RÉDUIT */}
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <span className="text-[8px] md:text-[10px] font-black text-[#d4af37] block uppercase">
-                                  Rés. N° {numeroOrdre}
-                                </span>
-                                <span className="text-[10px] md:text-[11px] text-white font-bold block truncate max-w-[120px]">
-                                  Face : {res.faceLabel}
-                                </span>
-                              </div>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
-                                className="w-4 h-4 md:w-5 md:h-5 accent-[#d4af37] cursor-pointer"
-                              />
-                            </div>
-
-                            {/* NOM SOCIÉTÉ RÉDUIT */}
-                            <h4 className="text-white text-xs md:text-sm font-black uppercase mb-3 truncate">
-                              {res.societeLocatrice}
-                            </h4>
-
-                            {/* SECTION PRIX COMPACTE */}
-                            <div className="grid grid-cols-2 gap-2 md:gap-4 mb-3">
-                              <div>
-                                <label className="text-[7px] md:text-[8px] text-white/40 uppercase font-bold block mb-0.5">Prix/Mois</label>
-                                <div className="flex items-center gap-1 border-b border-white/20 focus-within:border-[#d4af37]">
-                                  <input
-                                    type="number"
-                                    value={unitPrice === 0 ? "" : unitPrice}
-                                    onFocus={(e) => e.target.select()}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      const numericVal = val === "" ? 0 : Number(val);
-                                      setPrices(prev => ({ ...prev, [key]: numericVal }));
-                                    }}
-                                    placeholder="0"
-                                    className="w-full bg-transparent text-[11px] md:text-sm text-white font-bold outline-none"
-                                  />
-                                  <span className="text-[10px] text-white/40">$</span>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <label className="text-[7px] md:text-[8px] text-white/40 uppercase font-bold block mb-0.5">
-                                  Total ({res.dureeMois}m)
-                                </label>
-                                <span className="text-[#d4af37] text-[11px] md:text-sm font-black whitespace-nowrap">
-                                  {(unitPrice * res.dureeMois).toLocaleString()} $
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* TRANCHES VERSION MINI */}
-                            {isTranche && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                className="mb-3 p-2 bg-[#d4af37]/5 border border-[#d4af37]/20 rounded-xl"
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <label className="text-[7px] md:text-[8px] text-white/40 uppercase font-bold">Tranches</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max={res.dureeMois}
-                                    value={tranchesCount[key] || ""}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    onChange={(e) => {
-                                      const val = parseInt(e.target.value);
-                                      const limitedVal = isNaN(val) ? "" : Math.max(1, Math.min(res.dureeMois, val));
-                                      setTranchesCount(prev => ({ ...prev, [key]: limitedVal }));
-                                    }}
-                                    className="w-10 md:w-12 bg-white/10 border border-white/20 rounded px-1 py-0.5 text-white text-[10px] font-black outline-none"
-                                  />
-                                </div>
-                                <p className="text-[8px] md:text-[9px] text-[#d4af37] font-bold mt-1 text-center border-t border-white/5 pt-1">
-                                  {tranchesCount[key] > 0 ? ((unitPrice * res.dureeMois) / Number(tranchesCount[key])).toLocaleString() : 0} $/tranche
-                                </p>
-                              </motion.div>
-                            )}
-
-                            {/* SÉLECTEUR DE MODE MINI */}
-                            <div className="flex bg-black/40 p-1 rounded-lg mb-3 border border-white/5">
-                              {['total', 'tranche'].map((m) => (
-                                <button
-                                  key={m}
-                                  onClick={() => setPaymentModes(prev => ({ ...prev, [key]: m }))}
-                                  className={`flex-1 py-1 text-[8px] md:text-[9px] font-black uppercase rounded-md transition-all ${paymentModes[key] === m || (!isTranche && m === 'total') ? 'bg-[#d4af37] text-black' : 'text-white/40'
-                                    }`}
-                                >
-                                  {m === 'total' ? 'Globale' : 'Tranche'}
-                                </button>
-                              ))}
-                            </div>
-
-                            {/* BOUTONS D'ACTION PLUS COMPACTS */}
-                            <div className="flex gap-1.5">
-                              <button
-                                onClick={() => processOperations('unique', res, index)}
-                                className="flex-[3] py-2 bg-white text-black text-[8px] md:text-[9px] font-black uppercase rounded-lg hover:bg-[#d4af37] transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
-                              >
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
-                                  <path d="M20 6 9 17l-5-5" />
-                                </svg>
-                                Valider
-                              </button>
-
-                              <button
-                                onClick={() => processOperations('delete', res, index)}
-                                className="flex-1 py-2 bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center rounded-lg hover:bg-red-500 hover:text-white transition-all active:scale-95"
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                </svg>
-                              </button>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {/* ACTIONS CENTRALISÉES EN BAS */}
-                  <div className="pt-6 space-y-3 mt-auto border-t border-white/10">
-
-                    {/* Bouton de sélection (Action principale) */}
-                    <button
-                      disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
-                      onClick={() => processOperations('selection')}
-                      className="w-full bg-[#d4af37] disabled:opacity-30 text-black py-4 rounded-2xl font-black uppercase text-xs flex justify-between px-6 items-center hover:scale-[1.01] transition-transform shadow-lg shadow-[#d4af37]/10"
-                    >
-                      <span>Facturer la sélection</span>
-                      <span className="bg-black/10 px-2 py-1 rounded">
-                        {Object.values(selectedForPrint).filter(v => v).length} Face(s)
-                      </span>
-                    </button>
-
-                    {/* LIGNE DES DEUX BOUTONS (Impression Globale & Fermer) */}
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => processOperations('selection')} // Ici on peut adapter pour tout imprimer
-                        className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-white py-3 rounded-xl font-black uppercase text-[9px] hover:bg-white hover:text-black transition-all"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                        Global
-                      </button>
-
+                    <div className="flex justify-between items-center relative z-10">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-1 h-4 bg-gradient-to-b from-amber-400 to-yellow-500 rounded-full" />
+                          <p className="text-[8px] font-black text-amber-400 uppercase tracking-[0.3em]">Facturation</p>
+                        </div>
+                        <h2 className="text-2xl font-black text-white">
+                          Mes <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">Réservations</span>
+                        </h2>
+                        <p className="text-[9px] text-white/40 uppercase tracking-wider font-bold mt-1">
+                          {reservationsEnAttente.length} réservation(s) en attente
+                        </p>
+                      </div>
                       <button
                         onClick={() => setIsCartOpen(false)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/20 text-red-500 py-3 rounded-xl font-black uppercase text-[9px] hover:bg-red-500 hover:text-white transition-all"
+                        className="group p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-                        Fermer
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white group-hover:rotate-90 transition-transform duration-300">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
                       </button>
                     </div>
+                  </div>
 
-                    {/* INFOS AGENT EN BAS */}
-                    <div className="pt-2 border-t border-white/5 text-center">
-                      <p className="text-[9px] text-white font-black uppercase tracking-widest">{user?.nomComplet || "Agent Kin-Geo"}</p>
-                      <p className="text-[8px] text-white/30 font-medium">{user?.email}</p>
+                  {/* CONTENU SCROLLABLE */}
+                  <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+                    <div className="grid grid-cols-1 gap-4">
+                      {reservationsEnAttente.length === 0 ? (
+                        /* ÉTAT VIDE */
+                        <div className="flex flex-col items-center justify-center h-full">
+                          <div className="text-center">
+                            <div className="w-20 h-20 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-4">
+                              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-white/20">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                <line x1="16" y1="2" x2="16" y2="6" />
+                                <line x1="8" y1="2" x2="8" y2="6" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                              </svg>
+                            </div>
+                            <p className="text-white/50 text-base font-bold uppercase tracking-wider">Panier vide</p>
+                            <p className="text-white/20 text-[10px] mt-2 max-w-[200px] mx-auto">
+                              Vous n'avez aucune réservation en attente de facturation
+                            </p>
+                          </div>
+
+                          {/* BOUTON FERMETURE EN BAS */}
+                          <div className="absolute bottom-6 left-6 right-6">
+                            <button
+                              onClick={() => setIsCartOpen(false)}
+                              className="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-black rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M18 6L6 18M6 6l12 12" />
+                              </svg>
+                              Fermer le panier
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+
+                        reservationsEnAttente.map((res: any, index: number) => {
+                          const key = res.resUniqueId;
+                          const unitPrice = prices[key] || 0;
+                          const isTranche = paymentModes[key] === 'tranche';
+                          const isSelected = selectedForPrint[key] || false;
+                          const numeroOrdre = index + 1;
+                          const uniqueKey = key || `temp-${index}`;
+
+                          return (
+                            <motion.div
+                              key={uniqueKey}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.05 }}
+                              className={`group relative p-4 rounded-2xl border transition-all duration-300 ${isSelected
+                                  ? 'bg-gradient-to-r from-amber-500/15 to-amber-500/5 border-amber-400/50 shadow-lg shadow-amber-500/10'
+                                  : 'bg-white/5 border-white/10 hover:border-amber-400/30 hover:bg-white/10'
+                                }`}
+                            >
+                              {/* HEADER CARTE */}
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-amber-400 animate-pulse' : 'bg-white/30'}`} />
+                                  <span className="text-[8px] font-black text-amber-400 uppercase tracking-wider">
+                                    Réservation # {numeroOrdre}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
+                                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isSelected
+                                      ? 'bg-amber-500 border-amber-500'
+                                      : 'border-white/30 hover:border-amber-400'
+                                    }`}
+                                >
+                                  {isSelected && (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  )}
+                                </button>
+                              </div>
+
+                              {/* INFOS PRINCIPALES */}
+                              <div className="mb-3">
+                                <p className="text-white text-sm font-black uppercase truncate">{res.societeLocatrice}</p>
+                                <p className="text-[10px] text-white/50 font-medium mt-0.5">
+                                  Face: {res.faceLabel} • {res.dureeMois} mois
+                                </p>
+                              </div>
+
+                              {/* SECTION PRIX */}
+                              <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div className="bg-black/20 rounded-xl p-2">
+                                  <label className="text-[7px] text-white/40 uppercase font-bold block">Prix unitaire</label>
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={unitPrice === 0 ? "" : unitPrice}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setPrices(prev => ({ ...prev, [key]: val === "" ? 0 : Number(val) }));
+                                      }}
+                                      placeholder="0"
+                                      className="w-full bg-transparent text-sm text-white font-bold outline-none"
+                                    />
+                                    <span className="text-[10px] text-amber-400 font-bold">$</span>
+                                  </div>
+                                </div>
+                                <div className="bg-black/20 rounded-xl p-2 text-right">
+                                  <label className="text-[7px] text-white/40 uppercase font-bold block">Total</label>
+                                  <span className="text-amber-400 text-sm font-black">
+                                    {(unitPrice * res.dureeMois).toLocaleString()} $
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* MODE DE PAIEMENT */}
+                              <div className="flex gap-2 mb-3">
+                                {['total', 'tranche'].map((mode) => (
+                                  <button
+                                    key={mode}
+                                    onClick={() => setPaymentModes(prev => ({ ...prev, [key]: mode }))}
+                                    className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${paymentModes[key] === mode || (!isTranche && mode === 'total')
+                                        ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black'
+                                        : 'bg-white/10 text-white/40 hover:text-white'
+                                      }`}
+                                  >
+                                    {mode === 'total' ? 'Global' : 'Tranches'}
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* OPTION TRANCHES */}
+                              {isTranche && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  className="mb-3 p-2 bg-amber-500/5 border border-amber-500/20 rounded-xl"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[7px] text-white/40 uppercase font-bold">Nombre de tranches</span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max={res.dureeMois}
+                                      value={tranchesCount[key] || ""}
+                                      onChange={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        setTranchesCount(prev => ({ ...prev, [key]: isNaN(val) ? "" : Math.min(res.dureeMois, Math.max(1, val)) }));
+                                      }}
+                                      className="w-16 bg-black/40 border border-white/20 rounded-lg px-2 py-1 text-white text-center text-[10px] font-bold outline-none focus:border-amber-400"
+                                    />
+                                  </div>
+                                  {tranchesCount[key] > 0 && (
+                                    <p className="text-[9px] text-amber-400 font-bold text-center mt-2">
+                                      {(unitPrice * res.dureeMois / Number(tranchesCount[key])).toLocaleString()} $ / tranche
+                                    </p>
+                                  )}
+                                </motion.div>
+                              )}
+
+                              {/* BOUTONS D'ACTION */}
+                              <div className="flex gap-2 mt-3 pt-2 border-t border-white/10">
+                                <button
+                                  onClick={() => processOperations('unique', res, index)}
+                                  className="flex-1 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-black rounded-xl font-black text-[8px] uppercase tracking-wider flex items-center justify-center gap-1.5 hover:shadow-lg hover:shadow-amber-500/30 transition-all active:scale-95"
+                                >
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                  Valider
+                                </button>
+                                <button
+                                  onClick={() => processOperations('delete', res, index)}
+                                  className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl font-black text-[8px] uppercase hover:bg-red-500 hover:text-white transition-all active:scale-95"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </motion.div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
+
+                  {/* FOOTER ACTIONS */}
+                  {reservationsEnAttente.length > 0 && (
+                    <div className="p-5 border-t border-white/10 bg-gradient-to-t from-black/60 to-transparent">
+                      {/* BOUTON PRINCIPAL */}
+                      <button
+                        disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
+                        onClick={() => processOperations('selection')}
+                        className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 disabled:opacity-30 text-black py-4 rounded-xl font-black text-[11px] uppercase flex justify-between px-6 items-center hover:shadow-xl hover:shadow-amber-500/30 transition-all active:scale-[0.98]"
+                      >
+                        <span>📄 Facturer la sélection</span>
+                        <span className="bg-black/20 px-3 py-1 rounded-full text-[10px]">
+                          {Object.values(selectedForPrint).filter(v => v).length} face(s)
+                        </span>
+                      </button>
+
+                      {/* BOUTONS SECONDAIRES */}
+                      <div className="flex gap-3 mt-3">
+                        <button
+                          onClick={() => {
+                            // Sélectionner toutes les réservations
+                            const allSelected: Record<string, boolean> = {};
+                            reservationsEnAttente.forEach((res: any) => {
+                              allSelected[res.resUniqueId] = true;
+                            });
+                            setSelectedForPrint(allSelected);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-2 bg-white/10 border border-white/10 text-white/80 py-2.5 rounded-xl font-black text-[8px] uppercase hover:bg-white/20 transition-all"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <polyline points="9 12 11 14 15 10" />
+                          </svg>
+                          Tout sélectionner
+                        </button>
+                        <button
+                          onClick={() => setIsCartOpen(false)}
+                          className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 py-2.5 rounded-xl font-black text-[8px] uppercase hover:bg-red-500 hover:text-white transition-all"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                          Fermer
+                        </button>
+                      </div>
+
+                      {/* INFOS UTILISATEUR */}
+                      <div className="mt-4 pt-3 border-t border-white/5 text-center">
+                        <p className="text-[9px] text-white/60 font-black uppercase tracking-wider">{user?.nomComplet || "Agent"}</p>
+                        <p className="text-[7px] text-white/30 font-medium">{user?.email}</p>
+                      </div>
+                    </div>
+                  )}
+
+
+
+
                 </motion.div>
               </>
             )}
           </AnimatePresence>
 
 
-
           <AnimatePresence>
             {isStatsOpen && (
               <>
+                {/* OVERLAY AVEC FOND PHOTO FLOU */}
                 <motion.div
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   onClick={() => setIsStatsOpen(false)}
-                  className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100]"
-                />
-                <motion.div
-                  initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-                  className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-[#0a0a0a] border-l border-white/10 z-[101] flex flex-col shadow-2xl"
+                  className="fixed inset-0 z-[100]"
                 >
-                  {/* HEADER */}
-                  <div className="p-6 border-b border-white/5 flex justify-between items-center">
-                    <div>
-                      <h2 className="text-xl font-black uppercase text-white leading-none">
-                        Panel <span className="text-blue-500">Agent</span>
-                      </h2>
-                      <p className="text-[10px] text-white/30 uppercase mt-1 font-bold">Performance & Suivi</p>
+                  <div className="absolute inset-0">
+                    <img
+                      src="/fond.jpg"
+                      alt="Background"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                  </div>
+                </motion.div>
+
+                {/* PANEL LATÉRAL PREMIUM */}
+                <motion.div
+                  initial={{ x: "100%", opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: "100%", opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-black/40 backdrop-blur-2xl border-l border-white/20 z-[101] flex flex-col shadow-2xl"
+                >
+                  {/* HEADER PREMIUM */}
+                  <div className="relative p-5 sm:p-6 border-b border-white/10 bg-gradient-to-r from-white/5 to-transparent">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
+
+                    <div className="flex justify-between items-center relative z-10">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-1 h-4 bg-gradient-to-b from-blue-400 to-blue-500 rounded-full" />
+                          <p className="text-[8px] font-black text-blue-400 uppercase tracking-[0.3em]">Performance</p>
+                        </div>
+                        <h2 className="text-2xl font-black text-white">
+                          Panel <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-500">Agent</span>
+                        </h2>
+                        <p className="text-[9px] text-white/40 uppercase tracking-wider font-bold mt-1">Performance & Suivi</p>
+                      </div>
+                      <button
+                        onClick={() => setIsStatsOpen(false)}
+                        className="group p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white group-hover:rotate-90 transition-transform duration-300">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
-                    <button onClick={() => setIsStatsOpen(false)} className="p-2 bg-white/5 rounded-full text-white hover:bg-red-500 transition-colors">✕</button>
                   </div>
 
                   {/* CONTENU SCROLLABLE */}
@@ -1440,15 +1635,29 @@ export default function UltimateSupervisor() {
 
                     {activeTab === 'stats' ? (
                       <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
-                        {/* CERCLE DE PERFORMANCE EXISTANT */}
+                        {/* CERCLE DE PERFORMANCE */}
                         <div className="flex flex-col items-center py-4">
                           <div className="relative w-40 h-40 flex items-center justify-center">
+                            {/* Cercle de fond */}
                             <svg className="w-full h-full -rotate-90">
-                              <circle cx="80" cy="80" r="70" fill="none" stroke="currentColor" strokeWidth="8" className="text-white/5" />
-                              <circle cx="80" cy="80" r="70" fill="none" stroke="currentColor" strokeWidth="8" strokeDasharray="440"
+                              <circle cx="80" cy="80" r="70" fill="none" stroke="currentColor" strokeWidth="8" className="text-white/10" />
+                              <circle
+                                cx="80" cy="80" r="70" fill="none"
+                                stroke="url(#gradient)"
+                                strokeWidth="8"
+                                strokeDasharray="440"
                                 strokeDashoffset={440 - (440 * Number(statsEfficacite().performance)) / 100}
-                                className="text-blue-500 transition-all duration-1000"
+                                className="transition-all duration-1000"
                               />
+                            </svg>
+                            {/* Gradient SVG */}
+                            <svg width="0" height="0">
+                              <defs>
+                                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#3b82f6" />
+                                  <stop offset="100%" stopColor="#8b5cf6" />
+                                </linearGradient>
+                              </defs>
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                               <span className="text-3xl font-black text-white">{statsEfficacite().performance}%</span>
@@ -1459,147 +1668,172 @@ export default function UltimateSupervisor() {
 
                         {/* STATS RAPIDES */}
                         <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white/5 p-4 rounded-[2rem] border border-white/5">
-                            <p className="text-xl font-black text-white">{statsEfficacite().totalAgent}</p>
-                            <p className="text-[8px] uppercase text-white/30 font-bold">Mes Actions</p>
+                          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:border-blue-500/30 transition-all">
+                            <p className="text-2xl font-black text-white">{statsEfficacite().totalAgent}</p>
+                            <p className="text-[8px] uppercase text-white/40 font-bold tracking-wider">Mes Actions</p>
                           </div>
-                          <div className="bg-white/5 p-4 rounded-[2rem] border border-white/5">
-                            <p className="text-xl font-black text-white">{statsEfficacite().totalGlobal}</p>
-                            <p className="text-[8px] uppercase text-white/30 font-bold">Global Agence</p>
+                          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:border-blue-500/30 transition-all">
+                            <p className="text-2xl font-black text-white">{statsEfficacite().totalGlobal}</p>
+                            <p className="text-[8px] uppercase text-white/40 font-bold tracking-wider">Global Agence</p>
                           </div>
                         </div>
                       </div>
                     ) : (
                       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        {/* FILTRES TEMPORELS & STATUT */}
+                        {/* FILTRES */}
                         <div className="space-y-4">
-                          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1">
+                          <div className="flex bg-white/10 p-1 rounded-xl border border-white/10 gap-1">
                             {['avant', 'present', 'futur'].map((t) => (
                               <button
                                 key={t}
                                 onClick={() => setTimeFilter(t as any)}
-                                className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${timeFilter === t ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
+                                className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${timeFilter === t
+                                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                                    : 'text-white/40 hover:text-white'
+                                  }`}
                               >
-                                {t}
+                                {t === 'avant' ? 'Passé' : t === 'present' ? 'Présent' : 'Futur'}
                               </button>
                             ))}
                           </div>
 
                           <div className="grid grid-cols-2 gap-2">
                             {timeFilter !== 'present' && (
-                              <div className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-xl border border-white/5">
+                              <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl border border-white/10">
                                 <span className="text-[8px] text-white/40 font-black uppercase">Mois :</span>
-                                <input type="number" value={monthCount} onChange={(e) => setMonthCount(Math.max(1, parseInt(e.target.value)))} className="w-8 bg-transparent text-right font-black text-blue-500 outline-none text-xs" />
+                                <input
+                                  type="number"
+                                  value={monthCount}
+                                  onChange={(e) => setMonthCount(Math.max(1, parseInt(e.target.value)))}
+                                  className="w-8 bg-transparent text-right font-black text-blue-400 outline-none text-xs"
+                                />
                               </div>
                             )}
                             <select
                               value={statusFilter}
                               onChange={(e) => setStatusFilter(e.target.value as any)}
-                              className="flex-1 bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-[9px] font-black uppercase text-white outline-none focus:border-blue-500/50 transition-all"
+                              className="flex-1 bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-[9px] font-black uppercase text-white outline-none focus:border-blue-500/50 transition-all"
                             >
-                              <option value="tous" className="bg-[#0a0a0a]">Tous les statuts</option>
-                              <option value="Occupé" className="bg-[#0a0a0a]">Occupé (En cours)</option>
-                              <option value="Reservé" className="bg-[#0a0a0a]">Réservé (En attente)</option>
+                              <option value="tous" className="bg-black">Tous les statuts</option>
+                              <option value="Occupé" className="bg-black">Occupé (En cours)</option>
+                              <option value="Reservé" className="bg-black">Réservé (En attente)</option>
                             </select>
                           </div>
                         </div>
 
-                        {/* LISTE COMPACTE DES RÉSERVATIONS */}
+                        {/* LISTE DES RÉSERVATIONS */}
                         <div className="space-y-2">
-                          {getFilteredReservations().map((res, idx) => (
-                            <motion.div
-                              key={idx}
-                              className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-2xl hover:border-blue-500/30 transition-all group"
-                            >
-                              {/* PHOTO MINIATURE AVEC INPUT OVERLAY */}
-                              <div className="relative h-10 w-10 shrink-0 rounded-lg overflow-hidden bg-black border border-white/10 group">
-                                <img src={res.photoCampagneUrl} className="w-full h-full object-cover" alt="" />
-
-                                {/* Overlay Update (existant) */}
-                                <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                                  <input type="file" className="hidden" onChange={(e) => handlePhotoUpdate(e, res.id)} />
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                                    <circle cx="12" cy="13" r="4" />
-                                  </svg>
-                                </label>
-
-                                {/* Bouton Suppression Direct */}
-
+                          {getFilteredReservations().length === 0 ? (
+                            <div className="text-center py-12">
+                              <div className="w-12 h-12 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-3">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/30">
+                                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                  <line x1="16" y1="2" x2="16" y2="6" />
+                                  <line x1="8" y1="2" x2="8" y2="6" />
+                                  <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
                               </div>
-
-                              {/* INFOS GRID COMPACT */}
-                              {/* INFOS GRID COMPACT */}
-                              <div className="flex-1 min-w-0 grid grid-cols-2 items-center gap-2">
-                                <div>
-                                  <p className="text-[8px] font-black text-blue-500 truncate uppercase">{res.faceId}</p>
-                                  <p className="text-[10px] text-white font-bold truncate uppercase leading-tight">{res.societeLocatrice}</p>
-                                </div>
-
-                                {/* COLONNE DE DROITE : Dates + Corbeille */}
-                                <div className="text-right flex flex-col items-end gap-1">
-                                  <div className="flex flex-col">
-                                    <p className="text-[8px] text-white/50 font-bold">{res.dateDebut}</p>
-                                    <p className="text-[7px] text-white/20 uppercase">au {res.dateFin}</p>
-                                  </div>
-
-                                  {/* BOUTON CORBEILLE */}
-                                  <button
-                                    type="button"
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    onClick={() => handleDeleteReservation(res, res.panelDocId)}
-                                    className="p-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-lg transition-colors"
-                                  >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="3 6 5 6 21 6"></polyline>
-                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              <p className="text-white/40 text-xs font-bold uppercase">Aucune réservation</p>
+                              <p className="text-white/20 text-[8px] mt-1">Aucune réservation trouvée</p>
+                            </div>
+                          ) : (
+                            getFilteredReservations().map((res, idx) => (
+                              <motion.div
+                                key={idx}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.05 }}
+                                className="flex items-center gap-3 p-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:border-blue-500/40 transition-all group"
+                              >
+                                {/* PHOTO MINIATURE */}
+                                <div className="relative h-10 w-10 shrink-0 rounded-lg overflow-hidden bg-black border border-white/10">
+                                  <img src={res.photoCampagneUrl} className="w-full h-full object-cover" alt="" />
+                                  <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                                    <input type="file" className="hidden" onChange={(e) => handlePhotoUpdate(e, res.id)} />
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                                      <circle cx="12" cy="13" r="4" />
                                     </svg>
-                                  </button>
+                                  </label>
                                 </div>
-                              </div>
-                            </motion.div>
-                          ))}
+
+                                {/* INFOS */}
+                                <div className="flex-1 min-w-0 grid grid-cols-2 items-center gap-2">
+                                  <div>
+                                    <p className="text-[8px] font-black text-blue-400 truncate uppercase">{res.faceId}</p>
+                                    <p className="text-[10px] text-white font-bold truncate uppercase leading-tight">{res.societeLocatrice}</p>
+                                  </div>
+                                  <div className="text-right flex flex-col items-end gap-1">
+                                    <div className="flex flex-col">
+                                      <p className="text-[8px] text-white/50 font-bold">{res.dateDebut}</p>
+                                      <p className="text-[7px] text-white/20 uppercase">au {res.dateFin}</p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteReservation(res, res.panelDocId)}
+                                      className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                                    >
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <polyline points="3 6 5 6 21 6" />
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ))
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* BOTTOM PANEL (FIXED) */}
-                  <div className="p-6 bg-black border-t border-white/10 space-y-6">
-                    {/* IDENTITÉ + SWITCHER */}
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-600 to-blue-400 flex items-center justify-center text-black font-black uppercase text-sm shadow-lg">
-                          {user?.displayName?.[0] || "A"}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-black text-white uppercase truncate">{user?.nomComplet || "Agent Kin-Geo"}</p>
-                          <p className="text-[9px] text-white/30 truncate font-medium">{user?.email}</p>
-                        </div>
+                  {/* BOTTOM PANEL */}
+                  <div className="p-5 border-t border-white/10 bg-gradient-to-t from-black/60 to-transparent space-y-4">
+                    {/* IDENTITÉ */}
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-black uppercase text-sm shadow-lg">
+                        {user?.displayName?.[0] || "A"}
                       </div>
-
-                      {/* LE COMMUTATEUR (SWITCH) JUSTE APRÈS L'IDENTITÉ */}
-                      <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
-                        <button
-                          onClick={() => setActiveTab('stats')}
-                          className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'stats' ? 'bg-blue-500 text-white shadow-lg' : 'text-white/40'}`}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 20V10M18 20V4M6 20v-4" /></svg>
-                          Stats
-                        </button>
-                        <button
-                          onClick={() => setActiveTab('reservations')}
-                          className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'reservations' ? 'bg-blue-500 text-white shadow-lg' : 'text-white/40'}`}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg>
-                          Gestion
-                        </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-white uppercase truncate">{user?.nomComplet || "Agent Kin-Geo"}</p>
+                        <p className="text-[8px] text-white/40 truncate font-medium">{user?.email}</p>
                       </div>
                     </div>
 
+                    {/* SWITCHER STATS / GESTION */}
+                    <div className="flex bg-white/10 p-1 rounded-xl border border-white/10">
+                      <button
+                        onClick={() => setActiveTab('stats')}
+                        className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'stats'
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                            : 'text-white/40 hover:text-white'
+                          }`}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M12 20V10M18 20V4M6 20v-4" />
+                        </svg>
+                        Stats
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('reservations')}
+                        className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'reservations'
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                            : 'text-white/40 hover:text-white'
+                          }`}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                        </svg>
+                        Gestion
+                      </button>
+                    </div>
+
+                    {/* BOUTON FERMER */}
                     <button
                       onClick={() => setIsStatsOpen(false)}
-                      className="w-full py-4 bg-white/5 border border-white/10 text-white hover:bg-red-500 hover:text-white transition-all rounded-2xl font-black uppercase text-[10px] tracking-[0.2em]"
+                      className="w-full py-3 bg-white/10 border border-white/20 text-white/80 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all rounded-xl font-black uppercase text-[10px] tracking-[0.2em] active:scale-95"
                     >
                       Fermer le panel
                     </button>
@@ -1608,7 +1842,6 @@ export default function UltimateSupervisor() {
               </>
             )}
           </AnimatePresence>
-
         </header>
 
 
@@ -2009,6 +2242,12 @@ import {
 
 } from 'lucide-react';
 import { panneaux } from '@/data/panneaux';
+import {
+  // Pour l'adresse
+  Layers,      // Pour le type
+  Maximize,    // Pour les dimensions
+  // Pour le chargement
+} from 'lucide-react';
 
 
 import { useRef } from 'react';
@@ -2343,7 +2582,17 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
 
   return (
-    <div className="fixed inset-0 z-[600] flex items-center justify-center p-2 md:p-4 bg-black/90 backdrop-blur-xl">
+    <div className="fixed inset-0 z-[600] flex items-center justify-center p-2 sm:p-3 md:p-4">
+      {/* IMAGE DE FOND AVEC EFFET FLOU */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src="/fond.jpg"
+          alt="Background"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
+      </div>
+
       <input
         type="file"
         ref={fileInputRef}
@@ -2352,75 +2601,116 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         onChange={(e) => handleImageUpload(e, parseInt(fileInputRef.current?.dataset.idx || "0"))}
       />
 
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-[#1e40af] border border-white/20 w-full max-w-6xl max-h-[96vh] rounded-[2rem] md:rounded-[3rem] overflow-hidden flex flex-col shadow-2xl">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 50 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="relative z-10 bg-black/40 backdrop-blur-xl border border-white/20 w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] rounded-2xl sm:rounded-3xl md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl"
+      >
 
-        {/* HEADER */}
-        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-[#d4af37] rounded-2xl text-black"><Layout size={24} /></div>
-            <h2 className="text-xl md:text-2xl font-black italic text-white uppercase italic">Support <span className="text-[#d4af37]">{formData.idPan}</span></h2>
+        {/* HEADER ÉLÉGANT */}
+        <div className="p-4 sm:p-5 md:p-6 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-white/5 to-transparent">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-2 sm:p-2.5 md:p-3 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl sm:rounded-2xl text-black shadow-lg">
+              <Layout size={18} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
+            </div>
+            <div>
+              <p className="text-[8px] sm:text-[9px] text-amber-400 font-black uppercase tracking-wider">Détails du support</p>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-black italic text-white">
+                Support <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">{formData.idPan}</span>
+              </h2>
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 rounded-full hover:bg-red-500 text-white"><X size={20} /></button>
+          <button
+            onClick={onClose}
+            className="p-2 bg-white/10 hover:bg-red-500/80 rounded-full transition-all duration-300 hover:scale-105 active:scale-95"
+          >
+            <X size={16} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
+          </button>
         </div>
 
-        {/* BODY */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-10 custom-scrollbar">
+        {/* BODY SCROLLABLE */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-6 lg:p-8 space-y-6 sm:space-y-8 custom-scrollbar">
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-2">
-              <label className="text-[9px] font-black text-[#d4af37] uppercase ml-1">Adresse</label>
-              <input type="text" value={formData.adresse || ''} onChange={(e) => setFormData({ ...formData, adresse: e.target.value })} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-[#d4af37]" />
+          {/* CARTES INFORMATIVES ÉLÉGANTES */}
+          {(formData.adresse || formData.type || formData.dimension) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {formData.adresse && (
+                <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:border-amber-400/50 transition-all duration-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin size={12} className="text-amber-400" />
+                    <label className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-wider">Adresse</label>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-white/90 font-medium break-words">{formData.adresse}</p>
+                </div>
+              )}
+
+              {formData.type && (
+                <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:border-amber-400/50 transition-all duration-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Layers size={12} className="text-amber-400" />
+                    <label className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-wider">Type</label>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-white/90 font-medium">{formData.type}</p>
+                </div>
+              )}
+
+              {formData.dimension && (
+                <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:border-amber-400/50 transition-all duration-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Maximize size={12} className="text-amber-400" />
+                    <label className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-wider">Dimensions</label>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-white/90 font-medium">{formData.dimension}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SECTION GESTION DES FACES */}
+          <div className="space-y-4 sm:space-y-5">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-amber-400 to-yellow-500 rounded-full" />
+              <div>
+                <h3 className="text-[10px] sm:text-[11px] font-black text-white uppercase tracking-[0.2em]">Gestion des faces</h3>
+                <p className="text-[7px] sm:text-[8px] text-white/40 uppercase">Configuration des faces du panneau</p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[9px] font-black text-[#d4af37] uppercase ml-1">Type</label>
-              <select value={formData.type || ''} onChange={(e) => setFormData({ ...formData, type: e.target.value })} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white outline-none">
-                {TYPES_SUPPORTS.map(t => <option key={t} value={t} className="bg-[#1e40af]">{t}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[9px] font-black text-[#d4af37] uppercase ml-1">Dimensions</label>
-              <input type="text" value={formData.dimension || ''} onChange={(e) => setFormData({ ...formData, dimension: e.target.value })} className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white outline-none" />
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em]">Gestion des faces</h3>
-            <div className="grid gap-6">
+            <div className="grid gap-4 sm:gap-5">
               {formData.faces?.map((face: any, idx: number) => {
-                // Calcul des états avant le rendu pour alléger le JSX
                 const warning = getReservationWarning(face);
                 const isLocked = !canEditFace(face);
 
                 return (
-                  <div
+                  <motion.div
                     key={face.faceId || idx}
-                    className={`bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col gap-6 group hover:border-[#d4af37] transition-all ${isLocked ? "opacity-75" : ""}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className={`bg-gradient-to-br from-white/5 to-transparent backdrop-blur-sm border rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 sm:gap-5 group hover:border-amber-400/40 transition-all duration-300 ${isLocked ? "opacity-75" : ""}`}
                   >
-                    <div className="flex flex-col lg:flex-row items-center gap-6 w-full">
+                    <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 w-full">
 
-                      {/* 1. Zone Photo */}
+                      {/* ZONE PHOTO */}
                       {(face.statut === "Occupé" || face.statut === "Réservé") && (
-                        <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-black border border-white/10 shadow-xl flex-shrink-0">
+                        <div className="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-xl sm:rounded-2xl overflow-hidden bg-black/50 border border-white/10 shadow-xl flex-shrink-0 mx-auto lg:mx-0">
                           {face.photoCampagneUrl ? (
                             <>
                               <img src={face.photoCampagneUrl} className="w-full h-full object-cover" alt="Face" />
-                              {!isLocked || isOwner(face) ? (
+                              {(!isLocked || isOwner(face)) && (
                                 <button
                                   onClick={() => removePhoto(idx)}
-                                  className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white hover:scale-110"
+                                  className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white hover:scale-110 transition-transform"
                                 >
-                                  <X size={14} />
+                                  <X size={12} />
                                 </button>
-                              ) : (
-                                <div className="absolute top-1 right-1 p-1 bg-gray-500 rounded-full text-white cursor-not-allowed">
-                                  <X size={14} />
-                                </div>
                               )}
                             </>
                           ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-[8px] text-white/40">
-                              <Camera size={20} className="mb-1" /> PHOTO OBLIGATOIRE
+                            <div className="w-full h-full flex flex-col items-center justify-center text-[7px] text-white/40 bg-black/30">
+                              <Camera size={16} className="mb-1" />
+                              <span className="hidden sm:inline">PHOTO</span>
                             </div>
                           )}
 
@@ -2431,153 +2721,134 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                                   fileInputRef.current!.dataset.idx = idx.toString();
                                   fileInputRef.current?.click();
                                 }}
-                                className="p-3 bg-[#d4af37] rounded-full text-black"
+                                className="p-2 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full text-black hover:scale-110 transition-transform"
                               >
-                                <Upload size={20} />
+                                <Upload size={14} />
                               </button>
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* 2. Champs de saisie */}
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                      {/* CHAMPS DE SAISIE */}
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+
+                        {/* Statut */}
                         <div className="space-y-1">
-                          <p className="text-[8px] font-black text-white/30 uppercase italic">Statut</p>
+                          <label className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
+                            <div className="w-1 h-1 bg-amber-400 rounded-full" /> Statut
+                          </label>
                           <select
                             value={face.statut || ''}
                             onChange={(e) => updateFace(idx, 'statut', e.target.value)}
                             disabled={isLocked}
-                            className="w-full bg-white/5 border-b border-white/10 text-xs font-bold text-[#d4af37] p-2 outline-none"
+                            className="w-full bg-black/40 border border-white/10 rounded-lg text-[11px] sm:text-xs font-bold text-amber-400 p-2.5 outline-none focus:border-amber-400 transition-all"
                           >
-                            {STATUTS_POSSIBLES.map(s => <option key={s} value={s} className="bg-[#1e40af]">{s}</option>)}
+                            {STATUTS_POSSIBLES.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </div>
 
+                        {/* Champs conditionnels */}
                         {(face.statut === "Occupé" || face.statut === "Réservé") && (
                           <>
+                            {/* Société */}
                             <div className="space-y-1">
-                              <p className="text-[8px] font-black text-[#d4af37] uppercase italic">Société (Locataire)</p>
-
+                              <label className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
+                                <div className="w-1 h-1 bg-amber-400 rounded-full" /> Société
+                              </label>
                               <input
-                                list={`list-societes-${idx}`} // ID unique par face
+                                list={`list-societes-${idx}`}
                                 value={face.clientNom || ''}
                                 disabled={isLocked}
-                                placeholder="Sélectionner ou saisir une société..."
+                                placeholder="Sélectionner..."
                                 onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
-                                className={`w-full bg-white/5 border border-white/10 p-2 rounded-lg text-white text-xs outline-none ${isLocked ? "cursor-not-allowed opacity-50" : "focus:border-[#d4af37]"
-                                  }`}
+                                className="w-full bg-black/40 border border-white/10 rounded-lg text-[11px] sm:text-xs text-white p-2.5 outline-none focus:border-amber-400 transition-all"
                               />
-
-                              {/* La liste de suggestions qui apparaît quand on clique ou tape */}
                               <datalist id={`list-societes-${idx}`}>
-                                {Array.from(new Set(listeSocietes || []))
-                                  .filter(nom => nom && nom.trim() !== "")
-                                  .map((nom, i) => (
-                                    <option key={`${nom}-${i}`} value={nom} />
-                                  ))}
+                                {Array.from(new Set(listeSocietes || [])).filter(nom => nom?.trim()).map((nom, i) => (
+                                  <option key={i} value={nom} />
+                                ))}
                               </datalist>
                             </div>
 
-                            <div className="flex gap-2">
-                              {['dateDebut', 'dateFin'].map((dField) => (
-                                <div key={dField} className="space-y-1 flex-1">
-                                  <p className="text-[8px] font-black text-[#d4af37] uppercase italic">
-                                    {dField === 'dateDebut' ? "Début" : "Fin"}
-                                  </p>
-
-                                  <input
-                                    type="date"
-                                    // Si face[dField] est undefined ou null, on passe une chaîne vide
-                                    value={face[dField] || ''}
-                                    onChange={(e) => {
-                                      const newValue = e.target.value;
-
-                                      // Met à jour dynamiquement le bon champ
-                                      updateFace(idx, dField, newValue);
-
-                                      // Appelle la vérification avec les valeurs à jour
-                                      const newDebut = dField === 'dateDebut' ? newValue : face.dateDebut;
-                                      const newFin = dField === 'dateFin' ? newValue : face.dateFin;
-
-                                      checkDateConflict(idx, newDebut, newFin, face.reservations || []);
-                                    }}
-                                  />
-
-                                  {/* Affiche le message de conflit spécifique à CETTE face (idx) */}
-                                  {conflitMessages[idx] && (
-                                    <div style={{ color: 'red', fontWeight: 'bold', marginTop: '10px', fontSize: '10px' }}>
-                                      {conflitMessages[idx]}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
+                            {/* Dates */}
+                            <div className="space-y-1 col-span-2">
+                              <label className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
+                                <div className="w-1 h-1 bg-amber-400 rounded-full" /> Période
+                              </label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="date"
+                                  value={face.dateDebut || ''}
+                                  onChange={(e) => updateFace(idx, 'dateDebut', e.target.value)}
+                                  className="flex-1 bg-black/40 border border-white/10 rounded-lg text-[11px] sm:text-xs text-white p-2.5 outline-none focus:border-amber-400"
+                                />
+                                <span className="text-white/30 self-center">→</span>
+                                <input
+                                  type="date"
+                                  value={face.dateFin || ''}
+                                  onChange={(e) => updateFace(idx, 'dateFin', e.target.value)}
+                                  className="flex-1 bg-black/40 border border-white/10 rounded-lg text-[11px] sm:text-xs text-white p-2.5 outline-none focus:border-amber-400"
+                                />
+                              </div>
+                              {conflitMessages[idx] && (
+                                <p className="text-[8px] text-red-400 font-medium mt-1">{conflitMessages[idx]}</p>
+                              )}
                             </div>
                           </>
                         )}
 
                         {/* Message d'avertissement */}
                         {warning && (
-                          <div className="col-span-full bg-red-500/10 border border-red-500/50 p-3 rounded-lg">
-                            <p className="text-[10px] text-red-400 font-medium">⚠️ {warning}</p>
+                          <div className="col-span-full bg-red-500/10 border border-red-500/30 rounded-lg p-2.5 mt-1">
+                            <p className="text-[8px] sm:text-[9px] text-red-400 font-medium">⚠️ {warning}</p>
                           </div>
                         )}
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
           </div>
         </div>
 
-        {/* FOOTER ULTRA-COMPACT & PREMIUM */}
-        <div className="p-4 md:p-8 bg-black/60 backdrop-blur-xl border-t border-white/10 flex justify-end items-center gap-2 md:gap-4">
-
-          {/* Bouton Annuler : Plus discret sur mobile */}
+        {/* FOOTER ÉLÉGANT */}
+        <div className="p-4 sm:p-5 md:p-6 bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm border-t border-white/10 flex justify-end items-center gap-3 sm:gap-4">
           <button
             onClick={onClose}
-            className="px-4 md:px-8 py-2 md:py-3 text-[9px] md:text-[10px] font-black uppercase text-white/30 hover:text-white transition-all tracking-tighter md:tracking-widest"
+            className="px-4 sm:px-6 py-2 sm:py-2.5 text-[9px] sm:text-[10px] font-black uppercase text-white/50 hover:text-white transition-all rounded-xl hover:bg-white/10"
           >
             Annuler
           </button>
 
-          {/* Bouton Enregistrer : Style "Golden Glass" */}
           <button
             onClick={handleSave}
             disabled={isButtonDisabled}
-            className={`
-      relative overflow-hidden flex items-center gap-2 md:gap-3 px-6 md:px-12 py-3 md:py-4 rounded-xl md:rounded-full 
-      font-black uppercase text-[9px] md:text-[10px] transition-all duration-300 shadow-2xl
-      ${isSaving
+            className={`relative overflow-hidden flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-full font-black uppercase text-[9px] sm:text-[10px] transition-all duration-300 shadow-lg
+              ${isSaving
                 ? "bg-white/10 text-white/20 cursor-not-allowed"
-                : "bg-[#d4af37] text-black hover:shadow-[#d4af37]/20 hover:scale-[1.02] active:scale-95 group"
-              }
-    `}
+                : "bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-95 group"
+              }`}
           >
-            {/* Effet de reflet brillant (Glint) au survol */}
             {!isSaving && (
-              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             )}
 
             {isSaving ? (
               <>
                 <Loader2 className="animate-spin" size={14} />
-                <span className="hidden md:inline">Enregistrement...</span>
-                <span className="md:hidden">Patientez...</span>
+                <span className="hidden xs:inline">Enregistrement...</span>
               </>
             ) : (
               <>
-                <Save size={14} className="md:w-4 md:h-4" />
-                <span>
-                  <span className="md:hidden">Enregistrer</span>
-                  <span className="hidden md:inline">Enregistrer les modifications</span>
-                </span>
+                <Save size={14} />
+                <span className="hidden xs:inline">Enregistrer</span>
+                <span className="xs:hidden">OK</span>
               </>
             )}
           </button>
         </div>
-
 
       </motion.div>
     </div>
