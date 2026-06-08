@@ -74,7 +74,26 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   };
 
   const downloadImage = async (url: string) => {
+    // Afficher un message ou toast (optionnel)
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50';
+    toast.innerText = '⏳ Téléchargement dans 3 secondes... Maintenez appuyé';
+    document.body.appendChild(toast);
+
     try {
+      // Attendre 3 secondes
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Supprimer le toast
+      toast.remove();
+
+      // Afficher un nouveau toast de téléchargement
+      const downloadingToast = document.createElement('div');
+      downloadingToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500/80 text-white px-4 py-2 rounded-lg text-sm z-50';
+      downloadingToast.innerText = '📥 Téléchargement en cours...';
+      document.body.appendChild(downloadingToast);
+
+      // Effectuer le téléchargement
       const response = await fetch(url);
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -84,7 +103,26 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (err) { console.error("Erreur téléchargement", err); }
+      URL.revokeObjectURL(blobUrl); // Nettoyer l'URL
+
+      // Afficher un message de succès
+      downloadingToast.innerText = '✅ Téléchargement terminé !';
+      downloadingToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm z-50';
+
+      // Supprimer le toast après 2 secondes
+      setTimeout(() => downloadingToast.remove(), 2000);
+
+    } catch (err) {
+      console.error("Erreur téléchargement", err);
+      toast.remove();
+
+      // Afficher une erreur
+      const errorToast = document.createElement('div');
+      errorToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm z-50';
+      errorToast.innerText = '❌ Erreur lors du téléchargement';
+      document.body.appendChild(errorToast);
+      setTimeout(() => errorToast.remove(), 3000);
+    }
   };
 
   const getActiveData = (face: any) => {
@@ -141,78 +179,98 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
 
       {faces.map((face: any, fIdx: number) => {
         const data = getActiveData(face);
-        //const displayId = `${idPan}-${face.id || fIdx + 1}`;
         const displayId = `${panneau.idPan}-${face.id || fIdx + 1}`;
 
         return (
-          <motion.div key={fIdx} className="relative w-full h-[450px] rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 group">
-
-            {/* IMAGE ET LOGIQUE D'INTERACTION */}
+          <motion.div
+            key={fIdx}
+            className="relative w-full h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[450px] rounded-2xl sm:rounded-[2rem] overflow-hidden shadow-lg sm:shadow-2xl border border-white/10 group"
+          >
+            {/* IMAGE - Sans l'ombre en bas */}
             <div className="absolute inset-0 overflow-hidden">
-              <img src={data.photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none" alt="Face" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+              <img
+                src={data.photo}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none"
+                alt="Face"
+              />
+              {/* ✅ SUPPRESSION de la ligne qui créait l'ombre : 
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" /> 
+              */}
 
+              {/* Zone de téléchargement avec délai de 3 secondes */}
               <div
                 className="absolute inset-0 z-10 cursor-pointer"
                 onClick={() => setZoomedImage(data.photo)}
-                onMouseDown={() => setPressTimer(setTimeout(() => downloadImage(data.photo), 600))}
+                onMouseDown={() => {
+                  const timer = setTimeout(() => {
+                    downloadImage(data.photo);
+                  }, 3000);
+                  setPressTimer(timer);
+                }}
                 onMouseUp={() => pressTimer && clearTimeout(pressTimer)}
                 onMouseLeave={() => pressTimer && clearTimeout(pressTimer)}
-                onTouchStart={() => setPressTimer(setTimeout(() => downloadImage(data.photo), 600))}
+                onTouchStart={() => {
+                  const timer = setTimeout(() => {
+                    downloadImage(data.photo);
+                  }, 3000);
+                  setPressTimer(timer);
+                }}
                 onTouchEnd={() => pressTimer && clearTimeout(pressTimer)}
                 onContextMenu={(e) => e.preventDefault()}
               />
             </div>
 
-            {/* BADGE STATUT */}
-            <div className="absolute top-4 right-4">
-              <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border backdrop-blur-md ${getStatusStyles(data.label)}`}>
+            {/* BADGE STATUT - Responsive */}
+            <div className="absolute top-2 right-2 xs:top-3 xs:right-3 sm:top-4 sm:right-4">
+              <span className={`px-2 py-0.5 xs:px-3 xs:py-1 sm:px-4 sm:py-1.5 rounded-full text-[7px] xs:text-[8px] sm:text-[9px] font-black uppercase tracking-wider border backdrop-blur-md ${getStatusStyles(data.label)}`}>
                 {data.label}
               </span>
             </div>
 
-            {/* INFOS */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              <div className="mb-4">
-                <h3 className="text-2xl font-black italic uppercase">Face : {displayId}</h3>
-                <p className="text-[10px] text-[#d4af37] font-bold uppercase">{panneau.adresse}</p>
-                <p className="text-[10px] text-white/60 font-bold uppercase">Dimension: {panneau.dimension}</p>
+            {/* INFOS - Responsives et sans superposition excessive */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 xs:p-4 sm:p-5 md:p-6 text-white bg-gradient-to-t from-black/80 via-black/50 to-transparent">
+              <div className="mb-2 xs:mb-3 sm:mb-4">
+                <h3 className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase">
+                  Face : {displayId}
+                </h3>
+                <p className="text-[8px] xs:text-[9px] sm:text-[10px] text-black/90 font-bold uppercase truncate max-w-[90%]">
+                  {panneau.adresse}
+                </p>
               </div>
 
-
-
               {data.hasReservation && (
-                <div className="bg-white/10 p-3 rounded-xl backdrop-blur-md mb-4 border border-white/10">
-                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                <div className="bg-white/10 p-2 xs:p-2.5 sm:p-3 rounded-lg xs:rounded-xl backdrop-blur-md mb-2 xs:mb-3 sm:mb-4 border border-white/10">
+                  <p className="text-[6px] xs:text-[7px] sm:text-[8px] uppercase text-white/50 font-bold truncate">
                     Client: <span className="text-white">{data.client}</span>
                   </p>
-                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                  <p className="text-[6px] xs:text-[7px] sm:text-[8px] uppercase text-white/50 font-bold truncate">
                     Agent: <span className="text-white">{data.agent}</span>
                   </p>
-                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                  <p className="text-[6px] xs:text-[7px] sm:text-[8px] uppercase text-white/50 font-bold truncate">
                     Période: <span className="text-white">{data.dates}</span>
                   </p>
                 </div>
               )}
+
               <div className="flex gap-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedFaceDetails(face);
                   }}
-                  className="relative z-20 flex-1 py-3 bg-white/10 backdrop-blur-md rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all"
+                  className="relative z-20 flex-1 py-1.5 xs:py-2 sm:py-2.5 md:py-3 bg-white/10 backdrop-blur-md rounded-lg xs:rounded-xl text-[8px] xs:text-[9px] sm:text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all active:scale-95"
                 >
                   Détails
                 </button>
 
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Empêche le clic de se propager vers la div d'interaction
+                    e.stopPropagation();
                     onEdit(panneau);
                   }}
-                  className="relative z-20 py-3 px-6 bg-[#d4af37] rounded-xl text-black font-black text-[10px] uppercase hover:bg-white transition-all"
+                  className="relative z-20 px-3 xs:px-4 sm:px-5 md:px-6 py-1.5 xs:py-2 sm:py-2.5 md:py-3 bg-[#d4af37] rounded-lg xs:rounded-xl text-black font-black text-[8px] xs:text-[9px] sm:text-[10px] uppercase hover:bg-white transition-all active:scale-95"
                 >
-                  <Settings size={14} />
+                  <Settings size={12} className="xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
                 </button>
               </div>
             </div>
@@ -221,8 +279,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
       })}
     </>
   );
-};
-
+}
 
 
 
@@ -892,7 +949,7 @@ export default function UltimateSupervisor() {
 
 
       {/* NAV HEADER */}
-      <nav className={`fixed top-0 inset-x-0 z-[150] p-2 sm:p-3 md:p-4 lg:p-6 ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'} transition-all duration-500`}>
+      <nav className={`fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 py-2 sm:py-3 ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'} transition-all duration-500`}>
         <div className="max-w-[1800px] mx-auto">
           <motion.div
             initial={{ y: 0, opacity: 0 }}
@@ -908,151 +965,146 @@ export default function UltimateSupervisor() {
               opacity: { duration: 0.3 }
             }}
             className={`
-              relative group overflow-visible
-              flex items-center justify-between 
-              h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
-              px-3 sm:px-5 md:px-6 lg:px-8
-              rounded-xl sm:rounded-2xl md:rounded-3xl lg:rounded-[2rem]
-              transition-all duration-500
-              ${hidden
-                ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-lg'  // Changé
-                : 'bg-gradient-to-r from-white/80 via-white/70 to-white/80 backdrop-blur-2xl border-white/30 shadow-2xl shadow-black/10'  // Changé
+        relative group overflow-visible
+        flex items-center justify-between 
+        min-h-[52px] sm:min-h-[60px] md:min-h-[68px]
+        px-2 xs:px-3 sm:px-4 md:px-5 lg:px-6
+        rounded-xl sm:rounded-2xl md:rounded-3xl
+        transition-all duration-500
+        ${hidden
+                ? 'bg-white/90 backdrop-blur-xl border-white/20 shadow-md'
+                : 'bg-gradient-to-r from-white/90 via-white/80 to-white/90 backdrop-blur-2xl border-white/30 shadow-xl shadow-black/5'
               }
-              border
-              hover:border-amber-400/60  // Changé (plus visible)
-              hover:shadow-2xl hover:shadow-amber-400/20
-            `}
+        border
+        hover:border-amber-400/50
+        hover:shadow-lg hover:shadow-amber-400/10
+      `}
           >
-            {/* Effet de brillance premium au survol */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+            {/* Effets visuels */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+            <div className="absolute bottom-0 left-4 right-4 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
 
-            {/* Effet de glow doré premium */}
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/8 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-
-            {/* Bordure animée premium */}
-            <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
-
-            {/* Effet de verre dépoli supplémentaire */}
-            <div className="absolute inset-0 rounded-inherit bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            {/* LOGO - Version premium */}
+            {/* ========== LOGO ========== */}
             <div
               onClick={() => window.location.reload()}
-              className="relative flex items-center gap-2 sm:gap-3 md:gap-4 cursor-pointer group/logo"
+              className="relative flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 md:gap-3 cursor-pointer group/logo flex-shrink-0"
             >
-              {/* Anneau lumineux premium */}
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-400 opacity-0 group-hover/logo:opacity-100 blur-xl transition-opacity duration-500" />
-
-              {/* Cercle extérieur animé */}
-              <div className="absolute -inset-1 rounded-xl border-2 border-amber-400/0 group-hover/logo:border-amber-400/30 transition-all duration-500" />
+              <div className="absolute -inset-1 rounded-xl border-2 border-amber-400/0 group-hover/logo:border-amber-400/20 transition-all duration-500" />
 
               <div className="relative">
-                {/* Cercle de fond derrière le logo */}
-                <div className="absolute inset-0 bg-white rounded-xl shadow-sm" />
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 to-yellow-500/10 rounded-xl" />
-
+                <div className="absolute inset-0 bg-white rounded-lg shadow-sm" />
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 to-yellow-500/10 rounded-lg" />
                 <img
                   src={logoUrl}
-                  className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-xl object-cover border-2 border-amber-400/30 group-hover/logo:border-amber-400/70 transition-all duration-300 shadow-md group-hover/logo:shadow-amber-400/30"
+                  className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-lg object-cover border border-amber-400/30 group-hover/logo:border-amber-400/60 transition-all duration-300 shadow-sm"
                   alt="Logo"
                 />
-                <div className="absolute -top-1 -right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-lg shadow-amber-400/50" />
+                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-sm" />
               </div>
 
-              <div className="flex flex-col leading-[0.7] sm:leading-[0.75]">
-                <span className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black italic uppercase tracking-tighter">
-                  <span className="text-gray-900 drop-shadow-none group-hover/logo:text-amber-600 transition-all">G</span>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-yellow-600 drop-shadow-none">D</span>
-                  <span className="text-gray-900 drop-shadow-none group-hover/logo:text-amber-600 transition-all">P</span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase tracking-tighter">
+                  <span className="text-gray-800 group-hover/logo:text-amber-600 transition-all">G</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-yellow-600">D</span>
+                  <span className="text-gray-800 group-hover/logo:text-amber-600 transition-all">P</span>
                 </span>
-                <span className="text-[4px] sm:text-[5px] md:text-[6px] lg:text-[7px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.3em] text-amber-600/80 mt-0.5 whitespace-nowrap">
+                <span className="text-[3px] xs:text-[4px] sm:text-[5px] md:text-[6px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-amber-600/70 whitespace-nowrap">
                   GESTION DIGITALE
                 </span>
               </div>
             </div>
 
-            {/* --- BOUTONS DE NAVIGATION ÉLÉGANTS (ADAPTATIFS) --- */}
-            <div className="flex items-center gap-2 md:gap-3">
+            {/* ========== BOUTONS DE NAVIGATION ========== */}
+            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5">
               {/* Accueil */}
               <motion.button
-                whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => window.location.reload()}
-                className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-5 lg:py-3 rounded-2xl transition-all duration-300 bg-white text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100"
+                className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-white/80 text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100 active:bg-gray-100"
+                aria-label="Accueil"
               >
-                <Home size={18} className="text-gray-400 group-hover:text-amber-500 transition-all" />
-                <span className="hidden lg:inline text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">Accueil</span>
+                <Home size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all" />
+                <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">
+                  Accueil
+                </span>
               </motion.button>
 
               {/* Carte */}
               <motion.button
-                whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={ouvrirLaCarte}
-                className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-5 lg:py-3 rounded-2xl transition-all duration-300 bg-white text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100"
+                className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-white/80 text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100 active:bg-gray-100"
+                aria-label="Carte"
               >
-                <MapPin size={18} className="text-gray-400 group-hover:text-amber-500 transition-all group-hover:rotate-6" />
-                <span className="hidden lg:inline text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">Carte</span>
+                <MapPin size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all group-hover:rotate-6" />
+                <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">
+                  Carte
+                </span>
               </motion.button>
 
               {/* Rapport */}
               <Link href="/dashboard/superviseurs/rapport">
                 <motion.div
-                  whileHover={{ y: -2, scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="group relative flex items-center gap-2 px-4 py-2.5 lg:px-5 lg:py-3 rounded-2xl transition-all duration-300 bg-white text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100"
+                  whileTap={{ scale: 0.95 }}
+                  className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-white/80 text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100 cursor-pointer active:bg-gray-100"
                 >
-                  {/* Effet shine */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />
-                  <FilePieChart size={18} className="text-gray-400 group-hover:text-amber-500 transition-all group-hover:rotate-6" />
-                  <span className="hidden lg:inline text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">Rapports</span>
-                  <span className="relative z-10 text-[8px] bg-white/20 px-1.5 py-0.5 rounded-full ml-1">LIVE</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                  <FilePieChart size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all group-hover:rotate-6" />
+                  <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">
+                    Rapports
+                  </span>
+                  <span className="relative hidden sm:block ml-1.5 text-[6px] bg-amber-500/20 text-amber-600 px-1 py-0.5 rounded-full font-black">
+                    LIVE
+                  </span>
                 </motion.div>
               </Link>
             </div>
-            {/* --- USER SECTION (ULTRA COMPACTE) --- */}
-            <div className="flex items-center gap-2 lg:gap-6 shrink-0 pl-2 lg:pl-6 border-l border-gray-200">
-              {user ? (
-                <div className="flex items-center gap-2 md:gap-3">
-                  <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-gradient-to-r from-gray-50 to-white border border-gray-200 shadow-sm">
-                    {/* Info utilisateur */}
-                    <div className="text-right hidden xl:block px-2">
-                      <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">{user.nom}</p>
-                      <p className="text-[7px] font-bold text-amber-500 uppercase tracking-wider">{user.role || "Utilisateur"}</p>
-                    </div>
 
-                    {/* Bouton déconnexion */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleLogout();
-                      }}
-                      className="group flex items-center gap-2 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 text-red-500 px-4 py-2 rounded-full transition-all border border-red-200 cursor-pointer active:scale-95 shadow-sm hover:shadow-md"
-                      title="Déconnexion"
-                    >
-                      <img
-                        src={logoUrl}
-                        className="w-8 h-8 rounded-full border-2 border-amber-400 object-cover bg-white shadow-sm"
-                        alt="Profil"
-                        onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
-                      />
-                      <LogOut size={14} className="flex-shrink-0 group-hover:scale-110 transition-transform" />
-                      <span className="hidden sm:inline text-[10px] font-bold uppercase">Déconnexion</span>
-                    </button>
+            {/* ========== USER SECTION ========== */}
+            <div className="flex items-center gap-1 xs:gap-2 shrink-0 pl-1 xs:pl-2 sm:pl-3 lg:pl-4 border-l border-gray-200">
+              {user ? (
+                <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
+                  {/* Infos utilisateur (cachées sur très petit écran) */}
+                  <div className="hidden sm:block text-right">
+                    <p className="text-[10px] sm:text-[11px] font-black text-gray-700 uppercase tracking-tight truncate max-w-[100px]">
+                      {user.nom || user.nomComplet?.split(' ')[0] || 'Agent'}
+                    </p>
+                    <p className="text-[6px] sm:text-[7px] font-bold text-amber-500 uppercase tracking-wider">
+                      {user.role || "Utilisateur"}
+                    </p>
                   </div>
+
+                  {/* Bouton déconnexion */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleLogout();
+                    }}
+                    className="group flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 text-red-500 px-2 xs:px-2.5 sm:px-3 py-1.5 xs:py-2 rounded-full transition-all border border-red-200 active:scale-95 shadow-sm hover:shadow-md"
+                    title="Déconnexion"
+                  >
+                    <img
+                      src={logoUrl}
+                      className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border border-amber-400 object-cover bg-white shadow-sm"
+                      alt="Profil"
+                      onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
+                    />
+                    <LogOut size={12} className="xs:w-[13px] xs:h-[13px] sm:w-[14px] sm:h-[14px] flex-shrink-0 group-hover:scale-110 transition-transform" />
+                    <span className="hidden xs:inline text-[8px] sm:text-[9px] font-bold uppercase">Déconnexion</span>
+                  </button>
                 </div>
               ) : (
                 <button
                   onClick={() => setIsLoginOpen(true)}
-                  className="group relative overflow-hidden px-5 md:px-7 py-2.5 rounded-xl font-black uppercase text-[10px] transition-all duration-300 bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-md hover:shadow-lg active:scale-95"
+                  className="group relative overflow-hidden px-3 xs:px-4 sm:px-5 py-1.5 xs:py-2 sm:py-2.5 rounded-xl font-black uppercase text-[8px] xs:text-[9px] sm:text-[10px] transition-all duration-300 bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
                 >
-                  {/* Effet de brillance */}
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                  <span className="relative z-10">
-                    <span className="md:hidden">🔐 Connexion</span>
-                    <span className="hidden md:inline">🔐 Se Connecter</span>
+                  <span className="relative z-10 flex items-center gap-1">
+                    <span>🔐</span>
+                    <span className="hidden xs:inline">Connexion</span>
                   </span>
                 </button>
               )}
@@ -1060,7 +1112,6 @@ export default function UltimateSupervisor() {
           </motion.div>
         </div>
       </nav>
-
       {/* MAIN CONTENT */}
       <main className="relative z-20 max-w-[1800px] mx-auto px-6 pt-44 pb-40">
         <header className="mb-20 relative">

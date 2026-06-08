@@ -55,18 +55,56 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   };
 
   const downloadImage = async (url: string) => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `campagne_${Date.now()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) { console.error("Erreur téléchargement", err); }
-  };
+  // Afficher un message ou toast (optionnel)
+  const toast = document.createElement('div');
+  toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50';
+  toast.innerText = '⏳ Téléchargement dans 3 secondes... Maintenez appuyé';
+  document.body.appendChild(toast);
+  
+  try {
+    // Attendre 3 secondes
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Supprimer le toast
+    toast.remove();
+    
+    // Afficher un nouveau toast de téléchargement
+    const downloadingToast = document.createElement('div');
+    downloadingToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500/80 text-white px-4 py-2 rounded-lg text-sm z-50';
+    downloadingToast.innerText = '📥 Téléchargement en cours...';
+    document.body.appendChild(downloadingToast);
+    
+    // Effectuer le téléchargement
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `campagne_${Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl); // Nettoyer l'URL
+    
+    // Afficher un message de succès
+    downloadingToast.innerText = '✅ Téléchargement terminé !';
+    downloadingToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm z-50';
+    
+    // Supprimer le toast après 2 secondes
+    setTimeout(() => downloadingToast.remove(), 2000);
+    
+  } catch (err) { 
+    console.error("Erreur téléchargement", err);
+    toast.remove();
+    
+    // Afficher une erreur
+    const errorToast = document.createElement('div');
+    errorToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm z-50';
+    errorToast.innerText = '❌ Erreur lors du téléchargement';
+    document.body.appendChild(errorToast);
+    setTimeout(() => errorToast.remove(), 3000);
+  }
+};
 
   const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
   const getActiveData = (face: any) => {
@@ -107,7 +145,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   };
 
 
-  return (
+    return (
     <>
       <AnimatePresence>
         {selectedFaceDetails && (
@@ -126,65 +164,86 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
         const displayId = `${panneau.idPan}-${face.id || fIdx + 1}`;
 
         return (
-          <motion.div key={fIdx} className="relative w-full h-[450px] rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 group">
-
-            {/* IMAGE ET LOGIQUE D'INTERACTION */}
+          <motion.div
+            key={fIdx}
+            className="relative w-full h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[450px] rounded-2xl sm:rounded-[2rem] overflow-hidden shadow-lg sm:shadow-2xl border border-white/10 group"
+          >
+            {/* IMAGE - Sans l'ombre en bas */}
             <div className="absolute inset-0 overflow-hidden">
-              <img src={data.photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none" alt="Face" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+              <img
+                src={data.photo}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none"
+                alt="Face"
+              />
+              {/* ✅ SUPPRESSION de la ligne qui créait l'ombre : 
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" /> 
+              */}
 
+              {/* Zone de téléchargement avec délai de 3 secondes */}
               <div
                 className="absolute inset-0 z-10 cursor-pointer"
                 onClick={() => setZoomedImage(data.photo)}
-                onMouseDown={() => setPressTimer(setTimeout(() => downloadImage(data.photo), 600))}
+                onMouseDown={() => {
+                  const timer = setTimeout(() => {
+                    downloadImage(data.photo);
+                  }, 3000);
+                  setPressTimer(timer);
+                }}
                 onMouseUp={() => pressTimer && clearTimeout(pressTimer)}
                 onMouseLeave={() => pressTimer && clearTimeout(pressTimer)}
-                onTouchStart={() => setPressTimer(setTimeout(() => downloadImage(data.photo), 600))}
+                onTouchStart={() => {
+                  const timer = setTimeout(() => {
+                    downloadImage(data.photo);
+                  }, 3000);
+                  setPressTimer(timer);
+                }}
                 onTouchEnd={() => pressTimer && clearTimeout(pressTimer)}
                 onContextMenu={(e) => e.preventDefault()}
               />
             </div>
 
-            {/* BADGE STATUT */}
-            <div className="absolute top-4 right-4">
-              <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border backdrop-blur-md ${getStatusStyles(data.label)}`}>
+            {/* BADGE STATUT - Responsive */}
+            <div className="absolute top-2 right-2 xs:top-3 xs:right-3 sm:top-4 sm:right-4">
+              <span className={`px-2 py-0.5 xs:px-3 xs:py-1 sm:px-4 sm:py-1.5 rounded-full text-[7px] xs:text-[8px] sm:text-[9px] font-black uppercase tracking-wider border backdrop-blur-md ${getStatusStyles(data.label)}`}>
                 {data.label}
               </span>
             </div>
 
-            {/* INFOS */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              <div className="mb-4">
-                <h3 className="text-2xl font-black italic uppercase">Face : {displayId}</h3>
-                <p className="text-[10px] text-[#d4af37] font-bold uppercase">{panneau.adresse} • Zone: {panneau.zone}</p>
-                <p className="text-[10px] text-white/60 font-bold uppercase">Dimension: {panneau.dimension}</p>
+            {/* INFOS - Responsives et sans superposition excessive */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 xs:p-4 sm:p-5 md:p-6 text-white bg-gradient-to-t from-black/80 via-black/50 to-transparent">
+              <div className="mb-2 xs:mb-3 sm:mb-4">
+                <h3 className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase">
+                  Face : {displayId}
+                </h3>
+                <p className="text-[8px] xs:text-[9px] sm:text-[10px] text-black/90 font-bold uppercase truncate max-w-[90%]">
+                  {panneau.adresse}
+                </p>
               </div>
 
-
               {data.hasReservation && (
-                <div className="bg-white/10 p-3 rounded-xl backdrop-blur-md mb-4 border border-white/10">
-                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                <div className="bg-white/10 p-2 xs:p-2.5 sm:p-3 rounded-lg xs:rounded-xl backdrop-blur-md mb-2 xs:mb-3 sm:mb-4 border border-white/10">
+                  <p className="text-[6px] xs:text-[7px] sm:text-[8px] uppercase text-white/50 font-bold truncate">
                     Client: <span className="text-white">{data.client}</span>
                   </p>
-                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                  <p className="text-[6px] xs:text-[7px] sm:text-[8px] uppercase text-white/50 font-bold truncate">
                     Agent: <span className="text-white">{data.agent}</span>
                   </p>
-                  <p className="text-[8px] uppercase text-white/50 font-bold">
+                  <p className="text-[6px] xs:text-[7px] sm:text-[8px] uppercase text-white/50 font-bold truncate">
                     Période: <span className="text-white">{data.dates}</span>
                   </p>
                 </div>
               )}
+
               <div className="flex gap-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedFaceDetails(face);
                   }}
-                  className="relative z-20 flex-1 py-3 bg-white/10 backdrop-blur-md rounded-xl text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all"
+                  className="relative z-20 flex-1 py-1.5 xs:py-2 sm:py-2.5 md:py-3 bg-white/10 backdrop-blur-md rounded-lg xs:rounded-xl text-[8px] xs:text-[9px] sm:text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all active:scale-95"
                 >
                   Détails
                 </button>
-
               </div>
             </div>
           </motion.div>
@@ -192,10 +251,13 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
       })}
     </>
   );
-};
+}
 
 
 import { LogOut, } from 'lucide-react';
+import {
+  Settings
+} from 'lucide-react';
 import { useTransform } from 'framer-motion';
 
 // --- PAGE PRINCIPALE ---
@@ -342,7 +404,7 @@ export default function UltimateSupervisor() {
           style={{ y: yBg }} // Actionne le mouvement subtil au scroll
           className="absolute top-0 left-0 w-full h-[115%] object-cover opacity-75 blur-[2px]"
         // h-[115%] : TRÈS IMPORTANT. On rend l'image un peu plus haute que l'écran (115% au lieu de 100%)
-        // pour éviter qu'un espace vide ou bleu n'apparaisse en bas de l'écran quand l'image se déplace !
+        // pour éviter qu'un esspace vide ou bleu n'apparaisse en bas de l'écran quand l'image se déplace !
         // blur-[2px] : Un flou très léger qui garde la photo claire mais adoucit les contours.
         />
 
