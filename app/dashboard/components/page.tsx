@@ -432,7 +432,7 @@ const resetForm = () => {
     };
 
     const enregistrerPanneau = async () => {
-        if (!validateForm()) {
+        if (validateForm()) {
             alert("Veuillez remplir tous les champs obligatoires");
             return;
         }
