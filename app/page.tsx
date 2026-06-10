@@ -1536,7 +1536,7 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
         superviseurs: '/dashboard/components', // Ajout du / manquant
         commercial: '/dashboard/superviseurs',
         comptable: '/dashboard/Comptable',
-        client: '/dashboard/client'
+        client: '/dashboard/visiteurs'
       };
 
       // On récupère le rôle et on nettoie pour la correspondance
