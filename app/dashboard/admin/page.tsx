@@ -39,10 +39,35 @@ const auth = getAuth(app);
 const LOGO_URL = config.LOGO_DISPROMALT;
 
 // ============================================
-// CONSTANTES
+// FONCTION UTILITAIRE - STATUT D'UNE FACE
 // ============================================
-const COMMUNES_KINSHASA = ["Bandalungwa", "Barumbu", "Gombe", "Kalamu", "Kasa-Vubu", "Kimbanseke", "Kinshasa", "Kintambo", "Lemba", "Limete", "Lingwala", "Masina", "Matete", "Mont-Ngafula", "Ngaliema", "Ndjili", "Nsele"];
+const getFaceStatus = (face: any): 'libre' | 'occupe' | 'reserve' | 'maintenance' => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
+    const reservations = face.reservations || [];
+
+    // Chercher une réservation ACTIVE (date du jour entre début et fin)
+    const activeRes = reservations.find((res: any) => {
+        const debut = new Date(res.dateDebut);
+        const fin = new Date(res.dateFin);
+        debut.setHours(0, 0, 0, 0);
+        fin.setHours(0, 0, 0, 0);
+        return now >= debut && now <= fin;
+    });
+
+    if (activeRes) {
+        const statut = activeRes.statut?.toLowerCase();
+        if (statut === 'occupé') return 'occupe';
+        if (statut === 'réservé') return 'reserve';
+        return 'occupe';
+    }
+
+    // Vérifier si la face a un statut maintenance (champ direct)
+    if (face.statut === 'Maintenance') return 'maintenance';
+
+    return 'libre';
+};
 // ============================================
 // COMPOSANT PRINCIPAL
 // ============================================
@@ -222,8 +247,7 @@ const handleLogout = async () => {
 
 
 
-
-    // Ajouter cette fonction utilitaire avant le return du composant principal
+ // Ajouter cette fonction utilitaire avant le return du composant principal
     const getFaceStatus = (face: any): 'libre' | 'occupe' | 'reserve' | 'maintenance' => {
         const now = new Date();
         now.setHours(0, 0, 0, 0);
@@ -251,6 +275,7 @@ const handleLogout = async () => {
 
         return 'libre';
     };
+   
 
     if (loading || dataLoading) return <LoadingScreen />;
 

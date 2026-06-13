@@ -55,57 +55,73 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   };
 
   const downloadImage = async (url: string) => {
-  // Afficher un message ou toast (optionnel)
-  const toast = document.createElement('div');
-  toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50';
-  toast.innerText = '⏳ Téléchargement dans 3 secondes... Maintenez appuyé';
-  document.body.appendChild(toast);
-  
-  try {
-    // Attendre 3 secondes
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Supprimer le toast
-    toast.remove();
-    
-    // Afficher un nouveau toast de téléchargement
-    const downloadingToast = document.createElement('div');
-    downloadingToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500/80 text-white px-4 py-2 rounded-lg text-sm z-50';
-    downloadingToast.innerText = '📥 Téléchargement en cours...';
-    document.body.appendChild(downloadingToast);
-    
-    // Effectuer le téléchargement
-    const response = await fetch(url);
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = `campagne_${Date.now()}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(blobUrl); // Nettoyer l'URL
-    
-    // Afficher un message de succès
-    downloadingToast.innerText = '✅ Téléchargement terminé !';
-    downloadingToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm z-50';
-    
-    // Supprimer le toast après 2 secondes
-    setTimeout(() => downloadingToast.remove(), 2000);
-    
-  } catch (err) { 
-    console.error("Erreur téléchargement", err);
-    toast.remove();
-    
-    // Afficher une erreur
-    const errorToast = document.createElement('div');
-    errorToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm z-50';
-    errorToast.innerText = '❌ Erreur lors du téléchargement';
-    document.body.appendChild(errorToast);
-    setTimeout(() => errorToast.remove(), 3000);
-  }
-};
+    // Créer une boîte de dialogue personnalisée
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center';
+    modal.innerHTML = `
+    <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 border border-white/20 shadow-2xl">
+      <div class="text-center mb-4">
+        <div class="w-16 h-16 mx-auto bg-amber-500/20 rounded-full flex items-center justify-center mb-3">
+          <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-white mb-2">Télécharger l'image</h3>
+        <p class="text-sm text-white/60">Voulez-vous enregistrer cette image sur votre appareil ?</p>
+      </div>
+      <div class="flex gap-3">
+        <button id="cancel-download" class="flex-1 py-2 rounded-xl bg-white/10 text-white/70 text-sm font-bold uppercase tracking-wider hover:bg-white/20 transition">Annuler</button>
+        <button id="confirm-download" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-sm font-bold uppercase tracking-wider hover:shadow-lg transition">Télécharger</button>
+      </div>
+    </div>
+  `;
+    document.body.appendChild(modal);
 
+    // Gérer la confirmation
+    const confirmBtn = modal.querySelector('#confirm-download');
+    const cancelBtn = modal.querySelector('#cancel-download');
+
+    const closeModal = () => modal.remove();
+
+    confirmBtn?.addEventListener('click', async () => {
+      closeModal();
+
+      // Afficher un toast de chargement
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50';
+      toast.innerText = '📥 Téléchargement en cours...';
+      document.body.appendChild(toast);
+
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `campagne_${Date.now()}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+
+        toast.innerText = '✅ Téléchargement terminé !';
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm z-50';
+        setTimeout(() => toast.remove(), 2000);
+
+      } catch (err) {
+        toast.innerText = '❌ Erreur lors du téléchargement';
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm z-50';
+        setTimeout(() => toast.remove(), 3000);
+      }
+    });
+
+    cancelBtn?.addEventListener('click', closeModal);
+
+    // Fermer en cliquant à l'extérieur
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+  };
   const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
   const getActiveData = (face: any) => {
     const now = new Date();
@@ -145,7 +161,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   };
 
 
-    return (
+  return (
     <>
       <AnimatePresence>
         {selectedFaceDetails && (
@@ -276,9 +292,15 @@ export default function UltimateSupervisor() {
 
   const router = useRouter();
 
-  // 2. HOOKS (Framer Motion & Scroll)
 
-  // On crée d'abord scrollYProgress grâce à useScroll()
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(8); // 8 panneaux par page
+
+
+
+
   const { scrollYProgress, scrollY } = useScroll();
 
   // Maintenant qu'elle existe, on peut l'utiliser pour yBg et scaleX !
@@ -289,11 +311,7 @@ export default function UltimateSupervisor() {
     router.push('/dashboard/client');
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    router.push('/');
-  };
+
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     const previous = scrollY.getPrevious() ?? 0;
@@ -326,6 +344,15 @@ export default function UltimateSupervisor() {
 
     return matchesSearch && matchesZone && matchesFormat && matchesStatut;
   });
+
+  // Pagination - Calcul des indices
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+
+
   const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
   // --- RENDU : LOADING PREMIUM ---
@@ -387,6 +414,13 @@ export default function UltimateSupervisor() {
     );
   }
 
+  {/* Indicateur de chargement pendant le changement de page */}
+{loading && (
+  <div className="flex justify-center py-12">
+    <Loader2 className="animate-spin text-amber-500" size={32} />
+  </div>
+)}
+
   return (
     // 1. On retire "bg-[#1e40af]" d'ici pour éviter qu'il ne recouvre l'image
     <div className="min-h-screen relative text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
@@ -411,37 +445,25 @@ export default function UltimateSupervisor() {
       </div>
 
       {/* NAV HEADER - VERSION PREMIUM ULTRA MODERNE & FIXE */}
-      <nav className={`fixed top-0 inset-x-0 z-[150] p-2 sm:p-3 md:p-4 lg:p-6 ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'} transition-all duration-500`}>
-        <div className="max-w-[1800px] mx-auto">
-          <motion.div
-            initial={{ y: 0, opacity: 0 }}
-            animate={{
-              y: hidden ? -120 : 0,
-              opacity: 1,
-              scale: hidden ? 0.95 : 1
-            }}
-            transition={{
-              type: "spring",
-              damping: 25,
-              stiffness: 300,
-              opacity: { duration: 0.3 }
-            }}
-            className={`
+      <nav className="fixed top-0 inset-x-0 z-[150] p-2 sm:p-3 md:p-4 lg:p-6 backdrop-blur-3xl transition-all duration-500">
+  <div className="max-w-[1800px] mx-auto">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className={`
         relative group overflow-visible
         flex items-center justify-between 
         h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
         px-3 sm:px-5 md:px-6 lg:px-8
         rounded-xl sm:rounded-2xl md:rounded-3xl lg:rounded-[2rem]
         transition-all duration-500
-        ${hidden
-                ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-lg'  // Changé
-                : 'bg-gradient-to-r from-white/80 via-white/70 to-white/80 backdrop-blur-2xl border-white/30 shadow-2xl shadow-black/10'  // Changé
-              }
+        bg-gradient-to-r from-white/80 via-white/70 to-white/80 backdrop-blur-2xl border-white/30 shadow-2xl shadow-black/10
         border
-        hover:border-amber-400/60  // Changé (plus visible)
-        hover:shadow-2xl hover:shadow-amber-400/20
+        hover:border-amber-400/60
+        hover:shadow-2xl hover:shadow-amber-400/10
       `}
-          >
+    >
             {/* Effet de brillance premium au survol */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
 
@@ -549,24 +571,24 @@ export default function UltimateSupervisor() {
 
               {/* Bouton Menu Filtre premium - Glassmorphism avancé */}
               <motion.button
-  whileHover={{ scale: 1.05 }}
-  whileTap={{ scale: 0.95 }}
-  onClick={() => setIsSidebarOpen(true)}
-  className="group/filter relative overflow-hidden px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider transition-all duration-300 bg-gray-100 border border-gray-200 hover:bg-amber-500 hover:text-white shadow-md hover:shadow-amber-500/30"
->
-  {/* Effet de ripple premium */}
-  <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 translate-y-full group-hover/filter:translate-y-0 transition-transform duration-300" />
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsSidebarOpen(true)}
+                className="group/filter relative overflow-hidden px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider transition-all duration-300 bg-gray-100 border border-gray-200 hover:bg-amber-500 hover:text-white shadow-md hover:shadow-amber-500/30"
+              >
+                {/* Effet de ripple premium */}
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 translate-y-full group-hover/filter:translate-y-0 transition-transform duration-300" />
 
-  {/* Effet de brillance */}
-  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover/filter:translate-x-full transition-transform duration-700" />
+                {/* Effet de brillance */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover/filter:translate-x-full transition-transform duration-700" />
 
-  <span className="relative flex items-center gap-1.5 z-10">
-    <Filter size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] text-gray-700 group-hover/filter:text-white transition-colors duration-300" />
-    <span className="hidden lg:inline text-gray-800 group-hover/filter:text-white transition-colors">MENU FILTRE</span>
-    <span className="hidden md:inline lg:hidden text-gray-800 group-hover/filter:text-white transition-colors">FILTRES</span>
-    <span className="md:hidden text-gray-800 group-hover/filter:text-white transition-colors">MENU</span>
-  </span>
-</motion.button>
+                <span className="relative flex items-center gap-1.5 z-10">
+                  <Filter size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] text-gray-700 group-hover/filter:text-white transition-colors duration-300" />
+                  <span className="hidden lg:inline text-gray-800 group-hover/filter:text-white transition-colors">MENU FILTRE</span>
+                  <span className="hidden md:inline lg:hidden text-gray-800 group-hover/filter:text-white transition-colors">FILTRES</span>
+                  <span className="md:hidden text-gray-800 group-hover/filter:text-white transition-colors">MENU</span>
+                </span>
+              </motion.button>
             </div>
 
             {/* Mobile & Tablet Menu Button - Premium */}
@@ -845,19 +867,17 @@ export default function UltimateSupervisor() {
         {/* GRILLE DES PANNEAUX */}
         <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           <AnimatePresence mode="popLayout">
-            {filtered.map((p, idx) => (
+            {currentItems.map((p, idx) => (
               <ElegantCard
                 key={p.id}
                 panneau={p}
                 index={idx}
-                // "selected" contient maintenant des clés type "IDPANNEAU_IDFACE"
                 selectedIds={selected}
                 onSelect={(selectionKey: string) => {
-                  // On reçoit la clé combinée venant de la modale ou de la carte
                   setSelected((prev) =>
                     prev.includes(selectionKey)
-                      ? prev.filter((id) => id !== selectionKey) // Si déjà là, on retire
-                      : [...prev, selectionKey]                // Sinon, on ajoute
+                      ? prev.filter((id) => id !== selectionKey)
+                      : [...prev, selectionKey]
                   );
                 }}
                 ouvrirLaCarte={ouvrirLaCarte}
@@ -865,6 +885,104 @@ export default function UltimateSupervisor() {
             ))}
           </AnimatePresence>
         </motion.div>
+
+
+
+        {/* PAGINATION - ULTRA RESPONSIVE */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-12 pt-6 border-t border-white/10">
+            {/* Informations */}
+            <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider">
+              Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, filtered.length)} sur {filtered.length} panneaux
+            </div>
+
+            {/* Boutons de pagination */}
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              {/* Bouton Première page */}
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                «
+              </button>
+
+              {/* Bouton Précédent */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Précédent
+              </button>
+
+              {/* Numéros de page (responsive) */}
+              <div className="flex gap-1">
+                {(() => {
+                  let pages = [];
+                  let startPage = Math.max(1, currentPage - 2);
+                  let endPage = Math.min(totalPages, startPage + 4);
+
+                  if (endPage - startPage < 4) {
+                    startPage = Math.max(1, endPage - 4);
+                  }
+
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(i);
+                  }
+
+                  return pages.map(pageNum => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg font-black text-[10px] sm:text-[11px] transition-all ${currentPage === pageNum
+                        ? 'bg-amber-500 text-black shadow-lg'
+                        : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/20'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ));
+                })()}
+              </div>
+
+              {/* Bouton Suivant */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Suivant
+              </button>
+
+              {/* Bouton Dernière page */}
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                »
+              </button>
+            </div>
+
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-white text-[10px] font-bold uppercase outline-none cursor-pointer"
+            >
+              <option value={4}>4 par page</option>
+              <option value={8}>8 par page</option>
+              <option value={16}>16 par page</option>
+              <option value={32}>32 par page</option>
+              <option value={64}>64 par page</option>
+              <option value={128}>128 par page</option>
+
+            </select>
+          </div>
+        )}
 
         {filtered.length === 0 && (
           <div className="py-40 text-center">
@@ -1458,8 +1576,6 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
 
   const [showPassword, setShowPassword] = useState(false); // ICI !
-
-  if (!isOpen) return null;
 
   const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 

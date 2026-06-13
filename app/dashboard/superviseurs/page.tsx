@@ -74,56 +74,74 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   };
 
   const downloadImage = async (url: string) => {
-    // Afficher un message ou toast (optionnel)
-    const toast = document.createElement('div');
-    toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50';
-    toast.innerText = '⏳ Téléchargement dans 3 secondes... Maintenez appuyé';
-    document.body.appendChild(toast);
+    // Créer une boîte de dialogue personnalisée
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center';
+    modal.innerHTML = `
+    <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 border border-white/20 shadow-2xl">
+      <div class="text-center mb-4">
+        <div class="w-16 h-16 mx-auto bg-amber-500/20 rounded-full flex items-center justify-center mb-3">
+          <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-white mb-2">Télécharger l'image</h3>
+        <p class="text-sm text-white/60">Voulez-vous enregistrer cette image sur votre appareil ?</p>
+      </div>
+      <div class="flex gap-3">
+        <button id="cancel-download" class="flex-1 py-2 rounded-xl bg-white/10 text-white/70 text-sm font-bold uppercase tracking-wider hover:bg-white/20 transition">Annuler</button>
+        <button id="confirm-download" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-sm font-bold uppercase tracking-wider hover:shadow-lg transition">Télécharger</button>
+      </div>
+    </div>
+  `;
+    document.body.appendChild(modal);
 
-    try {
-      // Attendre 3 secondes
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    // Gérer la confirmation
+    const confirmBtn = modal.querySelector('#confirm-download');
+    const cancelBtn = modal.querySelector('#cancel-download');
 
-      // Supprimer le toast
-      toast.remove();
+    const closeModal = () => modal.remove();
 
-      // Afficher un nouveau toast de téléchargement
-      const downloadingToast = document.createElement('div');
-      downloadingToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500/80 text-white px-4 py-2 rounded-lg text-sm z-50';
-      downloadingToast.innerText = '📥 Téléchargement en cours...';
-      document.body.appendChild(downloadingToast);
+    confirmBtn?.addEventListener('click', async () => {
+      closeModal();
 
-      // Effectuer le téléchargement
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `campagne_${Date.now()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl); // Nettoyer l'URL
+      // Afficher un toast de chargement
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50';
+      toast.innerText = '📥 Téléchargement en cours...';
+      document.body.appendChild(toast);
 
-      // Afficher un message de succès
-      downloadingToast.innerText = '✅ Téléchargement terminé !';
-      downloadingToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm z-50';
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `campagne_${Date.now()}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
 
-      // Supprimer le toast après 2 secondes
-      setTimeout(() => downloadingToast.remove(), 2000);
+        toast.innerText = '✅ Téléchargement terminé !';
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm z-50';
+        setTimeout(() => toast.remove(), 2000);
 
-    } catch (err) {
-      console.error("Erreur téléchargement", err);
-      toast.remove();
+      } catch (err) {
+        toast.innerText = '❌ Erreur lors du téléchargement';
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm z-50';
+        setTimeout(() => toast.remove(), 3000);
+      }
+    });
 
-      // Afficher une erreur
-      const errorToast = document.createElement('div');
-      errorToast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm z-50';
-      errorToast.innerText = '❌ Erreur lors du téléchargement';
-      document.body.appendChild(errorToast);
-      setTimeout(() => errorToast.remove(), 3000);
-    }
+    cancelBtn?.addEventListener('click', closeModal);
+
+    // Fermer en cliquant à l'extérieur
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
   };
+
 
   const getActiveData = (face: any) => {
     const now = new Date();
@@ -193,11 +211,9 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none"
                 alt="Face"
               />
-              {/* ✅ SUPPRESSION de la ligne qui créait l'ombre : 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" /> 
-              */}
 
-              {/* Zone de téléchargement avec délai de 3 secondes */}
+
+
               <div
                 className="absolute inset-0 z-10 cursor-pointer"
                 onClick={() => setZoomedImage(data.photo)}
@@ -336,19 +352,19 @@ export default function UltimateSupervisor() {
   const [panneauToEdit, setPanneauToEdit] = useState<Panneau | null>(null);
 
   // --- ÉTATS UI (MODALES / SIDEBAR) ---
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isStatsOpen, setIsStatsOpen] = useState(false); // Pour l'Efficacité
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [paymentModes, setPaymentModes] = useState<{ [key: string]: 'total' | 'tranche' }>({});
   const [selectedForPrint, setSelectedForPrint] = useState<{ [key: string]: boolean }>({});
   const [panneauxData, setPanneauxData] = useState<Panneau[]>([]);
 
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(8); // 8 panneaux par page
 
 
 
@@ -444,6 +460,8 @@ export default function UltimateSupervisor() {
       return;
     }
 
+
+
     // 4. --- VÉRIFICATION SOCIÉTÉ UNIQUE ---
     const premiereSociete = selection[0].societeLocatrice?.trim().toLowerCase();
     if (!premiereSociete) {
@@ -470,12 +488,14 @@ export default function UltimateSupervisor() {
         erreursTechniques.push(`- ${res.faceLabel} : Prix manquant`);
       }
 
-      // CORRECTION ICI : On considère 'total' par défaut si paymentModes[key] est vide
       const modeActuel = paymentModes[key] || 'total';
 
-      // Si c'est en tranche, on vérifie que le nombre de tranches est saisi
-      if (modeActuel === 'tranche' && (!tranchesCount[key] || tranchesCount[key] <= 1)) {
+      if (modeActuel === 'tranche' && (!tranchesCount[key] || tranchesCount[key] <2)) {
         erreursTechniques.push(`- ${res.faceLabel} : Précisez le nombre de tranches (min. 2)`);
+      }
+
+      if (modeActuel === 'tranche' && tranchesCount[key] > res.dureeMois) {
+        erreursTechniques.push(`- ${res.faceLabel} : Le nombre de tranches (${tranchesCount[key]}) ne peut pas dépasser la durée du contrat (${res.dureeMois} mois)`);
       }
     });
 
@@ -484,8 +504,7 @@ export default function UltimateSupervisor() {
       return;
     }
 
-    // 6. --- TOUT EST OK -> ON LANCE LA MACHINE ---
-    // On récupère les IDs et on appelle la fonction de navigation
+
     const idsAEnvoyer = selection.map(r => r.resUniqueId);
     lancerFacturation(selection);
   };
@@ -855,6 +874,14 @@ export default function UltimateSupervisor() {
   });
 
 
+
+  // Pagination - Calcul des indices
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+
   const totalFaces = filtered.reduce((acc, p) => acc + (p.faces?.length || 0), 0);
 
   // 2. HOOKS (Framer Motion & Scroll)
@@ -863,7 +890,12 @@ export default function UltimateSupervisor() {
 
   // Maintenant qu'elle existe, on peut l'utiliser pour yBg et scaleX !
   const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "-12%"]);
-
+// Dans UltimateSupervisor, ajoute cette fonction (si elle n'existe pas)
+const handleEditPanneau = (panneau: any) => {
+  console.log("Édition du panneau:", panneau);
+  // Ta logique d'édition ici
+  setPanneauToEdit(panneau);
+};
 
 
   // --- RENDU : LOADING PREMIUM ---
@@ -924,7 +956,14 @@ export default function UltimateSupervisor() {
       </div>
     );
   }
-
+  {/* Indicateur de chargement pendant le changement de page */ }
+  {
+    loading && (
+      <div className="flex justify-center py-12">
+        <Loader2 className="animate-spin text-amber-500" size={32} />
+      </div>
+    )
+  }
   return (
     <div className="min-h-screen relative text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
 
@@ -949,35 +988,23 @@ export default function UltimateSupervisor() {
 
 
       {/* NAV HEADER */}
-      <nav className={`fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 py-2 sm:py-3 ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'} transition-all duration-500`}>
+      <nav className="fixed top-0 inset-x-0 z-[150] p-2 sm:p-3 md:p-4 lg:p-6 backdrop-blur-3xl transition-all duration-500">
         <div className="max-w-[1800px] mx-auto">
           <motion.div
-            initial={{ y: 0, opacity: 0 }}
-            animate={{
-              y: hidden ? -120 : 0,
-              opacity: 1,
-              scale: hidden ? 0.95 : 1
-            }}
-            transition={{
-              type: "spring",
-              damping: 25,
-              stiffness: 300,
-              opacity: { duration: 0.3 }
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
             className={`
         relative group overflow-visible
         flex items-center justify-between 
-        min-h-[52px] sm:min-h-[60px] md:min-h-[68px]
-        px-2 xs:px-3 sm:px-4 md:px-5 lg:px-6
-        rounded-xl sm:rounded-2xl md:rounded-3xl
+        h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
+        px-3 sm:px-5 md:px-6 lg:px-8
+        rounded-xl sm:rounded-2xl md:rounded-3xl lg:rounded-[2rem]
         transition-all duration-500
-        ${hidden
-                ? 'bg-white/90 backdrop-blur-xl border-white/20 shadow-md'
-                : 'bg-gradient-to-r from-white/90 via-white/80 to-white/90 backdrop-blur-2xl border-white/30 shadow-xl shadow-black/5'
-              }
+        bg-gradient-to-r from-white/80 via-white/70 to-white/80 backdrop-blur-2xl border-white/30 shadow-2xl shadow-black/10
         border
-        hover:border-amber-400/50
-        hover:shadow-lg hover:shadow-amber-400/10
+        hover:border-amber-400/60
+        hover:shadow-2xl hover:shadow-amber-400/10
       `}
           >
             {/* Effets visuels */}
@@ -1231,15 +1258,15 @@ export default function UltimateSupervisor() {
                     const statusMap: { [key: string]: string } = {
                       'Libre': 'Libre',
                       'Occupé': 'Occupé',
-                      'Maint.': 'Maintenance',
-                      'Rés.': 'Réservé'
+                      'Maintenance': 'Maintenance',
+                      'Réservé': 'Réservé'
                     };
                     const fullStatus = statusMap[s];
 
                     const colorClass =
                       s === 'Libre' ? 'bg-green-600' :
                         s === 'Occupé' ? 'bg-blue-600' :
-                          s === 'Maint.' ? 'bg-red-600' :
+                          s === 'Maintenance' ? 'bg-red-600' :
                             'bg-orange-600';
 
                     return (
@@ -1860,29 +1887,122 @@ export default function UltimateSupervisor() {
         {/* GRILLE DES PANNEAUX */}
         <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           <AnimatePresence mode="popLayout">
-            {filtered.map((p, idx) => (
+            {currentItems.map((p, idx) => (
               <ElegantCard
                 key={p.id}
                 panneau={p}
                 index={idx}
-                onEdit={() => setPanneauToEdit(p)}
-                // "selected" contient maintenant des clés type "IDPANNEAU_IDFACE"
                 selectedIds={selected}
                 onSelect={(selectionKey: string) => {
-                  // On reçoit la clé combinée venant de la modale ou de la carte
                   setSelected((prev) =>
                     prev.includes(selectionKey)
-                      ? prev.filter((id) => id !== selectionKey) // Si déjà là, on retire
-                      : [...prev, selectionKey]                // Sinon, on ajoute
+                      ? prev.filter((id) => id !== selectionKey)
+                      : [...prev, selectionKey]
                   );
                 }}
+                    onEdit={handleEditPanneau}  // ← VÉRIFIE QUE CETTE LIGNE EXISTE
+
                 ouvrirLaCarte={ouvrirLaCarte}
               />
             ))}
           </AnimatePresence>
         </motion.div>
 
+        {/* PAGINATION - ULTRA RESPONSIVE */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-12 pt-6 border-t border-white/10">
+            {/* Informations */}
+            <div className="text-[10px] text-white/40 font-bold uppercase tracking-wider">
+              Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, filtered.length)} sur {filtered.length} panneaux
+            </div>
 
+            {/* Boutons de pagination */}
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              {/* Bouton Première page */}
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                «
+              </button>
+
+              {/* Bouton Précédent */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Précédent
+              </button>
+
+              {/* Numéros de page (responsive) */}
+              <div className="flex gap-1">
+                {(() => {
+                  let pages = [];
+                  let startPage = Math.max(1, currentPage - 2);
+                  let endPage = Math.min(totalPages, startPage + 4);
+
+                  if (endPage - startPage < 4) {
+                    startPage = Math.max(1, endPage - 4);
+                  }
+
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(i);
+                  }
+
+                  return pages.map(pageNum => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg font-black text-[10px] sm:text-[11px] transition-all ${currentPage === pageNum
+                        ? 'bg-amber-500 text-black shadow-lg'
+                        : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/20'
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ));
+                })()}
+              </div>
+
+              {/* Bouton Suivant */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Suivant
+              </button>
+
+              {/* Bouton Dernière page */}
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                »
+              </button>
+            </div>
+
+            {/* Sélecteur d'éléments par page */}
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 rounded-lg bg-black/40 border border-white/10 text-white text-[10px] font-bold uppercase outline-none cursor-pointer"
+            >
+              <option value={4}>4 par page</option>
+              <option value={8}>8 par page</option>
+              <option value={16}>16 par page</option>
+              <option value={32}>32 par page</option>
+              <option value={64}>64 par page</option>
+              <option value={128}>128 par page</option>
+            </select>
+          </div>
+        )}
         {filtered.length === 0 && (
           <div className="py-40 text-center">
             <p className="text-zinc-200/50 font-black uppercase tracking-[0.5em] italic">Aucun panneau trouvé</p>
