@@ -33,8 +33,8 @@ const firebaseConfig = {
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
 // --- COMPOSANT ELEGANT CARD ---
 
@@ -414,12 +414,14 @@ export default function UltimateSupervisor() {
     );
   }
 
-  {/* Indicateur de chargement pendant le changement de page */}
-{loading && (
-  <div className="flex justify-center py-12">
-    <Loader2 className="animate-spin text-amber-500" size={32} />
-  </div>
-)}
+  {/* Indicateur de chargement pendant le changement de page */ }
+  {
+    loading && (
+      <div className="flex justify-center py-12">
+        <Loader2 className="animate-spin text-amber-500" size={32} />
+      </div>
+    )
+  }
 
   return (
     // 1. On retire "bg-[#1e40af]" d'ici pour éviter qu'il ne recouvre l'image
@@ -446,12 +448,12 @@ export default function UltimateSupervisor() {
 
       {/* NAV HEADER - VERSION PREMIUM ULTRA MODERNE & FIXE */}
       <nav className="fixed top-0 inset-x-0 z-[150] p-2 sm:p-3 md:p-4 lg:p-6 backdrop-blur-3xl transition-all duration-500">
-  <div className="max-w-[1800px] mx-auto">
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className={`
+        <div className="max-w-[1800px] mx-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className={`
         relative group overflow-visible
         flex items-center justify-between 
         h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
@@ -463,7 +465,7 @@ export default function UltimateSupervisor() {
         hover:border-amber-400/60
         hover:shadow-2xl hover:shadow-amber-400/10
       `}
-    >
+          >
             {/* Effet de brillance premium au survol */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
 

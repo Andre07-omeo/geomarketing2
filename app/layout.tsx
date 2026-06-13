@@ -15,9 +15,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"] 
 });
 
+export const viewport = {
+  themeColor: "#1e40af",
+};
+
 export const metadata: Metadata = {
   title: "GDPS | Dispromalt Intelligence",
   description: "Système de monitoring digital haute performance",
+  manifest: "/manifest.json", // Associe le fichier ici
+  themeColor: "#1e40af", // Injecte automatiquement la balise meta theme-color
 };
 
 const FloatingParticles = () => {

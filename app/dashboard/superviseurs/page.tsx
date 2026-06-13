@@ -48,8 +48,8 @@ console.log(config.LOGO_DISPROMALT);
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+ const db = getFirestore(app);
+ const auth = getAuth(app);
 
 const logo = config.LOGO_DISPROMALT;
 

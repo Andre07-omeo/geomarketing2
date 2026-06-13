@@ -1,0 +1,22 @@
+{
+  "name": "GDP - Gestion Digitale Panneaux",
+  "short_name": "GDP",
+  "description": "Application de Géomarketing et Gestion de Panneaux Publicitaires",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e40af",
+  "theme_color": "#1e40af",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
