@@ -16,14 +16,14 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport = {
-  themeColor: "#1e40af",
+  themeColor: "#bbbdc2",
 };
 
 export const metadata: Metadata = {
   title: "GDPS | Dispromalt Intelligence",
   description: "Système de monitoring digital haute performance",
-  manifest: "/manifest.json", // Associe le fichier ici
-  themeColor: "#1e40af", // Injecte automatiquement la balise meta theme-color
+  manifest: "/manifest.json", // Association de fihier ici 
+  themeColor: "#bbbdc2", // Injecte automatiquement la balise meta theme-color
 };
 
 const FloatingParticles = () => {
@@ -58,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div 
           className="fixed inset-0 pointer-events-none z-0 opacity-20"
           style={{
-            backgroundImage: 'radial-gradient(circle, rgba(212,175,55,0.1) 1px, transparent 1px)',
+            backgroundImage: 'radial-gradient(circle, rgba(238, 236, 230, 0.1) 1px, transparent 1px)',
             backgroundSize: '40px 40px'
           }}
         />

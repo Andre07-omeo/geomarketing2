@@ -40,9 +40,7 @@ const config = require('../../../config/db');
 const firebaseConfig = config.firebaseConfig;
 const GEOGRAPHIE = config.GEOGRAPHIE;
 
-// Ou utilise directement l'objet
-console.log(config.GEOGRAPHIE);
-console.log(config.LOGO_DISPROMALT);
+
 
 
 
@@ -50,6 +48,7 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
  const db = getFirestore(app);
  const auth = getAuth(app);
+ 
 
 const logo = config.LOGO_DISPROMALT;
 
@@ -650,7 +649,9 @@ export default function UltimateSupervisor() {
 
   // --- ACTIONS ---
   const ouvrirLaCarte = () => {
-    router.push('/dashboard/superviseurs/superviseur');
+    router.push('/dashboard/superviseurs/carte');
+   //dashboard/client
+   //dashboard/superviseurs/carte
   };
 
   const handleLogout = () => {

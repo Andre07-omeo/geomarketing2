@@ -22,18 +22,25 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// --- CONFIGURATION FIREBASE ---
-const firebaseConfig = {
-  apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
-  authDomain: "kin-geo-market.firebaseapp.com",
-  projectId: "kin-geo-market",
-  storageBucket: "kin-geo-market.firebasestorage.app",
-  messagingSenderId: "50335362445",
-  appId: "1:50335362445:web:44430fdb027a4bec80a1c4"
-};
+// ✅ Version require avec chemin correct
+const config = require('../config/db');
+
+
+
+// Toutes ces variables fonctionneront maintenant :
+const firebaseConfig = config.firebaseConfig;
+const GEOGRAPHIE = config.GEOGRAPHIE;
+
+
+
+
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
 const db = getFirestore(app);
+
+
+
 const auth = getAuth(app);
 
 // --- COMPOSANT ELEGANT CARD ---
@@ -122,7 +129,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
       if (e.target === modal) closeModal();
     });
   };
-  const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+  const LOGO_DISPROMALT = config.LOGO_DISPROMALT;
   const getActiveData = (face: any) => {
     const now = new Date();
     // On met les heures à 0 pour ne comparer que les jours
@@ -191,9 +198,6 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none"
                 alt="Face"
               />
-              {/* ✅ SUPPRESSION de la ligne qui créait l'ombre : 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" /> 
-              */}
 
               {/* Zone de téléchargement avec délai de 3 secondes */}
               <div
@@ -269,11 +273,6 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   );
 }
 
-
-import { LogOut, } from 'lucide-react';
-import {
-  Settings
-} from 'lucide-react';
 import { useTransform } from 'framer-motion';
 
 // --- PAGE PRINCIPALE ---
@@ -308,7 +307,8 @@ export default function UltimateSupervisor() {
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
   // 3. ACTIONS
   const ouvrirLaCarte = () => {
-    router.push('/dashboard/client');
+    router.push('/dashboard/carte');
+    
   };
 
 
@@ -353,7 +353,7 @@ export default function UltimateSupervisor() {
 
 
 
-  const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+  const logoUrl = config.LOGO_DISPROMALT;
 
   // --- RENDU : LOADING PREMIUM ---
   if (loading) {
@@ -1366,7 +1366,7 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                       disabled={!isLibre && !isSelected}
                       onClick={() => onSelect(selectionKey)}
                       className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
-        ${isSelected
+                          ${isSelected
                           ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30'
                           : isLibre
                             ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-amber-500/30 hover:shadow-amber-500/50'
@@ -1579,7 +1579,7 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   const [showPassword, setShowPassword] = useState(false); // ICI !
 
-  const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+  const logoUrl = config.LOGO_DISPROMALT;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

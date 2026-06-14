@@ -9,6 +9,7 @@ import { X, MapPin, Ruler, Calendar, Users, Phone, Building, Clock, Image as Ima
 // IMPORTATION DEPUIS LE FICHIER DE CONFIG
 // ============================================
 import config from '../../../../config/db';
+import { EditPanneauModal } from '@/app/dashboard/superviseurs/page';
 
 // ============================================
 // INITIALISATION FIREBASE
@@ -42,8 +43,10 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
 export default function FullscreenMap() {
   const [panneaux, setPanneaux] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPanneau, setSelectedPanneau] = useState<any>(null);
   const [yBg, setYBg] = useState(0);
+  const [selectedPanneau, setSelectedPanneau] = useState<any>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedFace, setSelectedFace] = useState<{ index: number; data: any } | null>(null);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "panneaux"), (snapshot) => {
@@ -61,6 +64,24 @@ export default function FullscreenMap() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Fonction pour ouvrir le modal d'édition
+  const handleEditPanneau = (panneau: any, faceIndex?: number, faceData?: any) => {
+    setSelectedPanneau(panneau);
+    if (faceIndex !== undefined && faceData) {
+      setSelectedFace({ index: faceIndex, data: faceData });
+    } else {
+      setSelectedFace(null);
+    }
+    setIsEditModalOpen(true);
+  };
+
+  // Fonction pour fermer le modal
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedPanneau(null);
+    setSelectedFace(null);
+  };
 
   if (loading) {
     return (
@@ -96,13 +117,26 @@ export default function FullscreenMap() {
       </div>
 
       <AnimatePresence>
-        {selectedPanneau && (
+        {selectedPanneau && !isEditModalOpen && (
           <PanneauModal
             panneau={selectedPanneau}
             onClose={() => setSelectedPanneau(null)}
+            onEdit={handleEditPanneau}
           />
         )}
       </AnimatePresence>
+
+      {/* Modal d'édition */}
+      {isEditModalOpen && selectedPanneau && (
+        <EditPanneauModal
+          isOpen={isEditModalOpen}
+          onClose={handleCloseEditModal}
+          panneau={selectedPanneau}
+          user={null}
+          preselectedFaceIndex={selectedFace?.index}
+          preselectedFaceData={selectedFace?.data}
+        />
+      )}
     </div>
   );
 }
@@ -110,7 +144,7 @@ export default function FullscreenMap() {
 // ============================================
 // MODALE AMÉLIORÉE - ULTRA COMPACTE
 // ============================================
-function PanneauModal({ panneau, onClose }: any) {
+function PanneauModal({ panneau, onClose, onEdit }: any) {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = 'unset'; };
@@ -170,7 +204,6 @@ function PanneauModal({ panneau, onClose }: any) {
         <div className="relative z-10">
           {/* HEADER ULTRA COMPACT */}
           <div className="p-3 sm:p-4 border-b border-white/10">
-            {/* Mobile: colonne, Desktop: ligne avec 3 colonnes */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
               {/* ID Panneau */}
               <div className="flex items-center justify-between sm:justify-start gap-2">
@@ -261,12 +294,29 @@ function PanneauModal({ panneau, onClose }: any) {
                         <div className={`w-1.5 h-1.5 rounded-full ${colors.dot} ${currentStatus === 'Libre' ? 'animate-pulse' : ''}`} />
                         <span className={`text-[7px] sm:text-[8px] font-black uppercase ${colors.text}`}>{currentStatus}</span>
                       </div>
+
+                      {/* Bouton de réservation selon le type d'appareil */}
+                      <button
+                        onClick={() => {
+                          if (currentStatus === 'Libre') {
+                            onEdit(panneau, idx, face);
+                          }
+                        }}
+                        className="shrink-0 ml-1 transition-transform hover:scale-110"
+                        title="Réserver cette face"
+                      >
+                        {/* Téléphone (mobile) */}
+                        <span className="block sm:hidden text-[10px]">📱</span>
+                        {/* Tablette */}
+                        <span className="hidden sm:block md:hidden text-[12px]">📟</span>
+                        {/* PC / Desktop */}
+                        <span className="hidden md:block text-[14px]">💻</span>
+                      </button>
                     </div>
 
                     {/* Détails de la réservation active */}
                     {isOccupied && activeRes && (
                       <div className="mt-2 pt-2 border-t border-white/10">
-                        {/* Photo miniature + Infos en ligne */}
                         <div className="flex gap-2">
                           {activeRes.photoCampagneUrl && (
                             <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-md overflow-hidden border border-white/20 shadow-sm shrink-0">
@@ -278,7 +328,6 @@ function PanneauModal({ panneau, onClose }: any) {
                             </div>
                           )}
 
-                          {/* Infos compactes en colonne */}
                           <div className="flex-1 min-w-0 space-y-0.5 text-[7px] sm:text-[8px]">
                             <div className="flex items-center gap-1 text-white/70">
                               <Building size={6} className="sm:w-[7px] sm:h-[7px] text-amber-400 shrink-0" />
@@ -301,6 +350,7 @@ function PanneauModal({ panneau, onClose }: any) {
               })}
             </div>
           </div>
+
           {/* FOOTER */}
           <div className="p-2 border-t border-white/10 bg-black/30">
             <p className="text-[6px] text-white/30 text-center uppercase tracking-wider">
