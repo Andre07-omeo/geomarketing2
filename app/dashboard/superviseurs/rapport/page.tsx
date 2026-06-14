@@ -38,13 +38,13 @@ const LOGO_URL = config.LOGO_DISPROMALT;
 // ============================================
 const ReportPage = () => {
   const router = useRouter();
-  
+
   // --- ÉTATS ---
   const [rawPanneaux, setRawPanneaux] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'faces' | 'agents'>('overview');
   const [hidden, setHidden] = useState(false);
-  
+
   // Animation scroll
   const { scrollYProgress, scrollY } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
@@ -96,7 +96,7 @@ const ReportPage = () => {
 
       const facesEnrichies = (p.faces || []).map((f: any, index: number) => {
         const faceId = `${p.idPan || '?'}-${index + 1}`;
-        
+
         const activeRes = (f.reservations || []).find((r: any) => {
           const debut = new Date(r.dateDebut);
           const fin = new Date(r.dateFin);
@@ -145,9 +145,9 @@ const ReportPage = () => {
           return { ...r, dDebut, dFin, status, statusColor, nbrMois };
         });
 
-        return { 
-          ...f, 
-          faceId, 
+        return {
+          ...f,
+          faceId,
           reservations,
           currentStatus,
           currentStatusColor,
@@ -168,12 +168,12 @@ const ReportPage = () => {
       const matchType = filter.type === 'Tous' || p.type === filter.type;
       const searchTerm = filter.search.toLowerCase();
       const matchSearch = (p.idPan || "").toLowerCase().includes(searchTerm) || (p.adresse || "").toLowerCase().includes(searchTerm);
-      
+
       let matchStatus = filter.status === 'Tous';
       if (!matchStatus) {
         matchStatus = p.faces.some((f: any) => f.currentStatus === filter.status);
       }
-      
+
       let matchAgent = filter.agent === 'Tous';
       if (!matchAgent) {
         matchAgent = p.faces.some((f: any) => f.currentAgent === filter.agent);
@@ -200,7 +200,7 @@ const ReportPage = () => {
         if (f.currentStatus === 'Libre') totalLibre++;
         if (f.currentStatus === 'Occupé') totalOccupe++;
         if (f.currentStatus === 'Réservé') totalReserve++;
-        
+
         f.reservations?.forEach((r: any) => {
           if (r.validationComptable === true) {
             totalRevenue += Number(r.montant) || 0;
@@ -212,22 +212,22 @@ const ReportPage = () => {
       });
     });
 
-    return { 
-      totalPanneaux: processedData.length, 
-      totalFaces, 
-      totalReservations, 
-      totalActive, 
+    return {
+      totalPanneaux: processedData.length,
+      totalFaces,
+      totalReservations,
+      totalActive,
       totalLibre,
       totalOccupe,
       totalReserve,
-      totalRevenue 
+      totalRevenue
     };
   }, [processedData]);
 
   // --- STATISTIQUES PAR AGENT ---
   const agentStats = useMemo(() => {
     const agents = new Map<string, any>();
-    
+
     processedData.forEach(p => {
       p.faces?.forEach((f: any) => {
         f.reservations?.forEach((r: any) => {
@@ -292,7 +292,7 @@ const ReportPage = () => {
 
       {/* CONTENU */}
       <div className="relative z-10 min-h-screen pb-20">
-        
+
         {/* ========== HEADER PREMIUM (SANS ESPACES EXCESSIFS) ========== */}
         <nav className={`fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 py-2 sm:py-3 ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'} transition-all duration-500`}>
           <div className="w-full mx-auto">
@@ -363,48 +363,20 @@ const ReportPage = () => {
               {/* ========== BOUTONS DE NAVIGATION ========== */}
               <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5">
                 <motion.button
-  whileTap={{ scale: 0.95 }}
-  onClick={() => router.push('/dashboard/superviseurs')}
-  className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-white/80 text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100 active:bg-gray-100"
-  aria-label="Accueil"
->
-  <Home size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all" />
-  <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">
-    Accueil
-  </span>
-</motion.button>
-
-                <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={ouvrirLaCarte}
+                  onClick={() => router.push('/dashboard/superviseurs')}
                   className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-white/80 text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100 active:bg-gray-100"
-                  aria-label="Carte"
+                  aria-label="Accueil"
                 >
-                  <MapPin size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all group-hover:rotate-6" />
+                  <Home size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all" />
                   <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">
-                    Carte
+                    Accueil
                   </span>
                 </motion.button>
-
-                <Link href="/dashboard/superviseurs/rapport">
-                  <motion.div
-                    whileTap={{ scale: 0.95 }}
-                    className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-amber-500 text-black shadow-md cursor-pointer active:scale-95"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                    <FilePieChart size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px]" />
-                    <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide">
-                      Rapports
-                    </span>
-                    <span className="relative hidden sm:block ml-1.5 text-[6px] bg-black/20 text-black px-1 py-0.5 rounded-full font-black">
-                      LIVE
-                    </span>
-                  </motion.div>
-                </Link>
               </div>
 
               {/* ========== USER SECTION ========== */}
-              
+
             </motion.div>
           </div>
         </nav>
@@ -413,7 +385,7 @@ const ReportPage = () => {
         <div className="h-16 sm:h-20 md:h-24" />
 
         <div className="w-full px-3 sm:px-4 py-3 sm:py-4">
-          
+
           {/* FILTRES RESPONSIFS */}
           <div className="mb-4 p-3 sm:p-4 bg-black/40 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/10 space-y-2 sm:space-y-3">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2">
@@ -445,15 +417,15 @@ const ReportPage = () => {
               </select>
             </div>
             <div className="relative">
-              <Search 
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500" 
-                size={14} 
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500"
+                size={14}
               />
-              <input 
-                type="text" 
-                placeholder="Rechercher par ID ou adresse..." 
-                className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 sm:py-2 pl-9 pr-3 text-[9px] sm:text-[10px] outline-none" 
-                onChange={(e) => setFilter({ ...filter, search: e.target.value })} 
+              <input
+                type="text"
+                placeholder="Rechercher par ID ou adresse..."
+                className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 sm:py-2 pl-9 pr-3 text-[9px] sm:text-[10px] outline-none"
+                onChange={(e) => setFilter({ ...filter, search: e.target.value })}
               />
             </div>
           </div>
@@ -483,7 +455,7 @@ const ReportPage = () => {
                 <div className="space-y-1.5 sm:space-y-2">
                   {agentStats.slice(0, 5).map((agent, idx) => (
                     <div key={agent.email} className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 xs:gap-2 p-1.5 sm:p-2 bg-white/5 rounded-lg">
-                      <div className="flex items-center gap-1.5 sm:gap-2"><span className="text-[8px] sm:text-[9px] font-black text-amber-400 w-4 sm:w-5">#{idx+1}</span><UserCheck size={10} className="text-white/40" /><span className="text-[9px] sm:text-[10px] font-bold text-white truncate">{agent.nom}</span></div>
+                      <div className="flex items-center gap-1.5 sm:gap-2"><span className="text-[8px] sm:text-[9px] font-black text-amber-400 w-4 sm:w-5">#{idx + 1}</span><UserCheck size={10} className="text-white/40" /><span className="text-[9px] sm:text-[10px] font-bold text-white truncate">{agent.nom}</span></div>
                       <div className="flex gap-2 sm:gap-3 text-[7px] sm:text-[8px]"><span className="text-emerald-400">{agent.reservations} résa</span><span className="text-amber-400">${agent.revenue.toLocaleString()}</span><span className="text-blue-400">{agent.validated} valid.</span></div>
                     </div>
                   ))}
@@ -547,7 +519,7 @@ const ReportPage = () => {
 // ============================================
 const FaceStatusCard = ({ face }: any) => {
   const getStatusIcon = () => {
-    switch(face.currentStatus) {
+    switch (face.currentStatus) {
       case 'Libre': return <CheckCircle2 size={12} className="text-emerald-400" />;
       case 'Occupé': return <Users size={12} className="text-blue-400" />;
       case 'Réservé': return <Calendar size={12} className="text-amber-400" />;
@@ -555,7 +527,7 @@ const FaceStatusCard = ({ face }: any) => {
     }
   };
   const getStatusBg = () => {
-    switch(face.currentStatus) {
+    switch (face.currentStatus) {
       case 'Libre': return 'bg-emerald-500/10 border-emerald-500/30';
       case 'Occupé': return 'bg-blue-500/10 border-blue-500/30';
       case 'Réservé': return 'bg-amber-500/10 border-amber-500/30';
@@ -597,12 +569,12 @@ const FaceStatusCard = ({ face }: any) => {
 };
 
 const StatCard = ({ label, value, icon, color }: any) => {
-  const colors: Record<string, string> = { 
-    amber: 'from-amber-500/20 to-amber-500/5 border-amber-500/30', 
-    blue: 'from-blue-500/20 to-blue-500/5 border-blue-500/30', 
-    purple: 'from-purple-500/20 to-purple-500/5 border-purple-500/30', 
-    emerald: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30', 
-    green: 'from-green-500/20 to-green-500/5 border-green-500/30' 
+  const colors: Record<string, string> = {
+    amber: 'from-amber-500/20 to-amber-500/5 border-amber-500/30',
+    blue: 'from-blue-500/20 to-blue-500/5 border-blue-500/30',
+    purple: 'from-purple-500/20 to-purple-500/5 border-purple-500/30',
+    emerald: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30',
+    green: 'from-green-500/20 to-green-500/5 border-green-500/30'
   };
   return (
     <div className={`bg-gradient-to-br ${colors[color] || colors.amber} border rounded-lg p-1.5 sm:p-2 text-center`}>

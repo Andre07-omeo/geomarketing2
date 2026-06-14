@@ -10,6 +10,8 @@ import { X, MapPin, Ruler, Calendar, Users, Phone, Building, Clock, Image as Ima
 // ============================================
 import config from '../../../../config/db';
 import { EditPanneauModal } from '@/app/dashboard/superviseurs/page';
+import { useRouter } from 'next/navigation';
+
 
 // ============================================
 // INITIALISATION FIREBASE
@@ -47,6 +49,54 @@ export default function FullscreenMap() {
   const [selectedPanneau, setSelectedPanneau] = useState<any>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedFace, setSelectedFace] = useState<{ index: number; data: any } | null>(null);
+
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+
+
+
+
+  // Récupérer l'utilisateur depuis l'URL ou localStorage
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const userParam = urlParams.get('user');
+
+    if (userParam) {
+      try {
+        const decodedUser = JSON.parse(decodeURIComponent(userParam));
+        setUser({
+          uid: decodedUser.uid,
+          email: decodedUser.email,
+          nomComplet: decodedUser.nom,  // Important: utiliser nomComplet
+          nom: decodedUser.nom,
+          role: decodedUser.role || "commercial"
+        });
+      } catch (e) {
+        console.error("Erreur parsing user:", e);
+      }
+    }
+
+    const storedUser = localStorage.getItem('current_user');
+    if (storedUser && !userParam) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser({
+          uid: parsedUser.uid,
+          email: parsedUser.email,
+          nomComplet: parsedUser.nom,  // Important: utiliser nomComplet
+          nom: parsedUser.nom,
+          role: parsedUser.role || "commercial"
+        });
+      } catch (e) {
+        console.error("Erreur parsing stored user:", e);
+      }
+    }
+  }, []);
+
+
+
+
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "panneaux"), (snapshot) => {
@@ -132,7 +182,7 @@ export default function FullscreenMap() {
           isOpen={isEditModalOpen}
           onClose={handleCloseEditModal}
           panneau={selectedPanneau}
-          user={null}
+          user={user}  // ← L'utilisateur récupéré
           preselectedFaceIndex={selectedFace?.index}
           preselectedFaceData={selectedFace?.data}
         />
@@ -298,9 +348,16 @@ function PanneauModal({ panneau, onClose, onEdit }: any) {
                       {/* Bouton de réservation selon le type d'appareil */}
                       <button
                         onClick={() => {
-                          if (currentStatus === 'Libre') {
-                            onEdit(panneau, idx, face);
-                          }
+                          const fakePanneau = {
+                            id: panneau.id,
+                            idPan: panneau.idPan,
+                            adresse: panneau.adresse,
+                            dimension: panneau.dimension,
+                            type: panneau.type,
+                            faces: [face]  // ← Seulement cette face
+                          };
+                          onEdit(fakePanneau, idx, face);
+
                         }}
                         className="shrink-0 ml-1 transition-transform hover:scale-110"
                         title="Réserver cette face"

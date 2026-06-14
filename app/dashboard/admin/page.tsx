@@ -338,7 +338,7 @@ const handleLogout = async () => {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-[10px] font-bold text-white truncate">{user?.email?.split('@')[0] || 'Admin'}</p>
-                                <p className="text-[7px] text-amber-400 font-bold">Administrateur</p>
+                                <p className="text-[7px] text-amber-400 font-bold">Administrateur </p>
                             </div>
                             <button onClick={handleLogout} className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all hover:scale-105">
                                 <LogOut size={14} />
@@ -1066,7 +1066,7 @@ function UtilisateursModule({ societes }: any) {
                                     : 'bg-gradient-to-br from-purple-500 to-pink-500'
                                     }`}>
                                     {LOGO_URL ? (
-                                        <img src={LOGO_URL} className="w-full h-full rounded-xl object-cover" alt="" />
+                                        <img src={LOGO_URL} className="w-full h-full rounded-xl object-cover" alt="logo" />
                                     ) : (
                                         <span className="text-white font-black text-base sm:text-lg">
                                             {(user.nomComplet?.charAt(0) || user.nomSociete?.charAt(0) || 'U').toUpperCase()}
@@ -1084,7 +1084,7 @@ function UtilisateursModule({ societes }: any) {
                                     </h3>
                                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                         <span className={`px-1.5 py-0.5 rounded-full text-[6px] sm:text-[7px] font-bold uppercase border ${getRoleStyle(user.role)}`}>
-                                            {user.role === 'commercial' ? 'Agent' : user.role === 'visiteur' ? 'Client' : user.role}
+                                            {user.role === 'commercial' ? 'agent' : user.role === 'visiteur' ? 'Client' : user.role}
                                         </span>
                                         {user.fonction && (
                                             <span className="text-[6px] sm:text-[7px] text-white/40">{user.fonction}</span>
@@ -1218,7 +1218,7 @@ function UtilisateursModule({ societes }: any) {
                                         <label className="text-[7px] xs:text-[8px] text-purple-400 font-bold uppercase tracking-wider">Nom *</label>
                                         <input
                                             type="text"
-                                            placeholder="Dupont"
+                                            placeholder="omeonga"
                                             className="w-full px-3 py-2.5 bg-white/10 rounded-xl text-white text-[11px] xs:text-[12px] outline-none focus:ring-2 focus:ring-purple-500 border border-white/10 focus:border-transparent transition-all"
                                             value={createForm.nom}
                                             onChange={(e) => setCreateForm({ ...createForm, nom: e.target.value })}
@@ -1228,7 +1228,7 @@ function UtilisateursModule({ societes }: any) {
                                         <label className="text-[7px] xs:text-[8px] text-purple-400 font-bold uppercase tracking-wider">Post-nom *</label>
                                         <input
                                             type="text"
-                                            placeholder="Martin"
+                                            placeholder="omakinda"
                                             className="w-full px-3 py-2.5 bg-white/10 rounded-xl text-white text-[11px] xs:text-[12px] outline-none focus:ring-2 focus:ring-purple-500 border border-white/10 focus:border-transparent transition-all"
                                             value={createForm.postNom}
                                             onChange={(e) => setCreateForm({ ...createForm, postNom: e.target.value })}
@@ -1241,7 +1241,7 @@ function UtilisateursModule({ societes }: any) {
                                     <label className="text-[7px] xs:text-[8px] text-purple-400 font-bold uppercase tracking-wider">Prénom *</label>
                                     <input
                                         type="text"
-                                        placeholder="Jean"
+                                        placeholder="andre"
                                         className="w-full px-3 py-2.5 bg-white/10 rounded-xl text-white text-[11px] xs:text-[12px] outline-none focus:ring-2 focus:ring-purple-500 border border-white/10 focus:border-transparent transition-all"
                                         value={createForm.prenom}
                                         onChange={(e) => setCreateForm({ ...createForm, prenom: e.target.value })}
@@ -1266,7 +1266,7 @@ function UtilisateursModule({ societes }: any) {
                                         <label className="text-[7px] xs:text-[8px] text-purple-400 font-bold uppercase tracking-wider">Fonction</label>
                                         <input
                                             type="text"
-                                            placeholder="Agent commercial"
+                                            placeholder="agent"
                                             className="w-full px-3 py-2.5 bg-white/10 rounded-xl text-white text-[11px] xs:text-[12px] outline-none focus:ring-2 focus:ring-purple-500 border border-white/10 focus:border-transparent transition-all"
                                             value={createForm.fonction}
                                             onChange={(e) => setCreateForm({ ...createForm, fonction: e.target.value })}

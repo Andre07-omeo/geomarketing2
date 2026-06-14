@@ -648,11 +648,24 @@ export default function UltimateSupervisor() {
   });
 
   // --- ACTIONS ---
-  const ouvrirLaCarte = () => {
-    router.push('/dashboard/superviseurs/carte');
-   //dashboard/client
-   //dashboard/superviseurs/carte
+ 
+
+
+
+  // Dans UltimateSupervisor, remplacez la fonction existante par :
+const ouvrirLaCarte = () => {
+  // S'assurer que user a la bonne structure
+  const userData = {
+    uid: user?.uid,
+    email: user?.email,
+    nom: user?.nomComplet || user?.nom || user?.displayName || "Agent",
+    nomComplet: user?.nomComplet || user?.nom || user?.displayName || "Agent",
+    role: user?.role || "commercial"
   };
+  
+  localStorage.setItem('current_user', JSON.stringify(userData));
+  router.push('/dashboard/superviseurs/carte');
+};
 
   const handleLogout = () => {
     if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
@@ -662,11 +675,6 @@ export default function UltimateSupervisor() {
       router.push('/');
     }
   };
-
-
-
-
-
 
 
 

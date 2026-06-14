@@ -7,6 +7,8 @@ import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useScroll, useSpring, useMotionValueEvent } from 'framer-motion';
 
+import Footer from '@/components1/Footer';
+
 // Ajoutez ces imports spécifiques à Firestore
 import {
   query,
@@ -992,7 +994,7 @@ export default function UltimateSupervisor() {
           </div>
         )}
       </main>
-
+<Footer />
       {/* PANIER FLOTTANT */}
       <AnimatePresence>
         {selected.length > 0 && (
@@ -1041,10 +1043,6 @@ export default function UltimateSupervisor() {
           />
         )}
       </AnimatePresence>
-
-
-
-
       {/* SECTION MODALES UNIFIÉE */}
       <AnimatePresence mode="wait">
         {/* MODALE CONNEXION (Appel unique) */}
