@@ -1,17 +1,6 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
-/* ============================================
-   THEME & VARIABLES
-   ============================================ */
-@theme {
-  --color-background: #001a33;
-  --color-foreground: #ffffff;
-  --color-accent-gold: #d4af37;
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
 :root {
   --background: #001a33;
   --foreground: #ffffff;

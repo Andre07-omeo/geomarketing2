@@ -10,8 +10,10 @@ import {
   Search, MapPin, Filter, PlusCircle, CheckCircle2,
   Menu, X, Home, Zap, Globe, Loader2, FileText
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+
+import Footer from '@/components1/Footer';
+
+
 
 import {
   Settings,
@@ -2018,6 +2020,7 @@ const handleEditPanneau = (panneau: any) => {
           </div>
         )}
       </main>
+<Footer />
 
 
       <EditPanneauModal
