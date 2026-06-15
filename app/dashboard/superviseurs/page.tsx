@@ -48,9 +48,9 @@ const GEOGRAPHIE = config.GEOGRAPHIE;
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
- const db = getFirestore(app);
- const auth = getAuth(app);
- 
+const db = getFirestore(app);
+const auth = getAuth(app);
+
 
 const logo = config.LOGO_DISPROMALT;
 
@@ -62,6 +62,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   const [selectedFaceDetails, setSelectedFaceDetails] = useState<any>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
+
 
   const faces = panneau?.faces || [];
 
@@ -328,7 +329,10 @@ interface Panneau {
 
 
 
-
+import {
+  // ... autres imports
+  CreditCard  // ← Ajoutez ceci
+} from 'lucide-react';
 
 import { useMemo } from 'react'; // Ajoute useMemo ici
 
@@ -368,7 +372,10 @@ export default function UltimateSupervisor() {
   const [itemsPerPage, setItemsPerPage] = useState(8); // 8 panneaux par page
 
 
-
+  // Ajoutez ces states après les autres states
+  const [globalPaymentMode, setGlobalPaymentMode] = useState<'total' | 'tranche'>('total');
+  const [globalTranchesCount, setGlobalTranchesCount] = useState(1);
+  const [totalFactureAmount, setTotalFactureAmount] = useState(0);
 
 
   const [tranchesCount, setTranchesCount] = useState<{ [key: string]: number }>({});
@@ -438,32 +445,108 @@ export default function UltimateSupervisor() {
   }, []);
 
 
-
-  const processOperations = async (type: 'unique' | 'selection' | 'delete', data?: any, index?: number) => {
-
-    // 1. CAS PARTICULIER : SUPPRESSION
-    if (type === 'delete' && data) {
-      if (window.confirm(`Retirer ${data.societeLocatrice} ?`)) {
-        // Ta logique pour retirer l'élément de la liste visuelle
-        alert("Élément retiré.");
-      }
-      return; // On s'arrête ici pour la suppression
+  // Fonction pour supprimer complètement une réservation
+  const handleDeleteReservation = async (res: any) => {
+    if (!window.confirm(`Supprimer définitivement la réservation de ${res.societeLocatrice} ?`)) {
+      return;
     }
 
-    // 2. RÉCUPÉRATION DE LA SÉLECTION (Unique ou Groupée)
+    try {
+      // 1. Récupérer le panneau
+      const panneauRef = doc(db, "panneaux", res.panelDocId);
+      const panneauSnap = await getDoc(panneauRef);
+
+      if (!panneauSnap.exists()) {
+        alert("Panneau introuvable");
+        return;
+      }
+
+      const data = panneauSnap.data();
+      const currentFaces = [...(data.faces || [])];
+      const faceIndex = res.faceIndex;
+
+      // 2. Vérifier que la face existe
+      if (!currentFaces[faceIndex]) {
+        alert("Face introuvable");
+        return;
+      }
+
+      // 3. Récupérer les réservations de la face
+      const faceReservations = currentFaces[faceIndex].reservations || [];
+
+      // 4. Filtrer pour supprimer la réservation spécifique
+      // Comparer par dateDebut, societeLocatrice et createdAt pour être précis
+      const updatedReservations = faceReservations.filter((r: any) => {
+        // Ne pas supprimer si c'est une autre réservation
+        return !(
+          r.dateDebut === res.dateDebut &&
+          r.societeLocatrice === res.societeLocatrice &&
+          r.createdAt === res.createdAt
+        );
+      });
+
+      // 5. Mettre à jour la face avec le nouveau tableau de réservations
+      currentFaces[faceIndex].reservations = updatedReservations;
+
+      // 6. Si plus aucune réservation, remettre le statut à "Libre"
+      if (updatedReservations.length === 0) {
+        currentFaces[faceIndex].statut = "Libre";
+      }
+
+      // 7. Sauvegarder dans Firestore
+      await updateDoc(panneauRef, {
+        faces: currentFaces
+      });
+
+      // 8. Supprimer l'image Cloudinary si elle existe
+      if (res.photoCampagneUrl && res.photoCampagneUrl.includes('cloudinary')) {
+        try {
+          await fetch('/api/delete-cloudinary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: res.photoCampagneUrl })
+          });
+        } catch (cloudinaryError) {
+          console.error("Erreur suppression image Cloudinary:", cloudinaryError);
+          // Ne pas bloquer la suppression de la réservation si l'image ne se supprime pas
+        }
+      }
+
+      alert("✅ Réservation supprimée avec succès !");
+
+      // 9. Mettre à jour l'état local (optionnel, Firestore le fera via onSnapshot)
+      // Rafraîchir les données pour que la réservation disparaisse de la liste
+      setSelectedForPrint(prev => {
+        const newState = { ...prev };
+        delete newState[res.resUniqueId];
+        return newState;
+      });
+
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      alert("❌ Erreur lors de la suppression de la réservation");
+    }
+  };
+
+
+  const processOperations = async (type: 'unique' | 'selection' | 'delete', data?: any, index?: number) => {
+    // 1. CAS PARTICULIER : SUPPRESSION
+    if (type === 'delete' && data) {
+      await handleDeleteReservation(data);
+      return; // On s'arrête ici après suppression
+    }
+
+    // 2. RÉCUPÉRATION DE LA SÉLECTION
     const selection = type === 'unique'
       ? [data]
       : reservationsEnAttente.filter(r => selectedForPrint[r.resUniqueId]);
 
-    // 3. --- VÉRIFICATION NOMBRE (Pas 0) ---
     if (selection.length === 0) {
       alert("⚠️ Action impossible : Aucune réservation n'est sélectionnée.");
       return;
     }
 
-
-
-    // 4. --- VÉRIFICATION SOCIÉTÉ UNIQUE ---
+    // 3. VÉRIFICATION SOCIÉTÉ UNIQUE
     const premiereSociete = selection[0].societeLocatrice?.trim().toLowerCase();
     if (!premiereSociete) {
       alert("⚠️ Erreur : La société locatrice n'est pas renseignée.");
@@ -479,25 +562,16 @@ export default function UltimateSupervisor() {
       return;
     }
 
-    // 5. --- VÉRIFICATIONS TECHNIQUES (Prix, Paiement) ---
+    // 4. VÉRIFICATION DES PRIX
     const erreursTechniques: string[] = [];
+    let totalFacture = 0;
+
     selection.forEach(res => {
       const key = res.resUniqueId;
-
-      // Vérification du prix
       if (!prices[key] || prices[key] <= 0) {
         erreursTechniques.push(`- ${res.faceLabel} : Prix manquant`);
       }
-
-      const modeActuel = paymentModes[key] || 'total';
-
-      if (modeActuel === 'tranche' && (!tranchesCount[key] || tranchesCount[key] <2)) {
-        erreursTechniques.push(`- ${res.faceLabel} : Précisez le nombre de tranches (min. 2)`);
-      }
-
-      if (modeActuel === 'tranche' && tranchesCount[key] > res.dureeMois) {
-        erreursTechniques.push(`- ${res.faceLabel} : Le nombre de tranches (${tranchesCount[key]}) ne peut pas dépasser la durée du contrat (${res.dureeMois} mois)`);
-      }
+      totalFacture += (prices[key] || 0) * res.dureeMois;
     });
 
     if (erreursTechniques.length > 0) {
@@ -505,35 +579,54 @@ export default function UltimateSupervisor() {
       return;
     }
 
+    // 5. VÉRIFICATION DU MODE DE PAIEMENT GLOBAL
+    if (globalPaymentMode === 'tranche' && globalTranchesCount < 2) {
+      alert("❌ Pour un paiement en tranches, veuillez préciser le nombre de tranches (minimum 2).");
+      return;
+    }
 
-    const idsAEnvoyer = selection.map(r => r.resUniqueId);
-    lancerFacturation(selection);
+    setTotalFactureAmount(totalFacture);
+
+    // Afficher un résumé avant validation
+    const modeTexte = globalPaymentMode === 'total' ? 'Paiement comptant' : `Paiement en ${globalTranchesCount} tranches`;
+    const montantParTranche = globalPaymentMode === 'tranche' ? totalFacture / globalTranchesCount : totalFacture;
+
+    const confirmation = confirm(
+      `📊 RÉSUMÉ DE LA FACTURE\n\n` +
+      `Société: ${premiereSociete}\n` +
+      `Nombre de faces: ${selection.length}\n` +
+      `Total HT: ${totalFacture.toLocaleString()} $\n` +
+      `Mode: ${modeTexte}\n` +
+      `${globalPaymentMode === 'tranche' ? `Montant par tranche: ${montantParTranche.toLocaleString()} $\n` : ''}` +
+      `\nConfirmez-vous la facturation ?`
+    );
+
+    if (!confirmation) return;
+
+    lancerFacturation(selection, totalFacture);
   };
 
 
-
   // 7. LA FONCTION QUI FAIT LA NAVIGATION (À placer juste en dessous ou au dessus)
-  const lancerFacturation = (donneesAEnvoyer: any[]) => {
+  const lancerFacturation = (donneesAEnvoyer: any[], totalFacture: number) => {
     if (!donneesAEnvoyer || donneesAEnvoyer.length === 0) {
       alert("⚠️ Erreur : Aucune donnée à facturer.");
       return;
     }
 
-    // A. On ajoute les prix et modes de paiement saisis à l'objet pour ne rien perdre
+    // Appliquer le mode de paiement global à toutes les réservations
     const donneesCompletes = donneesAEnvoyer.map(res => ({
       ...res,
       prixSaisi: prices[res.resUniqueId] || 0,
-      modePaiement: paymentModes[res.resUniqueId] || 'total',
-      nombreTranches: tranchesCount[res.resUniqueId] || 1
+      modePaiement: globalPaymentMode,
+      nombreTranches: globalPaymentMode === 'tranche' ? globalTranchesCount : 1,
+      montantParTranche: globalPaymentMode === 'tranche' ? totalFacture / globalTranchesCount : 0,
+      totalFacture: totalFacture
     }));
 
-    // B. Utilisation du LocalStorage (plus fiable que l'URL pour les gros objets)
     localStorage.setItem('facture_preview_data', JSON.stringify(donneesCompletes));
-
-    // C. Navigation vers la page PDF
     router.push('/generationpdf');
   };
-
 
   const reservationsEnAttente = useMemo(() => {
 
@@ -650,24 +743,33 @@ export default function UltimateSupervisor() {
   });
 
   // --- ACTIONS ---
- 
 
+  // Ajoutez ce useEffect après vos states
+  useEffect(() => {
+    const selectedReservations = reservationsEnAttente.filter(r => selectedForPrint[r.resUniqueId]);
+    let total = 0;
+    selectedReservations.forEach(res => {
+      const key = res.resUniqueId;
+      total += (prices[key] || 0) * res.dureeMois;
+    });
+    setTotalFactureAmount(total);
+  }, [selectedForPrint, prices, reservationsEnAttente]);
 
 
   // Dans UltimateSupervisor, remplacez la fonction existante par :
-const ouvrirLaCarte = () => {
-  // S'assurer que user a la bonne structure
-  const userData = {
-    uid: user?.uid,
-    email: user?.email,
-    nom: user?.nomComplet || user?.nom || user?.displayName || "Agent",
-    nomComplet: user?.nomComplet || user?.nom || user?.displayName || "Agent",
-    role: user?.role || "commercial"
+  const ouvrirLaCarte = () => {
+    // S'assurer que user a la bonne structure
+    const userData = {
+      uid: user?.uid,
+      email: user?.email,
+      nom: user?.nomComplet || user?.nom || user?.displayName || "Agent",
+      nomComplet: user?.nomComplet || user?.nom || user?.displayName || "Agent",
+      role: user?.role || "commercial"
+    };
+
+    localStorage.setItem('current_user', JSON.stringify(userData));
+    router.push('/dashboard/superviseurs/carte');
   };
-  
-  localStorage.setItem('current_user', JSON.stringify(userData));
-  router.push('/dashboard/superviseurs/carte');
-};
 
   const handleLogout = () => {
     if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
@@ -681,59 +783,6 @@ const ouvrirLaCarte = () => {
 
 
 
-  const handleDeleteReservation = async (res: any, panneauId: string): Promise<void> => {
-    // 1. Vérification critique
-    if (!panneauId) {
-      console.error("Erreur : panneauId est vide !");
-      alert("Impossible de supprimer : ID du panneau manquant.");
-      return;
-    }
-
-    if (!window.confirm("Confirmer la suppression de cette réservation ?")) return;
-
-    try {
-      // 2. Suppression image Cloudinary
-      if (res.photoCampagneUrl) {
-        await fetch('/api/delete-cloudinary', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: res.photoCampagneUrl })
-        });
-      }
-
-      // 3. Mise à jour Firestore (Structure imbriquée : faces -> reservations)
-      const panneauRef = doc(db, "panneaux", panneauId);
-      const panneauSnap = await getDoc(panneauRef);
-
-      if (!panneauSnap.exists()) throw new Error("Document introuvable.");
-
-      const data = panneauSnap.data();
-      const currentFaces = [...(data.faces || [])];
-
-      // On cible la face spécifique grâce à faceIndex qu'on a ajouté dans le filtrage
-      if (currentFaces[res.faceIndex]) {
-        const faceReservations = currentFaces[res.faceIndex].reservations || [];
-
-        // Filtrage par date de création (plus précis que dateModification)
-        currentFaces[res.faceIndex].reservations = faceReservations.filter(
-          (r: any) => r.createdAt !== res.createdAt
-        );
-
-        // Mise à jour du document avec le nouveau tableau de faces
-        await updateDoc(panneauRef, {
-          faces: currentFaces
-        });
-
-        alert("Suppression effectuée avec succès.");
-      } else {
-        throw new Error("Index de face invalide.");
-      }
-
-    } catch (err) {
-      console.error("Erreur critique :", err);
-      alert(`Erreur : ${err instanceof Error ? err.message : "Problème de connexion"}`);
-    }
-  };
 
 
 
@@ -901,12 +950,12 @@ const ouvrirLaCarte = () => {
 
   // Maintenant qu'elle existe, on peut l'utiliser pour yBg et scaleX !
   const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "-12%"]);
-// Dans UltimateSupervisor, ajoute cette fonction (si elle n'existe pas)
-const handleEditPanneau = (panneau: any) => {
-  console.log("Édition du panneau:", panneau);
-  // Ta logique d'édition ici
-  setPanneauToEdit(panneau);
-};
+  // Dans UltimateSupervisor, ajoute cette fonction (si elle n'existe pas)
+  const handleEditPanneau = (panneau: any) => {
+    console.log("Édition du panneau:", panneau);
+    // Ta logique d'édition ici
+    setPanneauToEdit(panneau);
+  };
 
 
   // --- RENDU : LOADING PREMIUM ---
@@ -1098,6 +1147,7 @@ const handleEditPanneau = (panneau: any) => {
                 </motion.div>
               </Link>
             </div>
+
 
             {/* ========== USER SECTION ========== */}
             <div className="flex items-center gap-1 xs:gap-2 shrink-0 pl-1 xs:pl-2 sm:pl-3 lg:pl-4 border-l border-gray-200">
@@ -1491,62 +1541,9 @@ const handleEditPanneau = (panneau: any) => {
                                 </div>
                               </div>
 
-                              {/* MODE DE PAIEMENT */}
-                              <div className="flex gap-2 mb-3">
-                                {['total', 'tranche'].map((mode) => (
-                                  <button
-                                    key={mode}
-                                    onClick={() => setPaymentModes(prev => ({ ...prev, [key]: mode }))}
-                                    className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${paymentModes[key] === mode || (!isTranche && mode === 'total')
-                                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black'
-                                      : 'bg-white/10 text-white/40 hover:text-white'
-                                      }`}
-                                  >
-                                    {mode === 'total' ? 'Global' : 'Tranches'}
-                                  </button>
-                                ))}
-                              </div>
-
-                              {/* OPTION TRANCHES */}
-                              {isTranche && (
-                                <motion.div
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  className="mb-3 p-2 bg-amber-500/5 border border-amber-500/20 rounded-xl"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[7px] text-white/40 uppercase font-bold">Nombre de tranches</span>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      max={res.dureeMois}
-                                      value={tranchesCount[key] || ""}
-                                      onChange={(e) => {
-                                        const val = parseInt(e.target.value);
-                                        setTranchesCount(prev => ({ ...prev, [key]: isNaN(val) ? "" : Math.min(res.dureeMois, Math.max(1, val)) }));
-                                      }}
-                                      className="w-16 bg-black/40 border border-white/20 rounded-lg px-2 py-1 text-white text-center text-[10px] font-bold outline-none focus:border-amber-400"
-                                    />
-                                  </div>
-                                  {tranchesCount[key] > 0 && (
-                                    <p className="text-[9px] text-amber-400 font-bold text-center mt-2">
-                                      {(unitPrice * res.dureeMois / Number(tranchesCount[key])).toLocaleString()} $ / tranche
-                                    </p>
-                                  )}
-                                </motion.div>
-                              )}
-
                               {/* BOUTONS D'ACTION */}
                               <div className="flex gap-2 mt-3 pt-2 border-t border-white/10">
-                                <button
-                                  onClick={() => processOperations('unique', res, index)}
-                                  className="flex-1 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 text-black rounded-xl font-black text-[8px] uppercase tracking-wider flex items-center justify-center gap-1.5 hover:shadow-lg hover:shadow-amber-500/30 transition-all active:scale-95"
-                                >
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                  Valider
-                                </button>
+
                                 <button
                                   onClick={() => processOperations('delete', res, index)}
                                   className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl font-black text-[8px] uppercase hover:bg-red-500 hover:text-white transition-all active:scale-95"
@@ -1566,6 +1563,67 @@ const handleEditPanneau = (panneau: any) => {
                   {/* FOOTER ACTIONS */}
                   {reservationsEnAttente.length > 0 && (
                     <div className="p-5 border-t border-white/10 bg-gradient-to-t from-black/60 to-transparent">
+
+                      {/* SECTION MODE DE PAIEMENT GLOBAL */}
+                      <div className="mb-4 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                        <h3 className="text-[10px] font-black text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                          <CreditCard size={12} />
+                          Mode de paiement - Global
+                        </h3>
+
+                        <div className="flex gap-2 mb-3">
+                          {['total', 'tranche'].map((mode) => (
+                            <button
+                              key={mode}
+                              onClick={() => setGlobalPaymentMode(mode as 'total' | 'tranche')}
+                              className={`flex-1 py-2 text-[9px] font-black uppercase rounded-lg transition-all ${globalPaymentMode === mode
+                                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black'
+                                  : 'bg-white/10 text-white/40 hover:text-white'
+                                }`}
+                            >
+                              {mode === 'total' ? '💰 Paiement comptant' : '📅 Paiement en tranches'}
+                            </button>
+                          ))}
+                        </div>
+
+                        {globalPaymentMode === 'tranche' && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="p-2 bg-black/20 rounded-lg"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[8px] text-white/60 uppercase font-bold">Nombre de tranches</span>
+                              <input
+                                type="number"
+                                min="2"
+                                max="12"
+                                value={globalTranchesCount}
+                                onChange={(e) => setGlobalTranchesCount(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
+                                className="w-20 bg-black/40 border border-white/20 rounded-lg px-3 py-1 text-white text-center text-[10px] font-bold outline-none focus:border-amber-400"
+                              />
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-white/10">
+                              <div className="flex justify-between text-[8px] text-white/40">
+                                <span>Total facture:</span>
+                                <span className="text-amber-400 font-bold">{totalFactureAmount.toLocaleString()} $</span>
+                              </div>
+                              <div className="flex justify-between text-[8px] text-white/40 mt-1">
+                                <span>Montant par tranche:</span>
+                                <span className="text-amber-400 font-bold">{(totalFactureAmount / globalTranchesCount).toLocaleString()} $</span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {globalPaymentMode === 'total' && totalFactureAmount > 0 && (
+                          <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                            <span className="text-[8px] text-white/60 uppercase font-bold">Total à payer:</span>
+                            <span className="text-amber-400 font-bold text-sm">{totalFactureAmount.toLocaleString()} $</span>
+                          </div>
+                        )}
+                      </div>
+
                       {/* BOUTON PRINCIPAL */}
                       <button
                         disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
@@ -1615,7 +1673,6 @@ const handleEditPanneau = (panneau: any) => {
                       </div>
                     </div>
                   )}
-
 
 
 
@@ -1820,7 +1877,7 @@ const handleEditPanneau = (panneau: any) => {
                                     </div>
                                     <button
                                       type="button"
-                                      onClick={() => handleDeleteReservation(res, res.panelDocId)}
+                                      onClick={() => handleDeleteReservation(res)}
                                       className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
                                     >
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -1911,7 +1968,7 @@ const handleEditPanneau = (panneau: any) => {
                       : [...prev, selectionKey]
                   );
                 }}
-                    onEdit={handleEditPanneau}  // ← VÉRIFIE QUE CETTE LIGNE EXISTE
+                onEdit={handleEditPanneau}  // ← VÉRIFIE QUE CETTE LIGNE EXISTE
 
                 ouvrirLaCarte={ouvrirLaCarte}
               />
@@ -2020,7 +2077,7 @@ const handleEditPanneau = (panneau: any) => {
           </div>
         )}
       </main>
-<Footer />
+      <Footer />
 
 
       <EditPanneauModal
