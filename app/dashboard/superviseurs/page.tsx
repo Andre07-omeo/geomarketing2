@@ -2687,11 +2687,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       const r1 = new Date(res.dateDebut);
       const r2 = new Date(res.dateFin);
 
-      // Vérification stricte de chevauchement :
-      // Une réservation chevauche si :
-      // - La nouvelle date début est entre une réservation existante
-      // - OU la nouvelle date fin est entre une réservation existante
-      // - OU la nouvelle période englobe complètement une réservation existante
       const overlap = (d1 <= r2 && d2 >= r1);
 
       return overlap;
@@ -2882,17 +2877,11 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           }
         }
 
-        // 4. Construction des données de mise à jour (STRUCTURE EXACTE)
-        // --- DANS TON handleSave, AU NIVEAU DU MAP ---
 
         const dataToUpdate = {
           faces: formData.faces.map((f: any, i: number) => {
-            // 1. On récupère la face d'origine (avant modification) pour comparer
             const faceOriginale = panneau.faces[i];
 
-            // 2. CONDITION CRUCIALE : On ne crée une réservation QUE SI :
-            // - Le statut n'est pas Libre
-            // - ET que les dates ou le client ont changé par rapport à l'original
             const aEteModifiee =
               f.dateDebut !== faceOriginale?.dateDebut ||
               f.clientNom !== faceOriginale?.societeLocatrice ||
@@ -3090,45 +3079,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                     </div>
 
                     {/* ========== CONTENU PRINCIPAL ========== */}
-                    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-5 lg:gap-6 w-full">
-
-                      {/* ========== ZONE PHOTO (plus petite sur mobile) ========== */}
-                      {(face.statut === "Occupé" || face.statut === "Réservé") && (
-                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 xl:w-32 xl:h-32 rounded-lg sm:rounded-xl md:rounded-2xl overflow-hidden bg-black/50 border border-white/10 shadow-xl flex-shrink-0 mx-auto lg:mx-0">
-                          {face.photoCampagneUrl ? (
-                            <>
-                              <img src={face.photoCampagneUrl} className="w-full h-full object-cover" alt="Face" />
-                              {(!isLocked || isOwner(face)) && (
-                                <button
-                                  onClick={() => removePhoto(idx)}
-                                  className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 p-0.5 sm:p-1 bg-red-500 rounded-full text-white hover:scale-110 transition-transform"
-                                >
-                                  <X size={8} className="sm:w-2.5 sm:h-2.5 md:w-3 md:h-3" />
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-[5px] sm:text-[6px] text-white/40 bg-black/30">
-                              <Camera size={10} className="sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 mb-0.5" />
-                              <span className="hidden sm:inline text-[5px] sm:text-[6px]">PHOTO</span>
-                            </div>
-                          )}
-
-                          {(!isLocked || isOwner(face)) && (
-                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => {
-                                  fileInputRef.current!.dataset.idx = idx.toString();
-                                  fileInputRef.current?.click();
-                                }}
-                                className="p-1 sm:p-1.5 md:p-2 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full text-black hover:scale-110 transition-transform"
-                              >
-                                <Upload size={8} className="sm:w-2.5 sm:h-2.5 md:w-3 md:h-3" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-5 lg:gap-6 w-full">             
 
                       {/* ========== CHAMPS DE SAISIE ========== */}
                       <div className="flex-1 grid grid-cols-1 gap-2 sm:gap-3 md:gap-4">
