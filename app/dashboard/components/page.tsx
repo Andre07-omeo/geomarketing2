@@ -169,9 +169,6 @@ export default function PageEnregistrement({
     // Ajoutez cet état en haut de votre composant
     const [listeCommerciaux, setListeCommerciaux] = useState<{ nom: string, email: string }[]>([]);
 
-
-
-
     // Calcul si tout est rempli pour verrouiller l'interface
     const isAdresseComplete = geo.pays && geo.province && geo.villeOuDistrict && geo.communeOuZone && geo.avenue && geo.numero;
 
@@ -551,55 +548,109 @@ const resetForm = () => {
             <div className="bg-black/40 backdrop-blur-xl w-full h-full md:h-auto md:max-h-[90vh] md:max-w-2xl p-4 md:p-10 md:rounded-[3rem] border md:border border-white/20 shadow-2xl relative flex flex-col">
 
                 <div className="flex justify-between items-center pb-6 mb-2 border-b border-white/10">
-                    {/* GAUCHE - TITRE AVEC BANDE DORÉE */}
-                    <div className="flex items-center gap-4">
-                        <div className="w-1 h-12 bg-gradient-to-b from-amber-500 via-yellow-500 to-amber-500 rounded-full" />
-                        <div>
-                            <h2 className="text-white font-black text-2xl sm:text-3xl md:text-4xl tracking-tighter">
-                                <span className="text-amber-500">Nouveau</span> Panneau
-                            </h2>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                <div className="w-1 h-1 rounded-full bg-amber-500" />
-                                <p className="text-[7px] sm:text-[8px] text-white/40 font-bold uppercase tracking-[0.25em]">
-                                    ENREGISTREMENT
-                                </p>
-                                <div className="w-1 h-1 rounded-full bg-amber-500" />
-                            </div>
+    {/* GAUCHE - TITRE AVEC BANDE DORÉE */}
+    <div className="flex items-center gap-4">
+        <div className="w-1 h-12 bg-gradient-to-b from-amber-500 via-yellow-500 to-amber-500 rounded-full" />
+        <div>
+            <h2 className="text-white font-black text-xl sm:text-2xl md:text-3xl lg:text-4xl tracking-tighter">
+                <span className="text-amber-500">Nouveau</span> Panneau
+            </h2>
+            <div className="flex items-center gap-2 mt-0.5">
+                <div className="w-1 h-1 rounded-full bg-amber-500" />
+                <p className="text-[6px] sm:text-[7px] md:text-[8px] text-white/40 font-bold uppercase tracking-[0.25em]">
+                    ENREGISTREMENT
+                </p>
+                <div className="w-1 h-1 rounded-full bg-amber-500" />
+            </div>
+        </div>
+    </div>
+
+    {/* DROITE - MENU NAVIGATION RESPONSIVE */}
+    <div className="flex items-center gap-2 sm:gap-3">
+        {/* Bouton Carte - Visible sur tous les appareils */}
+        <button
+            onClick={() => router.push('/dashboard/components/carte')}
+            className="group flex items-center gap-1 sm:gap-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/20 hover:to-teal-500/20 px-2 sm:px-3 py-1.5 rounded-full border border-emerald-500/30 hover:border-emerald-500/50 transition-all duration-300"
+        >
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="14" 
+                height="14" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className="text-emerald-400 group-hover:scale-110 transition-transform"
+            >
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <span className="hidden xs:inline text-[7px] sm:text-[8px] font-bold text-emerald-400 uppercase tracking-wider">
+                Carte
+            </span>
+        </button>
+
+        {/* Section Utilisateur */}
+        {user ? (
+            <>
+                {/* Nom d'utilisateur - Responsive selon l'appareil */}
+                <div className="text-right">
+                    {/* Version Desktop - Nom complet */}
+                    <p className="hidden lg:block text-[11px] font-bold text-white/80 tracking-tight">
+                        {user.nomComplet || user.nom || user.email?.split('@')[0] || "Agent"}
+                    </p>
+                    {/* Version Tablet - Nom + Rôle */}
+                    <div className="hidden sm:block lg:hidden">
+                        <p className="text-[9px] font-bold text-white/80 tracking-tight">
+                            {user.nom?.split(' ')[0] || user.email?.split('@')[0]?.substring(0, 12) || "Agent"}
+                        </p>
+                        <p className="text-[6px] text-amber-400 font-bold uppercase tracking-wider">
+                            {user.role || "Commercial"}
+                        </p>
+                    </div>
+                    {/* Version Mobile - Juste l'icône */}
+                    <div className="sm:hidden">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center">
+                            <span className="text-[10px] font-black text-white">
+                                {user.nom?.charAt(0) || user.email?.charAt(0) || "U"}
+                            </span>
                         </div>
                     </div>
-
-                    {/* DROITE */}
-                    <div className="flex items-center gap-3">
-                        {user ? (
-                            <>
-                                <div className="hidden md:block text-right">
-                                    <p className="text-[10px] font-bold text-white/80 tracking-tight">
-                                        {user.nom || user.email?.split('@')[0] || "Agent"}
-                                    </p>
-                                    <p className="text-[7px] text-amber-400 font-bold uppercase tracking-wider">
-                                        {user.role || "Superviseur"}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={handleLogout}
-                                    className="group flex items-center gap-2 bg-white/5 hover:bg-red-500/20 px-3 py-1.5 rounded-full border border-white/10 hover:border-red-500/40 transition-all duration-300"
-                                >
-                                    <img src={logoUrl} className="w-7 h-7 rounded-full border border-amber-500/50 object-cover" alt="" />
-                                    <LogOut size={12} className="text-red-400 group-hover:scale-110 transition-transform" />
-                                    <span className="hidden xs:inline text-[8px] font-bold text-red-400">Quitter</span>
-                                </button>
-                            </>
-                        ) : (
-                            <button
-                                onClick={() => setIsLoginOpen(true)}
-                                className="px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[9px] font-bold uppercase tracking-wider hover:bg-amber-500 hover:text-black transition-all"
-                            >
-                                🔐 Connexion
-                            </button>
-                        )}
-                    </div>
+                    
+                    {/* Rôle visible sur Desktop */}
+                    <p className="hidden lg:block text-[7px] text-amber-400 font-bold uppercase tracking-wider mt-0.5">
+                        {user.role || "Superviseur"}
+                    </p>
                 </div>
 
+                {/* Bouton Déconnexion */}
+                <button
+                    onClick={handleLogout}
+                    className="group flex items-center gap-1 sm:gap-2 bg-white/5 hover:bg-red-500/20 px-2 sm:px-3 py-1.5 rounded-full border border-white/10 hover:border-red-500/40 transition-all duration-300"
+                >
+                    <img 
+                        src={logoUrl} 
+                        className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 rounded-full border border-amber-500/50 object-cover" 
+                        alt="avatar" 
+                    />
+                    <LogOut size={11} className="text-red-400 group-hover:scale-110 transition-transform hidden sm:block" />
+                    <span className="hidden md:inline text-[7px] sm:text-[8px] font-bold text-red-400">
+                        Quitter
+                    </span>
+                </button>
+            </>
+        ) : (
+            <button
+                onClick={() => setIsLoginOpen(true)}
+                className="px-3 sm:px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider hover:bg-amber-500 hover:text-black transition-all"
+            >
+                🔐 Connexion
+            </button>
+        )}
+    </div>
+</div>
 
                 <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
                     <button

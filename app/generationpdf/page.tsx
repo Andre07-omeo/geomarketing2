@@ -201,7 +201,7 @@ const DispromaltPrintLayer = () => {
           {/* NUMÉRO DE FACTURE */}
           <div style={{
             position: 'absolute',
-            top: '75mm',
+            top: '76mm',
             left: '50mm',
             fontSize: '18px',
             fontWeight: 'bold',
@@ -211,12 +211,12 @@ const DispromaltPrintLayer = () => {
           </div>
 
           {/* DATE */}
-          <div style={{ position: 'absolute', top: '65mm', left: '155mm', fontSize: '17px' }}>
+          <div style={{ position: 'absolute', top: '66mm', left: '155mm', fontSize: '17px' }}>
             {new Date().toLocaleDateString('fr-FR')}
           </div>
 
           {/* RECTANGLE INFOS CLIENT */}
-          <div style={{ position: 'absolute', top: '75mm', left: '128mm', width: '65mm', lineHeight: '1.5' }}>
+          <div style={{ position: 'absolute', top: '75mm', left: '135mm', width: '60mm', lineHeight: '1.5' }}>
             <div style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase' }}>
               {factureData.client}
             </div>
@@ -229,7 +229,7 @@ const DispromaltPrintLayer = () => {
           </div>
 
           {/* TABLEAU DES LIGNES */}
-          <div style={{ position: 'absolute', top: '100mm', left: '5mm', width: '180mm' }}>
+          <div style={{ position: 'absolute', top: '110mm', left: '10mm', width: '180mm' }}>
             {factureData.lignes.map((l: any, i: number) => (
               <div key={i} style={{ display: 'flex', minHeight: '15.5mm', alignItems: 'flex-start', fontSize: '12px', marginBottom: '5px' }}>
 
@@ -243,10 +243,10 @@ const DispromaltPrintLayer = () => {
                   <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '11px' }}>
                     {l.idFace} - {l.label}
                   </div>
-                  <div style={{ fontSize: '10px', color: '#111' }}>
+                  <div style={{ fontSize: '13px', color: '#111' }}>
                     {l.adresse}
                   </div>
-                  <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#555' }}>
+                  <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#111010dc' }}>
                     <span>Type: {l.type || 'Vinyle'}</span>
                     <span style={{ marginLeft: '10px' }}>Période: {l.dateDebut} au {l.dateFin}</span>
                   </div>
@@ -267,15 +267,12 @@ const DispromaltPrintLayer = () => {
               </div>
             ))}
           </div>
-
           {/* TOTAL À PAYER */}
-          <div style={{ position: 'absolute', top: '189mm', left: '160mm', width: '30mm', textAlign: 'right', fontWeight: 'bold', fontSize: '16px' }}>
+          <div style={{ position: 'absolute', top: '250mm', left: '160mm', width: '30mm', textAlign: 'right', fontWeight: 'bold', fontSize: '16px' }}>
             {factureData.totalHT.toLocaleString()} $
           </div>
-
         </div>
       </div>
-
       <style jsx>{`
         .page-container {
           background-color: #525659;
@@ -285,7 +282,6 @@ const DispromaltPrintLayer = () => {
           align-items: center;
           padding-bottom: 50px;
         }
-        
         .zoom-wrapper {
           margin-top: 80px;
           transition: transform 0.2s ease-out;
