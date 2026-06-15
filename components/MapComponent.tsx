@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMap, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, Tooltip, Circle } from 'react-leaflet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, Moon, Filter, X, Layers, Map as MapIcon, Navigation, Info, Search, RotateCcw } from 'lucide-react';
 
@@ -28,6 +28,8 @@ type MapTheme = 'light' | 'dark' | 'satellite';
 interface MapComponentProps {
   panneaux: any[];
   onMarkerClick: (panneau: any) => void;
+  userLocation?: { lat: number; lng: number } | null; // ← AJOUTEZ CETTE LIGNE
+
 }
 
 // ============================================
@@ -56,7 +58,7 @@ const getFaceStatus = (face: any): { status: string; label: string } => {
   now.setHours(0, 0, 0, 0);
 
   const reservations = face.reservations || [];
-  
+
   const activeRes = reservations.find((res: any) => {
     const debut = new Date(res.dateDebut);
     const fin = new Date(res.dateFin);
@@ -80,9 +82,9 @@ const getFaceStatus = (face: any): { status: string; label: string } => {
 // ============================================
 const getPanneauStatus = (faces: any[]): { status: string; label: string; color: string; stats: any } => {
   if (!faces || faces.length === 0) {
-    return { 
-      status: 'maintenance', 
-      label: 'Maintenance', 
+    return {
+      status: 'maintenance',
+      label: 'Maintenance',
       color: '#EF4444',
       stats: { libre: 0, occupe: 0, reserve: 0, maintenance: 0, total: 0 }
     };
@@ -108,35 +110,35 @@ const getPanneauStatus = (faces: any[]): { status: string; label: string; color:
   if (stats.libre === stats.total) {
     return { status: 'libre', label: 'Libre', color: '#10B981', stats };
   }
-  
+
   // Règle 2: Toutes occupées → BLEU
   if (stats.occupe === stats.total) {
     return { status: 'occupe', label: 'Occupé', color: '#3B82F6', stats };
   }
-  
+
   // Règle 3: Toutes réservées → JAUNE
   if (stats.reserve === stats.total) {
     return { status: 'reserve', label: 'Réservé', color: '#F59E0B', stats };
   }
-  
+
   // Règle 4: Toutes maintenance → ROUGE
   if (stats.maintenance === stats.total) {
     return { status: 'maintenance', label: 'Maintenance', color: '#EF4444', stats };
   }
-  
+
   // Cas mixtes: Priorité Libre > Réservé > Occupé > Maintenance
   if (stats.libre > 0) {
     return { status: 'libre', label: 'Libre', color: '#10B981', stats };
   }
-  
+
   if (stats.reserve > 0) {
     return { status: 'reserve', label: 'Réservé', color: '#F59E0B', stats };
   }
-  
+
   if (stats.occupe > 0) {
     return { status: 'occupe', label: 'Occupé', color: '#3B82F6', stats };
   }
-  
+
   return { status: 'maintenance', label: 'Maintenance', color: '#EF4444', stats };
 };
 
@@ -145,10 +147,10 @@ const getPanneauStatus = (faces: any[]): { status: string; label: string; color:
 // ============================================
 const createCustomIcon = (color: string, status: string, isLibre: boolean) => {
   if (typeof window === 'undefined' || !L) return null;
-  
+
   const width = isLibre ? 34 : 30;
   const height = isLibre ? 44 : 40;
-  
+
   const pulseAnimation = isLibre ? `
     <div style="
       position: absolute;
@@ -163,7 +165,7 @@ const createCustomIcon = (color: string, status: string, isLibre: boolean) => {
       z-index: 0;
     "></div>
   ` : '';
-  
+
   const shadow = `
     <div style="
       position: absolute;
@@ -178,7 +180,7 @@ const createCustomIcon = (color: string, status: string, isLibre: boolean) => {
       z-index: 0;
     "></div>
   `;
-  
+
   const pinSvg = `
     <svg 
       width="${width}" 
@@ -225,7 +227,7 @@ const createCustomIcon = (color: string, status: string, isLibre: boolean) => {
       />
     </svg>
   `;
-  
+
   return L.divIcon({
     className: 'custom-marker',
     html: `
@@ -253,14 +255,14 @@ const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanne
     if (status === 'reserve') return 'Réservé';
     return 'Maintenance';
   };
-  
+
   const getStatusColor = () => {
     if (status === 'libre') return 'from-green-600 to-green-500';
     if (status === 'occupe') return 'from-blue-600 to-blue-500';
     if (status === 'reserve') return 'from-amber-600 to-amber-500';
     return 'from-red-600 to-red-500';
   };
-  
+
   return (
     <div className="min-w-[220px] overflow-hidden">
       <div className={`px-3 py-2 bg-gradient-to-r ${getStatusColor()} text-white`}>
@@ -274,12 +276,12 @@ const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanne
           <div className={`w-2 h-2 rounded-full bg-white ${status === 'libre' ? 'animate-pulse' : ''}`} />
         </div>
       </div>
-      
+
       <div className="p-3 bg-white">
         <p className="text-[9px] text-gray-500 font-medium mb-2 truncate max-w-[200px]">
           📍 {panneau.adresse}
         </p>
-        
+
         <div className="flex gap-2 mb-2 pb-2 border-b border-gray-100">
           {stats.libre > 0 && (
             <div className="flex items-center gap-1">
@@ -306,7 +308,7 @@ const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanne
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-1.5">
             <div className={`w-2 h-2 rounded-full ${status === 'libre' ? 'bg-green-500 animate-pulse' : status === 'occupe' ? 'bg-blue-500' : status === 'reserve' ? 'bg-amber-500' : 'bg-red-500'}`} />
@@ -315,14 +317,14 @@ const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanne
             </span>
           </div>
           <div className="flex gap-1">
-            <button 
+            <button
               onClick={() => zoomToPanneau(panneau)}
               className="text-[7px] font-black bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-2 py-1 rounded-full hover:shadow-md transition-all active:scale-95"
               title="Zoom sur le panneau"
             >
               🔍 Zoom
             </button>
-            <button 
+            <button
               onClick={() => onMarkerClick(panneau)}
               className="text-[7px] font-black bg-gradient-to-r from-amber-500 to-yellow-500 text-white px-2 py-1 rounded-full hover:shadow-md transition-all active:scale-95"
             >
@@ -335,19 +337,21 @@ const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanne
   );
 };
 
+
+
 // ============================================
 // COMPOSANT DE CONTRÔLE DE LA CARTE
 // ============================================
 function MapController({ theme, onMapReady }: { theme: MapTheme; onMapReady: (map: any) => void }) {
   const map = useMap();
-  
+
   useEffect(() => {
     if (map) {
       map.invalidateSize();
       onMapReady(map);
     }
   }, [map, theme, onMapReady]);
-  
+
   return null;
 }
 
@@ -361,7 +365,7 @@ function FilterOption({ label, count, active, onToggle }: any) {
     if (label === 'Réservé') return 'bg-amber-500';
     return 'bg-red-500';
   };
-  
+
   return (
     <button
       onClick={onToggle}
@@ -381,7 +385,7 @@ function FilterOption({ label, count, active, onToggle }: any) {
 // ============================================
 // COMPOSANT PRINCIPAL MAP
 // ============================================
-export default function MapComponent({ panneaux, onMarkerClick }: MapComponentProps) {
+export default function MapComponent({ panneaux, onMarkerClick, userLocation }: MapComponentProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [theme, setTheme] = useState<MapTheme>('satellite');
@@ -389,7 +393,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [searchAddress, setSearchAddress] = useState('');
   const [activeAddressFilter, setActiveAddressFilter] = useState('');
-  
+
   const [activeFilters, setActiveFilters] = useState({
     libre: true,
     occupe: true,
@@ -397,29 +401,29 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
     maintenance: true
   });
   const [isFilterPanelVisible, setIsFilterPanelVisible] = useState(true);
-  
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  
+
   useEffect(() => {
     if (panneaux.length > 0) {
       setIsLoadingData(false);
       setLastUpdate(new Date());
     }
   }, [panneaux]);
-  
+
   const center: [number, number] = [-4.3276, 15.3136];
-  
+
   // Filtrer par statut et par adresse
   const filteredPanneaux = panneaux.filter((panneau: any) => {
     const { status } = getPanneauStatus(panneau.faces);
     const matchStatus = activeFilters[status as keyof typeof activeFilters];
-    const matchAddress = !activeAddressFilter || 
+    const matchAddress = !activeAddressFilter ||
       panneau.adresse?.toLowerCase().includes(activeAddressFilter.toLowerCase());
     return matchStatus && matchAddress;
   });
-  
+
   const allStats = {
     total: filteredPanneaux.length,
     libre: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'libre').length,
@@ -427,7 +431,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
     reserve: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'reserve').length,
     maintenance: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'maintenance').length
   };
-  
+
   // Fonction pour zoomer sur un panneau
   const zoomToPanneau = (panneau: any) => {
     if (mapInstance) {
@@ -440,20 +444,20 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
       }
     }
   };
-  
+
   // Fonction pour rechercher par adresse
   const searchByAddress = () => {
     if (searchAddress.trim()) {
       setActiveAddressFilter(searchAddress.trim());
     }
   };
-  
+
   // Fonction pour réinitialiser le filtre d'adresse
   const resetAddressFilter = () => {
     setSearchAddress('');
     setActiveAddressFilter('');
   };
-  
+
   if (!isMounted) {
     return (
       <div className="relative h-full w-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
@@ -470,9 +474,9 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
       </div>
     );
   }
-  
+
   const currentTile = tileConfig[theme];
-  
+
   return (
     <div className="relative h-full w-full">
       {/* Indicateur de chargement des données */}
@@ -484,14 +488,14 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
           </div>
         </div>
       )}
-      
+
       {/* Dernière mise à jour */}
       <div className="absolute bottom-4 right-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-xl px-2 py-1">
         <p className="text-[6px] text-white/40">
           Dernière mise à jour: {lastUpdate.toLocaleTimeString()}
         </p>
       </div>
-      
+
       {/* PANEL DE RECHERCHE PAR ADRESSE */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-1.5 min-w-[200px] sm:min-w-[300px]">
         <div className="flex items-center gap-1">
@@ -526,7 +530,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
           </div>
         )}
       </div>
-      
+
       {/* PANEL DE THÈMES */}
       <div className="absolute top-4 left-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-1.5 flex gap-1">
         <button
@@ -551,7 +555,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
           <MapIcon size={16} />
         </button>
       </div>
-      
+
       {/* BOUTON FILTRES STATUT */}
       <button
         onClick={() => setIsFilterPanelVisible(!isFilterPanelVisible)}
@@ -560,7 +564,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
       >
         <Filter size={18} />
       </button>
-      
+
       {/* PANEL FILTRES STATUT */}
       <AnimatePresence>
         {isFilterPanelVisible && (
@@ -582,7 +586,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
                 <X size={12} />
               </button>
             </div>
-            
+
             <div className="space-y-2">
               <FilterOption
                 label="Libre"
@@ -609,7 +613,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
                 onToggle={() => setActiveFilters({ ...activeFilters, maintenance: !activeFilters.maintenance })}
               />
             </div>
-            
+
             {/* Statistiques compactes */}
             <div className="mt-3 pt-2 border-t border-white/10">
               <div className="grid grid-cols-2 gap-1 text-center">
@@ -634,7 +638,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {/* Message quand aucun panneau ne correspond */}
       {filteredPanneaux.length === 0 && (
         <div className="absolute inset-0 z-[1000] flex items-center justify-center pointer-events-none">
@@ -642,7 +646,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
             <Filter size={24} className="text-amber-400 mx-auto mb-2" />
             <p className="text-white text-sm font-black uppercase">Aucun panneau</p>
             <p className="text-white/40 text-[8px] mt-1">
-              {activeAddressFilter 
+              {activeAddressFilter
                 ? `Aucun panneau trouvé pour "${activeAddressFilter}"`
                 : 'Aucun panneau ne correspond aux filtres sélectionnés'}
             </p>
@@ -665,46 +669,134 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
           </div>
         </div>
       )}
-      
+
+      {/* CARTE */}
       {/* CARTE */}
       <MapContainer
         key={theme}
-        center={center}
-        zoom={12}
+        center={userLocation ? [userLocation.lat, userLocation.lng] : center}
+        zoom={userLocation ? 17 : 12}
         zoomControl={true}
         attributionControl={true}
         style={{ height: "100%", width: "100%" }}
         className="z-0"
       >
-        <TileLayer 
+        <TileLayer
           url={currentTile.url}
           attribution={currentTile.attribution}
         />
-        
+
         <MapController theme={theme} onMapReady={setMapInstance} />
-        
+
+        {/* MARQUEUR DE LA POSITION UTILISATEUR */}
+        {userLocation && (
+          <Marker
+            position={[userLocation.lat, userLocation.lng]}
+            icon={L.divIcon({
+              className: 'user-marker',
+              html: `
+          <div style="position: relative;">
+            <div style="
+              width: 20px;
+              height: 20px;
+              background: #10B981;
+              border: 3px solid white;
+              border-radius: 50%;
+              box-shadow: 0 0 15px rgba(16, 185, 129, 0.9);
+              animation: pulse-blue 1.5s infinite;
+            "></div>
+            <div style="
+              position: absolute;
+              top: 7px;
+              left: 7px;
+              width: 6px;
+              height: 6px;
+              background: white;
+              border-radius: 50%;
+            "></div>
+          </div>
+        `,
+              iconSize: [20, 20],
+              popupAnchor: [0, -10],
+            })}
+            eventHandlers={{
+              click: () => {
+                // Ouvrir une popup d'information
+              }
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -10]} permanent={false} className="user-tooltip">
+              <div className="text-center px-2 py-1">
+                <div className="font-black text-[10px] text-emerald-600">📍 Vous êtes ici</div>
+                <div className="text-[8px] text-gray-500">Position GPS précise</div>
+              </div>
+            </Tooltip>
+          </Marker>
+        )}
+
+        {/* CERCLE DE PRÉCISION GPS */}
+        {/* MARQUEUR DE LA POSITION UTILISATEUR */}
+{userLocation && typeof window !== 'undefined' && L && (
+  <Marker
+    position={[userLocation.lat, userLocation.lng]}
+    icon={L.divIcon({
+      className: 'user-marker',
+      html: `
+        <div style="position: relative;">
+          <div style="
+            width: 20px;
+            height: 20px;
+            background: #10B981;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.9);
+            animation: pulse-blue 1.5s infinite;
+          "></div>
+          <div style="
+            position: absolute;
+            top: 7px;
+            left: 7px;
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+          "></div>
+        </div>
+      `,
+      iconSize: [20, 20],
+      popupAnchor: [0, -10],
+    })}
+  >
+    <Tooltip direction="top" offset={[0, -10]} permanent={false} className="user-tooltip">
+      <div className="text-center px-2 py-1">
+        <div className="font-black text-[10px] text-emerald-600">📍 Vous êtes ici</div>
+        <div className="text-[8px] text-gray-500">Position GPS précise</div>
+      </div>
+    </Tooltip>
+  </Marker>
+)}
         {filteredPanneaux.map((panneau: any, index: number) => {
           let lat = panneau.coords?.[0] || panneau.gps_raw?.lat;
           let lng = panneau.coords?.[1] || panneau.gps_raw?.lng;
-          
+
           lat = typeof lat === 'string' ? parseFloat(lat) : lat;
           lng = typeof lng === 'string' ? parseFloat(lng) : lng;
-          
+
           if (isNaN(lat) || isNaN(lng) || !lat || !lng) return null;
           if (lat < -4.5 || lat > -4.2 || lng < 15.2 || lng > 15.5) return null;
-          
+
           const { status, color, stats } = getPanneauStatus(panneau.faces);
           const isLibre = status === 'libre';
           const customIcon = createCustomIcon(color, status, isLibre);
-          
+
           if (!customIcon) return null;
-          
+
           return (
             <Marker
               key={panneau.id || index}
               position={[lat, lng]}
               icon={customIcon}
-              eventHandlers={{ 
+              eventHandlers={{
                 click: () => onMarkerClick(panneau),
                 mouseover: (e) => {
                   e.target.openTooltip();
@@ -728,11 +820,11 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
                   </div>
                 </div>
               </Tooltip>
-              
+
               <div className="custom-popup">
-                <CustomPopupContent 
-                  panneau={panneau} 
-                  status={status} 
+                <CustomPopupContent
+                  panneau={panneau}
+                  status={status}
                   stats={stats}
                   onMarkerClick={onMarkerClick}
                   zoomToPanneau={zoomToPanneau}
@@ -742,7 +834,8 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
           );
         })}
       </MapContainer>
-      
+
+
       {/* LÉGENDE */}
       <div className="absolute bottom-4 left-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-2">
         <div className="flex gap-3 text-[8px] font-black uppercase tracking-wider">
@@ -764,7 +857,7 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
           </div>
         </div>
       </div>
-      
+
       {/* STYLES GLOBAUX */}
       <style jsx global>{`
         @keyframes pulse {
@@ -835,6 +928,37 @@ export default function MapComponent({ panneaux, onMarkerClick }: MapComponentPr
         .leaflet-control-attribution a {
           color: rgba(255, 255, 255, 0.7) !important;
         }
+
+
+       
+@keyframes pulse-blue {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+}
+
+.user-marker {
+  background: transparent !important;
+  border: none !important;
+  z-index: 1000 !important;
+}
+
+.user-tooltip {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #10B981 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  font-size: 10px !important;
+}
+
+.user-tooltip::before {
+  border-top-color: #10B981 !important;
+}
       `}</style>
     </div>
   );

@@ -218,7 +218,8 @@ export default function FullscreenMap() {
         <MapComponent
           onMarkerClick={setSelectedPanneau}
           panneaux={panneaux}
-          //userLocation={userLocation}
+
+          userLocation={userLocation}
         />
       </div>
 
