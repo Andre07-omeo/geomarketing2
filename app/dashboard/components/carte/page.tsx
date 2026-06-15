@@ -49,25 +49,36 @@ export default function FullscreenMap() {
   
   const router = useRouter();
 
-  // Récupération de l'utilisateur connecté (Firebase + localStorage)
-  useEffect(() => {
-    // D'abord essayer de récupérer depuis localStorage
-    const storedUser = localStorage.getItem('user') || localStorage.getItem('current_user');
-    if (storedUser && !user) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser({
-          uid: parsedUser.uid,
-          email: parsedUser.email,
-          nomComplet: parsedUser.nomComplet || parsedUser.nom,
-          nom: parsedUser.nom,
-          role: parsedUser.role || "superviseur"
-        });
-        console.log("Utilisateur chargé depuis localStorage");
-      } catch (e) {
-        console.error("Erreur parsing stored user:", e);
-      }
+  
+useEffect(() => {
+  // 1. D'abord essayer de récupérer depuis l'URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const userParam = urlParams.get('user');
+
+  if (userParam) {
+    try {
+      const decodedUser = JSON.parse(decodeURIComponent(userParam));
+      setUser({
+        uid: decodedUser.uid,
+        email: decodedUser.email,
+        nomComplet: decodedUser.nomComplet || decodedUser.nom,
+        nom: decodedUser.nom,
+        role: decodedUser.role || "superviseur"
+      });
+      console.log("Utilisateur chargé depuis l'URL");
+      // Sauvegarder dans localStorage pour persistance
+      localStorage.setItem('user', JSON.stringify(decodedUser));
+      return;
+    } catch (e) {
+      console.error("Erreur parsing user depuis URL:", e);
     }
+  }
+
+
+
+
+
+
     
     // Puis écouter les changements Firebase
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {

@@ -62,7 +62,22 @@ export default function PageEnregistrement({
     }, [user]);
 
 
-
+const goToMap = () => {
+  if (user) {
+    // Encoder les données utilisateur dans l'URL
+    const userEncoded = encodeURIComponent(JSON.stringify({
+      uid: user.uid,
+      email: user.email,
+      nomComplet: user.nomComplet || user.nom,
+      nom: user.nom,
+      role: user.role || "superviseurs"
+    }));
+    router.push(`/dashboard/components/carte?user=${userEncoded}`);
+  } else {
+    // Si pas d'utilisateur, rediriger vers la connexion
+    setIsLoginOpen(true);
+  }
+};
 
     // --- TU DOIS DÉCLARER CETTE FONCTION ICI ---
     const handleLogout = () => {
@@ -582,28 +597,28 @@ export default function PageEnregistrement({
                     <div className="flex items-center gap-2 sm:gap-3">
                         {/* Bouton Carte - Visible sur tous les appareils */}
                         <button
-                            onClick={() => router.push('/dashboard/components/carte')}
-                            className="group flex items-center gap-1 sm:gap-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/20 hover:to-teal-500/20 px-2 sm:px-3 py-1.5 rounded-full border border-emerald-500/30 hover:border-emerald-500/50 transition-all duration-300"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className="text-emerald-400 group-hover:scale-110 transition-transform"
-                            >
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                                <circle cx="12" cy="10" r="3" />
-                            </svg>
-                            <span className="hidden xs:inline text-[7px] sm:text-[8px] font-bold text-emerald-400 uppercase tracking-wider">
-                                Carte
-                            </span>
-                        </button>
+    onClick={goToMap}
+    className="group flex items-center gap-1 sm:gap-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/20 hover:to-teal-500/20 px-2 sm:px-3 py-1.5 rounded-full border border-emerald-500/30 hover:border-emerald-500/50 transition-all duration-300"
+>
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width="14" 
+        height="14" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className="text-emerald-400 group-hover:scale-110 transition-transform"
+    >
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+        <circle cx="12" cy="10" r="3"/>
+    </svg>
+    <span className="hidden xs:inline text-[7px] sm:text-[8px] font-bold text-emerald-400 uppercase tracking-wider">
+        Carte
+    </span>
+</button>
 
                         {/* Section Utilisateur */}
                         {user ? (
