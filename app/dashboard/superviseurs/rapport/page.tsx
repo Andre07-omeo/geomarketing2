@@ -1,940 +1,595 @@
 'use client';
-
-import React, { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMap, Tooltip, Circle } from 'react-leaflet';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Moon, Filter, X, Layers, Map as MapIcon, Navigation, Info, Search, RotateCcw } from 'lucide-react';
-
-// ============================================
-// IMPORT CSS
-// ============================================
-// @ts-ignore
-import 'leaflet/dist/leaflet.css';
-
-// ============================================
-// PROTECTION SSR POUR LEAFLET
-// ============================================
-let L: any;
-if (typeof window !== 'undefined') {
-  L = require('leaflet');
-  require('leaflet.heat');
-}
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  Search, Filter, LayoutGrid, Database, CheckCircle2,
+  Clock, MapPin, CreditCard, ChevronDown, Calendar, Image as ImageIcon,
+  Globe, Building2, X, Menu, TrendingUp, DollarSign, Layers,
+  Users, UserCheck, Target, AlertCircle, Activity, Eye, ThumbsUp,
+  Home, FilePieChart, LogOut
+} from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { motion, useScroll, useSpring, useMotionValueEvent } from 'framer-motion';
 
 // ============================================
-// TYPES
+// IMPORTATION DEPUIS LE FICHIER DE CONFIG
 // ============================================
-type MapTheme = 'light' | 'dark' | 'satellite';
-
-interface MapComponentProps {
-  panneaux: any[];
-  onMarkerClick: (panneau: any) => void;
-  userLocation?: { lat: number; lng: number } | null;
-}
+const config = require('../../../../config/db');
 
 // ============================================
-// CONFIGURATION DES TUILES PAR THÈME
+// INITIALISATION FIREBASE
 // ============================================
-const tileConfig = {
-  satellite: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: '&copy; <a href="https://www.esri.com/">Esri</a>'
-  },
-  light: {
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> & <a href="https://carto.com/">CARTO</a>'
-  },
-  dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> & <a href="https://carto.com/">CARTO</a>'
-  }
-};
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, collection, onSnapshot } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+
+const app = !getApps().length ? initializeApp(config.firebaseConfig) : getApp();
+const db = getFirestore(app);
+const auth = getAuth(app);
 
 // ============================================
-// LOGIQUE DE STATUT DES FACES - CORRIGÉE
+// CONFIGURATION GÉOGRAPHIQUE
 // ============================================
-const getFaceStatus = (face: any): { status: string; label: string } => {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+const GEOGRAPHIE = config.GEOGRAPHIE;
+const LOGO_URL = config.LOGO_DISPROMALT;
 
-  const reservations = face.reservations || [];
+// ============================================
+// COMPOSANT PRINCIPAL
+// ============================================
+const ReportPage = () => {
+  const router = useRouter();
 
-  // Si pas de réservations → Libre
-  if (reservations.length === 0) {
-    return { status: 'libre', label: 'Libre' };
-  }
+  // --- ÉTATS ---
+  const [rawPanneaux, setRawPanneaux] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'faces' | 'agents'>('overview');
+  const [hidden, setHidden] = useState(false);
 
-  // Chercher la réservation ACTIVE (now >= debut ET now < fin)
-  // Si now >= fin, la réservation est terminée → on ne la considère pas comme active
-  const activeRes = reservations.find((res: any) => {
-    if (!res.dateDebut || !res.dateFin) return false;
-    
-    const debut = new Date(res.dateDebut);
-    const fin = new Date(res.dateFin);
-    debut.setHours(0, 0, 0, 0);
-    fin.setHours(0, 0, 0, 0);
-    
-    // ✅ CORRECTION: now >= debut ET now < fin (strictement inférieur)
-    return now >= debut && now < fin;
+  // Animation scroll
+  const { scrollYProgress, scrollY } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
+  const yBg = useSpring(scrollY, { stiffness: 100, damping: 30 });
+
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    const previous = scrollY.getPrevious() ?? 0;
+    setHidden(latest > previous && latest > 150);
   });
 
-  if (activeRes) {
-    const statut = activeRes.statut?.toLowerCase();
-    if (statut === 'occupé') return { status: 'occupe', label: 'Occupé' };
-    if (statut === 'réservé') return { status: 'reserve', label: 'Réservé' };
-    return { status: 'occupe', label: 'Occupé' };
-  }
-
-  // Aucune réservation active → Libre
-  return { status: 'libre', label: 'Libre' };
-};
-
-// ============================================
-// LOGIQUE DE STATUT DU PANNEAU - CORRIGÉE
-// ============================================
-const getPanneauStatus = (faces: any[]): { status: string; label: string; color: string; stats: any } => {
-  if (!faces || faces.length === 0) {
-    return {
-      status: 'maintenance',
-      label: 'Maintenance',
-      color: '#EF4444',
-      stats: { libre: 0, occupe: 0, reserve: 0, maintenance: 0, total: 0 }
-    };
-  }
-
-  const stats = {
-    libre: 0,
-    occupe: 0,
-    reserve: 0,
-    maintenance: 0,
-    total: faces.length
-  };
-
-  // Calculer les stats pour chaque face
-  for (const face of faces) {
-    const { status } = getFaceStatus(face);
-    if (status === 'libre') stats.libre++;
-    else if (status === 'occupe') stats.occupe++;
-    else if (status === 'reserve') stats.reserve++;
-    else if (status === 'maintenance') stats.maintenance++;
-  }
-
-  // ✅ Règle 1: Toutes libres → VERT
-  if (stats.libre === stats.total) {
-    return { status: 'libre', label: 'Libre', color: '#10B981', stats };
-  }
-
-  // ✅ Règle 2: Toutes occupées → BLEU
-  if (stats.occupe === stats.total) {
-    return { status: 'occupe', label: 'Occupé', color: '#3B82F6', stats };
-  }
-
-  // ✅ Règle 3: Toutes réservées → JAUNE
-  if (stats.reserve === stats.total) {
-    return { status: 'reserve', label: 'Réservé', color: '#F59E0B', stats };
-  }
-
-  // ✅ Règle 4: Toutes maintenance → ROUGE
-  if (stats.maintenance === stats.total) {
-    return { status: 'maintenance', label: 'Maintenance', color: '#EF4444', stats };
-  }
-
-  // ✅ Cas mixtes: Priorité Libre > Réservé > Occupé > Maintenance
-  if (stats.libre > 0) {
-    return { status: 'libre', label: 'Libre', color: '#10B981', stats };
-  }
-
-  if (stats.reserve > 0) {
-    return { status: 'reserve', label: 'Réservé', color: '#F59E0B', stats };
-  }
-
-  if (stats.occupe > 0) {
-    return { status: 'occupe', label: 'Occupé', color: '#3B82F6', stats };
-  }
-
-  return { status: 'maintenance', label: 'Maintenance', color: '#EF4444', stats };
-};
-
-// ============================================
-// CRÉATION DE L'ICÔNE PIN SVG
-// ============================================
-const createCustomIcon = (color: string, status: string, isLibre: boolean) => {
-  if (typeof window === 'undefined' || !L) return null;
-
-  const width = isLibre ? 34 : 30;
-  const height = isLibre ? 44 : 40;
-
-  const pulseAnimation = isLibre ? `
-    <div style="
-      position: absolute;
-      width: ${width + 10}px;
-      height: ${height + 10}px;
-      background-color: ${color};
-      border-radius: 50%;
-      opacity: 0.3;
-      top: -${height / 2 + 5}px;
-      left: -${width / 2 + 5}px;
-      animation: pulse 1.8s infinite;
-      z-index: 0;
-    "></div>
-  ` : '';
-
-  const shadow = `
-    <div style="
-      position: absolute;
-      bottom: -6px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: ${width - 8}px;
-      height: 8px;
-      background: rgba(0,0,0,0.25);
-      border-radius: 50%;
-      filter: blur(3px);
-      z-index: 0;
-    "></div>
-  `;
-
-  const pinSvg = `
-    <svg 
-      width="${width}" 
-      height="${height}" 
-      viewBox="0 0 24 35" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg"
-      style="
-        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
-        transition: transform 0.2s ease, filter 0.2s ease;
-        cursor: pointer;
-      "
-      class="marker-pin"
-    >
-      <defs>
-        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-          <feMerge>
-            <feMergeNode in="coloredBlur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-      </defs>
-      <path 
-        d="M12 0C7.58 0 4 3.58 4 8c0 6 8 14 8 14s8-8 8-14c0-4.42-3.58-8-8-8z" 
-        fill="${color}" 
-        stroke="white" 
-        stroke-width="2"
-        filter="${isLibre ? 'url(#glow)' : ''}"
-      />
-      <circle 
-        cx="12" 
-        cy="8" 
-        r="4" 
-        fill="white" 
-        stroke="${color}" 
-        stroke-width="1.5"
-      />
-      <circle 
-        cx="12" 
-        cy="8" 
-        r="2" 
-        fill="${color}"
-      />
-    </svg>
-  `;
-
-  return L.divIcon({
-    className: 'custom-marker',
-    html: `
-      <div style="position: relative; width: ${width}px; height: ${height + 12}px;">
-        ${pulseAnimation}
-        ${shadow}
-        <div style="position: relative; z-index: 1;">
-          ${pinSvg}
-        </div>
-      </div>
-    `,
-    iconSize: [width, height + 12],
-    popupAnchor: [0, -height / 2],
-    tooltipAnchor: [0, -height],
+  // États pour le filtrage
+  const [geoFilter, setGeoFilter] = useState({
+    pays: 'Tous',
+    province: 'Tous',
+    district: 'Tous',
+    commune: 'Tous'
   });
-};
 
-// ============================================
-// COMPOSANT POPUP PERSONNALISÉE
-// ============================================
-const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanneau }: any) => {
-  const getStatusLabel = () => {
-    if (status === 'libre') return 'Libre';
-    if (status === 'occupe') return 'Occupé';
-    if (status === 'reserve') return 'Réservé';
-    return 'Maintenance';
-  };
+  const [filter, setFilter] = useState({
+    search: '',
+    type: 'Tous',
+    agent: 'Tous',
+    status: 'Tous'
+  });
 
-  const getStatusColor = () => {
-    if (status === 'libre') return 'from-green-600 to-green-500';
-    if (status === 'occupe') return 'from-blue-600 to-blue-500';
-    if (status === 'reserve') return 'from-amber-600 to-amber-500';
-    return 'from-red-600 to-red-500';
-  };
-
-  return (
-    <div className="min-w-[220px] overflow-hidden">
-      <div className={`px-3 py-2 bg-gradient-to-r ${getStatusColor()} text-white`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Navigation size={14} className="text-white" />
-            <h3 className="text-sm font-black uppercase tracking-wider">
-              {panneau.idPan}
-            </h3>
-          </div>
-          <div className={`w-2 h-2 rounded-full bg-white ${status === 'libre' ? 'animate-pulse' : ''}`} />
-        </div>
-      </div>
-
-      <div className="p-3 bg-white">
-        <p className="text-[9px] text-gray-500 font-medium mb-2 truncate max-w-[200px]">
-          📍 {panneau.adresse}
-        </p>
-
-        <div className="flex gap-2 mb-2 pb-2 border-b border-gray-100">
-          {stats.libre > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-[7px] font-bold text-gray-600">{stats.libre}</span>
-            </div>
-          )}
-          {stats.occupe > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <span className="text-[7px] font-bold text-gray-600">{stats.occupe}</span>
-            </div>
-          )}
-          {stats.reserve > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-[7px] font-bold text-gray-600">{stats.reserve}</span>
-            </div>
-          )}
-          {stats.maintenance > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-[7px] font-bold text-gray-600">{stats.maintenance}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${status === 'libre' ? 'bg-green-500 animate-pulse' : status === 'occupe' ? 'bg-blue-500' : status === 'reserve' ? 'bg-amber-500' : 'bg-red-500'}`} />
-            <span className="text-[8px] font-bold uppercase text-gray-600">
-              {getStatusLabel()}
-            </span>
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => zoomToPanneau(panneau)}
-              className="text-[7px] font-black bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-2 py-1 rounded-full hover:shadow-md transition-all active:scale-95"
-              title="Zoom sur le panneau"
-            >
-              🔍 Zoom
-            </button>
-            <button
-              onClick={() => onMarkerClick(panneau)}
-              className="text-[7px] font-black bg-gradient-to-r from-amber-500 to-yellow-500 text-white px-2 py-1 rounded-full hover:shadow-md transition-all active:scale-95"
-            >
-              Détails
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================
-// COMPOSANT DE CONTRÔLE DE LA CARTE
-// ============================================
-function MapController({ theme, onMapReady }: { theme: MapTheme; onMapReady: (map: any) => void }) {
-  const map = useMap();
-
+  // --- RÉCUPÉRATION FIRESTORE ---
   useEffect(() => {
-    if (map) {
-      map.invalidateSize();
-      onMapReady(map);
-    }
-  }, [map, theme, onMapReady]);
-
-  return null;
-}
-
-// ============================================
-// COMPOSANT FILTER OPTION
-// ============================================
-function FilterOption({ label, count, active, onToggle }: any) {
-  const getColorClass = () => {
-    if (label === 'Libre') return 'bg-green-500';
-    if (label === 'Occupé') return 'bg-blue-500';
-    if (label === 'Réservé') return 'bg-amber-500';
-    return 'bg-red-500';
-  };
-
-  return (
-    <button
-      onClick={onToggle}
-      className={`w-full flex items-center justify-between p-2 rounded-xl transition-all duration-200 ${active ? 'bg-white/15' : 'opacity-40'}`}
-    >
-      <div className="flex items-center gap-2">
-        <div className={`w-2 h-2 rounded-full ${getColorClass()} ${active ? 'animate-pulse' : ''}`} />
-        <span className="text-[10px] font-bold text-white uppercase">{label}</span>
-      </div>
-      <span className="text-[8px] font-black text-white/60 bg-white/10 px-1.5 py-0.5 rounded-full">
-        {count}
-      </span>
-    </button>
-  );
-}
-
-// ============================================
-// COMPOSANT PRINCIPAL MAP
-// ============================================
-export default function MapComponent({ panneaux, onMarkerClick, userLocation }: MapComponentProps) {
-  const [isMounted, setIsMounted] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(true);
-  const [theme, setTheme] = useState<MapTheme>('satellite');
-  const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [mapInstance, setMapInstance] = useState<any>(null);
-  const [searchAddress, setSearchAddress] = useState('');
-  const [activeAddressFilter, setActiveAddressFilter] = useState('');
-
-  const [activeFilters, setActiveFilters] = useState({
-    libre: true,
-    occupe: true,
-    reserve: true,
-    maintenance: true
-  });
-  const [isFilterPanelVisible, setIsFilterPanelVisible] = useState(true);
-
-  useEffect(() => {
-    setIsMounted(true);
+    const unsub = onSnapshot(collection(db, "panneaux"), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setRawPanneaux(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Erreur Firebase:", error);
+      setLoading(false);
+    });
+    return () => unsub();
   }, []);
 
-  useEffect(() => {
-    if (panneaux.length > 0) {
-      setIsLoadingData(false);
-      setLastUpdate(new Date());
-    }
-  }, [panneaux]);
+  // --- LOGIQUE DE FILTRAGE ---
+  const processedData = useMemo(() => {
+    if (!rawPanneaux || rawPanneaux.length === 0) return [];
 
-  const center: [number, number] = [-4.3276, 15.3136];
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-  // Filtrer par statut et par adresse
-  const filteredPanneaux = panneaux.filter((panneau: any) => {
-    const { status } = getPanneauStatus(panneau.faces);
-    const matchStatus = activeFilters[status as keyof typeof activeFilters];
-    const matchAddress = !activeAddressFilter ||
-      panneau.adresse?.toLowerCase().includes(activeAddressFilter.toLowerCase());
-    return matchStatus && matchAddress;
-  });
+    const data = rawPanneaux.map((p: any) => {
+      const parts = p.adresse?.split('/') || [];
+      const communeExtrait = parts[4]?.trim() || parts[3]?.trim() || "Inconnue";
 
-  const allStats = {
-    total: filteredPanneaux.length,
-    libre: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'libre').length,
-    occupe: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'occupe').length,
-    reserve: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'reserve').length,
-    maintenance: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'maintenance').length
-  };
+      const facesEnrichies = (p.faces || []).map((f: any, index: number) => {
+        const faceId = `${p.idPan || '?'}-${index + 1}`;
 
-  // Fonction pour zoomer sur un panneau
-  const zoomToPanneau = (panneau: any) => {
-    if (mapInstance) {
-      let lat = panneau.coords?.[0] || panneau.gps_raw?.lat;
-      let lng = panneau.coords?.[1] || panneau.gps_raw?.lng;
-      lat = typeof lat === 'string' ? parseFloat(lat) : lat;
-      lng = typeof lng === 'string' ? parseFloat(lng) : lng;
-      if (!isNaN(lat) && !isNaN(lng)) {
-        mapInstance.setView([lat, lng], 18);
+        const activeRes = (f.reservations || []).find((r: any) => {
+          const debut = new Date(r.dateDebut);
+          const fin = new Date(r.dateFin);
+          debut.setHours(0, 0, 0, 0);
+          fin.setHours(0, 0, 0, 0);
+          return now >= debut && now <= fin;
+        });
+
+        let currentStatus = 'Libre';
+        let currentStatusColor = 'text-emerald-400';
+        let currentClient = null;
+        let currentAgent = null;
+        let currentPhoto = null;
+        let currentDates = null;
+
+        if (activeRes) {
+          currentStatus = activeRes.statut || 'Occupé';
+          currentStatusColor = currentStatus === 'Occupé' ? 'text-blue-400' : 'text-amber-400';
+          currentClient = activeRes.societeLocatrice;
+          currentAgent = activeRes.agentNom;
+          currentPhoto = activeRes.photoCampagneUrl;
+          currentDates = { debut: activeRes.dateDebut, fin: activeRes.dateFin };
+        }
+
+        const reservations = (f.reservations || []).map((r: any) => {
+          const dDebut = r.dateDebut?.seconds ? new Date(r.dateDebut.seconds * 1000) : new Date(r.dateDebut);
+          const dFin = r.dateFin?.seconds ? new Date(r.dateFin.seconds * 1000) : new Date(r.dateFin);
+
+          let status = '';
+          let statusColor = '';
+
+          if (now >= dDebut && now <= dFin) {
+            const diffDays = Math.ceil((dFin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            status = `✓ ${diffDays}j`;
+            statusColor = 'text-emerald-400';
+          } else if (now < dDebut) {
+            const startDiffDays = Math.ceil((dDebut.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            status = `⏳ Dans ${startDiffDays}j`;
+            statusColor = 'text-amber-400';
+          } else {
+            status = '✗ Terminé';
+            statusColor = 'text-red-400';
+          }
+
+          const nbrMois = Math.max(1, (dFin.getFullYear() - dDebut.getFullYear()) * 12 + (dFin.getMonth() - dDebut.getMonth()));
+          return { ...r, dDebut, dFin, status, statusColor, nbrMois };
+        });
+
+        return {
+          ...f,
+          faceId,
+          reservations,
+          currentStatus,
+          currentStatusColor,
+          currentClient,
+          currentAgent,
+          currentPhoto,
+          currentDates
+        };
+      });
+      return { ...p, commune: communeExtrait, faces: facesEnrichies };
+    });
+
+    return data.filter((p: any) => {
+      const matchPays = geoFilter.pays === 'Tous' || (GEOGRAPHIE[geoFilter.pays] && Object.values(GEOGRAPHIE[geoFilter.pays]).some((v: any) => Object.values(v).flat().includes(p.commune)));
+      const matchProvince = geoFilter.province === 'Tous' || (GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province] && Object.values(GEOGRAPHIE[geoFilter.pays][geoFilter.province]).flat().includes(p.commune));
+      const matchDistrict = geoFilter.district === 'Tous' || (GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province]?.[geoFilter.district]?.includes(p.commune));
+      const matchCommune = geoFilter.commune === 'Tous' || p.commune.toLowerCase() === geoFilter.commune.toLowerCase();
+      const matchType = filter.type === 'Tous' || p.type === filter.type;
+      const searchTerm = filter.search.toLowerCase();
+      const matchSearch = (p.idPan || "").toLowerCase().includes(searchTerm) || (p.adresse || "").toLowerCase().includes(searchTerm);
+
+      let matchStatus = filter.status === 'Tous';
+      if (!matchStatus) {
+        matchStatus = p.faces.some((f: any) => f.currentStatus === filter.status);
       }
-    }
+
+      let matchAgent = filter.agent === 'Tous';
+      if (!matchAgent) {
+        matchAgent = p.faces.some((f: any) => f.currentAgent === filter.agent);
+      }
+
+      return matchPays && matchProvince && matchDistrict && matchCommune && matchType && matchSearch && matchStatus && matchAgent;
+    });
+  }, [rawPanneaux, filter, geoFilter]);
+
+  // --- STATISTIQUES ---
+  const stats = useMemo(() => {
+    let totalFaces = 0;
+    let totalReservations = 0;
+    let totalActive = 0;
+    let totalLibre = 0;
+    let totalOccupe = 0;
+    let totalReserve = 0;
+    let totalRevenue = 0;
+
+    processedData.forEach(p => {
+      totalFaces += p.faces?.length || 0;
+      p.faces?.forEach((f: any) => {
+        totalReservations += f.reservations?.length || 0;
+        if (f.currentStatus === 'Libre') totalLibre++;
+        if (f.currentStatus === 'Occupé') totalOccupe++;
+        if (f.currentStatus === 'Réservé') totalReserve++;
+
+        f.reservations?.forEach((r: any) => {
+          if (r.validationComptable === true) {
+            totalRevenue += Number(r.montant) || 0;
+          }
+          const now = new Date();
+          const dFin = r.dFin || new Date(r.dateFin);
+          if (now <= dFin) totalActive++;
+        });
+      });
+    });
+
+    return {
+      totalPanneaux: processedData.length,
+      totalFaces,
+      totalReservations,
+      totalActive,
+      totalLibre,
+      totalOccupe,
+      totalReserve,
+      totalRevenue
+    };
+  }, [processedData]);
+
+  // --- STATISTIQUES PAR AGENT ---
+  const agentStats = useMemo(() => {
+    const agents = new Map<string, any>();
+
+    processedData.forEach(p => {
+      p.faces?.forEach((f: any) => {
+        f.reservations?.forEach((r: any) => {
+          if (r.agentEmail) {
+            const agent = agents.get(r.agentEmail);
+            const montant = Number(r.montant) || 0;
+            if (agent) {
+              agent.reservations++;
+              agent.revenue += montant;
+              if (r.validationComptable === true) agent.validated++;
+              if (f.currentStatus === 'Occupé' || f.currentStatus === 'Réservé') agent.activeFaces++;
+            } else {
+              agents.set(r.agentEmail, {
+                nom: r.agentNom || r.agentEmail.split('@')[0],
+                email: r.agentEmail,
+                reservations: 1,
+                revenue: montant,
+                validated: r.validationComptable === true ? 1 : 0,
+                activeFaces: (f.currentStatus === 'Occupé' || f.currentStatus === 'Réservé') ? 1 : 0
+              });
+            }
+          }
+        });
+      });
+    });
+    return Array.from(agents.values()).sort((a, b) => b.reservations - a.reservations);
+  }, [processedData]);
+
+  // Navigation
+  const ouvrirLaCarte = () => {
+    router.push('/dashboard/superviseurs/superviseur');
   };
 
-  // Fonction pour rechercher par adresse
-  const searchByAddress = () => {
-    if (searchAddress.trim()) {
-      setActiveAddressFilter(searchAddress.trim());
-    }
+  const handleLogout = async () => {
+    // Logique de déconnexion
   };
 
-  // Fonction pour réinitialiser le filtre d'adresse
-  const resetAddressFilter = () => {
-    setSearchAddress('');
-    setActiveAddressFilter('');
-  };
-
-  if (!isMounted) {
+  if (loading) {
     return (
-      <div className="relative h-full w-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto bg-amber-500/20 rounded-full flex items-center justify-center animate-pulse">
-              <MapIcon size={32} className="text-amber-500" />
-            </div>
-            <p className="mt-4 text-white/60 text-sm font-bold uppercase tracking-wider">
-              Chargement de la carte...
-            </p>
-          </div>
+      <div className="fixed inset-0 flex items-center justify-center bg-black">
+        <div className="absolute inset-0">
+          <img src="/fond.jpg" className="w-full h-full object-cover opacity-50" alt="" />
+        </div>
+        <div className="relative z-10 text-center">
+          <div className="w-12 h-12 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-amber-500 text-xs font-bold uppercase tracking-wider">Chargement...</p>
         </div>
       </div>
     );
   }
 
-  const currentTile = tileConfig[theme];
-
   return (
-    <div className="relative h-full w-full">
-      {/* Indicateur de chargement des données */}
-      {isLoadingData && (
-        <div className="absolute inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-            <p className="text-white/80 text-[10px] font-bold">Chargement des panneaux...</p>
-          </div>
-        </div>
-      )}
+    <div className="relative min-h-screen">
+      {/* FOND D'ÉCRAN FIXE AVEC PARALLAXE */}
+      <motion.div className="fixed inset-0 z-0" style={{ y: yBg }}>
+        <img src="/fond.jpg" className="w-full h-[115%] object-cover" alt="Background" />
+        <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
+      </motion.div>
 
-      {/* Dernière mise à jour */}
-      <div className="absolute bottom-4 right-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-xl px-2 py-1">
-        <p className="text-[6px] text-white/40">
-          Dernière mise à jour: {lastUpdate.toLocaleTimeString()}
-        </p>
-      </div>
+      {/* BARRE DE PROGRESSION */}
+      <motion.div style={{ scaleX }} className="fixed top-0 left-0 right-0 h-0.5 bg-amber-500 z-[250] origin-left" />
 
-      {/* PANEL DE RECHERCHE PAR ADRESSE */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-1.5 min-w-[200px] sm:min-w-[300px]">
-        <div className="flex items-center gap-1">
-          <Search size={14} className="text-amber-400 ml-1" />
-          <input
-            type="text"
-            placeholder="Filtrer par adresse..."
-            value={searchAddress}
-            onChange={(e) => setSearchAddress(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && searchByAddress()}
-            className="bg-transparent text-white text-[10px] sm:text-[11px] font-medium px-2 py-1.5 outline-none flex-1 placeholder:text-white/40"
-          />
-          {activeAddressFilter && (
-            <button
-              onClick={resetAddressFilter}
-              className="p-1 hover:bg-white/10 rounded-lg transition"
-              title="Réinitialiser"
-            >
-              <RotateCcw size={12} className="text-amber-400" />
-            </button>
-          )}
-          <button
-            onClick={searchByAddress}
-            className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 rounded-lg transition text-amber-400 text-[8px] font-bold uppercase"
-          >
-            Filtrer
-          </button>
-        </div>
-        {activeAddressFilter && (
-          <div className="px-2 pb-1 text-[7px] text-amber-400/80">
-            Filtre actif: "{activeAddressFilter}"
-          </div>
-        )}
-      </div>
+      {/* CONTENU */}
+      <div className="relative z-10 min-h-screen pb-20">
 
-      {/* PANEL DE THÈMES */}
-      <div className="absolute top-4 left-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-1.5 flex gap-1">
-        <button
-          onClick={() => setTheme('light')}
-          className={`p-2 rounded-xl transition-all duration-300 ${theme === 'light' ? 'bg-amber-500 text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-          title="Mode Clair"
-        >
-          <Sun size={16} />
-        </button>
-        <button
-          onClick={() => setTheme('dark')}
-          className={`p-2 rounded-xl transition-all duration-300 ${theme === 'dark' ? 'bg-amber-500 text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-          title="Mode Sombre"
-        >
-          <Moon size={16} />
-        </button>
-        <button
-          onClick={() => setTheme('satellite')}
-          className={`p-2 rounded-xl transition-all duration-300 ${theme === 'satellite' ? 'bg-amber-500 text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-          title="Satellite"
-        >
-          <MapIcon size={16} />
-        </button>
-      </div>
-
-      {/* BOUTON FILTRES STATUT */}
-      <button
-        onClick={() => setIsFilterPanelVisible(!isFilterPanelVisible)}
-        className="absolute top-4 right-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-2.5 text-white/80 hover:text-amber-400 transition-all active:scale-95"
-        title="Filtres par statut"
-      >
-        <Filter size={18} />
-      </button>
-
-      {/* PANEL FILTRES STATUT */}
-      <AnimatePresence>
-        {isFilterPanelVisible && (
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="absolute top-16 right-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-4 min-w-[180px]"
-          >
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-[10px] font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Layers size={12} /> Statuts
-              </h3>
-              <button
-                onClick={() => setIsFilterPanelVisible(false)}
-                className="p-1 hover:bg-white/10 rounded-lg transition"
-              >
-                <X size={12} />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <FilterOption
-                label="Libre"
-                count={allStats.libre}
-                active={activeFilters.libre}
-                onToggle={() => setActiveFilters({ ...activeFilters, libre: !activeFilters.libre })}
-              />
-              <FilterOption
-                label="Occupé"
-                count={allStats.occupe}
-                active={activeFilters.occupe}
-                onToggle={() => setActiveFilters({ ...activeFilters, occupe: !activeFilters.occupe })}
-              />
-              <FilterOption
-                label="Réservé"
-                count={allStats.reserve}
-                active={activeFilters.reserve}
-                onToggle={() => setActiveFilters({ ...activeFilters, reserve: !activeFilters.reserve })}
-              />
-              <FilterOption
-                label="Maintenance"
-                count={allStats.maintenance}
-                active={activeFilters.maintenance}
-                onToggle={() => setActiveFilters({ ...activeFilters, maintenance: !activeFilters.maintenance })}
-              />
-            </div>
-
-            {/* Statistiques compactes */}
-            <div className="mt-3 pt-2 border-t border-white/10">
-              <div className="grid grid-cols-2 gap-1 text-center">
-                <div className="bg-white/5 rounded-lg p-1">
-                  <p className="text-[10px] font-black text-amber-400">{allStats.total}</p>
-                  <p className="text-[6px] text-white/40 uppercase">Affichés</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-1">
-                  <p className="text-[10px] font-black text-green-400">{allStats.libre}</p>
-                  <p className="text-[6px] text-white/40 uppercase">Libres</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-1">
-                  <p className="text-[10px] font-black text-blue-400">{allStats.occupe}</p>
-                  <p className="text-[6px] text-white/40 uppercase">Occupés</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-1">
-                  <p className="text-[10px] font-black text-amber-400">{allStats.reserve}</p>
-                  <p className="text-[6px] text-white/40 uppercase">Réservés</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Message quand aucun panneau ne correspond */}
-      {filteredPanneaux.length === 0 && (
-        <div className="absolute inset-0 z-[1000] flex items-center justify-center pointer-events-none">
-          <div className="bg-black/60 backdrop-blur-xl rounded-2xl px-6 py-4 text-center pointer-events-auto">
-            <Filter size={24} className="text-amber-400 mx-auto mb-2" />
-            <p className="text-white text-sm font-black uppercase">Aucun panneau</p>
-            <p className="text-white/40 text-[8px] mt-1">
-              {activeAddressFilter
-                ? `Aucun panneau trouvé pour "${activeAddressFilter}"`
-                : 'Aucun panneau ne correspond aux filtres sélectionnés'}
-            </p>
-            <div className="flex gap-2 mt-3 justify-center">
-              {activeAddressFilter && (
-                <button
-                  onClick={resetAddressFilter}
-                  className="text-[8px] font-bold bg-blue-500 text-white px-3 py-1 rounded-full pointer-events-auto"
-                >
-                  Effacer l'adresse
-                </button>
-              )}
-              <button
-                onClick={() => setActiveFilters({ libre: true, occupe: true, reserve: true, maintenance: true })}
-                className="text-[8px] font-bold bg-amber-500 text-black px-3 py-1 rounded-full pointer-events-auto"
-              >
-                Réinitialiser les filtres
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CARTE */}
-      <MapContainer
-        key={theme}
-        center={userLocation ? [userLocation.lat, userLocation.lng] : center}
-        zoom={userLocation ? 17 : 12}
-        zoomControl={true}
-        attributionControl={true}
-        style={{ height: "100%", width: "100%" }}
-        className="z-0"
-      >
-        <TileLayer
-          url={currentTile.url}
-          attribution={currentTile.attribution}
-        />
-
-        <MapController theme={theme} onMapReady={setMapInstance} />
-
-        {/* MARQUEUR DE LA POSITION UTILISATEUR - UNIQUE */}
-        {userLocation && typeof window !== 'undefined' && L && (
-          <>
-            <Marker
-              position={[userLocation.lat, userLocation.lng]}
-              icon={L.divIcon({
-                className: 'user-marker',
-                html: `
-                  <div style="position: relative;">
-                    <div style="
-                      width: 20px;
-                      height: 20px;
-                      background: #10B981;
-                      border: 3px solid white;
-                      border-radius: 50%;
-                      box-shadow: 0 0 15px rgba(16, 185, 129, 0.9);
-                      animation: pulse-blue 1.5s infinite;
-                    "></div>
-                    <div style="
-                      position: absolute;
-                      top: 7px;
-                      left: 7px;
-                      width: 6px;
-                      height: 6px;
-                      background: white;
-                      border-radius: 50%;
-                    "></div>
-                  </div>
-                `,
-                iconSize: [20, 20],
-                popupAnchor: [0, -10],
-              })}
-            >
-              <Tooltip direction="top" offset={[0, -10]} permanent={false} className="user-tooltip">
-                <div className="text-center px-2 py-1">
-                  <div className="font-black text-[10px] text-emerald-600">📍 Vous êtes ici</div>
-                  <div className="text-[8px] text-gray-500">Position GPS précise</div>
-                </div>
-              </Tooltip>
-            </Marker>
-
-            {/* CERCLE DE PRÉCISION GPS */}
-            <Circle
-              center={[userLocation.lat, userLocation.lng]}
-              radius={20}
-              pathOptions={{
-                color: '#10B981',
-                fillColor: '#10B981',
-                fillOpacity: 0.15,
-                weight: 2,
-                opacity: 0.8,
+        {/* ========== HEADER PREMIUM (SANS ESPACES EXCESSIFS) ========== */}
+        <nav className={`fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 py-2 sm:py-3 ${!hidden ? 'backdrop-blur-3xl' : 'backdrop-blur-xl'} transition-all duration-500`}>
+          <div className="w-full mx-auto">
+            <motion.div
+              initial={{ y: 0, opacity: 0 }}
+              animate={{
+                y: hidden ? -120 : 0,
+                opacity: 1,
+                scale: hidden ? 0.95 : 1
               }}
-            />
-          </>
-        )}
-
-        {filteredPanneaux.map((panneau: any, index: number) => {
-          let lat = panneau.coords?.[0] || panneau.gps_raw?.lat;
-          let lng = panneau.coords?.[1] || panneau.gps_raw?.lng;
-
-          lat = typeof lat === 'string' ? parseFloat(lat) : lat;
-          lng = typeof lng === 'string' ? parseFloat(lng) : lng;
-
-          if (isNaN(lat) || isNaN(lng) || !lat || !lng) return null;
-          if (lat < -4.5 || lat > -4.2 || lng < 15.2 || lng > 15.5) return null;
-
-          const { status, color, stats } = getPanneauStatus(panneau.faces);
-          const isLibre = status === 'libre';
-          const customIcon = createCustomIcon(color, status, isLibre);
-
-          if (!customIcon) return null;
-
-          return (
-            <Marker
-              key={panneau.id || index}
-              position={[lat, lng]}
-              icon={customIcon}
-              eventHandlers={{
-                click: () => onMarkerClick(panneau),
-                mouseover: (e) => {
-                  e.target.openTooltip();
-                  const pin = e.target.getElement()?.querySelector('.marker-pin');
-                  if (pin) pin.style.transform = 'scale(1.15)';
-                },
-                mouseout: (e) => {
-                  const pin = e.target.getElement()?.querySelector('.marker-pin');
-                  if (pin) pin.style.transform = 'scale(1)';
+              transition={{
+                type: "spring",
+                damping: 25,
+                stiffness: 300,
+                opacity: { duration: 0.3 }
+              }}
+              className={`
+                relative group overflow-visible
+                flex items-center justify-between 
+                min-h-[52px] sm:min-h-[60px] md:min-h-[68px]
+                px-2 xs:px-3 sm:px-4 md:px-5 lg:px-6
+                rounded-xl sm:rounded-2xl md:rounded-3xl
+                transition-all duration-500
+                ${hidden
+                  ? 'bg-white/90 backdrop-blur-xl border-white/20 shadow-md'
+                  : 'bg-gradient-to-r from-white/90 via-white/80 to-white/90 backdrop-blur-2xl border-white/30 shadow-xl shadow-black/5'
                 }
-              }}
+                border
+                hover:border-amber-400/50
+                hover:shadow-lg hover:shadow-amber-400/10
+              `}
             >
-              <Tooltip direction="top" offset={[0, -20]} className="custom-tooltip" permanent={false}>
-                <div className="text-center px-2 py-1">
-                  <div className="font-black text-xs text-gray-800">{panneau.idPan}</div>
-                  <div className="flex gap-1.5 justify-center mt-0.5">
-                    {stats.libre > 0 && <span className="text-green-500 text-[8px] font-bold">●{stats.libre}</span>}
-                    {stats.occupe > 0 && <span className="text-blue-500 text-[8px] font-bold">●{stats.occupe}</span>}
-                    {stats.reserve > 0 && <span className="text-amber-500 text-[8px] font-bold">●{stats.reserve}</span>}
-                    {stats.maintenance > 0 && <span className="text-red-500 text-[8px] font-bold">●{stats.maintenance}</span>}
-                  </div>
+              {/* Effets visuels */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+              <div className="absolute bottom-0 left-4 right-4 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
+
+              {/* ========== LOGO ========== */}
+              <div
+                onClick={() => window.location.reload()}
+                className="relative flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 md:gap-3 cursor-pointer group/logo flex-shrink-0"
+              >
+                <div className="absolute -inset-1 rounded-xl border-2 border-amber-400/0 group-hover/logo:border-amber-400/20 transition-all duration-500" />
+
+                <div className="relative">
+                  <div className="absolute inset-0 bg-white rounded-lg shadow-sm" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 to-yellow-500/10 rounded-lg" />
+                  <img
+                    src={LOGO_URL}
+                    className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-lg object-cover border border-amber-400/30 group-hover/logo:border-amber-400/60 transition-all duration-300 shadow-sm"
+                    alt="Logo"
+                  />
+                  <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-sm" />
                 </div>
-              </Tooltip>
 
-              <div className="custom-popup">
-                <CustomPopupContent
-                  panneau={panneau}
-                  status={status}
-                  stats={stats}
-                  onMarkerClick={onMarkerClick}
-                  zoomToPanneau={zoomToPanneau}
-                />
+                <div className="flex flex-col leading-tight">
+                  <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase tracking-tighter">
+                    <span className="text-gray-800 group-hover/logo:text-amber-600 transition-all">G</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-yellow-600">D</span>
+                    <span className="text-gray-800 group-hover/logo:text-amber-600 transition-all">P</span>
+                  </span>
+                  <span className="text-[3px] xs:text-[4px] sm:text-[5px] md:text-[6px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-amber-600/70 whitespace-nowrap">
+                    DASHBOARD
+                  </span>
+                </div>
               </div>
-            </Marker>
-          );
-        })}
-      </MapContainer>
 
-      {/* LÉGENDE */}
-      <div className="absolute bottom-4 left-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-2">
-        <div className="flex gap-3 text-[8px] font-black uppercase tracking-wider">
-          <div className="flex items-center gap-1.5 group cursor-help">
-            <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-white/80 group-hover:text-white transition">Libre</span>
+              {/* ========== BOUTONS DE NAVIGATION ========== */}
+              <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push('/dashboard/superviseurs')}
+                  className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-white/80 text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100 active:bg-gray-100"
+                  aria-label="Accueil"
+                >
+                  <Home size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all" />
+                  <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">
+                    Accueil
+                  </span>
+                </motion.button>
+              </div>
+
+              {/* ========== USER SECTION ========== */}
+
+            </motion.div>
           </div>
-          <div className="flex items-center gap-1.5 group cursor-help">
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-            <span className="text-white/80 group-hover:text-white transition">Occupé</span>
+        </nav>
+
+        {/* ESPACE POUR LE HEADER FIXE */}
+        <div className="h-16 sm:h-20 md:h-24" />
+
+        <div className="w-full px-3 sm:px-4 py-3 sm:py-4">
+
+          {/* FILTRES RESPONSIFS */}
+          <div className="mb-4 p-3 sm:p-4 bg-black/40 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/10 space-y-2 sm:space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2">
+              <select className="bg-black/40 border border-white/10 rounded-lg px-1.5 sm:px-2 py-1.5 sm:py-2 text-[9px] sm:text-[10px] font-bold outline-none truncate" onChange={(e) => setGeoFilter({ pays: e.target.value, province: 'Tous', district: 'Tous', commune: 'Tous' })}>
+                <option value="Tous">🌍 Pays</option>
+                {Object.keys(GEOGRAPHIE).map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <select className="bg-black/40 border border-white/10 rounded-lg px-1.5 sm:px-2 py-1.5 sm:py-2 text-[9px] sm:text-[10px] font-bold outline-none truncate" onChange={(e) => setGeoFilter({ ...geoFilter, province: e.target.value, district: 'Tous', commune: 'Tous' })}>
+                <option value="Tous">🏛️ Province</option>
+                {geoFilter.pays !== 'Tous' && Object.keys(GEOGRAPHIE[geoFilter.pays] || {}).map(pr => <option key={pr} value={pr}>{pr}</option>)}
+              </select>
+              <select className="bg-black/40 border border-white/10 rounded-lg px-1.5 sm:px-2 py-1.5 sm:py-2 text-[9px] sm:text-[10px] font-bold outline-none truncate" onChange={(e) => setGeoFilter({ ...geoFilter, district: e.target.value, commune: 'Tous' })}>
+                <option value="Tous">📌 District</option>
+                {geoFilter.province !== 'Tous' && Object.keys(GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province] || {}).map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <select className="bg-black/40 border border-white/10 rounded-lg px-1.5 sm:px-2 py-1.5 sm:py-2 text-[9px] sm:text-[10px] font-bold outline-none truncate" onChange={(e) => setGeoFilter({ ...geoFilter, commune: e.target.value })}>
+                <option value="Tous">📍 Commune</option>
+                {geoFilter.district !== 'Tous' && (GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province]?.[geoFilter.district] || []).map((c: string) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select className="bg-black/40 border border-white/10 rounded-lg px-1.5 sm:px-2 py-1.5 sm:py-2 text-[9px] sm:text-[10px] font-bold outline-none" onChange={(e) => setFilter({ ...filter, status: e.target.value })}>
+                <option value="Tous">📋 Statut</option>
+                <option value="Libre">🟢 Libre</option>
+                <option value="Occupé">🔵 Occupé</option>
+                <option value="Réservé">🟡 Réservé</option>
+              </select>
+              <select className="bg-black/40 border border-white/10 rounded-lg px-1.5 sm:px-2 py-1.5 sm:py-2 text-[9px] sm:text-[10px] font-bold outline-none truncate" onChange={(e) => setFilter({ ...filter, agent: e.target.value })}>
+                <option value="Tous">👤 Agent</option>
+                {agentStats.map(a => <option key={a.email} value={a.nom}>{a.nom}</option>)}
+              </select>
+            </div>
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500"
+                size={14}
+              />
+              <input
+                type="text"
+                placeholder="Rechercher par ID ou adresse..."
+                className="w-full bg-black/40 border border-white/10 rounded-lg py-1.5 sm:py-2 pl-9 pr-3 text-[9px] sm:text-[10px] outline-none"
+                onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 group cursor-help">
-            <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-            <span className="text-white/80 group-hover:text-white transition">Réservé</span>
+
+          {/* ONGLETS */}
+          <div className="flex gap-1 bg-black/30 p-1 rounded-full w-fit mx-auto sm:mx-0 mb-4 sm:mb-6">
+            <button onClick={() => setActiveTab('overview')} className={`px-3 sm:px-4 py-1.5 rounded-full text-[8px] sm:text-[9px] md:text-[10px] font-bold transition-all ${activeTab === 'overview' ? 'bg-amber-500 text-black' : 'text-white/60'}`}>📊 Vue Globale</button>
+            <button onClick={() => setActiveTab('faces')} className={`px-3 sm:px-4 py-1.5 rounded-full text-[8px] sm:text-[9px] md:text-[10px] font-bold transition-all ${activeTab === 'faces' ? 'bg-amber-500 text-black' : 'text-white/60'}`}>🎯 État des Faces</button>
+            <button onClick={() => setActiveTab('agents')} className={`px-3 sm:px-4 py-1.5 rounded-full text-[8px] sm:text-[9px] md:text-[10px] font-bold transition-all ${activeTab === 'agents' ? 'bg-amber-500 text-black' : 'text-white/60'}`}>👥 Agents</button>
           </div>
-          <div className="flex items-center gap-1.5 group cursor-help">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-            <span className="text-white/80 group-hover:text-white transition">Maintenance</span>
-          </div>
+
+          {/* VUE GLOBALE */}
+          {activeTab === 'overview' && (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+                <StatCard label="Panneaux" value={stats.totalPanneaux} icon={<Database size={12} />} color="amber" />
+                <StatCard label="Faces" value={stats.totalFaces} icon={<Layers size={12} />} color="blue" />
+                <StatCard label="Réservations" value={stats.totalReservations} icon={<Calendar size={12} />} color="purple" />
+                <StatCard label="Actives" value={stats.totalActive} icon={<Activity size={12} />} color="emerald" />
+                <StatCard label="Libres" value={stats.totalLibre} icon={<CheckCircle2 size={12} />} color="green" />
+                <StatCard label="Occupées" value={stats.totalOccupe} icon={<Users size={12} />} color="blue" />
+                <StatCard label="CA" value={`$${stats.totalRevenue.toLocaleString()}`} icon={<DollarSign size={12} />} color="amber" />
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/10 p-3 sm:p-4">
+                <h3 className="text-[10px] sm:text-xs font-black text-amber-400 uppercase tracking-wider mb-2 sm:mb-3 flex items-center gap-2"><TrendingUp size={12} /> Top 5 Agents</h3>
+                <div className="space-y-1.5 sm:space-y-2">
+                  {agentStats.slice(0, 5).map((agent, idx) => (
+                    <div key={agent.email} className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 xs:gap-2 p-1.5 sm:p-2 bg-white/5 rounded-lg">
+                      <div className="flex items-center gap-1.5 sm:gap-2"><span className="text-[8px] sm:text-[9px] font-black text-amber-400 w-4 sm:w-5">#{idx + 1}</span><UserCheck size={10} className="text-white/40" /><span className="text-[9px] sm:text-[10px] font-bold text-white truncate">{agent.nom}</span></div>
+                      <div className="flex gap-2 sm:gap-3 text-[7px] sm:text-[8px]"><span className="text-emerald-400">{agent.reservations} résa</span><span className="text-amber-400">${agent.revenue.toLocaleString()}</span><span className="text-blue-400">{agent.validated} valid.</span></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* VUE FACES */}
+          {activeTab === 'faces' && (
+            <div className="space-y-3 sm:space-y-4">
+              {processedData.length > 0 ? processedData.map((pan) => (
+                <div key={pan.id} className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl sm:rounded-2xl overflow-hidden">
+                  <div className="p-3 sm:p-4 border-b border-white/10 bg-black/20">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-500 to-red-600 rounded-lg sm:rounded-xl flex items-center justify-center text-black font-black text-base sm:text-lg shadow-lg">{pan.idPan}</div>
+                      <div><div className="flex items-center gap-1.5 sm:gap-2 flex-wrap"><span className="text-[10px] sm:text-xs font-bold text-white">{pan.type}</span><span className="text-[6px] sm:text-[7px] text-white/40">{pan.dimension}</span></div><div className="flex items-center gap-0.5 sm:gap-1"><MapPin size={8} className="text-red-500" /><span className="text-[7px] sm:text-[8px] text-white/50 truncate max-w-[180px] sm:max-w-none">{pan.adresse}</span></div></div>
+                    </div>
+                  </div>
+                  <div className="p-3 sm:p-4"><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">{pan.faces.map((face: any, idx: number) => <FaceStatusCard key={idx} face={face} />)}</div></div>
+                </div>
+              )) : <EmptyState />}
+            </div>
+          )}
+
+          {/* VUE AGENTS */}
+          {activeTab === 'agents' && (
+            <div className="bg-white/5 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/10 overflow-x-auto">
+              <table className="w-full min-w-[500px]">
+                <thead className="bg-black/30 border-b border-white/10">
+                  <tr>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-[8px] sm:text-[9px] font-black text-amber-400 uppercase">Agent</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-[8px] sm:text-[9px] font-black text-amber-400 uppercase">Résa</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-[8px] sm:text-[9px] font-black text-amber-400 uppercase">Actives</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-[8px] sm:text-[9px] font-black text-amber-400 uppercase">Valid.</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-[8px] sm:text-[9px] font-black text-amber-400 uppercase">CA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agentStats.map((agent) => (
+                    <tr key={agent.email} className="border-b border-white/5 hover:bg-white/5 transition">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3"><div className="flex items-center gap-1.5 sm:gap-2"><div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-amber-500 to-red-500 flex items-center justify-center text-[6px] sm:text-[7px] font-black text-white">{agent.nom.charAt(0)}</div><span className="text-[9px] sm:text-[10px] font-bold text-white truncate max-w-[80px] sm:max-w-none">{agent.nom}</span></div></td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-[9px] sm:text-[10px] text-emerald-400 font-bold">{agent.reservations}</td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-[9px] sm:text-[10px] text-blue-400 font-bold">{agent.activeFaces}</td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-[9px] sm:text-[10px] text-amber-400 font-bold">{agent.validated}</td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-right text-[9px] sm:text-[10px] font-black text-white">${agent.revenue.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* STYLES GLOBAUX */}
-      <style jsx global>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 0.3; }
-          50% { transform: scale(1.4); opacity: 0.1; }
-        }
-        
-        .custom-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-        
-        .marker-pin {
-          transition: transform 0.2s ease, filter 0.2s ease;
-        }
-        
-        .custom-marker:hover .marker-pin {
-          transform: scale(1.15);
-          filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
-        }
-        
-        .custom-popup .leaflet-popup-content-wrapper {
-          background: transparent !important;
-          box-shadow: none !important;
-          padding: 0 !important;
-          border-radius: 12px !important;
-          overflow: hidden !important;
-        }
-        
-        .custom-popup .leaflet-popup-tip {
-          background: white !important;
-          box-shadow: none !important;
-        }
-        
-        .leaflet-popup-content {
-          margin: 0 !important;
-          min-width: 220px;
-        }
-        
-        .custom-tooltip {
-          background: rgba(255, 255, 255, 0.95) !important;
-          border: none !important;
-          border-radius: 8px !important;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-          font-size: 10px !important;
-          font-weight: bold !important;
-        }
-        
-        .leaflet-control-zoom a {
-          background-color: rgba(0, 0, 0, 0.6) !important;
-          color: white !important;
-          border: 1px solid rgba(255, 255, 255, 0.2) !important;
-          backdrop-filter: blur(8px) !important;
-        }
-        
-        .leaflet-control-zoom a:hover {
-          background-color: rgba(212, 175, 55, 0.8) !important;
-          color: black !important;
-        }
-        
-        .leaflet-control-attribution {
-          background-color: rgba(0, 0, 0, 0.5) !important;
-          backdrop-filter: blur(4px) !important;
-          font-size: 7px !important;
-          color: rgba(255, 255, 255, 0.5) !important;
-        }
-        
-        .leaflet-control-attribution a {
-          color: rgba(255, 255, 255, 0.7) !important;
-        }
-
-        @keyframes pulse-blue {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.3);
-            opacity: 0.7;
-          }
-        }
-
-        .user-marker {
-          background: transparent !important;
-          border: none !important;
-          z-index: 1000 !important;
-        }
-
-        .user-tooltip {
-          background: rgba(255, 255, 255, 0.95) !important;
-          border: 1px solid #10B981 !important;
-          border-radius: 8px !important;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-          font-size: 10px !important;
-        }
-
-        .user-tooltip::before {
-          border-top-color: #10B981 !important;
-        }
-      `}</style>
     </div>
   );
-}
+};
+
+// ============================================
+// COMPOSANTS
+// ============================================
+const FaceStatusCard = ({ face }: any) => {
+  const getStatusIcon = () => {
+    switch (face.currentStatus) {
+      case 'Libre': return <CheckCircle2 size={12} className="text-emerald-400" />;
+      case 'Occupé': return <Users size={12} className="text-blue-400" />;
+      case 'Réservé': return <Calendar size={12} className="text-amber-400" />;
+      default: return <AlertCircle size={12} className="text-gray-400" />;
+    }
+  };
+  const getStatusBg = () => {
+    switch (face.currentStatus) {
+      case 'Libre': return 'bg-emerald-500/10 border-emerald-500/30';
+      case 'Occupé': return 'bg-blue-500/10 border-blue-500/30';
+      case 'Réservé': return 'bg-amber-500/10 border-amber-500/30';
+      default: return 'bg-gray-500/10 border-gray-500/30';
+    }
+  };
+  return (
+    <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border ${getStatusBg()} transition-all hover:scale-[1.01] sm:hover:scale-[1.02]`}>
+      <div className="flex justify-between items-start mb-1 sm:mb-2">
+        <div className="flex items-center gap-1 sm:gap-2">
+          {getStatusIcon()}
+          <span className="text-amber-400 text-[8px] sm:text-[9px] font-black">{face.faceId}</span>
+          <span className="text-[6px] sm:text-[7px] text-white/40 hidden xs:inline">{face.sens}</span>
+        </div>
+        <span className={`text-[7px] sm:text-[8px] font-black uppercase ${face.currentStatusColor}`}>
+          {face.currentStatus === 'Libre' ? 'Libre' : face.currentStatus === 'Occupé' ? 'Occupé' : 'Réservé'}
+        </span>
+      </div>
+      {face.currentStatus !== 'Libre' && face.currentClient ? (
+        <>
+          {face.currentPhoto && (
+            <div className="mb-1 sm:mb-2">
+              <img src={face.currentPhoto} className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover border border-white/20" alt="" />
+            </div>
+          )}
+          <p className="text-[8px] sm:text-[9px] font-bold text-white truncate">{face.currentClient}</p>
+          <p className="text-[6px] sm:text-[7px] text-white/40 truncate">{face.currentAgent}</p>
+          {face.currentDates && (
+            <p className="text-[6px] sm:text-[7px] text-white/30 mt-0.5 sm:mt-1">{face.currentDates.debut} → {face.currentDates.fin}</p>
+          )}
+        </>
+      ) : (
+        <div className="flex items-center justify-center py-2 sm:py-3">
+          <p className="text-[7px] sm:text-[8px] text-white/30">📢 Disponible</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const StatCard = ({ label, value, icon, color }: any) => {
+  const colors: Record<string, string> = {
+    amber: 'from-amber-500/20 to-amber-500/5 border-amber-500/30',
+    blue: 'from-blue-500/20 to-blue-500/5 border-blue-500/30',
+    purple: 'from-purple-500/20 to-purple-500/5 border-purple-500/30',
+    emerald: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30',
+    green: 'from-green-500/20 to-green-500/5 border-green-500/30'
+  };
+  return (
+    <div className={`bg-gradient-to-br ${colors[color] || colors.amber} border rounded-lg p-1.5 sm:p-2 text-center`}>
+      <div className="flex justify-center mb-0.5 sm:mb-1 text-white/40">{icon}</div>
+      <p className="text-sm sm:text-base md:text-lg font-black text-white">{value}</p>
+      <p className="text-[6px] sm:text-[7px] text-white/50 uppercase tracking-wider">{label}</p>
+    </div>
+  );
+};
+
+const EmptyState = () => (
+  <div className="text-center py-12 sm:py-16 bg-white/5 rounded-xl sm:rounded-2xl border border-dashed border-white/10">
+    <Database size={24} className="mx-auto text-white/20 mb-2" />
+    <p className="text-white/40 text-xs sm:text-sm">Aucune donnée trouvée</p>
+  </div>
+);
+
+export default ReportPage;
