@@ -2461,7 +2461,7 @@ const UPLOAD_PRESET = config.UPLOAD_PRESET;
 const LOGO_DISPROMALT = logo;
 
 
-const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
+const STATUTS_POSSIBLES = ["Libre", "Réservé"];
 
 export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 

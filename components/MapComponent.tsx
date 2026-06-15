@@ -51,7 +51,7 @@ const tileConfig = {
 };
 
 // ============================================
-// LOGIQUE DE STATUT DES FACES
+// LOGIQUE DE STATUT DES FACES - CORRIGÉE
 // ============================================
 const getFaceStatus = (face: any): { status: string; label: string } => {
   const now = new Date();
@@ -59,12 +59,18 @@ const getFaceStatus = (face: any): { status: string; label: string } => {
 
   const reservations = face.reservations || [];
 
+  // Chercher la réservation ACTIVE (aujourd'hui entre début et fin EXCLUSIVE)
   const activeRes = reservations.find((res: any) => {
+    if (!res.dateDebut || !res.dateFin) return false;
+    
     const debut = new Date(res.dateDebut);
     const fin = new Date(res.dateFin);
     debut.setHours(0, 0, 0, 0);
     fin.setHours(0, 0, 0, 0);
-    return now >= debut && now <= fin;
+    
+    // ✅ CORRECTION: now >= debut ET now < fin (strictement inférieur)
+    // Si now >= fin, la réservation est terminée
+    return now >= debut && now < fin;
   });
 
   if (activeRes) {
@@ -74,9 +80,9 @@ const getFaceStatus = (face: any): { status: string; label: string } => {
     return { status: 'occupe', label: 'Occupé' };
   }
 
+  // Aucune réservation active → Libre
   return { status: 'libre', label: 'Libre' };
 };
-
 // ============================================
 // LOGIQUE DE STATUT DU PANNEAU
 // ============================================
@@ -687,61 +693,15 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         />
 
         <MapController theme={theme} onMapReady={setMapInstance} />
-
+        
+        {/* CERCLE DE PRÉCISION GPS */}
         {/* MARQUEUR DE LA POSITION UTILISATEUR */}
-        {userLocation && (
+        {userLocation && typeof window !== 'undefined' && L && (
           <Marker
             position={[userLocation.lat, userLocation.lng]}
             icon={L.divIcon({
               className: 'user-marker',
               html: `
-          <div style="position: relative;">
-            <div style="
-              width: 20px;
-              height: 20px;
-              background: #10B981;
-              border: 3px solid white;
-              border-radius: 50%;
-              box-shadow: 0 0 15px rgba(16, 185, 129, 0.9);
-              animation: pulse-blue 1.5s infinite;
-            "></div>
-            <div style="
-              position: absolute;
-              top: 7px;
-              left: 7px;
-              width: 6px;
-              height: 6px;
-              background: white;
-              border-radius: 50%;
-            "></div>
-          </div>
-        `,
-              iconSize: [20, 20],
-              popupAnchor: [0, -10],
-            })}
-            eventHandlers={{
-              click: () => {
-                // Ouvrir une popup d'information
-              }
-            }}
-          >
-            <Tooltip direction="top" offset={[0, -10]} permanent={false} className="user-tooltip">
-              <div className="text-center px-2 py-1">
-                <div className="font-black text-[10px] text-emerald-600">📍 Vous êtes ici</div>
-                <div className="text-[8px] text-gray-500">Position GPS précise</div>
-              </div>
-            </Tooltip>
-          </Marker>
-        )}
-
-        {/* CERCLE DE PRÉCISION GPS */}
-        {/* MARQUEUR DE LA POSITION UTILISATEUR */}
-{userLocation && typeof window !== 'undefined' && L && (
-  <Marker
-    position={[userLocation.lat, userLocation.lng]}
-    icon={L.divIcon({
-      className: 'user-marker',
-      html: `
         <div style="position: relative;">
           <div style="
             width: 20px;
@@ -763,18 +723,18 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
           "></div>
         </div>
       `,
-      iconSize: [20, 20],
-      popupAnchor: [0, -10],
-    })}
-  >
-    <Tooltip direction="top" offset={[0, -10]} permanent={false} className="user-tooltip">
-      <div className="text-center px-2 py-1">
-        <div className="font-black text-[10px] text-emerald-600">📍 Vous êtes ici</div>
-        <div className="text-[8px] text-gray-500">Position GPS précise</div>
-      </div>
-    </Tooltip>
-  </Marker>
-)}
+              iconSize: [20, 20],
+              popupAnchor: [0, -10],
+            })}
+          >
+            <Tooltip direction="top" offset={[0, -10]} permanent={false} className="user-tooltip">
+              <div className="text-center px-2 py-1">
+                <div className="font-black text-[10px] text-emerald-600">📍 Vous êtes ici</div>
+                <div className="text-[8px] text-gray-500">Position GPS précise</div>
+              </div>
+            </Tooltip>
+          </Marker>
+        )}
         {filteredPanneaux.map((panneau: any, index: number) => {
           let lat = panneau.coords?.[0] || panneau.gps_raw?.lat;
           let lng = panneau.coords?.[1] || panneau.gps_raw?.lng;
