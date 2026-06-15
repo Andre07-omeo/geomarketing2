@@ -926,58 +926,58 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                     </div>
 
                     {/* MODAL CAMÉRA */}
-<AnimatePresence>
-  {showCamera && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[2200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="relative w-full max-w-lg rounded-2xl overflow-hidden bg-black"
-      >
-        <div className="relative">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            className="w-full h-auto max-h-[70vh] object-cover"
-          />
-          <canvas ref={canvasRef} className="hidden" />
-          
-          {/* Contrôles caméra */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={capturePhoto}
-                className="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 border-4 border-white transition-all active:scale-90 flex items-center justify-center"
-              >
-                <div className="w-12 h-12 rounded-full bg-white" />
-              </button>
-              <button
-                onClick={stopCamera}
-                className="px-6 py-3 rounded-xl bg-red-500/80 text-white font-bold text-sm hover:bg-red-600 transition-all"
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-          
-          <button
-            onClick={stopCamera}
-            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
-          >
-            <X size={24} />
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
+                    <AnimatePresence>
+                        {showCamera && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-[2200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+                            >
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.9, opacity: 0 }}
+                                    className="relative w-full max-w-lg rounded-2xl overflow-hidden bg-black"
+                                >
+                                    <div className="relative">
+                                        <video
+                                            ref={videoRef}
+                                            autoPlay
+                                            playsInline
+                                            className="w-full h-auto max-h-[70vh] object-cover"
+                                        />
+                                        <canvas ref={canvasRef} className="hidden" />
+
+                                        {/* Contrôles caméra */}
+                                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                                            <div className="flex justify-center gap-4">
+                                                <button
+                                                    onClick={capturePhoto}
+                                                    className="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 border-4 border-white transition-all active:scale-90 flex items-center justify-center"
+                                                >
+                                                    <div className="w-12 h-12 rounded-full bg-white" />
+                                                </button>
+                                                <button
+                                                    onClick={stopCamera}
+                                                    className="px-6 py-3 rounded-xl bg-red-500/80 text-white font-bold text-sm hover:bg-red-600 transition-all"
+                                                >
+                                                    Annuler
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={stopCamera}
+                                            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Footer avec boutons */}
                     <div className="p-4 border-t border-white/10 bg-black/30 flex gap-3">
