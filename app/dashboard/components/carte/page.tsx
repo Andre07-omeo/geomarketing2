@@ -625,7 +625,6 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
 
 
     // Sauvegarder les modifications
-    // Sauvegarder les modifications - Version modifiée
     const handleSave = async () => {
         // Récupérer l'utilisateur depuis localStorage si nécessaire
         let currentUser = user;

@@ -133,42 +133,47 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   };
   const LOGO_DISPROMALT = config.LOGO_DISPROMALT;
   const getActiveData = (face: any) => {
-    const now = new Date();
-    // On met les heures à 0 pour ne comparer que les jours
-    now.setHours(0, 0, 0, 0);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
 
-    // Chercher une réservation active parmi toutes les réservations de la face
-    const currentRes = face.reservations?.find((res: any) => {
-      const debut = new Date(res.dateDebut);
-      const fin = new Date(res.dateFin);
-      debut.setHours(0, 0, 0, 0);
-      fin.setHours(0, 0, 0, 0);
+  // ✅ CORRECTION: Une réservation est active si now >= debut ET now <= fin (inclusif)
+  const currentRes = face.reservations?.find((res: any) => {
+    const debut = new Date(res.dateDebut);
+    const fin = new Date(res.dateFin);
+    debut.setHours(0, 0, 0, 0);
+    fin.setHours(0, 0, 0, 0);
 
-      return now >= debut && now <= fin;
-    });
+    // Si aujourd'hui est entre début et fin INCLUSIVEMENT → active
+    return now >= debut && now <= fin;
+  });
 
-    if (currentRes) {
-      return {
-        hasReservation: true,
-        label: currentRes.statut || "Occupé",
-        photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
-        client: currentRes.societeLocatrice,
-        agent: currentRes.agentNom || "Non spécifié",
-        dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`
-      };
-    }
+  if (currentRes) {
+    const fin = new Date(currentRes.dateFin);
+    fin.setHours(0, 0, 0, 0);
+    const daysLeft = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-    // Si on est ici, aucune réservation n'est active aujourd'hui
     return {
-      hasReservation: false,
-      label: "Libre",
-      photo: face.photoParDefaut || LOGO_DISPROMALT,
-      client: null,
-      agent: null,
-      dates: null
+      hasReservation: true,
+      label: currentRes.statut || "Occupé",
+      photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
+      client: currentRes.societeLocatrice,
+      agent: currentRes.agentNom || "Non spécifié",
+      dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`,
+      daysLeft: daysLeft >= 0 ? daysLeft : 0
     };
-  };
+  }
 
+  // Aucune réservation active → Libre
+  return {
+    hasReservation: false,
+    label: "Libre",
+    photo: face.photoParDefaut || LOGO_DISPROMALT,
+    client: null,
+    agent: null,
+    dates: null,
+    daysLeft: null
+  };
+};
 
   return (
     <>

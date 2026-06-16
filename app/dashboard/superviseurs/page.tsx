@@ -59,10 +59,10 @@ const logo = config.LOGO_DISPROMALT;
 
 
 const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any) => {
+
   const [selectedFaceDetails, setSelectedFaceDetails] = useState<any>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
-
 
   const faces = panneau?.faces || [];
 
@@ -147,41 +147,46 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
 
   const getActiveData = (face: any) => {
     const now = new Date();
-    // On met les heures à 0 pour ne comparer que les jours
     now.setHours(0, 0, 0, 0);
 
-    // Chercher une réservation active parmi toutes les réservations de la face
+    // ✅ CORRECTION: Une réservation est active si now >= debut ET now <= fin (inclusif)
     const currentRes = face.reservations?.find((res: any) => {
       const debut = new Date(res.dateDebut);
       const fin = new Date(res.dateFin);
       debut.setHours(0, 0, 0, 0);
       fin.setHours(0, 0, 0, 0);
 
+      // Si aujourd'hui est entre début et fin INCLUSIVEMENT → active
       return now >= debut && now <= fin;
     });
 
     if (currentRes) {
+      const fin = new Date(currentRes.dateFin);
+      fin.setHours(0, 0, 0, 0);
+      const daysLeft = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
       return {
         hasReservation: true,
         label: currentRes.statut || "Occupé",
         photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
         client: currentRes.societeLocatrice,
         agent: currentRes.agentNom || "Non spécifié",
-        dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`
+        dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`,
+        daysLeft: daysLeft >= 0 ? daysLeft : 0
       };
     }
 
-    // Si on est ici, aucune réservation n'est active aujourd'hui
+    // Aucune réservation active → Libre
     return {
       hasReservation: false,
       label: "Libre",
       photo: face.photoParDefaut || LOGO_DISPROMALT,
       client: null,
       agent: null,
-      dates: null
+      dates: null,
+      daysLeft: null
     };
   };
-
 
   return (
     <>
@@ -213,9 +218,6 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none"
                 alt="Face"
               />
-
-
-
               <div
                 className="absolute inset-0 z-10 cursor-pointer"
                 onClick={() => setZoomedImage(data.photo)}
@@ -1014,16 +1016,15 @@ export default function UltimateSupervisor() {
         </motion.p>
 
       </div>
-    );
+    );  
   }
-  {/* Indicateur de chargement pendant le changement de page */ }
-  {
+  
     loading && (
       <div className="flex justify-center py-12">
         <Loader2 className="animate-spin text-amber-500" size={32} />
       </div>
     )
-  }
+  
   return (
     <div className="min-h-screen relative text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
 
@@ -1577,8 +1578,8 @@ export default function UltimateSupervisor() {
                               key={mode}
                               onClick={() => setGlobalPaymentMode(mode as 'total' | 'tranche')}
                               className={`flex-1 py-2 text-[9px] font-black uppercase rounded-lg transition-all ${globalPaymentMode === mode
-                                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black'
-                                  : 'bg-white/10 text-white/40 hover:text-white'
+                                ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black'
+                                : 'bg-white/10 text-white/40 hover:text-white'
                                 }`}
                             >
                               {mode === 'total' ? '💰 Paiement comptant' : '📅 Paiement en tranches'}
@@ -3079,7 +3080,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                     </div>
 
                     {/* ========== CONTENU PRINCIPAL ========== */}
-                    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-5 lg:gap-6 w-full">             
+                    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 md:gap-5 lg:gap-6 w-full">
 
                       {/* ========== CHAMPS DE SAISIE ========== */}
                       <div className="flex-1 grid grid-cols-1 gap-2 sm:gap-3 md:gap-4">

@@ -83,6 +83,9 @@ const getFaceStatus = (face: any): { status: string; label: string } => {
   // Aucune réservation active → Libre
   return { status: 'libre', label: 'Libre' };
 };
+
+
+
 // ============================================
 // LOGIQUE DE STATUT DU PANNEAU
 // ============================================
@@ -693,7 +696,7 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         />
 
         <MapController theme={theme} onMapReady={setMapInstance} />
-        
+
         {/* CERCLE DE PRÉCISION GPS */}
         {/* MARQUEUR DE LA POSITION UTILISATEUR */}
         {userLocation && typeof window !== 'undefined' && L && (
