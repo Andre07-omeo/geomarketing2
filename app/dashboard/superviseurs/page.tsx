@@ -961,70 +961,68 @@ export default function UltimateSupervisor() {
 
 
   // --- RENDU : LOADING PREMIUM ---
-  if (loading) {
-    return (
-      <div className="h-screen relative flex flex-col items-center justify-center overflow-hidden bg-[#1e40af]">
-
-        {/* 1. LA TEXTURE DE FOND : Présente dès le départ pour éliminer le flash bleu brut */}
-        <img
-          src="/fond.jpg"
-          alt="Background Texture"
-          className="absolute inset-0 w-full h-full object-cover opacity-20 blur-[1px]"
-        />
-
-        {/* 2. L'EFFET D'ÉCHANGE (Le Halo Doré qui pulse en arrière-plan) */}
-        <motion.div
-          animate={{
-            scale: [1, 1.4, 1],      // Le halo s'agrandit...
-            opacity: [0.1, 0.35, 0.1] // ...et devient plus lumineux en rythme
-          }}
-          transition={{
-            repeat: Infinity,
-            duration: 2.5,           // Animation fluide et lente
-            ease: "easeInOut"
-          }}
-          className="absolute w-[350px] h-[350px] bg-[#d4af37]/30 rounded-full blur-[90px]"
-        />
-
-        {/* 3. LE LOGO (En parfaite harmonie avec le fond) */}
-        <motion.div
-          animate={{
-            scale: [1, 1.1, 1],       // Respiration légère du logo
-            rotate: [0, 3, -3, 0]     // Micro-rotation haut de gamme
-          }}
-          transition={{
-            repeat: Infinity,
-            duration: 2.5,           // Calé exactement sur la même durée que le halo
-            ease: "easeInOut"
-          }}
-          className="relative z-10"
-        >
+    // --- RENDU : LOADING PREMIUM ---
+    if (loading) {
+      return (
+        <div className="h-screen relative flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-amber-50 via-amber-100/30 to-stone-50">
+          {/* Texture extrêmement légère pour casser l'uniformité sans agresser */}
           <img
-            src={logoUrl}
-            className="w-24 h-24 rounded-3xl border border-white/20 shadow-[0_0_50px_rgba(212,175,55,0.25)] object-cover"
-            alt="Loading GDP"
+            src="/fond.jpg"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover opacity-[0.03] mix-blend-soft-light pointer-events-none"
           />
-        </motion.div>
-
-        {/* 4. PETIT TEXTE HUD OPTIONNEL */}
-        <motion.p
-          animate={{ opacity: [0.3, 1, 0.3] }}
-          transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-          className="relative z-10 mt-6 text-[9px] font-black uppercase tracking-[0.5em] text-[#d4af37]/80"
-        >
-          Connexion au système...
-        </motion.p>
-
-      </div>
-    );  
-  }
   
-    loading && (
-      <div className="flex justify-center py-12">
-        <Loader2 className="animate-spin text-amber-500" size={32} />
-      </div>
-    )
+          {/* Halo doré très discret */}
+          <motion.div
+            animate={{
+              scale: [1, 1.4, 1],
+              opacity: [0.06, 0.12, 0.06]
+            }}
+            transition={{
+              repeat: Infinity,
+              duration: 2.5,
+              ease: "easeInOut"
+            }}
+            className="absolute w-[350px] h-[350px] bg-amber-400/20 rounded-full blur-[100px]"
+          />
   
+          {/* Logo responsive */}
+          <motion.div
+            animate={{
+              scale: [1, 1.1, 1],
+              rotate: [0, 3, -3, 0]
+            }}
+            transition={{
+              repeat: Infinity,
+              duration: 2.5,
+              ease: "easeInOut"
+            }}
+            className="relative z-10"
+          >
+            <img
+              src="/icon-192x192.png"
+              alt="Loading GDP"
+              className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 object-contain"
+            />
+          </motion.div>
+  
+          {/* Texte de chargement, plus doux */}
+          <motion.p
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+            className="relative z-10 mt-6 text-[9px] font-black uppercase tracking-[0.5em] text-amber-700/60"
+          >
+            Connexion au système...
+          </motion.p>
+        </div>
+      );
+    }
+  loading && (
+    <div className="flex justify-center py-12">
+      <Loader2 className="animate-spin text-amber-500" size={32} />
+    </div>
+  )
+
   return (
     <div className="min-h-screen relative text-white overflow-x-hidden font-sans selection:bg-[#d4af37]/30">
 
@@ -1084,7 +1082,7 @@ export default function UltimateSupervisor() {
                 <div className="absolute inset-0 bg-white rounded-lg shadow-sm" />
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 to-yellow-500/10 rounded-lg" />
                 <img
-                  src={logoUrl}
+                  src="/icon-192x192.png"
                   className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-lg object-cover border border-amber-400/30 group-hover/logo:border-amber-400/60 transition-all duration-300 shadow-sm"
                   alt="Logo"
                 />

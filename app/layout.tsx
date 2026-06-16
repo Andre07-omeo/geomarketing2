@@ -62,7 +62,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             backgroundSize: '40px 40px'
           }}
         />
-        
         {/* Contenu principal */}
         <div className="relative z-10">
           <Providers>

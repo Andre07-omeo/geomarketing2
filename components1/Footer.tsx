@@ -36,17 +36,16 @@ const Footer = () => {
     { name: 'Site Officiel', href: 'https://www.dispromalt.cd', icon: <Globe size={14} />, external: true },
   ];
 
-
   // Informations de la société
   const companyInfo = {
-  name: 'GDP Dispromalt',
-  fullName: 'Gestion Digitale des Panneaux Publicitaires',
-  email: 'contact@dispromalt.cd',
-  phone: '+243 123 456 789',
-  address: 'Kinshasa/Gombe, RDC',
-  website: 'https://www.dispromalt.cd',
-  since: 2020,
-};
+    name: 'GDP Dispromalt',
+    fullName: 'Gestion Digitale des Panneaux Publicitaires',
+    email: 'contact@dispromalt.cd',
+    phone: '+243 123 456 789',
+    address: 'Kinshasa/Gombe, RDC',
+    website: 'https://www.dispromalt.cd',
+    since: 2020,
+  };
 
   // Informations du développeur
   const developerInfo = {
@@ -75,68 +74,55 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="relative mt-auto bg-gradient-to-b from-gray-950 via-black to-gray-950">
+    <footer className="relative mt-auto bg-gradient-to-b from-gray-50 via-white to-gray-100 border-t border-gray-200">
       {/* Ligne décorative en haut */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
 
-      {/* Effet de fond subtil */}
+      {/* Effet de fond subtil (gardé très léger) */}
       <div className="absolute inset-0 bg-[url('/fond.jpg')] bg-cover bg-center opacity-5 pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        {/* Grille principale - 4 colonnes sur desktop, 2 sur tablette, 1 sur mobile */}
+        {/* Grille principale */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 py-12 lg:py-16">
 
           {/* Colonne 1 - Société */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden bg-gradient-to-br from-amber-500 to-yellow-500">
-                <img
-
-                  src="/icon-192x192.png"
-                  alt="GDP Dispromalt"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div>
-                <h3 className="text-xl font-black italic text-white tracking-tighter">
-                  <span className="text-gray-300">G</span>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">D</span>
-                  <span className="text-gray-300">P</span>
-                </h3>
-                <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-500/60">
-                  DISPROMALT
-                </p>
-              </div>
+            <div className="flex items-center">
+              <img
+                src="/icon-192x192.png"
+                alt="GDP Dispromalt"
+                className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 object-contain"
+              />
             </div>
 
-            <p className="text-gray-400 text-xs leading-relaxed">
+            <p className="text-gray-600 text-xs leading-relaxed">
               {companyInfo.fullName}
             </p>
 
             <div className="space-y-2 pt-2">
-              <div className="flex items-center gap-2 text-gray-400 text-xs">
-                <MapPin size={12} className="text-amber-500 shrink-0" />
+              <div className="flex items-center gap-2 text-gray-600 text-xs">
+                <MapPin size={12} className="text-amber-600 shrink-0" />
                 <span>{companyInfo.address}</span>
               </div>
-              <div className="flex items-center gap-2 text-gray-400 text-xs">
-                <Phone size={12} className="text-amber-500 shrink-0" />
-                <a href={`tel:${companyInfo.phone}`} className="hover:text-amber-400 transition">
+              <div className="flex items-center gap-2 text-gray-600 text-xs">
+                <Phone size={12} className="text-amber-600 shrink-0" />
+                <a href={`tel:${companyInfo.phone}`} className="hover:text-amber-600 transition">
                   {companyInfo.phone}
                 </a>
               </div>
-              <div className="flex items-center gap-2 text-gray-400 text-xs">
-                <Mail size={12} className="text-amber-500 shrink-0" />
-                <a href={`mailto:${companyInfo.email}`} className="hover:text-amber-400 transition">
+              <div className="flex items-center gap-2 text-gray-600 text-xs">
+                <Mail size={12} className="text-amber-600 shrink-0" />
+                <a href={`mailto:${companyInfo.email}`} className="hover:text-amber-600 transition">
                   {companyInfo.email}
                 </a>
               </div>
             </div>
 
             {/* Badge années d'expérience */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 rounded-full border border-amber-500/20">
-              <Award size={12} className="text-amber-500" />
-              <span className="text-[9px] text-amber-400 font-bold">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 rounded-full border border-amber-300">
+              <Award size={12} className="text-amber-600" />
+              <span className="text-[9px] text-amber-700 font-bold">
                 Depuis {companyInfo.since}
               </span>
             </div>
@@ -144,7 +130,7 @@ const Footer = () => {
 
           {/* Colonne 2 - Liens rapides */}
           <div className="space-y-4">
-            <h4 className="text-amber-500 text-xs font-black uppercase tracking-wider flex items-center gap-2">
+            <h4 className="text-amber-600 text-xs font-black uppercase tracking-wider flex items-center gap-2">
               <div className="w-1 h-4 bg-amber-500 rounded-full" />
               Liens rapides
             </h4>
@@ -156,15 +142,28 @@ const Footer = () => {
                   whileInView={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.05 }}
                 >
-                  <Link
-                    href={link.href}
-                    className={`group flex items-center gap-2 text-gray-400 hover:text-amber-400 transition-all duration-300 text-xs ${pathname === link.href ? 'text-amber-400' : ''
-                      }`}
-                  >
-                    <ChevronRight size={10} className="opacity-0 group-hover:opacity-100 transition-all -translate-x-1 group-hover:translate-x-0" />
-                    {link.icon}
-                    {link.name}
-                  </Link>
+                  {link.external ? (
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`group flex items-center gap-2 text-gray-600 hover:text-amber-600 transition-all duration-300 text-xs`}
+                    >
+                      <ChevronRight size={10} className="opacity-0 group-hover:opacity-100 transition-all -translate-x-1 group-hover:translate-x-0" />
+                      {link.icon}
+                      {link.name}
+                    </a>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className={`group flex items-center gap-2 text-gray-600 hover:text-amber-600 transition-all duration-300 text-xs ${pathname === link.href ? 'text-amber-600' : ''
+                        }`}
+                    >
+                      <ChevronRight size={10} className="opacity-0 group-hover:opacity-100 transition-all -translate-x-1 group-hover:translate-x-0" />
+                      {link.icon}
+                      {link.name}
+                    </Link>
+                  )}
                 </motion.li>
               ))}
             </ul>
@@ -172,7 +171,7 @@ const Footer = () => {
 
           {/* Colonne 3 - Services */}
           <div className="space-y-4">
-            <h4 className="text-amber-500 text-xs font-black uppercase tracking-wider flex items-center gap-2">
+            <h4 className="text-amber-600 text-xs font-black uppercase tracking-wider flex items-center gap-2">
               <div className="w-1 h-4 bg-amber-500 rounded-full" />
               Nos services
             </h4>
@@ -183,9 +182,9 @@ const Footer = () => {
                   initial={{ opacity: 0, x: -10 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.05 + 0.2 }}
-                  className="flex items-center gap-2 text-gray-400 text-xs"
+                  className="flex items-center gap-2 text-gray-600 text-xs"
                 >
-                  <span className="text-amber-500">{service.icon}</span>
+                  <span className="text-amber-600">{service.icon}</span>
                   {service.name}
                 </motion.li>
               ))}
@@ -194,7 +193,7 @@ const Footer = () => {
             {/* Sécurité */}
             <div className="pt-4">
               <div className="flex items-center gap-2 text-[9px] text-gray-500">
-                <ShieldCheck size={12} className="text-emerald-500" />
+                <ShieldCheck size={12} className="text-emerald-600" />
                 <span>Paiements sécurisés</span>
               </div>
             </div>
@@ -202,18 +201,18 @@ const Footer = () => {
 
           {/* Colonne 4 - Développeur */}
           <div className="space-y-4">
-            <h4 className="text-amber-500 text-xs font-black uppercase tracking-wider flex items-center gap-2">
+            <h4 className="text-amber-600 text-xs font-black uppercase tracking-wider flex items-center gap-2">
               <div className="w-1 h-4 bg-amber-500 rounded-full" />
               Développeur
             </h4>
 
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-amber-500/20 to-yellow-500/20 rounded-full flex items-center justify-center border border-amber-500/30">
-                  <Code size={14} className="text-amber-500" />
+                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center border border-amber-300">
+                  <Code size={14} className="text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-white text-xs font-bold">{developerInfo.name}</p>
+                  <p className="text-gray-800 text-xs font-bold">{developerInfo.name}</p>
                   <p className="text-gray-500 text-[9px]">{developerInfo.role}</p>
                 </div>
               </div>
@@ -221,7 +220,7 @@ const Footer = () => {
               <div className="space-y-1.5">
                 <a
                   href={`mailto:${developerInfo.email}`}
-                  className="flex items-center gap-2 text-gray-400 hover:text-amber-400 text-[10px] transition"
+                  className="flex items-center gap-2 text-gray-600 hover:text-amber-600 text-[10px] transition"
                 >
                   <Mail size={10} />
                   {developerInfo.email}
@@ -230,7 +229,7 @@ const Footer = () => {
                   href={developerInfo.github}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-400 hover:text-amber-400 text-[10px] transition"
+                  className="flex items-center gap-2 text-gray-600 hover:text-amber-600 text-[10px] transition"
                 >
                   <Github size={10} />
                   GitHub
@@ -239,7 +238,7 @@ const Footer = () => {
                   href={developerInfo.linkedin}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-400 hover:text-amber-400 text-[10px] transition"
+                  className="flex items-center gap-2 text-gray-600 hover:text-amber-600 text-[10px] transition"
                 >
                   <Linkedin size={10} />
                   LinkedIn
@@ -248,10 +247,10 @@ const Footer = () => {
 
               {/* Version */}
               <div className="pt-2 flex items-center gap-2">
-                <div className="px-2 py-1 bg-white/5 rounded-md">
+                <div className="px-2 py-1 bg-gray-100 rounded-md">
                   <span className="text-[8px] text-gray-500">v{developerInfo.version}</span>
                 </div>
-                <div className="flex items-center gap-1 text-[8px] text-gray-600">
+                <div className="flex items-center gap-1 text-[8px] text-gray-500">
                   <Coffee size={8} />
                   <span>Built with love</span>
                 </div>
@@ -260,8 +259,8 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Bas du footer - Copyright et réseaux sociaux */}
-        <div className="py-6 border-t border-white/10">
+        {/* Bas du footer */}
+        <div className="py-6 border-t border-gray-200">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
 
             {/* Copyright */}
@@ -279,7 +278,7 @@ const Footer = () => {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 rounded-full bg-white/5 hover:bg-opacity-100 transition-all duration-300 hover:scale-110"
+                  className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-300 hover:scale-110"
                   style={{ color: social.color }}
                 >
                   {social.icon}
@@ -289,13 +288,13 @@ const Footer = () => {
 
             {/* Liens légaux */}
             <div className="flex gap-4">
-              <Link href="/mentions-legales" className="text-gray-500 hover:text-amber-400 text-[8px] uppercase tracking-wider transition">
+              <Link href="/mentions-legales" className="text-gray-500 hover:text-amber-600 text-[8px] uppercase tracking-wider transition">
                 Mentions
               </Link>
-              <Link href="/confidentialite" className="text-gray-500 hover:text-amber-400 text-[8px] uppercase tracking-wider transition">
+              <Link href="/confidentialite" className="text-gray-500 hover:text-amber-600 text-[8px] uppercase tracking-wider transition">
                 Confidentialité
               </Link>
-              <Link href="/cgu" className="text-gray-500 hover:text-amber-400 text-[8px] uppercase tracking-wider transition">
+              <Link href="/cgu" className="text-gray-500 hover:text-amber-600 text-[8px] uppercase tracking-wider transition">
                 CGU
               </Link>
             </div>
@@ -313,7 +312,7 @@ const Footer = () => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={scrollToTop}
-            className="fixed bottom-6 right-6 z-50 p-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full text-black shadow-lg hover:shadow-amber-500/30 transition-all duration-300"
+            className="fixed bottom-6 right-6 z-50 p-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full text-white shadow-lg hover:shadow-amber-500/30 transition-all duration-300"
           >
             <ArrowUp size={16} />
           </motion.button>

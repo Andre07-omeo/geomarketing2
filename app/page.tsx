@@ -133,47 +133,47 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   };
   const LOGO_DISPROMALT = config.LOGO_DISPROMALT;
   const getActiveData = (face: any) => {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-  // ✅ CORRECTION: Une réservation est active si now >= debut ET now <= fin (inclusif)
-  const currentRes = face.reservations?.find((res: any) => {
-    const debut = new Date(res.dateDebut);
-    const fin = new Date(res.dateFin);
-    debut.setHours(0, 0, 0, 0);
-    fin.setHours(0, 0, 0, 0);
+    // ✅ CORRECTION: Une réservation est active si now >= debut ET now <= fin (inclusif)
+    const currentRes = face.reservations?.find((res: any) => {
+      const debut = new Date(res.dateDebut);
+      const fin = new Date(res.dateFin);
+      debut.setHours(0, 0, 0, 0);
+      fin.setHours(0, 0, 0, 0);
 
-    // Si aujourd'hui est entre début et fin INCLUSIVEMENT → active
-    return now >= debut && now <= fin;
-  });
+      // Si aujourd'hui est entre début et fin INCLUSIVEMENT → active
+      return now >= debut && now <= fin;
+    });
 
-  if (currentRes) {
-    const fin = new Date(currentRes.dateFin);
-    fin.setHours(0, 0, 0, 0);
-    const daysLeft = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (currentRes) {
+      const fin = new Date(currentRes.dateFin);
+      fin.setHours(0, 0, 0, 0);
+      const daysLeft = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
+      return {
+        hasReservation: true,
+        label: currentRes.statut || "Occupé",
+        photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
+        client: currentRes.societeLocatrice,
+        agent: currentRes.agentNom || "Non spécifié",
+        dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`,
+        daysLeft: daysLeft >= 0 ? daysLeft : 0
+      };
+    }
+
+    // Aucune réservation active → Libre
     return {
-      hasReservation: true,
-      label: currentRes.statut || "Occupé",
-      photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
-      client: currentRes.societeLocatrice,
-      agent: currentRes.agentNom || "Non spécifié",
-      dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`,
-      daysLeft: daysLeft >= 0 ? daysLeft : 0
+      hasReservation: false,
+      label: "Libre",
+      photo: face.photoParDefaut || LOGO_DISPROMALT,
+      client: null,
+      agent: null,
+      dates: null,
+      daysLeft: null
     };
-  }
-
-  // Aucune réservation active → Libre
-  return {
-    hasReservation: false,
-    label: "Libre",
-    photo: face.photoParDefaut || LOGO_DISPROMALT,
-    client: null,
-    agent: null,
-    dates: null,
-    daysLeft: null
   };
-};
 
   return (
     <>
@@ -315,7 +315,7 @@ export default function UltimateSupervisor() {
   // 3. ACTIONS
   const ouvrirLaCarte = () => {
     router.push('/dashboard/carte');
-    
+
   };
 
 
@@ -365,69 +365,58 @@ export default function UltimateSupervisor() {
   // --- RENDU : LOADING PREMIUM ---
   if (loading) {
     return (
-      <div className="h-screen relative flex flex-col items-center justify-center overflow-hidden bg-[#1e40af]">
-
-        {/* 1. LA TEXTURE DE FOND : Présente dès le départ pour éliminer le flash bleu brut */}
+      <div className="h-screen relative flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-amber-50 via-amber-100/30 to-stone-50">
+        {/* Texture extrêmement légère pour casser l'uniformité sans agresser */}
         <img
           src="/fond.jpg"
-          alt="Background Texture"
-          className="absolute inset-0 w-full h-full object-cover opacity-20 blur-[1px]"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-[0.03] mix-blend-soft-light pointer-events-none"
         />
 
-        {/* 2. L'EFFET D'ÉCHANGE (Le Halo Doré qui pulse en arrière-plan) */}
+        {/* Halo doré très discret */}
         <motion.div
           animate={{
-            scale: [1, 1.4, 1],      // Le halo s'agrandit...
-            opacity: [0.1, 0.35, 0.1] // ...et devient plus lumineux en rythme
+            scale: [1, 1.4, 1],
+            opacity: [0.06, 0.12, 0.06]
           }}
           transition={{
             repeat: Infinity,
-            duration: 2.5,           // Animation fluide et lente
+            duration: 2.5,
             ease: "easeInOut"
           }}
-          className="absolute w-[350px] h-[350px] bg-[#d4af37]/30 rounded-full blur-[90px]"
+          className="absolute w-[350px] h-[350px] bg-amber-400/20 rounded-full blur-[100px]"
         />
 
-        {/* 3. LE LOGO (En parfaite harmonie avec le fond) */}
+        {/* Logo responsive */}
         <motion.div
           animate={{
-            scale: [1, 1.1, 1],       // Respiration légère du logo
-            rotate: [0, 3, -3, 0]     // Micro-rotation haut de gamme
+            scale: [1, 1.1, 1],
+            rotate: [0, 3, -3, 0]
           }}
           transition={{
             repeat: Infinity,
-            duration: 2.5,           // Calé exactement sur la même durée que le halo
+            duration: 2.5,
             ease: "easeInOut"
           }}
           className="relative z-10"
         >
           <img
-            src={logoUrl}
-            className="w-24 h-24 rounded-3xl border border-white/20 shadow-[0_0_50px_rgba(212,175,55,0.25)] object-cover"
+            src="/icon-192x192.png"
             alt="Loading GDP"
+            className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 object-contain"
           />
         </motion.div>
 
-        {/* 4. PETIT TEXTE HUD OPTIONNEL */}
+        {/* Texte de chargement, plus doux */}
         <motion.p
-          animate={{ opacity: [0.3, 1, 0.3] }}
+          animate={{ opacity: [0.4, 1, 0.4] }}
           transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-          className="relative z-10 mt-6 text-[9px] font-black uppercase tracking-[0.5em] text-[#d4af37]/80"
+          className="relative z-10 mt-6 text-[9px] font-black uppercase tracking-[0.5em] text-amber-700/60"
         >
           Connexion au système...
         </motion.p>
-
       </div>
     );
-  }
-
-  {/* Indicateur de chargement pendant le changement de page */ }
-  {
-    loading && (
-      <div className="flex justify-center py-12">
-        <Loader2 className="animate-spin text-amber-500" size={32} />
-      </div>
-    )
   }
 
   return (
@@ -502,7 +491,8 @@ export default function UltimateSupervisor() {
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 to-yellow-500/10 rounded-xl" />
 
                 <img
-                  src={logoUrl}
+                  src="/icon-192x192.png"
+
                   className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-xl object-cover border-2 border-amber-400/30 group-hover/logo:border-amber-400/70 transition-all duration-300 shadow-md group-hover/logo:shadow-amber-400/30"
                   alt="Logo"
                 />
@@ -999,7 +989,7 @@ export default function UltimateSupervisor() {
           </div>
         )}
       </main>
-<Footer />
+      <Footer />
       {/* PANIER FLOTTANT */}
       <AnimatePresence>
         {selected.length > 0 && (
