@@ -30,22 +30,23 @@ const Footer = () => {
 
   // Liens rapides
   const quickLinks = [
-    { name: 'Accueil', href: '/dashboard/superviseurs', icon: <TrendingUp size={14} /> },
-    { name: 'Carte', href: '/dashboard/superviseurs/carte', icon: <MapPin size={14} /> },
-    { name: 'Rapports', href: '/dashboard/superviseurs/rapport', icon: <FileText size={14} /> },
-    { name: 'Réservations', href: '/dashboard/commercial/reservations', icon: <Calendar size={14} /> },
-    { name: 'Factures', href: '/dashboard/commercial/factures', icon: <CreditCard size={14} /> },
+    { name: 'Accueil', href: '/', icon: <TrendingUp size={14} /> },
+    { name: 'Carte', href: '/carte', icon: <MapPin size={14} /> },
+    { name: 'Rapports', href: '/rapports', icon: <FileText size={14} /> },
+    { name: 'Site Officiel', href: 'https://www.dispromalt.cd', icon: <Globe size={14} />, external: true },
   ];
+
 
   // Informations de la société
   const companyInfo = {
-    name: 'GDP Dispromalt',
-    fullName: 'Gestion Digitale des Panneaux Publicitaires',
-    email: 'contact@dispromalt.cd',
-    phone: '+243 123 456 789',
-    address: 'Kinshasa/Gombe, RDC',
-    since: 2020,
-  };
+  name: 'GDP Dispromalt',
+  fullName: 'Gestion Digitale des Panneaux Publicitaires',
+  email: 'contact@dispromalt.cd',
+  phone: '+243 123 456 789',
+  address: 'Kinshasa/Gombe, RDC',
+  website: 'https://www.dispromalt.cd',
+  since: 2020,
+};
 
   // Informations du développeur
   const developerInfo = {
@@ -91,7 +92,7 @@ const Footer = () => {
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg overflow-hidden bg-gradient-to-br from-amber-500 to-yellow-500">
                 <img
-                
+
                   src="/icon-192x192.png"
                   alt="GDP Dispromalt"
                   className="w-full h-full object-cover"

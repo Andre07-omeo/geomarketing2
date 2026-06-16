@@ -228,6 +228,7 @@ const ReportPage = () => {
   const processedData = useMemo(() => {
     if (!rawPanneaux || rawPanneaux.length === 0) return [];
 
+    // 1. Enrichissement des données
     const data = rawPanneaux.map((p: any) => {
       const parts = p.adresse?.split('/') || [];
       const communeExtrait = parts[4]?.trim() || parts[3]?.trim() || "Inconnue";
@@ -254,56 +255,84 @@ const ReportPage = () => {
       return { ...p, commune: communeExtrait, faces: facesEnrichies };
     });
 
+    // 2. Application des filtres
     return data.filter((p: any) => {
-      const matchPays = geoFilter.pays === 'Tous' || (GEOGRAPHIE[geoFilter.pays] && Object.values(GEOGRAPHIE[geoFilter.pays]).some((v: any) => Object.values(v).flat().includes(p.commune)));
-      const matchProvince = geoFilter.province === 'Tous' || (GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province] && Object.values(GEOGRAPHIE[geoFilter.pays][geoFilter.province]).flat().includes(p.commune));
-      const matchDistrict = geoFilter.district === 'Tous' || (GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province]?.[geoFilter.district]?.includes(p.commune));
-      const matchCommune = geoFilter.commune === 'Tous' || p.commune.toLowerCase() === geoFilter.commune.toLowerCase();
+      // --- Filtre Pays ---
+      const matchPays = geoFilter.pays === 'Tous' ||
+        (GEOGRAPHIE[geoFilter.pays] &&
+          Object.values(GEOGRAPHIE[geoFilter.pays]).some((province: any) =>
+            Object.values(province).flat().includes(p.commune)
+          ));
+
+      // --- Filtre Province ---
+      const matchProvince = geoFilter.province === 'Tous' ||
+        (GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province] &&
+          Object.values(GEOGRAPHIE[geoFilter.pays][geoFilter.province]).flat().includes(p.commune));
+
+      // --- Filtre District ---
+      const matchDistrict = geoFilter.district === 'Tous' ||
+        (GEOGRAPHIE[geoFilter.pays]?.[geoFilter.province]?.[geoFilter.district]?.includes(p.commune));
+
+      // --- Filtre Commune ---
+      const matchCommune = geoFilter.commune === 'Tous' ||
+        p.commune.toLowerCase() === geoFilter.commune.toLowerCase();
+
+      // --- Filtre Type de panneau ---
       const matchType = filter.type === 'Tous' || p.type === filter.type;
-      const searchTerm = filter.search.toLowerCase();
-      const matchSearch = (p.idPan || "").toLowerCase().includes(searchTerm) || (p.adresse || "").toLowerCase().includes(searchTerm);
 
-      let matchStatus = filter.status === 'Tous';
-      if (!matchStatus) {
-        matchStatus = p.faces.some((f: any) => f.currentStatus === filter.status);
-      }
+      // --- Filtre Recherche textuelle (ID ou adresse) ---
+      const searchTerm = filter.search.trim().toLowerCase();
+      const matchSearch = searchTerm === '' ||
+        (p.idPan || '').toLowerCase().includes(searchTerm) ||
+        (p.adresse || '').toLowerCase().includes(searchTerm);
 
-      let matchAgent = filter.agent === 'Tous' && selectedAgent === 'Tous';
-      if (!matchAgent) {
-        const agentToMatch = filter.agent !== 'Tous' ? filter.agent : selectedAgent;
-        if (agentToMatch !== 'Tous') {
-          matchAgent = p.faces.some((f: any) => f.currentAgent === agentToMatch);
-        } else {
-          matchAgent = true;
-        }
-      }
+      // --- Filtre Statut (Libre, Occupé, Réservé) ---
+      const matchStatus = filter.status === 'Tous' ||
+        p.faces.some((f: any) => f.currentStatus === filter.status);
 
+      // --- Filtre Agent ---
+      // Plus de variable 'selectedAgent', on utilise directement filter.agent
+      const matchAgent = filter.agent === 'Tous' ||
+        p.faces.some((f: any) => f.currentAgent === filter.agent);
+
+      // --- Filtre Période (chevauchement) ---
       let matchDate = true;
       if (dateFilter.startDate || dateFilter.endDate) {
-        const startDate = dateFilter.startDate ? new Date(dateFilter.startDate) : null;
-        const endDate = dateFilter.endDate ? new Date(dateFilter.endDate) : null;
-        if (startDate) startDate.setHours(0, 0, 0, 0);
-        if (endDate) endDate.setHours(0, 0, 0, 0);
-        matchDate = p.faces.some((f: any) => {
-          return f.reservations.some((r: any) => {
-            const fin = new Date(r.dateFin);
-            fin.setHours(0, 0, 0, 0);
-            if (startDate && endDate) {
-              return fin >= startDate && fin <= endDate;
-            } else if (startDate) {
-              return fin >= startDate;
-            } else if (endDate) {
-              return fin <= endDate;
+        // Conversion des dates sans ambiguïté de fuseau horaire
+        const filterStart = dateFilter.startDate
+          ? new Date(dateFilter.startDate + 'T00:00:00')
+          : null;
+        const filterEnd = dateFilter.endDate
+          ? new Date(dateFilter.endDate + 'T23:59:59')
+          : null;
+
+        matchDate = p.faces.some((f: any) =>
+          f.reservations.some((r: any) => {
+            if (!r.dateDebut || !r.dateFin) return false;
+            const debut = new Date(r.dateDebut + 'T00:00:00');
+            const fin = new Date(r.dateFin + 'T23:59:59');
+
+            // Une réservation est incluse si sa période chevauche la période choisie
+            if (filterStart && filterEnd) {
+              return debut <= filterEnd && fin >= filterStart;
+            } else if (filterStart) {
+              return fin >= filterStart;            // se termine après le début du filtre
+            } else if (filterEnd) {
+              return debut <= filterEnd;            // commence avant la fin du filtre
             }
             return true;
-          });
-        });
+          })
+        );
       }
 
-      return matchPays && matchProvince && matchDistrict && matchCommune && 
-             matchType && matchSearch && matchStatus && matchAgent && matchDate;
+      // Tous les filtres doivent être satisfaits
+      return matchPays && matchProvince && matchDistrict && matchCommune &&
+        matchType && matchSearch && matchStatus && matchAgent && matchDate;
     });
-  }, [rawPanneaux, filter, geoFilter, selectedAgent, dateFilter]);
+  }, [rawPanneaux, filter, geoFilter, dateFilter]); // Dépendance correcte (selectedAgent retiré)
+
+
+
 
   // --- STATISTIQUES ---
   const stats = useMemo(() => {
