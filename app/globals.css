@@ -461,3 +461,39 @@ body {
 .footer-link:hover::after {
   width: 100%;
 }
+
+
+@font-face {
+    font-family: 'MaPolice';
+    src: url('/fonts/votre-police.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'MaPolice';
+    src: url('/fonts/votre-police-bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+}
+
+
+@keyframes gradient-xy {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-gradient-xy {
+  animation: gradient-xy 15s ease infinite;
+  background-size: 400% 400%;
+}
+
+@keyframes gradient-x {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-gradient-x {
+  animation: gradient-x 3s ease infinite;
+  background-size: 200% 100%;
+}

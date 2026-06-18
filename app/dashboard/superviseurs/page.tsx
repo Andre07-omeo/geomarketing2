@@ -961,62 +961,62 @@ export default function UltimateSupervisor() {
 
 
   // --- RENDU : LOADING PREMIUM ---
-    // --- RENDU : LOADING PREMIUM ---
-    if (loading) {
-      return (
-        <div className="h-screen relative flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-amber-50 via-amber-100/30 to-stone-50">
-          {/* Texture extrêmement légère pour casser l'uniformité sans agresser */}
+  // --- RENDU : LOADING PREMIUM ---
+  if (loading) {
+    return (
+      <div className="h-screen relative flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-amber-50 via-amber-100/30 to-stone-50">
+        {/* Texture extrêmement légère pour casser l'uniformité sans agresser */}
+        <img
+          src="/fond.jpg"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-[0.03] mix-blend-soft-light pointer-events-none"
+        />
+
+        {/* Halo doré très discret */}
+        <motion.div
+          animate={{
+            scale: [1, 1.4, 1],
+            opacity: [0.06, 0.12, 0.06]
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 2.5,
+            ease: "easeInOut"
+          }}
+          className="absolute w-[350px] h-[350px] bg-amber-400/20 rounded-full blur-[100px]"
+        />
+
+        {/* Logo responsive */}
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],
+            rotate: [0, 3, -3, 0]
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 2.5,
+            ease: "easeInOut"
+          }}
+          className="relative z-10"
+        >
           <img
-            src="/fond.jpg"
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover opacity-[0.03] mix-blend-soft-light pointer-events-none"
+            src="/icon-192x192.png"
+            alt="Loading GDP"
+            className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 object-contain"
           />
-  
-          {/* Halo doré très discret */}
-          <motion.div
-            animate={{
-              scale: [1, 1.4, 1],
-              opacity: [0.06, 0.12, 0.06]
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 2.5,
-              ease: "easeInOut"
-            }}
-            className="absolute w-[350px] h-[350px] bg-amber-400/20 rounded-full blur-[100px]"
-          />
-  
-          {/* Logo responsive */}
-          <motion.div
-            animate={{
-              scale: [1, 1.1, 1],
-              rotate: [0, 3, -3, 0]
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 2.5,
-              ease: "easeInOut"
-            }}
-            className="relative z-10"
-          >
-            <img
-              src="/icon-192x192.png"
-              alt="Loading GDP"
-              className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 object-contain"
-            />
-          </motion.div>
-  
-          {/* Texte de chargement, plus doux */}
-          <motion.p
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-            className="relative z-10 mt-6 text-[9px] font-black uppercase tracking-[0.5em] text-amber-700/60"
-          >
-            Connexion au système...
-          </motion.p>
-        </div>
-      );
-    }
+        </motion.div>
+
+        {/* Texte de chargement, plus doux */}
+        <motion.p
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+          className="relative z-10 mt-6 text-[9px] font-black uppercase tracking-[0.5em] text-amber-700/60"
+        >
+          Connexion au système...
+        </motion.p>
+      </div>
+    );
+  }
   loading && (
     <div className="flex justify-center py-12">
       <Loader2 className="animate-spin text-amber-500" size={32} />
@@ -1369,585 +1369,575 @@ export default function UltimateSupervisor() {
 
 
 
-          <AnimatePresence>
-            {isCartOpen && (
-              <>
-                {/* OVERLAY AVEC FOND PHOTO FLOU */}
+         <AnimatePresence>
+  {isCartOpen && (
+    <>
+      {/* OVERLAY TRÈS TRANSPARENT */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setIsCartOpen(false)}
+        className="fixed inset-0 z-[100]"
+      >
+        {/* Fond très transparent avec effet de flou */}
+        <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-200/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-300/5 rounded-full blur-3xl" />
+        </div>
+      </motion.div>
+
+      {/* PANEL LATÉRAL PREMIUM - TRANSPARENT */}
+      <motion.div
+        initial={{ x: "100%", opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: "100%", opacity: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-white/90 backdrop-blur-xl border-l border-white/20 z-[101] shadow-2xl shadow-black/5 flex flex-col"
+      >
+        {/* HEADER PREMIUM - TRANSPARENT */}
+        <div className="relative p-4 sm:p-5 border-b border-white/10 bg-white/40 backdrop-blur-sm flex-shrink-0">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
+
+          <div className="flex justify-between items-center relative z-10">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-blue-700 rounded-full" />
+                <p className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em]">Facturation</p>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-gray-800">
+                Mes <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-800">Réservations</span>
+              </h2>
+              <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold mt-1">
+                {reservationsEnAttente.length} réservation(s) en attente
+              </p>
+            </div>
+            <button
+              onClick={() => setIsCartOpen(false)}
+              className="group p-2 bg-white/50 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-gray-600 backdrop-blur-sm border border-white/20"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:rotate-90 transition-transform duration-300">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* CONTENU SCROLLABLE - ESPACE OPTIMISÉ */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-transparent">
+          <div className="grid grid-cols-1 gap-3">
+            {reservationsEnAttente.length === 0 ? (
+              /* ÉTAT VIDE */
+              <div className="flex flex-col items-center justify-center h-full py-8">
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center mb-3 border border-white/20">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-400">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-700 text-base font-bold uppercase tracking-wider">Panier vide</p>
+                  <p className="text-gray-400/60 text-[10px] mt-2 max-w-[200px] mx-auto">
+                    Vous n'avez aucune réservation en attente de facturation
+                  </p>
+                </div>
+
+                {/* BOUTON FERMETURE EN BAS */}
+                <div className="absolute bottom-6 left-6 right-6">
+                  <button
+                    onClick={() => setIsCartOpen(false)}
+                    className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              reservationsEnAttente.map((res: any, index: number) => {
+                const key = res.resUniqueId;
+                const unitPrice = prices[key] || 0;
+                const isSelected = selectedForPrint[key] || false;
+                const numeroOrdre = index + 1;
+                const uniqueKey = key || `temp-${index}`;
+
+                return (
+                  <motion.div
+                    key={uniqueKey}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className={`group relative p-3 rounded-xl border transition-all duration-300 backdrop-blur-sm ${
+                      isSelected
+                        ? 'bg-blue-50/60 border-blue-400/60 shadow-lg shadow-blue-200/30'
+                        : 'bg-white/40 border-white/30 hover:border-blue-400/40 hover:shadow-md hover:shadow-blue-100/20'
+                    }`}
+                  >
+                    {/* HEADER CARTE - COMPACT */}
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-blue-600 animate-pulse' : 'bg-gray-400'}`} />
+                        <span className="text-[7px] font-black text-blue-600 uppercase tracking-wider">
+                          Réservation # {numeroOrdre}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
+                        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                          isSelected
+                            ? 'bg-blue-600 border-blue-600'
+                            : 'border-gray-300 hover:border-blue-500'
+                        }`}
+                      >
+                        {isSelected && (
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* INFOS PRINCIPALES - COMPACT */}
+                    <div className="mb-2">
+                      <p className="text-gray-800 text-xs font-black uppercase truncate">{res.societeLocatrice}</p>
+                      <p className="text-[8px] text-gray-500 font-medium mt-0.5">
+                        Face: {res.faceLabel} • {res.dureeMois} mois
+                      </p>
+                    </div>
+
+                    {/* SECTION PRIX - COMPACT */}
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div className="bg-white/40 backdrop-blur-sm rounded-lg p-1.5 border border-white/30">
+                        <label className="text-[6px] text-gray-400 uppercase font-bold block">Prix unitaire</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            value={unitPrice === 0 ? "" : unitPrice}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPrices(prev => ({ ...prev, [key]: val === "" ? 0 : Number(val) }));
+                            }}
+                            placeholder="0"
+                            className="w-full bg-transparent text-xs text-gray-800 font-bold outline-none"
+                          />
+                          <span className="text-[8px] text-blue-600 font-bold">$</span>
+                        </div>
+                      </div>
+                      <div className="bg-white/40 backdrop-blur-sm rounded-lg p-1.5 text-right border border-white/30">
+                        <label className="text-[6px] text-gray-400 uppercase font-bold block">Total</label>
+                        <span className="text-blue-600 text-xs font-black">
+                          {(unitPrice * res.dureeMois).toLocaleString()} $
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* BOUTON SUPPRIMER - PLUS COMPACT */}
+                    <div className="flex justify-end pt-1.5 border-t border-white/20">
+                      <button
+                        onClick={() => processOperations('delete', res, index)}
+                        className="px-2.5 py-1 bg-red-50/60 backdrop-blur-sm border border-red-200/50 text-red-600 rounded-lg font-black text-[7px] uppercase hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center gap-1"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        </svg>
+                        Supprimer
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* FOOTER ACTIONS - COMPACT */}
+        {reservationsEnAttente.length > 0 && (
+          <div className="p-3 border-t border-white/20 bg-white/30 backdrop-blur-sm flex-shrink-0">
+            {/* SECTION MODE DE PAIEMENT GLOBAL - COMPACT */}
+            <div className="mb-2 p-2 bg-white/30 backdrop-blur-sm rounded-lg border border-white/20">
+              <h3 className="text-[8px] font-black text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <CreditCard size={10} />
+                Mode de paiement - Global
+              </h3>
+
+              <div className="flex gap-1.5 mb-2">
+                {['total', 'tranche'].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setGlobalPaymentMode(mode as 'total' | 'tranche')}
+                    className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${
+                      globalPaymentMode === mode
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/20'
+                        : 'bg-white/30 text-gray-500 hover:text-gray-700 border border-white/20'
+                    }`}
+                  >
+                    {mode === 'total' ? '💰 Comptant' : '📅 Tranches'}
+                  </button>
+                ))}
+              </div>
+
+              {globalPaymentMode === 'tranche' && (
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setIsCartOpen(false)}
-                  className="fixed inset-0 z-[100]"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="p-2 bg-white/30 backdrop-blur-sm rounded-lg border border-white/20"
                 >
-                  {/* Image de fond floutée */}
-                  <div className="absolute inset-0">
-                    <img
-                      src="/fond.jpg"
-                      alt="Background"
-                      className="w-full h-full object-cover"
+                  <div className="flex items-center justify-between">
+                    <span className="text-[7px] text-gray-600 uppercase font-bold">Nombre de tranches</span>
+                    <input
+                      type="number"
+                      min="2"
+                      max="12"
+                      value={globalTranchesCount}
+                      onChange={(e) => setGlobalTranchesCount(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
+                      className="w-16 bg-white/50 border border-white/30 rounded-lg px-2 py-0.5 text-gray-800 text-center text-[9px] font-bold outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
                     />
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+                  </div>
+                  <div className="mt-1.5 pt-1.5 border-t border-white/20">
+                    <div className="flex justify-between text-[7px] text-gray-500">
+                      <span>Total facture:</span>
+                      <span className="text-blue-700 font-bold">{totalFactureAmount.toLocaleString()} $</span>
+                    </div>
+                    <div className="flex justify-between text-[7px] text-gray-500 mt-0.5">
+                      <span>Montant par tranche:</span>
+                      <span className="text-blue-700 font-bold">{(totalFactureAmount / globalTranchesCount).toLocaleString()} $</span>
+                    </div>
                   </div>
                 </motion.div>
+              )}
 
-                {/* PANEL LATÉRAL PREMIUM */}
-                <motion.div
-                  initial={{ x: "100%", opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: "100%", opacity: 0 }}
-                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                  className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-black/40 backdrop-blur-2xl border-l border-white/20 z-[101] shadow-2xl flex flex-col"
-                >
-                  {/* HEADER PREMIUM */}
-                  <div className="relative p-5 sm:p-6 border-b border-white/10 bg-gradient-to-r from-white/5 to-transparent">
-                    {/* Effet de brillance */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
+              {globalPaymentMode === 'total' && totalFactureAmount > 0 && (
+                <div className="flex justify-between items-center pt-1.5 border-t border-white/20">
+                  <span className="text-[7px] text-gray-600 uppercase font-bold">Total à payer:</span>
+                  <span className="text-blue-700 font-bold text-sm">{totalFactureAmount.toLocaleString()} $</span>
+                </div>
+              )}
+            </div>
 
-                    <div className="flex justify-between items-center relative z-10">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-1 h-4 bg-gradient-to-b from-amber-400 to-yellow-500 rounded-full" />
-                          <p className="text-[8px] font-black text-amber-400 uppercase tracking-[0.3em]">Facturation</p>
-                        </div>
-                        <h2 className="text-2xl font-black text-white">
-                          Mes <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">Réservations</span>
-                        </h2>
-                        <p className="text-[9px] text-white/40 uppercase tracking-wider font-bold mt-1">
-                          {reservationsEnAttente.length} réservation(s) en attente
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setIsCartOpen(false)}
-                        className="group p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white group-hover:rotate-90 transition-transform duration-300">
-                          <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
+            {/* BOUTON PRINCIPAL - COMPACT */}
+            <button
+              disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
+              onClick={() => processOperations('selection')}
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg font-black text-[9px] uppercase flex justify-between px-4 items-center hover:shadow-xl hover:shadow-blue-500/20 transition-all active:scale-[0.98]"
+            >
+              <span>📄 Facturer la sélection</span>
+              <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-[8px]">
+                {Object.values(selectedForPrint).filter(v => v).length} face(s)
+              </span>
+            </button>
+
+            {/* BOUTONS SECONDAIRES - COMPACT */}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => {
+                  const allSelected: Record<string, boolean> = {};
+                  reservationsEnAttente.forEach((res: any) => {
+                    allSelected[res.resUniqueId] = true;
+                  });
+                  setSelectedForPrint(allSelected);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-white/30 backdrop-blur-sm border border-white/20 text-gray-700 py-1.5 rounded-lg font-black text-[7px] uppercase hover:bg-white/50 transition-all"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <polyline points="9 12 11 14 15 10" />
+                </svg>
+                Tout sélectionner
+              </button>
+              <button
+                onClick={() => setIsCartOpen(false)}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-red-50/30 backdrop-blur-sm border border-red-200/30 text-red-600 py-1.5 rounded-lg font-black text-[7px] uppercase hover:bg-red-600 hover:text-white transition-all"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+                Fermer
+              </button>
+            </div>
+
+            {/* INFOS UTILISATEUR - COMPACT */}
+            <div className="mt-2 pt-1.5 border-t border-white/20 text-center">
+              <p className="text-[8px] text-gray-700 font-black uppercase tracking-wider">{user?.nomComplet || "Agent"}</p>
+              <p className="text-[6px] text-gray-400 font-medium">{user?.email}</p>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </>
+  )}
+</AnimatePresence>
+
+          <AnimatePresence>
+  {isStatsOpen && (
+    <>
+      {/* OVERLAY TRÈS TRANSPARENT */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setIsStatsOpen(false)}
+        className="fixed inset-0 z-[100]"
+      >
+        <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-200/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-200/5 rounded-full blur-3xl" />
+        </div>
+      </motion.div>
+
+      {/* PANEL LATÉRAL PREMIUM - TRANSPARENT */}
+      <motion.div
+        initial={{ x: "100%", opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: "100%", opacity: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-white/90 backdrop-blur-xl border-l border-white/20 z-[101] flex flex-col shadow-2xl shadow-black/5"
+      >
+        {/* HEADER PREMIUM - TRANSPARENT */}
+        <div className="relative p-4 sm:p-5 border-b border-white/10 bg-white/40 backdrop-blur-sm flex-shrink-0">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
+
+          <div className="flex justify-between items-center relative z-10">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+                <p className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em]">Performance</p>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-gray-800">
+                Panel <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Agent</span>
+              </h2>
+              <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold mt-1">Performance & Suivi</p>
+            </div>
+            <button
+              onClick={() => setIsStatsOpen(false)}
+              className="group p-2 bg-white/50 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-gray-600 backdrop-blur-sm border border-white/20"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:rotate-90 transition-transform duration-300">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* CONTENU SCROLLABLE - OPTIMISÉ */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-transparent">
+          {activeTab === 'stats' ? (
+            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+              {/* CERCLE DE PERFORMANCE - COMPACT */}
+              <div className="flex flex-col items-center py-2">
+                <div className="relative w-32 h-32 flex items-center justify-center">
+                  {/* Cercle de fond */}
+                  <svg className="w-full h-full -rotate-90">
+                    <circle cx="64" cy="64" r="56" fill="none" stroke="currentColor" strokeWidth="6" className="text-gray-200" />
+                    <circle
+                      cx="64" cy="64" r="56" fill="none"
+                      stroke="url(#gradientStats)"
+                      strokeWidth="6"
+                      strokeDasharray="352"
+                      strokeDashoffset={352 - (352 * Number(statsEfficacite().performance)) / 100}
+                      className="transition-all duration-1000"
+                    />
+                  </svg>
+                  {/* Gradient SVG */}
+                  <svg width="0" height="0">
+                    <defs>
+                      <linearGradient id="gradientStats" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#3b82f6" />
+                        <stop offset="100%" stopColor="#8b5cf6" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-black text-gray-800">{statsEfficacite().performance}%</span>
+                    <span className="text-[7px] text-gray-400 uppercase font-bold tracking-tighter">Efficacité</span>
                   </div>
+                </div>
+              </div>
 
-                  {/* CONTENU SCROLLABLE */}
-                  <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
-                    <div className="grid grid-cols-1 gap-4">
-                      {reservationsEnAttente.length === 0 ? (
-                        /* ÉTAT VIDE */
-                        <div className="flex flex-col items-center justify-center h-full">
-                          <div className="text-center">
-                            <div className="w-20 h-20 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-4">
-                              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-white/20">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                                <line x1="16" y1="2" x2="16" y2="6" />
-                                <line x1="8" y1="2" x2="8" y2="6" />
-                                <line x1="3" y1="10" x2="21" y2="10" />
-                              </svg>
-                            </div>
-                            <p className="text-white/50 text-base font-bold uppercase tracking-wider">Panier vide</p>
-                            <p className="text-white/20 text-[10px] mt-2 max-w-[200px] mx-auto">
-                              Vous n'avez aucune réservation en attente de facturation
-                            </p>
-                          </div>
+              {/* STATS RAPIDES - COMPACT */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/40 backdrop-blur-sm rounded-xl p-3 border border-white/30 hover:border-blue-400/40 transition-all">
+                  <p className="text-xl font-black text-gray-800">{statsEfficacite().totalAgent}</p>
+                  <p className="text-[7px] uppercase text-gray-400 font-bold tracking-wider">Mes Actions</p>
+                </div>
+                <div className="bg-white/40 backdrop-blur-sm rounded-xl p-3 border border-white/30 hover:border-blue-400/40 transition-all">
+                  <p className="text-xl font-black text-gray-800">{statsEfficacite().totalGlobal}</p>
+                  <p className="text-[7px] uppercase text-gray-400 font-bold tracking-wider">Global Agence</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              {/* FILTRES - COMPACT */}
+              <div className="space-y-3">
+                <div className="flex bg-white/30 p-1 rounded-lg border border-white/20 gap-1">
+                  {['avant', 'present', 'futur'].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTimeFilter(t as any)}
+                      className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
+                        timeFilter === t
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-gray-700'
+                      }`}
+                    >
+                      {t === 'avant' ? 'Passé' : t === 'present' ? 'Présent' : 'Futur'}
+                    </button>
+                  ))}
+                </div>
 
-                          {/* BOUTON FERMETURE EN BAS */}
-                          <div className="absolute bottom-6 left-6 right-6">
-                            <button
-                              onClick={() => setIsCartOpen(false)}
-                              className="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-black rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <path d="M18 6L6 18M6 6l12 12" />
-                              </svg>
-                              Fermer
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-
-                        reservationsEnAttente.map((res: any, index: number) => {
-                          const key = res.resUniqueId;
-                          const unitPrice = prices[key] || 0;
-                          const isTranche = paymentModes[key] === 'tranche';
-                          const isSelected = selectedForPrint[key] || false;
-                          const numeroOrdre = index + 1;
-                          const uniqueKey = key || `temp-${index}`;
-
-                          return (
-                            <motion.div
-                              key={uniqueKey}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: index * 0.05 }}
-                              className={`group relative p-4 rounded-2xl border transition-all duration-300 ${isSelected
-                                ? 'bg-gradient-to-r from-amber-500/15 to-amber-500/5 border-amber-400/50 shadow-lg shadow-amber-500/10'
-                                : 'bg-white/5 border-white/10 hover:border-amber-400/30 hover:bg-white/10'
-                                }`}
-                            >
-                              {/* HEADER CARTE */}
-                              <div className="flex justify-between items-start mb-3">
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-amber-400 animate-pulse' : 'bg-white/30'}`} />
-                                  <span className="text-[8px] font-black text-amber-400 uppercase tracking-wider">
-                                    Réservation # {numeroOrdre}
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
-                                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isSelected
-                                    ? 'bg-amber-500 border-amber-500'
-                                    : 'border-white/30 hover:border-amber-400'
-                                    }`}
-                                >
-                                  {isSelected && (
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                      <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                  )}
-                                </button>
-                              </div>
-
-                              {/* INFOS PRINCIPALES */}
-                              <div className="mb-3">
-                                <p className="text-white text-sm font-black uppercase truncate">{res.societeLocatrice}</p>
-                                <p className="text-[10px] text-white/50 font-medium mt-0.5">
-                                  Face: {res.faceLabel} • {res.dureeMois} mois
-                                </p>
-                              </div>
-
-                              {/* SECTION PRIX */}
-                              <div className="grid grid-cols-2 gap-3 mb-3">
-                                <div className="bg-black/20 rounded-xl p-2">
-                                  <label className="text-[7px] text-white/40 uppercase font-bold block">Prix unitaire</label>
-                                  <div className="flex items-center gap-1">
-                                    <input
-                                      type="number"
-                                      value={unitPrice === 0 ? "" : unitPrice}
-                                      onChange={(e) => {
-                                        const val = e.target.value;
-                                        setPrices(prev => ({ ...prev, [key]: val === "" ? 0 : Number(val) }));
-                                      }}
-                                      placeholder="0"
-                                      className="w-full bg-transparent text-sm text-white font-bold outline-none"
-                                    />
-                                    <span className="text-[10px] text-amber-400 font-bold">$</span>
-                                  </div>
-                                </div>
-                                <div className="bg-black/20 rounded-xl p-2 text-right">
-                                  <label className="text-[7px] text-white/40 uppercase font-bold block">Total</label>
-                                  <span className="text-amber-400 text-sm font-black">
-                                    {(unitPrice * res.dureeMois).toLocaleString()} $
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* BOUTONS D'ACTION */}
-                              <div className="flex gap-2 mt-3 pt-2 border-t border-white/10">
-
-                                <button
-                                  onClick={() => processOperations('delete', res, index)}
-                                  className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl font-black text-[8px] uppercase hover:bg-red-500 hover:text-white transition-all active:scale-95"
-                                >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </motion.div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                  {/* FOOTER ACTIONS */}
-                  {reservationsEnAttente.length > 0 && (
-                    <div className="p-5 border-t border-white/10 bg-gradient-to-t from-black/60 to-transparent">
-
-                      {/* SECTION MODE DE PAIEMENT GLOBAL */}
-                      <div className="mb-4 p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
-                        <h3 className="text-[10px] font-black text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                          <CreditCard size={12} />
-                          Mode de paiement - Global
-                        </h3>
-
-                        <div className="flex gap-2 mb-3">
-                          {['total', 'tranche'].map((mode) => (
-                            <button
-                              key={mode}
-                              onClick={() => setGlobalPaymentMode(mode as 'total' | 'tranche')}
-                              className={`flex-1 py-2 text-[9px] font-black uppercase rounded-lg transition-all ${globalPaymentMode === mode
-                                ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black'
-                                : 'bg-white/10 text-white/40 hover:text-white'
-                                }`}
-                            >
-                              {mode === 'total' ? '💰 Paiement comptant' : '📅 Paiement en tranches'}
-                            </button>
-                          ))}
-                        </div>
-
-                        {globalPaymentMode === 'tranche' && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="p-2 bg-black/20 rounded-lg"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[8px] text-white/60 uppercase font-bold">Nombre de tranches</span>
-                              <input
-                                type="number"
-                                min="2"
-                                max="12"
-                                value={globalTranchesCount}
-                                onChange={(e) => setGlobalTranchesCount(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
-                                className="w-20 bg-black/40 border border-white/20 rounded-lg px-3 py-1 text-white text-center text-[10px] font-bold outline-none focus:border-amber-400"
-                              />
-                            </div>
-                            <div className="mt-2 pt-2 border-t border-white/10">
-                              <div className="flex justify-between text-[8px] text-white/40">
-                                <span>Total facture:</span>
-                                <span className="text-amber-400 font-bold">{totalFactureAmount.toLocaleString()} $</span>
-                              </div>
-                              <div className="flex justify-between text-[8px] text-white/40 mt-1">
-                                <span>Montant par tranche:</span>
-                                <span className="text-amber-400 font-bold">{(totalFactureAmount / globalTranchesCount).toLocaleString()} $</span>
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-
-                        {globalPaymentMode === 'total' && totalFactureAmount > 0 && (
-                          <div className="flex justify-between items-center pt-2 border-t border-white/10">
-                            <span className="text-[8px] text-white/60 uppercase font-bold">Total à payer:</span>
-                            <span className="text-amber-400 font-bold text-sm">{totalFactureAmount.toLocaleString()} $</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* BOUTON PRINCIPAL */}
-                      <button
-                        disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
-                        onClick={() => processOperations('selection')}
-                        className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 disabled:opacity-30 text-black py-4 rounded-xl font-black text-[11px] uppercase flex justify-between px-6 items-center hover:shadow-xl hover:shadow-amber-500/30 transition-all active:scale-[0.98]"
-                      >
-                        <span>📄 Facturer la sélection</span>
-                        <span className="bg-black/20 px-3 py-1 rounded-full text-[10px]">
-                          {Object.values(selectedForPrint).filter(v => v).length} face(s)
-                        </span>
-                      </button>
-
-                      {/* BOUTONS SECONDAIRES */}
-                      <div className="flex gap-3 mt-3">
-                        <button
-                          onClick={() => {
-                            // Sélectionner toutes les réservations
-                            const allSelected: Record<string, boolean> = {};
-                            reservationsEnAttente.forEach((res: any) => {
-                              allSelected[res.resUniqueId] = true;
-                            });
-                            setSelectedForPrint(allSelected);
-                          }}
-                          className="flex-1 flex items-center justify-center gap-2 bg-white/10 border border-white/10 text-white/80 py-2.5 rounded-xl font-black text-[8px] uppercase hover:bg-white/20 transition-all"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <polyline points="9 12 11 14 15 10" />
-                          </svg>
-                          Tout sélectionner
-                        </button>
-                        <button
-                          onClick={() => setIsCartOpen(false)}
-                          className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 py-2.5 rounded-xl font-black text-[8px] uppercase hover:bg-red-500 hover:text-white transition-all"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M18 6L6 18M6 6l12 12" />
-                          </svg>
-                          Fermer
-                        </button>
-                      </div>
-
-                      {/* INFOS UTILISATEUR */}
-                      <div className="mt-4 pt-3 border-t border-white/5 text-center">
-                        <p className="text-[9px] text-white/60 font-black uppercase tracking-wider">{user?.nomComplet || "Agent"}</p>
-                        <p className="text-[7px] text-white/30 font-medium">{user?.email}</p>
-                      </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {timeFilter !== 'present' && (
+                    <div className="flex items-center justify-between bg-white/30 px-2.5 py-1.5 rounded-lg border border-white/20">
+                      <span className="text-[7px] text-gray-400 font-black uppercase">Mois :</span>
+                      <input
+                        type="number"
+                        value={monthCount}
+                        onChange={(e) => setMonthCount(Math.max(1, parseInt(e.target.value)))}
+                        className="w-8 bg-transparent text-right font-black text-blue-600 outline-none text-xs"
+                      />
                     </div>
                   )}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="flex-1 bg-white/30 border border-white/20 rounded-lg px-2.5 py-1.5 text-[8px] font-black uppercase text-gray-700 outline-none focus:border-blue-400 transition-all"
+                  >
+                    <option value="tous" className="bg-white">Tous les statuts</option>
+                    <option value="Occupé" className="bg-white">Occupé (En cours)</option>
+                    <option value="Reservé" className="bg-white">Réservé (En attente)</option>
+                  </select>
+                </div>
+              </div>
 
-
-
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-
-
-          <AnimatePresence>
-            {isStatsOpen && (
-              <>
-                {/* OVERLAY AVEC FOND PHOTO FLOU */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setIsStatsOpen(false)}
-                  className="fixed inset-0 z-[100]"
-                >
-                  <div className="absolute inset-0">
-                    <img
-                      src="/fond.jpg"
-                      alt="Background"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
-                  </div>
-                </motion.div>
-
-                {/* PANEL LATÉRAL PREMIUM */}
-                <motion.div
-                  initial={{ x: "100%", opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: "100%", opacity: 0 }}
-                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                  className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-black/40 backdrop-blur-2xl border-l border-white/20 z-[101] flex flex-col shadow-2xl"
-                >
-                  {/* HEADER PREMIUM */}
-                  <div className="relative p-5 sm:p-6 border-b border-white/10 bg-gradient-to-r from-white/5 to-transparent">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
-
-                    <div className="flex justify-between items-center relative z-10">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-1 h-4 bg-gradient-to-b from-blue-400 to-blue-500 rounded-full" />
-                          <p className="text-[8px] font-black text-blue-400 uppercase tracking-[0.3em]">Performance</p>
-                        </div>
-                        <h2 className="text-2xl font-black text-white">
-                          Panel <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-500">Agent</span>
-                        </h2>
-                        <p className="text-[9px] text-white/40 uppercase tracking-wider font-bold mt-1">Performance & Suivi</p>
-                      </div>
-                      <button
-                        onClick={() => setIsStatsOpen(false)}
-                        className="group p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white group-hover:rotate-90 transition-transform duration-300">
-                          <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
-                      </button>
+              {/* LISTE DES RÉSERVATIONS - COMPACT */}
+              <div className="space-y-2">
+                {getFilteredReservations().length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 mx-auto bg-white/30 rounded-full flex items-center justify-center mb-2 border border-white/20">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-400">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
                     </div>
+                    <p className="text-gray-500 text-xs font-bold uppercase">Aucune réservation</p>
+                    <p className="text-gray-400/60 text-[7px] mt-1">Aucune réservation trouvée</p>
                   </div>
-
-                  {/* CONTENU SCROLLABLE */}
-                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
-
-                    {activeTab === 'stats' ? (
-                      <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
-                        {/* CERCLE DE PERFORMANCE */}
-                        <div className="flex flex-col items-center py-4">
-                          <div className="relative w-40 h-40 flex items-center justify-center">
-                            {/* Cercle de fond */}
-                            <svg className="w-full h-full -rotate-90">
-                              <circle cx="80" cy="80" r="70" fill="none" stroke="currentColor" strokeWidth="8" className="text-white/10" />
-                              <circle
-                                cx="80" cy="80" r="70" fill="none"
-                                stroke="url(#gradient)"
-                                strokeWidth="8"
-                                strokeDasharray="440"
-                                strokeDashoffset={440 - (440 * Number(statsEfficacite().performance)) / 100}
-                                className="transition-all duration-1000"
-                              />
-                            </svg>
-                            {/* Gradient SVG */}
-                            <svg width="0" height="0">
-                              <defs>
-                                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                  <stop offset="0%" stopColor="#3b82f6" />
-                                  <stop offset="100%" stopColor="#8b5cf6" />
-                                </linearGradient>
-                              </defs>
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                              <span className="text-3xl font-black text-white">{statsEfficacite().performance}%</span>
-                              <span className="text-[8px] text-white/40 uppercase font-bold tracking-tighter">Efficacité</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* STATS RAPIDES */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:border-blue-500/30 transition-all">
-                            <p className="text-2xl font-black text-white">{statsEfficacite().totalAgent}</p>
-                            <p className="text-[8px] uppercase text-white/40 font-bold tracking-wider">Mes Actions</p>
-                          </div>
-                          <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:border-blue-500/30 transition-all">
-                            <p className="text-2xl font-black text-white">{statsEfficacite().totalGlobal}</p>
-                            <p className="text-[8px] uppercase text-white/40 font-bold tracking-wider">Global Agence</p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        {/* FILTRES */}
-                        <div className="space-y-4">
-                          <div className="flex bg-white/10 p-1 rounded-xl border border-white/10 gap-1">
-                            {['avant', 'present', 'futur'].map((t) => (
-                              <button
-                                key={t}
-                                onClick={() => setTimeFilter(t as any)}
-                                className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${timeFilter === t
-                                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                                  : 'text-white/40 hover:text-white'
-                                  }`}
-                              >
-                                {t === 'avant' ? 'Passé' : t === 'present' ? 'Présent' : 'Futur'}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            {timeFilter !== 'present' && (
-                              <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl border border-white/10">
-                                <span className="text-[8px] text-white/40 font-black uppercase">Mois :</span>
-                                <input
-                                  type="number"
-                                  value={monthCount}
-                                  onChange={(e) => setMonthCount(Math.max(1, parseInt(e.target.value)))}
-                                  className="w-8 bg-transparent text-right font-black text-blue-400 outline-none text-xs"
-                                />
-                              </div>
-                            )}
-                            <select
-                              value={statusFilter}
-                              onChange={(e) => setStatusFilter(e.target.value as any)}
-                              className="flex-1 bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-[9px] font-black uppercase text-white outline-none focus:border-blue-500/50 transition-all"
-                            >
-                              <option value="tous" className="bg-black">Tous les statuts</option>
-                              <option value="Occupé" className="bg-black">Occupé (En cours)</option>
-                              <option value="Reservé" className="bg-black">Réservé (En attente)</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* LISTE DES RÉSERVATIONS */}
-                        <div className="space-y-2">
-                          {getFilteredReservations().length === 0 ? (
-                            <div className="text-center py-12">
-                              <div className="w-12 h-12 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-3">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/30">
-                                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                                  <line x1="16" y1="2" x2="16" y2="6" />
-                                  <line x1="8" y1="2" x2="8" y2="6" />
-                                  <line x1="3" y1="10" x2="21" y2="10" />
-                                </svg>
-                              </div>
-                              <p className="text-white/40 text-xs font-bold uppercase">Aucune réservation</p>
-                              <p className="text-white/20 text-[8px] mt-1">Aucune réservation trouvée</p>
-                            </div>
-                          ) : (
-                            getFilteredReservations().map((res, idx) => (
-                              <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.05 }}
-                                className="flex items-center gap-3 p-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl hover:border-blue-500/40 transition-all group"
-                              >
-                                {/* PHOTO MINIATURE */}
-                                <div className="relative h-10 w-10 shrink-0 rounded-lg overflow-hidden bg-black border border-white/10">
-                                  <img src={res.photoCampagneUrl} className="w-full h-full object-cover" alt="" />
-                                  <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                                    <input type="file" className="hidden" onChange={(e) => handlePhotoUpdate(e, res.id)} />
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                                      <circle cx="12" cy="13" r="4" />
-                                    </svg>
-                                  </label>
-                                </div>
-
-                                {/* INFOS */}
-                                <div className="flex-1 min-w-0 grid grid-cols-2 items-center gap-2">
-                                  <div>
-                                    <p className="text-[8px] font-black text-blue-400 truncate uppercase">{res.faceId}</p>
-                                    <p className="text-[10px] text-white font-bold truncate uppercase leading-tight">{res.societeLocatrice}</p>
-                                  </div>
-                                  <div className="text-right flex flex-col items-end gap-1">
-                                    <div className="flex flex-col">
-                                      <p className="text-[8px] text-white/50 font-bold">{res.dateDebut}</p>
-                                      <p className="text-[7px] text-white/20 uppercase">au {res.dateFin}</p>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteReservation(res)}
-                                      className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
-                                    >
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                        <polyline points="3 6 5 6 21 6" />
-                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                </div>
-                              </motion.div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* BOTTOM PANEL */}
-                  <div className="p-5 border-t border-white/10 bg-gradient-to-t from-black/60 to-transparent space-y-4">
-                    {/* IDENTITÉ */}
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-black uppercase text-sm shadow-lg">
-                        {user?.displayName?.[0] || "A"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black text-white uppercase truncate">{user?.nomComplet || "Agent Kin-Geo"}</p>
-                        <p className="text-[8px] text-white/40 truncate font-medium">{user?.email}</p>
-                      </div>
-                    </div>
-
-                    {/* SWITCHER STATS / GESTION */}
-                    <div className="flex bg-white/10 p-1 rounded-xl border border-white/10">
-                      <button
-                        onClick={() => setActiveTab('stats')}
-                        className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'stats'
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                          : 'text-white/40 hover:text-white'
-                          }`}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M12 20V10M18 20V4M6 20v-4" />
-                        </svg>
-                        Stats
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('reservations')}
-                        className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2 ${activeTab === 'reservations'
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                          : 'text-white/40 hover:text-white'
-                          }`}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-                        </svg>
-                        Gestion
-                      </button>
-                    </div>
-
-                    {/* BOUTON FERMER */}
-                    <button
-                      onClick={() => setIsStatsOpen(false)}
-                      className="w-full py-3 bg-white/10 border border-white/20 text-white/80 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all rounded-xl font-black uppercase text-[10px] tracking-[0.2em] active:scale-95"
+                ) : (
+                  getFilteredReservations().map((res, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="flex items-center gap-2.5 p-2.5 bg-white/40 backdrop-blur-sm border border-white/30 rounded-xl hover:border-blue-400/50 hover:shadow-md hover:shadow-blue-100/20 transition-all group"
                     >
-                      Fermer le panel
-                    </button>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+                      {/* PHOTO MINIATURE */}
+                      <div className="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-white/30">
+                        <img src={res.photoCampagneUrl} className="w-full h-full object-cover" alt="" />
+                        <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                          <input type="file" className="hidden" onChange={(e) => handlePhotoUpdate(e, res.id)} />
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                            <circle cx="12" cy="13" r="4" />
+                          </svg>
+                        </label>
+                      </div>
+
+                      {/* INFOS - COMPACT */}
+                      <div className="flex-1 min-w-0 grid grid-cols-2 items-center gap-1.5">
+                        <div>
+                          <p className="text-[7px] font-black text-blue-600 truncate uppercase">{res.faceId}</p>
+                          <p className="text-[9px] text-gray-800 font-bold truncate uppercase leading-tight">{res.societeLocatrice}</p>
+                        </div>
+                        <div className="text-right flex items-center justify-end gap-1.5">
+                          <div className="flex flex-col">
+                            <p className="text-[7px] text-gray-500 font-bold">{res.dateDebut}</p>
+                            <p className="text-[6px] text-gray-400 uppercase">au {res.dateFin}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReservation(res)}
+                            className="p-1 bg-red-50/60 hover:bg-red-100 text-red-500 rounded-lg transition-colors border border-red-200/30"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* BOTTOM PANEL - COMPACT */}
+        <div className="p-3 border-t border-white/20 bg-white/30 backdrop-blur-sm flex-shrink-0 space-y-3">
+          {/* IDENTITÉ - COMPACT */}
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-white font-black uppercase text-xs shadow-lg">
+              {user?.displayName?.[0] || "A"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-gray-800 uppercase truncate">{user?.nomComplet || "Agent Kin-Geo"}</p>
+              <p className="text-[7px] text-gray-400 truncate font-medium">{user?.email}</p>
+            </div>
+          </div>
+
+          {/* SWITCHER STATS / GESTION - COMPACT */}
+          <div className="flex bg-white/30 p-0.5 rounded-lg border border-white/20">
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`flex-1 py-1.5 rounded-lg text-[7px] font-black uppercase transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'stats'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                  : 'text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M12 20V10M18 20V4M6 20v-4" />
+              </svg>
+              Stats
+            </button>
+            <button
+              onClick={() => setActiveTab('reservations')}
+              className={`flex-1 py-1.5 rounded-lg text-[7px] font-black uppercase transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'reservations'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                  : 'text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+              </svg>
+              Gestion
+            </button>
+          </div>
+
+          {/* BOUTON FERMER - COMPACT */}
+          <button
+            onClick={() => setIsStatsOpen(false)}
+            className="w-full py-2 bg-white/40 border border-white/20 text-gray-600 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all rounded-lg font-black uppercase text-[8px] tracking-[0.15em] active:scale-95"
+          >
+            Fermer le panel
+          </button>
+        </div>
+      </motion.div>
+    </>
+  )}
+</AnimatePresence>
+
+
         </header>
 
 
@@ -2095,7 +2085,7 @@ export default function UltimateSupervisor() {
 
 
 
-import { MinusCircle, Calendar, History, Activity, ShieldCheck, } from 'lucide-react';
+import { MinusCircle, Calendar, Activity, ShieldCheck, } from 'lucide-react';
 
 const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected, ouvrirLaCarte }: any) => {
   if (!isOpen || !face) return null;
@@ -2133,7 +2123,7 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
     <AnimatePresence>
       {isOpen && (
         <div
-          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-black/80 backdrop-blur-md"
+          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-blue-900/70 backdrop-blur-md"
           onClick={onClose}
         >
           <motion.div
@@ -2145,30 +2135,30 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            className="relative w-full max-w-5xl mx-auto bg-gradient-to-br from-black/95 via-black/90 to-black/95 backdrop-blur-xl border-t sm:border border-white/10 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-black/50"
+            className="relative w-full max-w-5xl mx-auto bg-white/95 backdrop-blur-xl border-t sm:border border-blue-200/50 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/20"
           >
-            {/* Effet de glow doré */}
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
+            {/* Effet de glow bleu élégant */}
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
+            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
 
             {/* === INDICATEUR DE SWIPE (mobile) === */}
             <div className="sm:hidden flex justify-center pt-2 pb-1">
-              <div className="w-10 h-1 bg-white/30 rounded-full" />
+              <div className="w-10 h-1 bg-blue-300/50 rounded-full" />
             </div>
 
             {/* === BOUTONS DE FERMETURE === */}
             <button
               onClick={onClose}
-              className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-black/60 backdrop-blur-xl hover:bg-red-500/80 rounded-full transition-all duration-300 border border-white/10 active:scale-95"
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-white/80 backdrop-blur-xl hover:bg-red-500 hover:text-white rounded-full transition-all duration-300 border border-blue-200/50 active:scale-95 text-blue-900"
             >
-              <X size={14} className="sm:w-4 sm:h-4 text-white" />
+              <X size={14} className="sm:w-4 sm:h-4" />
             </button>
 
             {/* Bouton Fermer mobile */}
             <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-white/10 backdrop-blur-xl rounded-full border border-white/20 text-white text-[9px] font-black uppercase tracking-wider active:scale-95"
+                className="px-4 py-2 bg-blue-600 backdrop-blur-xl rounded-full border border-blue-400/30 text-white text-[9px] font-black uppercase tracking-wider active:scale-95 shadow-lg shadow-blue-600/20"
               >
                 ✕ Fermer
               </button>
@@ -2177,7 +2167,7 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
             {/* Layout : photo compacte + contenu */}
             <div className="flex flex-col md:flex-row max-h-[90vh] sm:max-h-[85vh]">
 
-              {/* --- SECTION PHOTO COMPACTE (30% de la hauteur sur mobile, 35% sur desktop) --- */}
+              {/* --- SECTION PHOTO COMPACTE --- */}
               <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
                 <img
                   src={face.photoCampagneUrl || logo}
@@ -2185,9 +2175,9 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                   alt="Visual"
                 />
 
-                {/* Overlay léger */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
+                {/* Overlay élégant */}
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/20 to-blue-900/30" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 via-transparent to-transparent" />
 
                 {/* Badge Status compact */}
                 <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
@@ -2195,7 +2185,7 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                     ? 'bg-emerald-500/20 border-emerald-500/50'
                     : 'bg-rose-500/20 border-rose-500/50'}`}>
                     <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                    <span className="text-[6px] sm:text-[7px] font-black uppercase">{isLibre ? 'Dispo' : 'Occ'}</span>
+                    <span className="text-[6px] sm:text-[7px] font-black text-white uppercase">{isLibre ? 'Dispo' : 'Occ'}</span>
                   </div>
                 </div>
 
@@ -2205,30 +2195,31 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                     {panneau.idPan}
                   </h2>
                   <div className="flex gap-1 mt-0.5">
-                    <span className="bg-amber-500 text-black text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
+                    <span className="bg-blue-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
                       {face.sens}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* --- SECTION CONTENU (plus d'espace) --- */}
-              <div className="flex-1 flex flex-col bg-gradient-to-b from-black/50 to-black/30 overflow-hidden">
+              {/* --- SECTION CONTENU --- */}
+              <div className="flex-1 flex flex-col bg-gradient-to-b from-blue-50/80 to-white overflow-hidden">
 
                 {/* Header compact */}
-                <div className="p-2 sm:p-3 md:p-4 border-b border-white/10">
-                  <p className="text-amber-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider">
+                <div className="p-2 sm:p-3 md:p-4 border-b border-blue-200/50 bg-white/50">
+                  <p className="text-blue-700 text-[7px] sm:text-[8px] font-black uppercase tracking-wider flex items-center gap-1">
+                    <MapPin size={10} className="sm:w-3 sm:h-3" />
                     📍 {panneau.adresse?.substring(0, 50)}{panneau.adresse?.length > 50 ? '...' : ''}
                   </p>
                   {isSelected && (
-                    <span className="inline-block mt-1 text-amber-400 text-[6px] sm:text-[7px] font-black bg-amber-400/20 px-1.5 py-0.5 rounded-full">
+                    <span className="inline-block mt-1 text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-100 px-1.5 py-0.5 rounded-full">
                       ✓ Sélectionné
                     </span>
                   )}
                 </div>
 
                 {/* ZONE SCROLLABLE OPTIMISÉE */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar bg-white/30">
 
                   {/* Métriques compactes - 3 cartes en ligne */}
                   <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -2237,10 +2228,10 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                       { icon: <Activity size={10} className="sm:w-3 sm:h-3" />, label: "Trafic", val: face.mobimetrie || 85 },
                       { icon: <ShieldCheck size={10} className="sm:w-3 sm:h-3" />, label: "Score", val: 98 },
                     ].map((m, i) => (
-                      <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-2 sm:p-3 text-center">
-                        <div className="flex justify-center text-amber-400 mb-0.5">{m.icon}</div>
-                        <p className="text-sm sm:text-base md:text-lg font-black text-white">{m.val}%</p>
-                        <p className="text-[6px] sm:text-[7px] font-bold text-white/40 uppercase">{m.label}</p>
+                      <div key={i} className="bg-blue-50/80 border border-blue-200/60 rounded-xl p-2 sm:p-3 text-center hover:border-blue-400/80 transition-all">
+                        <div className="flex justify-center text-blue-600 mb-0.5">{m.icon}</div>
+                        <p className="text-sm sm:text-base md:text-lg font-black text-blue-900">{m.val}%</p>
+                        <p className="text-[6px] sm:text-[7px] font-bold text-blue-400 uppercase">{m.label}</p>
                       </div>
                     ))}
                   </div>
@@ -2248,14 +2239,14 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                   {/* Timeline compacte */}
                   <section className="space-y-3 sm:space-y-4">
                     <div className="flex items-center gap-2 sm:gap-2.5">
-                      <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-amber-400" />
-                      <h4 className="text-white text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-wider">Chronologie</h4>
-                      <span className="text-[8px] sm:text-[9px] text-white/40 bg-white/10 px-2 py-0.5 rounded-full">
+                      <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-blue-600" />
+                      <h4 className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-wider">Chronologie</h4>
+                      <span className="text-[8px] sm:text-[9px] text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
                         {reservations.length} campagne{reservations.length !== 1 ? 's' : ''}
                       </span>
                     </div>
 
-                    <div className="relative border-l-2 border-white/15 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
+                    <div className="relative border-l-2 border-blue-200 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
                       {reservations.length > 0 ? (
                         reservations.map((res: any, i: number) => {
                           const now = new Date();
@@ -2268,42 +2259,42 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                           const isActive = now >= debut && now <= fin;
 
                           let statusLabel = "En attente";
-                          let statusColor = "text-blue-400 bg-blue-400/10 border-blue-400/30";
+                          let statusColor = "text-blue-600 bg-blue-50 border-blue-200";
 
                           if (isExpired) {
                             statusLabel = "Terminée";
-                            statusColor = "text-white/40 bg-white/5 border-white/10";
+                            statusColor = "text-gray-400 bg-gray-50 border-gray-200";
                           } else if (isNearEnd) {
                             statusLabel = "Expire bientôt";
-                            statusColor = "text-orange-500 bg-orange-500/10 border-orange-500/30";
+                            statusColor = "text-orange-600 bg-orange-50 border-orange-200";
                           } else if (isActive) {
                             statusLabel = "En cours";
-                            statusColor = "text-emerald-400 bg-emerald-400/10 border-emerald-400/30";
+                            statusColor = "text-emerald-600 bg-emerald-50 border-emerald-200";
                           }
 
                           return (
                             <div key={i} className="relative group">
-                              {/* Point sur la timeline - agrandi */}
-                              <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-black flex items-center justify-center
-              ${isNearEnd ? 'border-orange-500 shadow-orange-500/50' :
-                                  isActive ? 'border-emerald-400 shadow-emerald-400/50' :
-                                    'border-white/30'}`}>
+                              {/* Point sur la timeline */}
+                              <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-white flex items-center justify-center
+                              ${isNearEnd ? 'border-orange-500 shadow-orange-500/50' :
+                                  isActive ? 'border-emerald-500 shadow-emerald-500/50' :
+                                    'border-blue-300'}`}>
                                 <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full 
-                ${isNearEnd ? 'bg-orange-500 animate-pulse' :
-                                    isActive ? 'bg-emerald-400 animate-pulse' :
-                                      'bg-white/40'}`} />
+                                ${isNearEnd ? 'bg-orange-500 animate-pulse' :
+                                    isActive ? 'bg-emerald-500 animate-pulse' :
+                                      'bg-blue-400'}`} />
                               </div>
 
-                              {/* Carte de réservation - agrandie */}
-                              <div className={`bg-gradient-to-br from-white/8 to-transparent backdrop-blur-sm border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg
-              ${isNearEnd ? 'border-orange-500/40 shadow-orange-500/5' :
-                                  isActive ? 'border-emerald-400/30' :
-                                    'border-white/10 hover:border-white/20'}`}>
+                              {/* Carte de réservation */}
+                              <div className={`bg-white border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg hover:border-blue-400/60
+                              ${isNearEnd ? 'border-orange-300 shadow-orange-100' :
+                                  isActive ? 'border-emerald-300' :
+                                    'border-blue-200/60'}`}>
 
                                 {/* En-tête de la carte */}
                                 <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-amber-400 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-tight truncate">
+                                    <p className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-tight truncate">
                                       {res.societeLocatrice}
                                     </p>
                                     {isNearEnd && (
@@ -2320,21 +2311,21 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                                   </span>
                                 </div>
 
-                                {/* Dates - agrandies */}
-                                <div className="flex justify-between items-center gap-2 pt-2 border-t border-white/10">
+                                {/* Dates */}
+                                <div className="flex justify-between items-center gap-2 pt-2 border-t border-blue-100">
                                   <div className="flex gap-3 sm:gap-4">
                                     <div className="flex flex-col">
-                                      <span className="text-[7px] sm:text-[8px] text-white/40 uppercase font-black">Début</span>
-                                      <span className="text-[9px] sm:text-[10px] md:text-[11px] text-white font-bold">
+                                      <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Début</span>
+                                      <span className="text-[9px] sm:text-[10px] md:text-[11px] text-blue-900 font-bold">
                                         {new Date(res.dateDebut).toLocaleDateString('fr-FR')}
                                       </span>
                                     </div>
                                     <div className="flex items-end pb-1">
-                                      <span className="text-white/30 text-[10px]">→</span>
+                                      <span className="text-blue-300 text-[10px]">→</span>
                                     </div>
                                     <div className="flex flex-col">
-                                      <span className="text-[7px] sm:text-[8px] text-white/40 uppercase font-black">Fin</span>
-                                      <span className={`text-[9px] sm:text-[10px] md:text-[11px] font-bold ${isNearEnd ? 'text-orange-500' : 'text-white'}`}>
+                                      <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Fin</span>
+                                      <span className={`text-[9px] sm:text-[10px] md:text-[11px] font-bold ${isNearEnd ? 'text-orange-500' : 'text-blue-900'}`}>
                                         {new Date(res.dateFin).toLocaleDateString('fr-FR')}
                                       </span>
                                     </div>
@@ -2343,12 +2334,12 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                                   {/* Badges supplémentaires */}
                                   <div className="flex gap-1">
                                     {res.validationComptable === true && (
-                                      <div className="p-1 bg-blue-500/20 text-blue-400 rounded-md border border-blue-500/30" title="Validé comptablement">
+                                      <div className="p-1 bg-blue-100 text-blue-600 rounded-md border border-blue-200" title="Validé comptablement">
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
                                       </div>
                                     )}
                                     {res.facturee === "oui" && (
-                                      <div className="p-1 bg-amber-500/20 text-amber-500 rounded-md border border-amber-500/30" title="Facturée">
+                                      <div className="p-1 bg-amber-100 text-amber-600 rounded-md border border-amber-200" title="Facturée">
                                         <span className="text-[9px] font-black">€</span>
                                       </div>
                                     )}
@@ -2359,20 +2350,20 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                           );
                         })
                       ) : (
-                        /* Message opportunité - agrandi */
+                        /* Message opportunité */
                         <div className="relative">
-                          <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-amber-400 bg-black flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-blue-500 bg-white flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                           </div>
 
-                          <div className="bg-gradient-to-br from-amber-500/10 to-transparent border-2 border-dashed border-amber-500/40 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-amber-500/15 transition-all cursor-pointer">
-                            <div className="inline-flex p-2 bg-amber-500/20 rounded-full text-amber-400">
+                          <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-blue-100/50 transition-all cursor-pointer">
+                            <div className="inline-flex p-2 bg-blue-100 rounded-full text-blue-600">
                               <PlusCircle size={16} className="sm:w-5 sm:h-5" />
                             </div>
-                            <h3 className="text-amber-400 text-[11px] sm:text-[12px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
-                            <p className="text-white/60 text-[9px] sm:text-[10px] leading-relaxed max-w-[250px] mx-auto">
+                            <h3 className="text-blue-700 text-[11px] sm:text-[12px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
+                            <p className="text-blue-500/80 text-[9px] sm:text-[10px] leading-relaxed max-w-[250px] mx-auto">
                               Cette face n'attend que votre visibilité.<br />
-                              <span className="text-white font-bold italic">Réservez-la dès maintenant.</span>
+                              <span className="text-blue-900 font-bold italic">Réservez-la dès maintenant.</span>
                             </p>
                           </div>
                         </div>
@@ -2383,12 +2374,12 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                   <div className="h-12 sm:h-14" />
                 </div>
 
-                {/* Actions fixes en bas - compactes */}
-                <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-black/95 via-black/90 to-black/80 md:bg-transparent border-t border-white/10 md:border-t-0 mt-auto">
+                {/* Actions fixes en bas */}
+                <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0 mt-auto">
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { ouvrirLaCarte(); onClose(); }}
-                      className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg text-white transition-all active:scale-95 border border-white/10"
+                      //onClick={() => { ouvrirLaCarte(); onClose(); }}
+                      className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-blue-100 hover:bg-blue-200 rounded-lg text-blue-700 transition-all active:scale-95 border border-blue-200"
                     >
                       <MapPin size={14} className="sm:w-4 sm:h-4" />
                     </button>
@@ -2397,11 +2388,11 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                       disabled={!isLibre && !isSelected}
                       onClick={() => onSelect(selectionKey)}
                       className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
-        ${isSelected
+                      ${isSelected
                           ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30'
                           : isLibre
-                            ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-amber-500/30 hover:shadow-amber-500/50'
-                            : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-500/30 hover:shadow-blue-500/50'
+                            : 'bg-blue-100 text-blue-400 cursor-not-allowed'}`}
                     >
                       {isSelected ? (
                         <><MinusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RETIRER</span><span className="xs:hidden">RETIRER</span></>
@@ -2431,17 +2422,12 @@ interface CartModalProps {
   panneauxData: any[];
 }
 
-
-
-
-
 import { serverTimestamp } from 'firebase/firestore';
 import {
   Save,
   Camera,
 
 } from 'lucide-react';
-import { panneaux } from '@/data/panneaux';
 import {
   // Pour l'adresse
   Layers,      // Pour le type
@@ -2584,19 +2570,10 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   };
 
 
-  const isOwner = (face: any) => {
-    return face.agentEmail === currentUser?.email;
-  };
 
 
 
 
-  const removePhoto = (index: number) => {
-    const newFaces = [...formData.faces];
-    newFaces[index].photoCampagneUrl = "";
-    // Si on supprime la photo, on réinitialise souvent le statut ou on laisse l'utilisateur choisir
-    setFormData({ ...formData, faces: newFaces });
-  };
   const updateFace = (index: number, field: string, value: any) => {
     const newFaces = [...formData.faces];
     newFaces[index] = { ...newFaces[index], [field]: value };
@@ -2942,14 +2919,15 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
   return (
     <div className="fixed inset-0 z-[600] flex items-center justify-center p-2 sm:p-3 md:p-4">
-      {/* IMAGE DE FOND AVEC EFFET FLOU */}
-      <div className="absolute inset-0 z-0">
-        <img
-          src="/fond.jpg"
-          alt="Background"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
+      {/* FOND BLANC AVEC OMBRE ET EFFET DE PROFONDEUR */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-blue-50 via-white to-blue-50/30">
+        {/* Motif décoratif subtil */}
+        <div className="absolute inset-0 opacity-[0.03]">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-800 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
+        </div>
+        {/* Ligne décorative supérieure */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-700" />
       </div>
 
       <input
@@ -2964,19 +2942,19 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         initial={{ opacity: 0, scale: 0.9, y: 50 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative z-10 bg-black/40 backdrop-blur-xl border border-white/20 w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] rounded-2xl sm:rounded-3xl md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl"
+        className="relative z-10 bg-white/95 backdrop-blur-xl border border-blue-200/50 w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] rounded-2xl sm:rounded-3xl md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl shadow-blue-900/10"
       >
 
-        {/* HEADER ÉLÉGANT */}
-        <div className="p-4 sm:p-5 md:p-6 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-white/5 to-transparent">
+        {/* HEADER ÉLÉGANT - BLEU ROI */}
+        <div className="p-4 sm:p-5 md:p-6 border-b border-blue-200/50 flex justify-between items-center bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900">
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className="p-2 sm:p-2.5 md:p-3 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl sm:rounded-2xl text-black shadow-lg">
+            <div className="p-2 sm:p-2.5 md:p-3 bg-gradient-to-r from-blue-400 to-blue-500 rounded-xl sm:rounded-2xl text-white shadow-lg shadow-blue-500/30">
               <Layout size={18} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
             </div>
             <div>
-              <p className="text-[8px] sm:text-[9px] text-amber-400 font-black uppercase tracking-wider">Détails du support</p>
+              <p className="text-[8px] sm:text-[9px] text-blue-300 font-black uppercase tracking-wider">Détails du support</p>
               <h2 className="text-lg sm:text-xl md:text-2xl font-black italic text-white">
-                Support <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-500">{formData.idPan}</span>
+                Support <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-blue-200">{formData.idPan}</span>
               </h2>
             </div>
           </div>
@@ -2989,38 +2967,38 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         </div>
 
         {/* BODY SCROLLABLE */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-6 lg:p-8 space-y-6 sm:space-y-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-6 lg:p-8 space-y-6 sm:space-y-8 custom-scrollbar bg-white">
 
-          {/* CARTES INFORMATIVES ÉLÉGANTES */}
+          {/* CARTES INFORMATIVES ÉLÉGANTES - BLEU CLAIR */}
           {(formData.adresse || formData.type || formData.dimension) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {formData.adresse && (
-                <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:border-amber-400/50 transition-all duration-300">
+                <div className="group bg-blue-50/80 backdrop-blur-sm border border-blue-200/60 rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:border-blue-400/80 hover:shadow-lg hover:shadow-blue-200/50 transition-all duration-300">
                   <div className="flex items-center gap-2 mb-2">
-                    <MapPin size={12} className="text-amber-400" />
-                    <label className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-wider">Adresse</label>
+                    <MapPin size={12} className="text-blue-600" />
+                    <label className="text-[8px] sm:text-[9px] font-black text-blue-700 uppercase tracking-wider">Adresse</label>
                   </div>
-                  <p className="text-[11px] sm:text-xs text-white/90 font-medium break-words">{formData.adresse}</p>
+                  <p className="text-[11px] sm:text-xs text-blue-900 font-medium break-words">{formData.adresse}</p>
                 </div>
               )}
 
               {formData.type && (
-                <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:border-amber-400/50 transition-all duration-300">
+                <div className="group bg-blue-50/80 backdrop-blur-sm border border-blue-200/60 rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:border-blue-400/80 hover:shadow-lg hover:shadow-blue-200/50 transition-all duration-300">
                   <div className="flex items-center gap-2 mb-2">
-                    <Layers size={12} className="text-amber-400" />
-                    <label className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-wider">Type</label>
+                    <Layers size={12} className="text-blue-600" />
+                    <label className="text-[8px] sm:text-[9px] font-black text-blue-700 uppercase tracking-wider">Type</label>
                   </div>
-                  <p className="text-[11px] sm:text-xs text-white/90 font-medium">{formData.type}</p>
+                  <p className="text-[11px] sm:text-xs text-blue-900 font-medium">{formData.type}</p>
                 </div>
               )}
 
               {formData.dimension && (
-                <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:border-amber-400/50 transition-all duration-300">
+                <div className="group bg-blue-50/80 backdrop-blur-sm border border-blue-200/60 rounded-xl sm:rounded-2xl p-3 sm:p-4 hover:border-blue-400/80 hover:shadow-lg hover:shadow-blue-200/50 transition-all duration-300">
                   <div className="flex items-center gap-2 mb-2">
-                    <Maximize size={12} className="text-amber-400" />
-                    <label className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-wider">Dimensions</label>
+                    <Maximize size={12} className="text-blue-600" />
+                    <label className="text-[8px] sm:text-[9px] font-black text-blue-700 uppercase tracking-wider">Dimensions</label>
                   </div>
-                  <p className="text-[11px] sm:text-xs text-white/90 font-medium">{formData.dimension}</p>
+                  <p className="text-[11px] sm:text-xs text-blue-900 font-medium">{formData.dimension}</p>
                 </div>
               )}
             </div>
@@ -3029,10 +3007,10 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           {/* SECTION GESTION DES FACES */}
           <div className="space-y-4 sm:space-y-5">
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-amber-400 to-yellow-500 rounded-full" />
+              <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-blue-600 to-blue-800 rounded-full" />
               <div>
-                <h3 className="text-[10px] sm:text-[11px] font-black text-white uppercase tracking-[0.2em]">Gestion des faces</h3>
-                <p className="text-[7px] sm:text-[8px] text-white/40 uppercase">Configuration des faces du panneau</p>
+                <h3 className="text-[10px] sm:text-[11px] font-black text-blue-900 uppercase tracking-[0.2em]">Gestion des faces</h3>
+                <p className="text-[7px] sm:text-[8px] text-blue-400 uppercase">Configuration des faces du panneau</p>
               </div>
             </div>
 
@@ -3047,21 +3025,21 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}
-                    className={`bg-gradient-to-br from-white/5 to-transparent backdrop-blur-sm border rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-3 sm:gap-4 md:gap-5 group hover:border-amber-400/40 transition-all duration-300 ${isLocked ? "opacity-75" : ""}`}
+                    className={`bg-gradient-to-br from-blue-50/80 to-white border border-blue-200/60 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-3 sm:gap-4 md:gap-5 group hover:border-blue-400/80 hover:shadow-lg hover:shadow-blue-200/50 transition-all duration-300 ${isLocked ? "opacity-75" : ""}`}
                   >
                     {/* ========== EN-TÊTE AVEC NUMÉRO DE FACE ========== */}
-                    <div className="flex flex-row items-center justify-between gap-2 pb-2 sm:pb-3 border-b border-white/10">
+                    <div className="flex flex-row items-center justify-between gap-2 pb-2 sm:pb-3 border-b border-blue-200/40">
                       <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-1 min-w-0">
-                        <div className="w-0.5 h-4 sm:h-5 md:h-6 bg-gradient-to-b from-amber-400 to-yellow-500 rounded-full" />
+                        <div className="w-0.5 h-4 sm:h-5 md:h-6 bg-gradient-to-b from-blue-600 to-blue-800 rounded-full" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-[6px] sm:text-[7px] md:text-[8px] text-amber-400 font-black uppercase tracking-wider">Face</p>
+                          <p className="text-[6px] sm:text-[7px] md:text-[8px] text-blue-600 font-black uppercase tracking-wider">Face</p>
                           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            <h3 className="text-white text-sm sm:text-base md:text-lg font-black uppercase leading-tight truncate max-w-[120px] sm:max-w-none">
+                            <h3 className="text-blue-900 text-sm sm:text-base md:text-lg font-black uppercase leading-tight truncate max-w-[120px] sm:max-w-none">
                               {formData?.idPan}{idx + 1}
                             </h3>
                             {face.sens && (
-                              <span className="bg-amber-500/20 border border-amber-500/30 rounded-md px-1.5 py-0.5 sm:px-2 sm:py-0.5">
-                                <span className="text-amber-400 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase">
+                              <span className="bg-blue-100 border border-blue-300 rounded-md px-1.5 py-0.5 sm:px-2 sm:py-0.5">
+                                <span className="text-blue-700 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase">
                                   {face.sens}
                                 </span>
                               </span>
@@ -3070,7 +3048,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                         </div>
                       </div>
                       {warning && (
-                        <div className="flex items-center gap-1 text-red-400 bg-red-500/10 px-1.5 py-1 rounded-md shrink-0">
+                        <div className="flex items-center gap-1 text-red-600 bg-red-50 px-1.5 py-1 rounded-md shrink-0 border border-red-200">
                           <AlertTriangle size={10} className="sm:w-3 sm:h-3" />
                           <span className="text-[6px] sm:text-[7px] font-medium uppercase hidden xs:inline">Alerte</span>
                         </div>
@@ -3087,14 +3065,14 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
                           {/* Statut */}
                           <div className="space-y-0.5 sm:space-y-1">
-                            <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
-                              <div className="w-0.5 h-0.5 bg-amber-400 rounded-full" /> Statut
+                            <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-1">
+                              <div className="w-0.5 h-0.5 bg-blue-600 rounded-full" /> Statut
                             </label>
                             <select
                               value={face.statut || ''}
                               onChange={(e) => updateFace(idx, 'statut', e.target.value)}
                               disabled={isLocked}
-                              className="w-full bg-black/40 border border-white/10 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs font-bold text-amber-400 p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-amber-400 transition-all truncate"
+                              className="w-full bg-blue-50/50 border border-blue-200 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs font-bold text-blue-800 p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all truncate"
                             >
                               {STATUTS_POSSIBLES.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
@@ -3105,8 +3083,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                             <>
                               {/* Société */}
                               <div className="space-y-0.5 sm:space-y-1">
-                                <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
-                                  <div className="w-0.5 h-0.5 bg-amber-400 rounded-full" /> Société
+                                <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-1">
+                                  <div className="w-0.5 h-0.5 bg-blue-600 rounded-full" /> Société
                                 </label>
                                 <input
                                   list={`list-societes-${idx}`}
@@ -3114,7 +3092,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                                   disabled={isLocked}
                                   placeholder="Sélectionner..."
                                   onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
-                                  className="w-full bg-black/40 border border-white/10 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-white p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-amber-400 transition-all placeholder:text-white/30 truncate"
+                                  className="w-full bg-blue-50/50 border border-blue-200 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-blue-900 p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all placeholder:text-blue-400/50 truncate"
                                 />
                                 <datalist id={`list-societes-${idx}`}>
                                   {Array.from(new Set(listeSocietes || [])).filter(nom => nom?.trim()).map((nom, i) => (
@@ -3125,22 +3103,22 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
                               {/* Dates */}
                               <div className="space-y-0.5 sm:space-y-1 lg:col-span-2">
-                                <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-white/50 uppercase tracking-wider flex items-center gap-1">
-                                  <div className="w-0.5 h-0.5 bg-amber-400 rounded-full" /> Période
+                                <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-1">
+                                  <div className="w-0.5 h-0.5 bg-blue-600 rounded-full" /> Période
                                 </label>
                                 <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2">
                                   <input
                                     type="date"
                                     value={face.dateDebut || ''}
                                     onChange={(e) => updateFace(idx, 'dateDebut', e.target.value)}
-                                    className="flex-1 bg-black/40 border border-white/10 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-white p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-amber-400"
+                                    className="flex-1 bg-blue-50/50 border border-blue-200 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-blue-900 p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                                   />
-                                  <span className="text-white/30 self-center text-center hidden sm:inline">→</span>
+                                  <span className="text-blue-400 self-center text-center hidden sm:inline">→</span>
                                   <input
                                     type="date"
                                     value={face.dateFin || ''}
                                     onChange={(e) => updateFace(idx, 'dateFin', e.target.value)}
-                                    className="flex-1 bg-black/40 border border-white/10 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-white p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-amber-400"
+                                    className="flex-1 bg-blue-50/50 border border-blue-200 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-blue-900 p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                                   />
                                 </div>
                               </div>
@@ -3150,15 +3128,15 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
                         {/* Message d'avertissement */}
                         {warning && !(face.statut === "Occupé" || face.statut === "Réservé") && (
-                          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-1.5 sm:p-2 mt-0.5 sm:mt-1">
-                            <p className="text-[6px] sm:text-[7px] md:text-[8px] text-red-400 font-medium truncate">⚠️ {warning}</p>
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-1.5 sm:p-2 mt-0.5 sm:mt-1">
+                            <p className="text-[6px] sm:text-[7px] md:text-[8px] text-red-700 font-medium truncate">⚠️ {warning}</p>
                           </div>
                         )}
 
                         {/* Message de conflit de dates */}
                         {conflitMessages[idx] && (face.statut === "Occupé" || face.statut === "Réservé") && (
-                          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-1.5 sm:p-2 mt-0.5 sm:mt-1">
-                            <p className="text-[6px] sm:text-[7px] md:text-[8px] text-red-400 font-medium">{conflitMessages[idx]}</p>
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-1.5 sm:p-2 mt-0.5 sm:mt-1">
+                            <p className="text-[6px] sm:text-[7px] md:text-[8px] text-red-700 font-medium">{conflitMessages[idx]}</p>
                           </div>
                         )}
                       </div>
@@ -3170,11 +3148,11 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           </div>
         </div>
 
-        {/* FOOTER ÉLÉGANT */}
-        <div className="p-4 sm:p-5 md:p-6 bg-gradient-to-t from-black/80 to-transparent backdrop-blur-sm border-t border-white/10 flex justify-end items-center gap-3 sm:gap-4">
+        {/* FOOTER ÉLÉGANT - BLEU ROI */}
+        <div className="p-4 sm:p-5 md:p-6 bg-gradient-to-t from-blue-50/80 to-white backdrop-blur-sm border-t border-blue-200/50 flex justify-end items-center gap-3 sm:gap-4">
           <button
             onClick={onClose}
-            className="px-4 sm:px-6 py-2 sm:py-2.5 text-[9px] sm:text-[10px] font-black uppercase text-white/50 hover:text-white transition-all rounded-xl hover:bg-white/10"
+            className="px-4 sm:px-6 py-2 sm:py-2.5 text-[9px] sm:text-[10px] font-black uppercase text-blue-600 hover:text-blue-800 transition-all rounded-xl hover:bg-blue-50"
           >
             Annuler
           </button>
@@ -3183,13 +3161,13 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
             onClick={handleSave}
             disabled={isButtonDisabled}
             className={`relative overflow-hidden flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-full font-black uppercase text-[9px] sm:text-[10px] transition-all duration-300 shadow-lg
-              ${isSaving
-                ? "bg-white/10 text-white/20 cursor-not-allowed"
-                : "bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-95 group"
+            ${isSaving
+                ? "bg-blue-100 text-blue-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-blue-600 to-blue-800 text-white hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-95 group"
               }`}
           >
             {!isSaving && (
-              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             )}
 
             {isSaving ? (

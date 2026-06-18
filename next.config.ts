@@ -7,15 +7,15 @@ const withPWA = withPWAPlugin({
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
   disable: false,
-  //disable: process.env.NODE_ENV === "development", 
+  // disable: process.env.NODE_ENV === "development",
 });
 
 const nextConfig: NextConfig = {
+  output: "standalone",   // ← AJOUT OBLIGATOIRE POUR LE SERVEUR
   images: {
-    unoptimized: true, 
+    unoptimized: true,
   },
-  // AJOUTE CETTE LIGNE ICI POUR CORRIGER L'ERREUR NEXT.JS 16 :
-  turbopack: {}, 
+  turbopack: {},
 };
 
 export default withPWA(nextConfig);
