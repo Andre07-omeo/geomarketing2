@@ -497,3 +497,53 @@ body {
   animation: gradient-x 3s ease infinite;
   background-size: 200% 100%;
 }
+
+
+/* Dans votre fichier globals.css */
+
+/* Breakpoints personnalisés pour ultra responsive */
+@layer utilities {
+    /* Très petit écran (montres, très petits mobiles) */
+    @media (min-width: 280px) {
+        .\32xs\:inline { display: inline; }
+        .\32xs\:hidden { display: none; }
+        .\32xs\:block { display: block; }
+    }
+    
+    /* Extra small (petits mobiles) */
+    @media (min-width: 360px) {
+        .xs\:inline { display: inline; }
+        .xs\:hidden { display: none; }
+        .xs\:block { display: block; }
+    }
+    
+    /* Small (mobiles) */
+    @media (min-width: 480px) {
+        .sm\:inline { display: inline; }
+        .sm\:hidden { display: none; }
+        .sm\:block { display: block; }
+    }
+    
+    /* Medium (tablettes) */
+    @media (min-width: 768px) {
+        .md\:inline { display: inline; }
+        .md\:hidden { display: none; }
+        .md\:block { display: block; }
+    }
+    
+    /* Large (PC) */
+    @media (min-width: 1024px) {
+        .lg\:inline { display: inline; }
+        .lg\:hidden { display: none; }
+        .lg\:block { display: block; }
+    }
+    
+    /* Cacher la barre de scroll pour les onglets */
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}
