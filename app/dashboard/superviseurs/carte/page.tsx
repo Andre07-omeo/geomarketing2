@@ -232,7 +232,7 @@ function PanneauModal({ panneau, onClose, onEdit }: any) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={onClose}
-      className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
+      className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 30 }}
@@ -240,196 +240,210 @@ function PanneauModal({ panneau, onClose, onEdit }: any) {
         exit={{ scale: 0.9, opacity: 0, y: 30 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md sm:max-w-lg md:max-w-2xl rounded-xl overflow-hidden shadow-2xl"
-        style={{
-          backgroundImage: `url('/fond.jpg')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
+        className="relative w-full max-w-md sm:max-w-lg md:max-w-2xl rounded-xl overflow-hidden shadow-2xl bg-white"
       >
-        {/* Overlay semi-transparent pour lisibilité */}
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
-        {/* CONTENU */}
-        <div className="relative z-10">
-          {/* HEADER ULTRA COMPACT */}
-          <div className="p-3 sm:p-4 border-b border-white/10">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-              {/* ID Panneau */}
-              <div className="flex items-center justify-between sm:justify-start gap-2">
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tighter">
-                  {panneau.idPan || panneau.id}
-                </h2>
-                <button
-                  onClick={onClose}
-                  className="sm:hidden p-1.5 bg-white/10 hover:bg-red-500/80 rounded-lg transition-all duration-300 active:scale-95"
-                >
-                  <X size={16} className="text-white" />
-                </button>
-              </div>
-
-              {/* Dimension */}
-              <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-white/60">
-                <Ruler size={10} className="text-amber-400 shrink-0" />
-                <span>{panneau.dimension || 'N/A'}</span>
-              </div>
-
-              {/* Adresse */}
-              <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-white/60 min-w-0 flex-1">
-                <MapPin size={10} className="text-amber-400 shrink-0" />
-                <span className="truncate">{panneau.adresse || 'Adresse non définie'}</span>
-              </div>
-
-              {/* Bouton fermeture Desktop */}
+        {/* ============================================ */}
+        {/* HEADER - BLEU ROI PROFOND */}
+        {/* ============================================ */}
+        <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 p-3 sm:p-4 border-b border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+            {/* ID Panneau */}
+            <div className="flex items-center justify-between sm:justify-start gap-2">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tighter">
+                {panneau.idPan || panneau.id}
+              </h2>
               <button
                 onClick={onClose}
-                className="hidden sm:block shrink-0 p-1.5 bg-white/10 hover:bg-red-500/80 rounded-lg transition-all duration-300 active:scale-95"
+                className="sm:hidden p-1.5 bg-white/10 hover:bg-red-500/80 rounded-lg transition-all duration-300 active:scale-95"
               >
                 <X size={16} className="text-white" />
               </button>
             </div>
-          </div>
 
-          {/* RÉSUMÉ DES FACES - LIGNE STATS */}
-          <div className="p-3 sm:p-4 border-b border-white/10">
-            <div className="flex gap-2 flex-wrap">
-              {faces.map((face: any, idx: number) => {
-                const activeRes = getActiveReservation(face);
-                const currentStatus = activeRes?.statut || face.statut || 'Libre';
-                const colors = getStatusColor(currentStatus);
-                return (
-                  <div
-                    key={idx}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${colors.bg} border ${colors.border}`}
-                  >
-                    <div className={`w-1.5 h-1.5 rounded-full ${colors.dot} ${currentStatus === 'Libre' ? 'animate-pulse' : ''}`} />
-                    <span className="text-[8px] font-bold text-white">F{idx + 1}</span>
-                    <span className={`text-[7px] font-black uppercase ${colors.text}`}>
-                      {currentStatus === 'Libre' ? 'L' : currentStatus === 'Occupé' ? 'O' : currentStatus === 'Réservé' ? 'R' : 'M'}
-                    </span>
-                  </div>
-                );
-              })}
+            {/* Dimension */}
+            <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-blue-200">
+              <Ruler size={10} className="text-amber-400 shrink-0" />
+              <span>{panneau.dimension || 'N/A'}</span>
             </div>
+
+            {/* Adresse */}
+            <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-blue-200 min-w-0 flex-1">
+              <MapPin size={10} className="text-amber-400 shrink-0" />
+              <span className="truncate">{panneau.adresse || 'Adresse non définie'}</span>
+            </div>
+
+            {/* Bouton fermeture Desktop */}
+            <button
+              onClick={onClose}
+              className="hidden sm:block shrink-0 p-1.5 bg-white/10 hover:bg-red-500/80 rounded-lg transition-all duration-300 active:scale-95"
+            >
+              <X size={16} className="text-white" />
+            </button>
           </div>
+        </div>
 
-          {/* LISTE DES FACES - SCROLLABLE */}
-          <div className="max-h-[50vh] sm:max-h-[55vh] overflow-y-auto p-3 sm:p-4 custom-scrollbar">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {faces.map((face: any, idx: number) => {
-                const activeRes = getActiveReservation(face);
-                const currentStatus = activeRes?.statut || face.statut || 'Libre';
-                const colors = getStatusColor(currentStatus);
-                const isOccupied = currentStatus === 'Occupé' || currentStatus === 'Réservé';
+        {/* ============================================ */}
+        {/* RÉSUMÉ DES FACES - LIGNE STATS */}
+        {/* ============================================ */}
+        <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex gap-2 flex-wrap">
+            {faces.map((face: any, idx: number) => {
+              const activeRes = getActiveReservation(face);
+              const currentStatus = activeRes?.statut || face.statut || 'Libre';
+              const colors = getStatusColor(currentStatus);
+              return (
+                <div
+                  key={idx}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${colors.bg} border ${colors.border}`}
+                >
+                  <div className={`w-1.5 h-1.5 rounded-full ${colors.dot} ${currentStatus === 'Libre' ? 'animate-pulse' : ''}`} />
+                  <span className="text-[8px] font-bold text-gray-700">F{idx + 1}</span>
+                  <span className={`text-[7px] font-black uppercase ${colors.text}`}>
+                    {currentStatus === 'Libre' ? 'L' : currentStatus === 'Occupé' ? 'O' : currentStatus === 'Réservé' ? 'R' : 'M'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-                return (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className={`p-2 rounded-lg ${colors.bg} border ${colors.border} transition-all hover:scale-[1.02]`}
-                  >
-                    {/* En-tête de la face */}
-                    <div className="flex justify-between items-start gap-1">
-                      <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
-                        <span className="text-[11px] sm:text-xs font-black text-white shrink-0">Face {idx + 1}</span>
-                        {face.sens && (
-                          <span className="text-[6px] sm:text-[7px] px-1 py-0.5 bg-white/10 rounded-full text-white/60 truncate max-w-[80px]">
-                            {face.sens}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <div className={`w-1.5 h-1.5 rounded-full ${colors.dot} ${currentStatus === 'Libre' ? 'animate-pulse' : ''}`} />
-                        <span className={`text-[7px] sm:text-[8px] font-black uppercase ${colors.text}`}>{currentStatus}</span>
-                      </div>
+        {/* ============================================ */}
+        {/* LISTE DES FACES - SCROLLABLE */}
+        {/* ============================================ */}
+        <div className="max-h-[50vh] sm:max-h-[55vh] overflow-y-auto p-3 sm:p-4 bg-gray-50 custom-scrollbar">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {faces.map((face: any, idx: number) => {
+              const activeRes = getActiveReservation(face);
+              const currentStatus = activeRes?.statut || face.statut || 'Libre';
+              const colors = getStatusColor(currentStatus);
+              const isOccupied = currentStatus === 'Occupé' || currentStatus === 'Réservé';
 
-                      {/* Bouton de réservation selon le type d'appareil */}
-                      <button
-                        onClick={() => {
-                          const fakePanneau = {
-                            id: panneau.id,
-                            idPan: panneau.idPan,
-                            adresse: panneau.adresse,
-                            dimension: panneau.dimension,
-                            type: panneau.type,
-                            faces: [face]  // ← Seulement cette face
-                          };
-                          onEdit(fakePanneau, idx, face);
-
-                        }}
-                        className="shrink-0 ml-1 transition-transform hover:scale-110"
-                        title="Réserver cette face"
-                      >
-                        {/* Téléphone (mobile) */}
-                        <span className="block sm:hidden text-[10px]">📱</span>
-                        {/* Tablette */}
-                        <span className="hidden sm:block md:hidden text-[12px]">📟</span>
-                        {/* PC / Desktop */}
-                        <span className="hidden md:block text-[14px]">💻</span>
-                      </button>
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className={`p-3 rounded-xl ${colors.bg} border ${colors.border} transition-all hover:shadow-md hover:scale-[1.02] bg-white`}
+                >
+                  {/* En-tête de la face */}
+                  <div className="flex justify-between items-start gap-1">
+                    <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+                      <span className="text-[11px] sm:text-xs font-black text-gray-800 shrink-0">Face {idx + 1}</span>
+                      {face.sens && (
+                        <span className="text-[6px] sm:text-[7px] px-1.5 py-0.5 bg-gray-100 rounded-full text-gray-500 truncate max-w-[80px]">
+                          {face.sens}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <div className={`w-1.5 h-1.5 rounded-full ${colors.dot} ${currentStatus === 'Libre' ? 'animate-pulse' : ''}`} />
+                      <span className={`text-[7px] sm:text-[8px] font-black uppercase ${colors.text}`}>
+                        {currentStatus}
+                      </span>
                     </div>
 
-                    {/* Détails de la réservation active */}
-                    {isOccupied && activeRes && (
-                      <div className="mt-2 pt-2 border-t border-white/10">
-                        <div className="flex gap-2">
-                          {activeRes.photoCampagneUrl && (
-                            <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-md overflow-hidden border border-white/20 shadow-sm shrink-0">
-                              <img
-                                src={activeRes.photoCampagneUrl}
-                                alt="Campagne"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
+                    {/* ✅ Bouton de réservation stylisé */}
+                    <button
+                      onClick={() => {
+                        const fakePanneau = {
+                          id: panneau.id,
+                          idPan: panneau.idPan,
+                          adresse: panneau.adresse,
+                          dimension: panneau.dimension,
+                          type: panneau.type,
+                          faces: [face]
+                        };
+                        onEdit(fakePanneau, idx, face);
+                      }}
+                      className="shrink-0 ml-1 px-2 py-0.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-all text-[8px] font-bold uppercase border border-blue-500/30 hover:scale-105"
+                      title="Réserver cette face"
+                    >
+                      Réserver
+                    </button>
+                  </div>
 
-                          <div className="flex-1 min-w-0 space-y-0.5 text-[7px] sm:text-[8px]">
-                            <div className="flex items-center gap-1 text-white/70">
-                              <Building size={6} className="sm:w-[7px] sm:h-[7px] text-amber-400 shrink-0" />
-                              <span className="truncate">{activeRes.societeLocatrice || 'N/A'}</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-white/70">
-                              <Users size={6} className="sm:w-[7px] sm:h-[7px] text-amber-400 shrink-0" />
-                              <span className="truncate">{activeRes.agentNom || 'N/A'}</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-white/70">
-                              <Calendar size={6} className="sm:w-[7px] sm:h-[7px] text-amber-400 shrink-0" />
-                              <span className="truncate">{activeRes.dateDebut} → {activeRes.dateFin}</span>
-                            </div>
+                  {/* Détails de la réservation active */}
+                  {isOccupied && activeRes && (
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <div className="flex gap-2">
+                        {activeRes.photoCampagneUrl && (
+                          <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-md overflow-hidden border border-gray-200 shadow-sm shrink-0">
+                            <img
+                              src={activeRes.photoCampagneUrl}
+                              alt="Campagne"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex-1 min-w-0 space-y-0.5 text-[7px] sm:text-[8px]">
+                          <div className="flex items-center gap-1 text-gray-600">
+                            <Building size={6} className="sm:w-[7px] sm:h-[7px] text-blue-500 shrink-0" />
+                            <span className="truncate font-medium">{activeRes.societeLocatrice || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-gray-500">
+                            <Users size={6} className="sm:w-[7px] sm:h-[7px] text-blue-400 shrink-0" />
+                            <span className="truncate">{activeRes.agentNom || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-gray-400">
+                            <Calendar size={6} className="sm:w-[7px] sm:h-[7px] text-blue-400 shrink-0" />
+                            <span className="truncate text-[6px] sm:text-[7px]">
+                              {activeRes.dateDebut} → {activeRes.dateFin}
+                            </span>
                           </div>
                         </div>
                       </div>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
+        </div>
 
-          {/* FOOTER */}
-          <div className="p-2 border-t border-white/10 bg-black/30">
-            <p className="text-[6px] text-white/30 text-center uppercase tracking-wider">
+        {/* ============================================ */}
+        {/* FOOTER AVEC LÉGENDE */}
+        {/* ============================================ */}
+        <div className="p-3 border-t border-gray-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[7px] text-gray-400 uppercase tracking-wider">
               {faces.length} face(s) • Cliquez en dehors pour fermer
             </p>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[6px] text-gray-400">Libre</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <span className="text-[6px] text-gray-400">Occupé</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span className="text-[6px] text-gray-400">Réservé</span>
+              </span>
+            </div>
           </div>
         </div>
       </motion.div>
 
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(212, 175, 55, 0.4);
-          border-radius: 3px;
-        }
-      `}</style>
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: rgba(0, 0, 0, 0.05);
+                border-radius: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(37, 99, 235, 0.3);
+                border-radius: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: rgba(37, 99, 235, 0.5);
+            }
+        `}</style>
     </motion.div>
   );
 }

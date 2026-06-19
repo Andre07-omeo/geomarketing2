@@ -322,7 +322,7 @@ function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[2000] bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4"
+            className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
         >
             <motion.div
                 initial={{ y: "100%", opacity: 0 }}
@@ -330,118 +330,138 @@ function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: 
                 exit={{ y: "100%", opacity: 0 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full sm:w-[500px] md:w-[600px] max-h-[85vh] sm:max-h-[80vh] rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl"
-                style={{
-                    backgroundImage: `url('/fond.jpg')`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                }}
+                className="relative w-full sm:w-[500px] md:w-[600px] max-h-[85vh] sm:max-h-[80vh] rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl bg-white"
             >
-                <div className="absolute inset-0 bg-black/75 backdrop-blur-md" />
-
-                <div className="relative z-10 flex flex-col h-full">
-                    {/* Header */}
-                    <div className="p-4 sm:p-5 border-b border-white/10 bg-gradient-to-r from-black/50 to-transparent">
-                        <div className="flex justify-between items-start">
-                            <div>
+                {/* ============================================ */}
+                {/* HEADER - BLEU ROI PROFOND */}
+                {/* ============================================ */}
+                <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 p-4 sm:p-5 border-b border-white/10">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <div className="flex items-center gap-2">
                                 <h2 className="text-xl font-black text-white">
                                     {panneau.idPan || panneau.id}
                                 </h2>
-                                <p className="text-[10px] text-white/40 mt-0.5 flex items-center gap-1">
-                                    <MapPin size={10} className="text-amber-400" />
-                                    {panneau.adresse?.split('/').slice(-3).join(' / ') || 'Adresse'}
-                                </p>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <span className="text-[7px] px-2 py-0.5 rounded-full bg-white/10 text-white/60">
-                                        {faces.length} face(s)
-                                    </span>
-                                    {panneau.type && (
-                                        <span className="text-[7px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
-                                            {panneau.type}
-                                        </span>
-                                    )}
-                                </div>
+                                <span className="px-2 py-0.5 bg-white/20 rounded-full text-[8px] text-white font-bold uppercase">
+                                    {faces.length} face(s)
+                                </span>
                             </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all"
-                            >
-                                <X size={18} className="text-white" />
-                            </button>
+                            <p className="text-[10px] text-blue-200 mt-0.5 flex items-center gap-1">
+                                <MapPin size={10} className="text-amber-400" />
+                                {panneau.adresse?.split('/').slice(-3).join(' / ') || 'Adresse'}
+                            </p>
+                            {panneau.type && (
+                                <span className="inline-block mt-2 text-[7px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                    {panneau.type}
+                                </span>
+                            )}
                         </div>
+                        <button
+                            onClick={onClose}
+                            className="p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all text-white"
+                        >
+                            <X size={18} />
+                        </button>
                     </div>
+                </div>
 
-                    {/* Liste des réservations */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                        {reservations.length === 0 ? (
-                            <div className="text-center py-12">
-                                <div className="w-16 h-16 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-3">
-                                    <Calendar size={24} className="text-white/30" />
-                                </div>
-                                <p className="text-white/40 text-sm">Aucune réservation active</p>
+                {/* ============================================ */}
+                {/* CORPS - LISTE DES RÉSERVATIONS */}
+                {/* ============================================ */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 custom-scrollbar">
+                    {reservations.length === 0 ? (
+                        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                            <div className="w-16 h-16 mx-auto bg-blue-50 rounded-full flex items-center justify-center mb-3">
+                                <Calendar size={24} className="text-blue-300" />
                             </div>
-                        ) : (
-                            reservations.map((item, idx) => {
-                                const res = item.reservation;
-                                return (
-                                    <motion.button
-                                        key={idx}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: idx * 0.05 }}
-                                        onClick={() => onSelectReservation(item)}
-                                        className="w-full text-left p-4 rounded-xl bg-white/5 border border-white/10 hover:border-amber-500/30 hover:bg-white/10 transition-all group"
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${item.isCurrent ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                                                <span className="font-bold text-white text-sm">
-                                                    Face {item.faceIndex + 1}
-                                                </span>
-                                                {item.faceSens && item.faceSens !== `Face ${item.faceIndex + 1}` && (
-                                                    <span className="text-[8px] px-2 py-0.5 rounded-full bg-white/10 text-white/50">
-                                                        {item.faceSens}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {item.isCurrent && (
-                                                <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">
-                                                    EN COURS
+                            <p className="text-gray-400 text-sm font-medium">Aucune réservation active</p>
+                            <p className="text-gray-300 text-xs mt-1">Aucune réservation pour ce panneau</p>
+                        </div>
+                    ) : (
+                        reservations.map((item, idx) => {
+                            const res = item.reservation;
+                            const isCurrent = item.isCurrent;
+
+                            return (
+                                <motion.button
+                                    key={idx}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                    onClick={() => onSelectReservation(item)}
+                                    className={`w-full text-left p-4 rounded-xl border transition-all group ${isCurrent
+                                            ? 'bg-emerald-50 border-emerald-200 hover:border-emerald-400'
+                                            : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md'
+                                        }`}
+                                >
+                                    {/* En-tête de la réservation */}
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-2.5 h-2.5 rounded-full ${isCurrent ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                                            <span className="font-bold text-gray-800 text-sm">
+                                                Face {item.faceIndex + 1}
+                                            </span>
+                                            {item.faceSens && item.faceSens !== `Face ${item.faceIndex + 1}` && (
+                                                <span className="text-[8px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                                                    {item.faceSens}
                                                 </span>
                                             )}
                                         </div>
+                                        {isCurrent ? (
+                                            <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold border border-emerald-200">
+                                                EN COURS
+                                            </span>
+                                        ) : (
+                                            <span className="text-[8px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold border border-amber-200">
+                                                À VENIR
+                                            </span>
+                                        )}
+                                    </div>
 
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-2">
-                                                <Building size={12} className="text-amber-400" />
-                                                <span className="text-sm text-white/80">{res.societeLocatrice || 'N/A'}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Users size={12} className="text-amber-400" />
-                                                <span className="text-xs text-white/60">{res.agentNom || 'N/A'}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Clock size={12} className="text-amber-400" />
-                                                <span className="text-xs text-white/60">
-                                                    Échéance: {res.dateFin ? new Date(res.dateFin).toLocaleDateString('fr-FR') : 'N/A'}
-                                                </span>
-                                            </div>
+                                    {/* Informations de la réservation */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 text-gray-700">
+                                            <Building size={14} className="text-blue-500" />
+                                            <span className="text-sm font-medium">{res.societeLocatrice || 'N/A'}</span>
                                         </div>
-
-                                        <div className="mt-3 flex justify-end">
-                                            <ChevronRight size={16} className="text-amber-400 group-hover:translate-x-1 transition-transform" />
+                                        <div className="flex items-center gap-2 text-gray-600">
+                                            <Users size={14} className="text-blue-400" />
+                                            <span className="text-xs">{res.agentNom || 'N/A'}</span>
                                         </div>
-                                    </motion.button>
-                                );
-                            })
-                        )}
-                    </div>
+                                        <div className="flex items-center gap-2 text-gray-500">
+                                            <Calendar size={14} className="text-blue-400" />
+                                            <span className="text-xs">
+                                                {res.dateDebut ? new Date(res.dateDebut).toLocaleDateString('fr-FR') : 'N/A'}
+                                                →
+                                                {res.dateFin ? new Date(res.dateFin).toLocaleDateString('fr-FR') : 'N/A'}
+                                            </span>
+                                        </div>
+                                    </div>
 
-                    {/* Footer */}
-                    <div className="p-3 border-t border-white/10 bg-black/30">
-                        <p className="text-[7px] text-white/30 text-center">
+                                    {/* Flèche d'action */}
+                                    <div className="mt-3 flex justify-end">
+                                        <ChevronRight size={16} className="text-blue-400 group-hover:translate-x-1 transition-transform" />
+                                    </div>
+                                </motion.button>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* ============================================ */}
+                {/* FOOTER */}
+                {/* ============================================ */}
+                <div className="p-3 border-t border-gray-200 bg-white">
+                    <div className="flex items-center justify-between">
+                        <p className="text-[7px] text-gray-400">
                             {reservations.length} réservation(s) active(s)
                         </p>
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-[7px] text-gray-400">En cours</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            <span className="text-[7px] text-gray-400">À venir</span>
+                        </div>
                     </div>
                 </div>
             </motion.div>
@@ -463,6 +483,7 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
     const fileInputRef = useRef<HTMLInputElement>(null);
 
 
+    const [cameraError, setCameraError] = useState<string | null>(null);
 
     // Dans ReservationDetailModal, ajoutez ces états :
     const [showCamera, setShowCamera] = useState(false);
@@ -513,25 +534,97 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
     // ============================================
 
     // Fonction pour démarrer la caméra
+    // ============================================
+    // START CAMERA - VERSION COMPLÈTE
+    // ============================================
     const startCamera = async () => {
+        // ✅ Vérifier si le navigateur supporte getUserMedia
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            setCameraError("❌ Votre navigateur ne supporte pas l'accès à la caméra. Veuillez utiliser un navigateur moderne.");
+            return;
+        }
+
         try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            });
-            setStream(mediaStream);
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-                await videoRef.current.play();
+            // ✅ Vérifier si la caméra est déjà active
+            if (videoRef.current?.srcObject) {
+                const stream = videoRef.current.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+                videoRef.current.srcObject = null;
             }
-            setShowCamera(true);
-        } catch (error) {
-            console.error("Erreur d'accès à la caméra:", error);
-            alert("Impossible d'accéder à la caméra. Vérifiez les permissions.");
+
+            setCameraError(null);
+            setUploading(true);
+
+            // ✅ Liste des contraintes de caméra (fallback)
+            const constraints = [
+                {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                },
+                {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                },
+                {
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                },
+                { video: true } // ✅ Fallback final
+            ];
+
+            let stream = null;
+            let lastError = null;
+
+            // ✅ Essayer chaque contrainte jusqu'à trouver une qui fonctionne
+            for (const constraint of constraints) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(constraint);
+                    break;
+                } catch (err) {
+                    lastError = err;
+                    continue;
+                }
+            }
+
+            if (!stream) {
+                throw lastError || new Error('Impossible d\'accéder à la caméra');
+            }
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+                setShowCamera(true);
+                setCameraError(null);
+            }
+
+        } catch (err: any) {
+            console.error("❌ Erreur caméra:", err);
+
+            // ✅ Gestion des erreurs
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                setCameraError("❌ Accès à la caméra refusé.\n\nVeuillez autoriser l'accès à la caméra dans les paramètres de votre navigateur et réessayer.");
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                setCameraError("❌ Aucune caméra trouvée.\n\nVeuillez connecter une caméra et réessayer.");
+            } else if (err.name === 'NotReadableError') {
+                setCameraError("❌ La caméra est déjà utilisée.\n\nVeuillez fermer les autres applications utilisant la caméra (Zoom, Teams, etc.) et réessayer.");
+            } else if (err.name === 'OverconstrainedError') {
+                setCameraError("❌ La caméra ne supporte pas les paramètres demandés.\n\nVeuillez réessayer.");
+            } else {
+                setCameraError(`❌ Erreur: ${err.message || 'Erreur inconnue'}`);
+            }
+
+            setShowCamera(false);
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -602,27 +695,6 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
         if (!file) return;
         await handlePhotoUploadFile(file);
     };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     // Sauvegarder les modifications
     const handleSave = async () => {
@@ -725,7 +797,7 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[2100] bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4"
+            className="fixed inset-0 z-[2100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 30 }}
@@ -733,302 +805,310 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                 exit={{ scale: 0.9, opacity: 0, y: 30 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
-                style={{
-                    backgroundImage: `url('/fond.jpg')`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                }}
+                className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-2xl bg-white"
             >
-                <div className="absolute inset-0 bg-black/75 backdrop-blur-md" />
-
-                <div className="relative z-10">
-                    {/* Header */}
-                    <div className="p-5 border-b border-white/10 bg-gradient-to-r from-black/50 to-transparent">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h2 className="text-2xl font-black text-white">
-                                        {panneau.idPan || panneau.id}
-                                    </h2>
-                                    {isCurrent && (
-                                        <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold animate-pulse">
-                                            EN COURS
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-xs text-white/60 mt-1">
-                                    Face {faceIndex + 1} • {reservationData.faceSens}
-                                </p>
+                {/* ============================================ */}
+                {/* HEADER - BLEU ROI PROFOND */}
+                {/* ============================================ */}
+                <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 p-5 border-b border-white/10">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-xl font-black text-white">
+                                    {panneau.idPan || panneau.id}
+                                </h2>
+                                {isCurrent && (
+                                    <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold animate-pulse border border-emerald-500/30">
+                                        EN COURS
+                                    </span>
+                                )}
                             </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all"
-                            >
-                                <X size={18} className="text-white" />
-                            </button>
+                            <p className="text-xs text-blue-200 mt-1">
+                                Face {faceIndex + 1} • {reservationData.faceSens || 'Sens non défini'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all text-white"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* ============================================ */}
+                {/* CONTENU - FOND BLANC */}
+                {/* ============================================ */}
+                <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto bg-gray-50 custom-scrollbar">
+                    {/* Message de confirmation/erreur */}
+                    {modificationMessage && (
+                        <div className={`p-3 rounded-xl text-center text-xs font-medium ${modificationMessage.includes('succès')
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}>
+                            {modificationMessage}
+                        </div>
+                    )}
+
+                    {/* Société locatrice */}
+                    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Société locatrice</label>
+                        <p className="text-gray-800 font-medium mt-1">{res.societeLocatrice || 'Non spécifiée'}</p>
+                    </div>
+
+                    {/* Agent commercial */}
+                    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Agent commercial</label>
+                        <p className="text-gray-800 font-medium mt-1">{res.agentNom || 'Non spécifié'}</p>
+                    </div>
+
+                    {/* Période */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                            <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Date début</label>
+                            <p className="text-gray-800 text-sm mt-1 font-medium">
+                                {res.dateDebut ? new Date(res.dateDebut).toLocaleDateString('fr-FR') : 'N/A'}
+                            </p>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                            <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Date fin</label>
+                            <p className="text-gray-800 text-sm mt-1 font-medium">
+                                {res.dateFin ? new Date(res.dateFin).toLocaleDateString('fr-FR') : 'N/A'}
+                            </p>
                         </div>
                     </div>
 
-                    {/* Contenu */}
-                    <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                        {/* Message de confirmation/erreur */}
-                        {modificationMessage && (
-                            <div className={`p-3 rounded-xl text-center text-xs font-medium ${modificationMessage.includes('succès')
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    {/* Échéance */}
+                    <div className={`rounded-xl p-4 border shadow-sm ${daysLeft <= 3
+                            ? 'bg-orange-50 border-orange-200'
+                            : 'bg-white border-gray-200'
+                        }`}>
+                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Échéance</label>
+                        <p className={`font-bold text-sm mt-1 ${daysLeft <= 3 ? 'text-orange-600' : 'text-gray-800'
+                            }`}>
+                            {formatEcheance()}
+                        </p>
+                    </div>
+
+                    {/* Statut - Éditable */}
+                    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Statut</label>
+                        {isEditing ? (
+                            <select
+                                value={newStatut || res.statut}
+                                onChange={(e) => setNewStatut(e.target.value)}
+                                className="w-full mt-1 p-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="Occupé">Occupé</option>
+                                <option value="Libre">Libre</option>
+                            </select>
+                        ) : (
+                            <p className={`text-sm font-medium mt-1 ${res.statut === 'Occupé' ? 'text-blue-600' : 'text-emerald-600'
                                 }`}>
-                                {modificationMessage}
-                            </div>
-                        )}
-
-                        {/* Société locatrice */}
-                        <div className="bg-white/5 rounded-xl p-3">
-                            <label className="text-[9px] text-white/40 uppercase tracking-wider">Société locatrice</label>
-                            <p className="text-white font-medium mt-1">{res.societeLocatrice || 'Non spécifiée'}</p>
-                        </div>
-
-                        {/* Agent commercial */}
-                        <div className="bg-white/5 rounded-xl p-3">
-                            <label className="text-[9px] text-white/40 uppercase tracking-wider">Agent commercial</label>
-                            <p className="text-white font-medium mt-1">{res.agentNom || 'Non spécifié'}</p>
-                        </div>
-
-                        {/* Période */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-white/5 rounded-xl p-3">
-                                <label className="text-[9px] text-white/40 uppercase tracking-wider">Date début</label>
-                                <p className="text-white text-sm mt-1">{res.dateDebut ? new Date(res.dateDebut).toLocaleDateString('fr-FR') : 'N/A'}</p>
-                            </div>
-                            <div className="bg-white/5 rounded-xl p-3">
-                                <label className="text-[9px] text-white/40 uppercase tracking-wider">Date fin</label>
-                                <p className="text-white text-sm mt-1">{res.dateFin ? new Date(res.dateFin).toLocaleDateString('fr-FR') : 'N/A'}</p>
-                            </div>
-                        </div>
-
-                        {/* Échéance */}
-                        <div className={`rounded-xl p-3 ${daysLeft <= 3 ? 'bg-orange-500/20' : 'bg-white/5'}`}>
-                            <label className="text-[9px] text-white/40 uppercase tracking-wider">Échéance</label>
-                            <p className={`font-bold text-sm mt-1 ${daysLeft <= 3 ? 'text-orange-400' : 'text-white'}`}>
-                                {formatEcheance()}
+                                {res.statut || 'N/A'}
                             </p>
-                        </div>
+                        )}
+                    </div>
 
-                        {/* Statut - Éditable */}
-                        <div className="bg-white/5 rounded-xl p-3">
-                            <label className="text-[9px] text-white/40 uppercase tracking-wider">Statut</label>
-                            {isEditing ? (
-                                <select
-                                    value={newStatut || res.statut}
-                                    onChange={(e) => setNewStatut(e.target.value)}
-                                    className="w-full mt-1 p-2 bg-black/60 rounded-lg border border-white/10 text-white text-sm"
-                                >
-                                    <option value="Occupé">Occupé</option>
-                                    <option value="Libre">Libre</option>
-                                </select>
-                            ) : (
-                                <p className="text-white mt-1">{res.statut || 'N/A'}</p>
-                            )}
-                        </div>
-
-                        {/* Photo - Éditable */}
-                        {/* Photo - Éditable avec options de capture */}
-                        <div className="bg-white/5 rounded-xl p-3">
-                            <label className="text-[9px] text-white/40 uppercase tracking-wider">Preuve d'affichage</label>
-                            <div className="mt-2">
-                                {/* Aperçu de la photo */}
-                                {(localPreview || newPhotoUrl || res.photoCampagneUrl) && !res.photoCampagneUrl?.includes('dispromalt') ? (
-                                    <div className="space-y-2">
-                                        <img
-                                            src={localPreview || newPhotoUrl || res.photoCampagneUrl}
-                                            alt="Preuve d'affichage"
-                                            className="w-full h-40 object-cover rounded-lg border border-white/10"
-                                        />
-                                        {isEditing && (
-                                            <div className="flex gap-2 flex-wrap">
-                                                <button
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold hover:bg-amber-500/30 transition-all"
-                                                >
-                                                    <Camera size={14} />
-                                                    Choisir une photo
-                                                </button>
-                                                <button
-                                                    onClick={startCamera}
-                                                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold hover:bg-emerald-500/30 transition-all"
-                                                >
-                                                    <Camera size={14} />
-                                                    Prendre une photo
-                                                </button>
-                                            </div>
-                                        )}
-                                        {newPhotoUrl && (
-                                            <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
-                                                <CheckCircle size={12} className="text-emerald-400" />
-                                                <span className="text-[8px] text-emerald-400 font-bold">
-                                                    Statut → Occupé
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        <div className="flex gap-2">
+                    {/* Photo - Éditable */}
+                    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Preuve d'affichage</label>
+                        <div className="mt-2">
+                            {(localPreview || newPhotoUrl || res.photoCampagneUrl) && !res.photoCampagneUrl?.includes('dispromalt') ? (
+                                <div className="space-y-3">
+                                    <img
+                                        src={localPreview || newPhotoUrl || res.photoCampagneUrl}
+                                        alt="Preuve d'affichage"
+                                        className="w-full h-40 object-cover rounded-lg border border-gray-200 shadow-sm"
+                                    />
+                                    {isEditing && (
+                                        <div className="flex gap-2 flex-wrap">
                                             <button
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className="flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-lg border-2 border-dashed border-white/20 hover:border-amber-500/50 transition-all"
+                                                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 text-xs font-bold hover:bg-blue-100 transition-all"
                                             >
-                                                <Camera size={24} className="text-white/40" />
-                                                <span className="text-xs text-white/40">Choisir une photo</span>
+                                                <Camera size={14} />
+                                                Choisir une photo
                                             </button>
                                             <button
                                                 onClick={startCamera}
-                                                className="flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-lg border-2 border-dashed border-white/20 hover:border-emerald-500/50 transition-all"
+                                                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-600 text-xs font-bold hover:bg-emerald-100 transition-all"
                                             >
-                                                <Camera size={24} className="text-emerald-400/60" />
-                                                <span className="text-xs text-emerald-400/60">Prendre une photo</span>
+                                                <Camera size={14} />
+                                                Prendre une photo
                                             </button>
                                         </div>
-                                        <p className="text-[7px] text-amber-400/60 text-center">
-                                            📸 Le statut passera automatiquement à "Occupé"
-                                        </p>
-                                    </div>
-                                )}
-
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handlePhotoUpload}
-                                    className="hidden"
-                                />
-
-                                {uploading && (
-                                    <div className="flex items-center justify-center gap-2 mt-2">
-                                        <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                                        <span className="text-xs text-amber-400">Téléchargement...</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        {/* Dernière modification */}
-                        {res.modifiedBy && (
-                            <div className="bg-white/5 rounded-xl p-3">
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle size={12} className="text-emerald-400/50" />
-                                    <span className="text-[8px] text-white/30">
-                                        Dernière modification par {res.modifiedBy.nom} le {new Date(res.modifiedBy.date).toLocaleDateString('fr-FR')}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* MODAL CAMÉRA */}
-                    <AnimatePresence>
-                        {showCamera && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 z-[2200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
-                            >
-                                <motion.div
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0.9, opacity: 0 }}
-                                    className="relative w-full max-w-lg rounded-2xl overflow-hidden bg-black"
-                                >
-                                    <div className="relative">
-                                        <video
-                                            ref={videoRef}
-                                            autoPlay
-                                            playsInline
-                                            className="w-full h-auto max-h-[70vh] object-cover"
-                                        />
-                                        <canvas ref={canvasRef} className="hidden" />
-
-                                        {/* Contrôles caméra */}
-                                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                                            <div className="flex justify-center gap-4">
-                                                <button
-                                                    onClick={capturePhoto}
-                                                    className="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 border-4 border-white transition-all active:scale-90 flex items-center justify-center"
-                                                >
-                                                    <div className="w-12 h-12 rounded-full bg-white" />
-                                                </button>
-                                                <button
-                                                    onClick={stopCamera}
-                                                    className="px-6 py-3 rounded-xl bg-red-500/80 text-white font-bold text-sm hover:bg-red-600 transition-all"
-                                                >
-                                                    Annuler
-                                                </button>
-                                            </div>
+                                    )}
+                                    {newPhotoUrl && (
+                                        <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                                            <CheckCircle size={12} className="text-emerald-500" />
+                                            <span className="text-[8px] text-emerald-600 font-bold">
+                                                Statut → Occupé
+                                            </span>
                                         </div>
-
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="flex gap-2">
                                         <button
-                                            onClick={stopCamera}
-                                            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 transition-all bg-gray-50"
                                         >
-                                            <X size={24} />
+                                            <Camera size={24} className="text-gray-400" />
+                                            <span className="text-xs text-gray-400 font-medium">Choisir une photo</span>
+                                        </button>
+                                        <button
+                                            onClick={startCamera}
+                                            className="flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-400 transition-all bg-gray-50"
+                                        >
+                                            <Camera size={24} className="text-emerald-400" />
+                                            <span className="text-xs text-emerald-500 font-medium">Prendre une photo</span>
                                         </button>
                                     </div>
-                                </motion.div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                    <p className="text-[7px] text-blue-500 text-center font-medium">
+                                        📸 Le statut passera automatiquement à "Occupé"
+                                    </p>
+                                </div>
+                            )}
 
-                    {/* Footer avec boutons */}
-                    <div className="p-4 border-t border-white/10 bg-black/30 flex gap-3">
-                        {!isEditing ? (
-                            <>
-                                <button
-                                    onClick={() => {
-                                        setIsEditing(true);
-                                        setNewStatut(res.statut);
-                                    }}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 text-sm font-bold hover:bg-amber-500/30 transition-all"
-                                >
-                                    <Edit3 size={16} />
-                                    Modifier
-                                </button>
-                                <button
-                                    onClick={onClose}
-                                    className="flex-1 py-3 rounded-xl bg-white/10 text-white/60 text-sm font-bold hover:bg-white/20 transition-all"
-                                >
-                                    Fermer
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saving || uploading}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm font-bold hover:bg-emerald-500/30 transition-all disabled:opacity-50"
-                                >
-                                    {saving ? (
-                                        <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <Save size={16} />
-                                    )}
-                                    Enregistrer
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setIsEditing(false);
-                                        setNewPhotoUrl("");
-                                        setNewStatut("");
-                                        setLocalPreview(null);
-                                        setModificationMessage(null);
-                                    }}
-                                    className="flex-1 py-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-bold hover:bg-red-500/30 transition-all"
-                                >
-                                    Annuler
-                                </button>
-                            </>
-                        )}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handlePhotoUpload}
+                                className="hidden"
+                            />
+
+                            {uploading && (
+                                <div className="flex items-center justify-center gap-2 mt-2">
+                                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                    <span className="text-xs text-blue-500 font-medium">Téléchargement...</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
+
+                    {/* Dernière modification */}
+                    {res.modifiedBy && (
+                        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle size={12} className="text-blue-400" />
+                                <span className="text-[8px] text-gray-500">
+                                    Dernière modification par <span className="font-medium text-gray-700">{res.modifiedBy.nom}</span> le {new Date(res.modifiedBy.date).toLocaleDateString('fr-FR')}
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                {/* ============================================ */}
+                {/* FOOTER AVEC BOUTONS */}
+                {/* ============================================ */}
+                <div className="p-4 border-t border-gray-200 bg-white flex gap-3">
+                    {!isEditing ? (
+                        <>
+                            <button
+                                onClick={() => {
+                                    setIsEditing(true);
+                                    setNewStatut(res.statut);
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 text-sm font-bold hover:bg-blue-100 transition-all"
+                            >
+                                <Edit3 size={16} />
+                                Modifier
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 text-sm font-bold hover:bg-gray-200 transition-all"
+                            >
+                                Fermer
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving || uploading}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-bold hover:bg-emerald-100 transition-all disabled:opacity-50"
+                            >
+                                {saving ? (
+                                    <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <Save size={16} />
+                                )}
+                                Enregistrer
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsEditing(false);
+                                    setNewPhotoUrl("");
+                                    setNewStatut("");
+                                    setLocalPreview(null);
+                                    setModificationMessage(null);
+                                }}
+                                className="flex-1 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-bold hover:bg-red-100 transition-all"
+                            >
+                                Annuler
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {/* ============================================ */}
+                {/* MODAL CAMÉRA */}
+                {/* ============================================ */}
+                <AnimatePresence>
+                    {showCamera && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[2200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+                        >
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                className="relative w-full max-w-lg rounded-2xl overflow-hidden bg-black"
+                            >
+                                <div className="relative">
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        className="w-full h-auto max-h-[70vh] object-cover"
+                                    />
+                                    <canvas ref={canvasRef} className="hidden" />
+
+                                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                                        <div className="flex justify-center gap-4">
+                                            <button
+                                                onClick={capturePhoto}
+                                                className="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 border-4 border-white transition-all active:scale-90 flex items-center justify-center"
+                                            >
+                                                <div className="w-12 h-12 rounded-full bg-white" />
+                                            </button>
+                                            <button
+                                                onClick={stopCamera}
+                                                className="px-6 py-3 rounded-xl bg-red-500/80 text-white font-bold text-sm hover:bg-red-600 transition-all"
+                                            >
+                                                Annuler
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={stopCamera}
+                                        className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
+                                    >
+                                        <X size={24} />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </motion.div>
         </motion.div>
     );
