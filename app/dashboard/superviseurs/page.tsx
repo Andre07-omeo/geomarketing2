@@ -699,17 +699,12 @@ export default function UltimateSupervisor() {
               adresse: panneau.adresse,
               //type: panneau.type,
               dureeMois: duree,
-
-
               // 2. FORCE LES DATES ICI POUR LA FACTURE
               dateDebut: res.dateDebut,
               dateFin: res.dateFin,
-
               // 3. RÉCUPÈRE LE TYPE DEPUIS LE PANNEAU (très important !)
               type: panneau.type || "",
-
               //dateTri: new Date(res.createdAt).getTime(),
-
               dateTri: res.createdAt ? new Date(res.createdAt).getTime() : 0
             });
           }
@@ -781,13 +776,6 @@ export default function UltimateSupervisor() {
       router.push('/');
     }
   };
-
-
-
-
-
-
-
   const [statsTab, setStatsTab] = useState<'perf' | 'gestion'>('perf');
   const [monthRange, setMonthRange] = useState(1);
   // Gestion de l'onglet actif (Performance ou Gestion)
@@ -1045,161 +1033,162 @@ export default function UltimateSupervisor() {
 
       </div>
 
-
-      {/* NAV HEADER */}
-      <nav className="fixed top-0 inset-x-0 z-[150] p-2 sm:p-3 md:p-4 lg:p-6 backdrop-blur-3xl transition-all duration-500">
-        <div className="max-w-[1800px] mx-auto">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className={`
+      {/* NAVIGATION FIXE */}
+<nav className="fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 py-2 sm:py-3 backdrop-blur-3xl transition-all duration-500">
+  <div className="max-w-[1800px] mx-auto">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className={`
         relative group overflow-visible
         flex items-center justify-between 
         h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
         px-3 sm:px-5 md:px-6 lg:px-8
         rounded-xl sm:rounded-2xl md:rounded-3xl lg:rounded-[2rem]
         transition-all duration-500
-        bg-gradient-to-r from-white/80 via-white/70 to-white/80 backdrop-blur-2xl border-white/30 shadow-2xl shadow-black/10
-        border
-        hover:border-amber-400/60
-        hover:shadow-2xl hover:shadow-amber-400/10
+        bg-gradient-to-r from-blue-50/95 via-white/95 to-blue-50/95 backdrop-blur-2xl 
+        border border-blue-200/50 shadow-xl shadow-blue-500/10
+        hover:border-blue-400/60
+        hover:shadow-2xl hover:shadow-blue-400/20
       `}
-          >
-            {/* Effets visuels */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            <div className="absolute bottom-0 left-4 right-4 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
+    >
+      {/* Effets visuels */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+      <div className="absolute bottom-0 left-4 right-4 h-[1.5px] bg-gradient-to-r from-transparent via-blue-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
 
-            {/* ========== LOGO ========== */}
-            <div
-              onClick={() => window.location.reload()}
-              className="relative flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 md:gap-3 cursor-pointer group/logo flex-shrink-0"
-            >
-              <div className="absolute -inset-1 rounded-xl border-2 border-amber-400/0 group-hover/logo:border-amber-400/20 transition-all duration-500" />
+      {/* ========== LOGO ========== */}
+      <div
+        onClick={() => window.location.reload()}
+        className="relative flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 md:gap-3 cursor-pointer group/logo flex-shrink-0"
+      >
+        <div className="absolute -inset-1 rounded-xl border-2 border-blue-400/0 group-hover/logo:border-blue-400/20 transition-all duration-500" />
 
-              <div className="relative">
-                <div className="absolute inset-0 bg-white rounded-lg shadow-sm" />
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 to-yellow-500/10 rounded-lg" />
-                <img
-                  src="/icon-192x192.png"
-                  className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-lg object-cover border border-amber-400/30 group-hover/logo:border-amber-400/60 transition-all duration-300 shadow-sm"
-                  alt="Logo"
-                />
-                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-sm" />
-              </div>
-
-              <div className="flex flex-col leading-tight">
-                <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase tracking-tighter">
-                  <span className="text-gray-800 group-hover/logo:text-amber-600 transition-all">G</span>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-yellow-600">D</span>
-                  <span className="text-gray-800 group-hover/logo:text-amber-600 transition-all">P</span>
-                </span>
-                <span className="text-[3px] xs:text-[4px] sm:text-[5px] md:text-[6px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-amber-600/70 whitespace-nowrap">
-                  GESTION DIGITALE
-                </span>
-              </div>
-            </div>
-
-            {/* ========== BOUTONS DE NAVIGATION ========== */}
-            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5">
-              {/* Accueil */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => window.location.reload()}
-                className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-white/80 text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100 active:bg-gray-100"
-                aria-label="Accueil"
-              >
-                <Home size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all" />
-                <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">
-                  Accueil
-                </span>
-              </motion.button>
-
-              {/* Carte */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={ouvrirLaCarte}
-                className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-white/80 text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100 active:bg-gray-100"
-                aria-label="Carte"
-              >
-                <MapPin size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all group-hover:rotate-6" />
-                <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">
-                  Carte
-                </span>
-              </motion.button>
-
-              {/* Rapport */}
-              <Link href="/dashboard/superviseurs/rapport">
-                <motion.div
-                  whileTap={{ scale: 0.95 }}
-                  className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-white/80 text-gray-600 shadow-sm hover:shadow-md hover:shadow-amber-400/20 border border-gray-100 cursor-pointer active:bg-gray-100"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                  <FilePieChart size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-gray-500 group-hover:text-amber-500 transition-all group-hover:rotate-6" />
-                  <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-amber-500 transition-colors">
-                    Rapports
-                  </span>
-                  <span className="relative hidden sm:block ml-1.5 text-[6px] bg-amber-500/20 text-amber-600 px-1 py-0.5 rounded-full font-black">
-                    LIVE
-                  </span>
-                </motion.div>
-              </Link>
-            </div>
-
-
-            {/* ========== USER SECTION ========== */}
-            <div className="flex items-center gap-1 xs:gap-2 shrink-0 pl-1 xs:pl-2 sm:pl-3 lg:pl-4 border-l border-gray-200">
-              {user ? (
-                <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
-                  {/* Infos utilisateur (cachées sur très petit écran) */}
-                  <div className="hidden sm:block text-right">
-                    <p className="text-[10px] sm:text-[11px] font-black text-gray-700 uppercase tracking-tight truncate max-w-[100px]">
-                      {user.nom || user.nomComplet?.split(' ')[0] || 'Agent'}
-                    </p>
-                    <p className="text-[6px] sm:text-[7px] font-bold text-amber-500 uppercase tracking-wider">
-                      {user.role || "Utilisateur"}
-                    </p>
-                  </div>
-
-                  {/* Bouton déconnexion */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleLogout();
-                    }}
-                    className="group flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 text-red-500 px-2 xs:px-2.5 sm:px-3 py-1.5 xs:py-2 rounded-full transition-all border border-red-200 active:scale-95 shadow-sm hover:shadow-md"
-                    title="Déconnexion"
-                  >
-                    <img
-                      src={logoUrl}
-                      className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border border-amber-400 object-cover bg-white shadow-sm"
-                      alt="Profil"
-                      onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
-                    />
-                    <LogOut size={12} className="xs:w-[13px] xs:h-[13px] sm:w-[14px] sm:h-[14px] flex-shrink-0 group-hover:scale-110 transition-transform" />
-                    <span className="hidden xs:inline text-[8px] sm:text-[9px] font-bold uppercase">Déconnexion</span>
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsLoginOpen(true)}
-                  className="group relative overflow-hidden px-3 xs:px-4 sm:px-5 py-1.5 xs:py-2 sm:py-2.5 rounded-xl font-black uppercase text-[8px] xs:text-[9px] sm:text-[10px] transition-all duration-300 bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                  <span className="relative z-10 flex items-center gap-1">
-                    <span>🔐</span>
-                    <span className="hidden xs:inline">Connexion</span>
-                  </span>
-                </button>
-              )}
-            </div>
-          </motion.div>
+        <div className="relative">
+          <div className="absolute inset-0 bg-white rounded-lg shadow-sm" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-lg" />
+          <img
+            src="/icon-192x192.png"
+            className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-lg object-cover border border-blue-400/30 group-hover/logo:border-blue-400/60 transition-all duration-300 shadow-sm"
+            alt="Logo"
+          />
+          <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full animate-pulse shadow-sm" />
         </div>
-      </nav>
-      {/* MAIN CONTENT */}
+
+        <div className="flex flex-col leading-tight">
+          <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase tracking-tighter">
+            <span className="text-gray-800 group-hover/logo:text-blue-600 transition-all">G</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-600">D</span>
+            <span className="text-gray-800 group-hover/logo:text-blue-600 transition-all">P</span>
+          </span>
+          <span className="text-[3px] xs:text-[4px] sm:text-[5px] md:text-[6px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-blue-600/70 whitespace-nowrap">
+            GESTION DIGITALE
+          </span>
+        </div>
+      </div>
+
+      {/* ========== BOUTONS DE NAVIGATION ========== */}
+      <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5">
+        {/* Accueil - Bleu */}
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => window.location.reload()}
+          className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 active:bg-blue-100"
+          aria-label="Accueil"
+        >
+          <Home size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all" />
+          <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+            Accueil
+          </span>
+        </motion.button>
+
+        {/* Carte - Bleu */}
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={ouvrirLaCarte}
+          className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 active:bg-blue-100"
+          aria-label="Carte"
+        >
+          <MapPin size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all group-hover:rotate-6" />
+          <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+            Carte
+          </span>
+        </motion.button>
+
+        {/* Rapport - Bleu avec badge */}
+        <Link href="/dashboard/superviseurs/rapport">
+          <motion.div
+            whileTap={{ scale: 0.95 }}
+            className="relative group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 cursor-pointer active:bg-blue-100"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+            <FilePieChart size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all group-hover:rotate-6" />
+            <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+              Rapports
+            </span>
+            <span className="relative hidden sm:block ml-1.5 text-[6px] bg-blue-500/20 text-blue-600 px-1 py-0.5 rounded-full font-black">
+              LIVE
+            </span>
+          </motion.div>
+        </Link>
+      </div>
+
+      {/* ========== USER SECTION ========== */}
+      <div className="flex items-center gap-1 xs:gap-2 shrink-0 pl-1 xs:pl-2 sm:pl-3 lg:pl-4 border-l border-blue-200">
+        {user ? (
+          <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
+            {/* Infos utilisateur */}
+            <div className="hidden sm:block text-right">
+              <p className="text-[10px] sm:text-[11px] font-black text-gray-700 uppercase tracking-tight truncate max-w-[100px]">
+                {user.nom || user.nomComplet?.split(' ')[0] || 'Agent'}
+              </p>
+              <p className="text-[6px] sm:text-[7px] font-bold text-blue-500 uppercase tracking-wider">
+                {user.role || "Utilisateur"}
+              </p>
+            </div>
+
+            {/* Bouton déconnexion - Rouge (conserve la distinction) */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleLogout();
+              }}
+              className="group flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 text-red-500 px-2 xs:px-2.5 sm:px-3 py-1.5 xs:py-2 rounded-full transition-all border border-red-200 active:scale-95 shadow-sm hover:shadow-md"
+              title="Déconnexion"
+            >
+              <img
+                src={logoUrl}
+                className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border border-blue-400 object-cover bg-white shadow-sm"
+                alt="Profil"
+                onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
+              />
+              <LogOut size={12} className="xs:w-[13px] xs:h-[13px] sm:w-[14px] sm:h-[14px] flex-shrink-0 group-hover:scale-110 transition-transform" />
+              <span className="hidden xs:inline text-[8px] sm:text-[9px] font-bold uppercase">Déconnexion</span>
+            </button>
+          </div>
+        ) : (
+          // Bouton Connexion - Bleu
+          <button
+            onClick={() => setIsLoginOpen(true)}
+            className="group relative overflow-hidden px-3 xs:px-4 sm:px-5 py-1.5 xs:py-2 sm:py-2.5 rounded-xl font-black uppercase text-[8px] xs:text-[9px] sm:text-[10px] transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+            <span className="relative z-10 flex items-center gap-1">
+              <span>🔐</span>
+              <span className="hidden xs:inline">Connexion</span>
+            </span>
+          </button>
+        )}
+      </div>
+    </motion.div>
+  </div>
+</nav>
+
+{/* MAIN CONTENT */}
       <main className="relative z-20 max-w-[1800px] mx-auto px-6 pt-44 pb-40">
         <header className="mb-20 relative">
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />

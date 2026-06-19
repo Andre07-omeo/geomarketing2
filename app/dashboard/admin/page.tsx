@@ -1,3 +1,7 @@
+
+// ============================================
+// COMPOSANT PRINCIPAL
+// ============================================
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -6,17 +10,15 @@ import {
     LayoutDashboard, Users, TrendingUp, Activity, Bell, LogOut, Menu,
     Settings, Eye, Search, BarChart3, PieChart, Clock, AlertTriangle,
     BookOpen, MessageSquare, HelpCircle, X, ChevronDown, Filter,
-    Sunrise, Moon, Zap, Target, Award, Shield, ChevronRight  // ← AJOUTE CECI
-    , Power, Edit2, Trash2, UserCheck, List
-    ,
+    Sunrise, Moon, Zap, Target, Award, Shield, ChevronRight,
+    Power, Edit2, Trash2, UserCheck, List,
     Layers, Smartphone, Wifi, Cloud, HardDrive, Cpu
 } from 'lucide-react';
 import { Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    // ... autres imports
-    UserPlus, EyeOff,
-} from 'lucide-react';
+import { getAuth, signOut } from 'firebase/auth';
+import { UserPlus, EyeOff, Key } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 // ============================================
 // IMPORTATION DEPUIS LE FICHIER DE CONFIG
@@ -29,23 +31,24 @@ const config = require('../../../config/db');
 import { initializeApp, getApps } from 'firebase/app';
 import {
     getFirestore, collection, addDoc, getDocs, query,
-    orderBy, limit, serverTimestamp, doc, updateDoc, deleteDoc
+    orderBy, serverTimestamp, doc, updateDoc, deleteDoc
 } from 'firebase/firestore';
-import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 
 const app = !getApps().length ? initializeApp(config.firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 const auth = getAuth(app);
 const LOGO_URL = config.LOGO_DISPROMALT;
+const SUPER_ADMIN_EMAIL = 'omeongaandre2@gmail.com';
 
 // ============================================
 // COMPOSANT PRINCIPAL
 // ============================================
 export default function AdminDashboard() {
+    // ✅ Récupération de l'utilisateur depuis le contexte
+    const { user: authUser, loading: authLoading } = useAuth();
+
     const [activeModule, setActiveModule] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [user, setUser] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
     const [dataLoading, setDataLoading] = useState(true);
     const [panels, setPanels] = useState<any[]>([]);
     const [societes, setSocietes] = useState<any[]>([]);
@@ -58,7 +61,7 @@ export default function AdminDashboard() {
     });
 
     // ============================================
-    // CHARGEMENT DES DONNÉES - VERSION CORRIGÉE
+    // 1. CHARGEMENT DES DONNÉES
     // ============================================
     useEffect(() => {
         const loadData = async () => {
@@ -74,9 +77,7 @@ export default function AdminDashboard() {
                 const societesData = snapSoc.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setSocietes(societesData);
 
-                // ============================================
-                // CALCUL DES STATISTIQUES CORRIGÉ
-                // ============================================
+                // Calcul des statistiques
                 let totalFaces = 0;
                 let facesLibres = 0;
                 let facesOccupees = 0;
@@ -84,13 +85,10 @@ export default function AdminDashboard() {
                 let facesMaintenance = 0;
 
                 const now = new Date();
-                now.setHours(0, 0, 0, 0); // Important: comparer uniquement les dates
+                now.setHours(0, 0, 0, 0);
 
-                // Fonction pour déterminer le statut d'une face basé sur les réservations actives
                 const getFaceStatus = (face: any): 'libre' | 'occupe' | 'reserve' | 'maintenance' => {
                     const reservations = face.reservations || [];
-
-                    // Chercher une réservation ACTIVE (date du jour entre début et fin)
                     const activeRes = reservations.find((res: any) => {
                         const debut = new Date(res.dateDebut);
                         const fin = new Date(res.dateFin);
@@ -106,13 +104,10 @@ export default function AdminDashboard() {
                         return 'occupe';
                     }
 
-                    // Vérifier si la face a un statut maintenance (champ direct)
                     if (face.statut === 'Maintenance') return 'maintenance';
-
                     return 'libre';
                 };
 
-                // Calcul des statistiques par panneau
                 panneauxData.forEach((p: any) => {
                     const faces = p.faces || [];
                     totalFaces += faces.length;
@@ -126,9 +121,7 @@ export default function AdminDashboard() {
                     });
                 });
 
-                // ============================================
-                // CALCUL DES RÉSERVATIONS (EN COURS, FUTURES, PASSÉES)
-                // ============================================
+                // Calcul des réservations
                 let reservationsEnCours = 0;
                 let reservationsFutures = 0;
                 let reservationsPassees = 0;
@@ -154,9 +147,7 @@ export default function AdminDashboard() {
                     });
                 });
 
-                // ============================================
-                // MISE À JOUR DES STATS
-                // ============================================
+                // Mise à jour des stats
                 setStats({
                     panneaux: panneauxData.length,
                     faces: {
@@ -172,21 +163,17 @@ export default function AdminDashboard() {
                 });
 
                 setDataLoading(false);
-                setLoading(false);
             } catch (error) {
                 console.error("Erreur chargement:", error);
                 setDataLoading(false);
-                setLoading(false);
             }
         };
-
         loadData();
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
-        return () => unsubscribe();
     }, []);
 
-
-
+    // ============================================
+    // 2. GESTION DE LA DÉCONNEXION
+    // ============================================
     const handleLogout = async () => {
         const confirmLogout = window.confirm(
             "🔐 Déconnexion\n\nÊtes-vous sûr de vouloir quitter votre session ?\n\nVous devrez vous reconnecter pour accéder à nouveau au tableau de bord."
@@ -195,10 +182,8 @@ export default function AdminDashboard() {
         if (confirmLogout) {
             try {
                 await signOut(auth);
-                // Nettoyage des données
                 localStorage.clear();
                 sessionStorage.clear();
-                // Redirection
                 window.location.href = '/';
             } catch (error) {
                 console.error("Erreur lors de la déconnexion:", error);
@@ -206,6 +191,10 @@ export default function AdminDashboard() {
             }
         }
     };
+
+    // ============================================
+    // 3. MENU ITEMS
+    // ============================================
     const menuItems = [
         { id: 'dashboard', label: 'Accueil', icon: LayoutDashboard, color: 'amber', description: 'Vue d\'ensemble' },
         { id: 'panneaux', label: 'Panneaux', icon: MapPin, color: 'blue', description: 'Gestion des supports' },
@@ -215,10 +204,22 @@ export default function AdminDashboard() {
         { id: 'support', label: 'Support', icon: HelpCircle, color: 'orange', description: 'Aide et assistance' },
     ];
 
-    if (loading || dataLoading) return <LoadingScreen />;
+    // ============================================
+    // 4. INFOS UTILISATEUR
+    // ============================================
+    // ✅ Utilisation directe de authUser du contexte
+    const displayName = authUser?.nomComplet || authUser?.nom || authUser?.email?.split('@')[0] || 'Admin';
+    const userEmail = authUser?.email || 'Email non disponible';
+    const userInitial = authUser?.nomComplet?.charAt(0) || authUser?.email?.charAt(0) || 'A';
+    const userPhotoURL = authUser?.photoURL || null;
 
     // ============================================
-    // ADMIN DASHBOARD - ULTRA RESPONSIVE
+    // 5. RENDU - CHARGEMENT
+    // ============================================
+    if (authLoading || dataLoading) return <LoadingScreen />;
+
+    // ============================================
+    // 6. RENDU - ADMIN DASHBOARD
     // ============================================
     return (
         <div className="min-h-screen bg-gray-50">
@@ -226,17 +227,13 @@ export default function AdminDashboard() {
             {/* HEADER ULTRA RESPONSIVE */}
             {/* ============================================ */}
             <header className="sticky top-0 z-50 bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 shadow-lg">
-                {/* Barre supérieure - Adaptative */}
                 <div className="px-2 xs:px-3 sm:px-4 md:px-6 py-1.5 xs:py-2 sm:py-3 flex justify-between items-center border-b border-white/10 gap-1 xs:gap-2">
-                    {/* Partie gauche - Logo + Statut */}
+                    {/* Partie gauche - Logo */}
                     <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 min-w-0">
-                        {/* Logo - Taille variable */}
                         <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 flex-shrink-0">
-                            {/* Logo pour très petits écrans */}
                             <div className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
                                 <img src={LOGO_URL} className="w-full h-full object-cover" alt="GDP" />
                             </div>
-                            {/* Titre - Masqué sur très petits écrans */}
                             <div className="hidden xs:block">
                                 <h1 className="text-[10px] xs:text-xs sm:text-sm font-black text-white">
                                     GDP<span className="text-amber-400"> ADMIN</span>
@@ -247,7 +244,6 @@ export default function AdminDashboard() {
                             </div>
                         </div>
 
-                        {/* Statut en ligne - Masqué sur très petits écrans */}
                         <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 xs:px-2.5 xs:py-1 bg-white/10 rounded-full backdrop-blur-sm border border-white/20">
                             <div className="w-1 h-1 xs:w-1.5 xs:h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                             <span className="text-[6px] xs:text-[7px] text-white/80 font-bold uppercase tracking-wider hidden md:inline">
@@ -261,33 +257,44 @@ export default function AdminDashboard() {
 
                     {/* Partie droite - Profil + Actions */}
                     <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
-                        {/* Bouton menu mobile - visible uniquement sur très petits écrans */}
                         <button
-
                             className="lg:hidden text-white hover:bg-white/10 p-1 xs:p-1.5 sm:p-2 rounded-lg transition"
                             onClick={() => setSidebarOpen(!sidebarOpen)}
                         >
                             <Menu size={16} className="xs:w-[18px] xs:h-[18px] sm:w-5 sm:h-5" />
                         </button>
 
-                        {/* Profil utilisateur - Adaptatif */}
+                        {/* ✅ Profil utilisateur - Utilise authUser directement */}
                         <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
-                            {/* Avatar - Taille variable */}
+                            {/* Avatar */}
                             <div className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-md flex-shrink-0">
-                                <span className="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-white">
-                                    {user?.email?.charAt(0).toUpperCase() || 'A'}
-                                </span>
+                                {userPhotoURL ? (
+                                    <img
+                                        src={userPhotoURL}
+                                        alt="Avatar"
+                                        className="w-full h-full rounded-full object-cover"
+                                    />
+                                ) : (
+                                    <span className="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-white">
+                                        {userInitial}
+                                    </span>
+                                )}
                             </div>
-                            {/* Nom - Masqué sur mobile */}
+
+                            {/* Nom et Email */}
                             <div className="hidden sm:block">
-                                <p className="text-[10px] xs:text-[9px] font-bold text-white truncate max-w-[60px] md:max-w-[100px]">
-                                    {user?.email?.split('@')[0] || 'Admin'}
+                                <p className="text-[10px] xs:text-[9px] font-bold text-white truncate max-w-[60px] md:max-w-[120px]">
+                                    {displayName}
+                                </p>
+                                <p className="text-[6px] xs:text-[7px] text-blue-200 truncate max-w-[60px] md:max-w-[120px]">
+                                    {userEmail}
                                 </p>
                                 <p className="text-[5px] xs:text-[6px] text-amber-400 font-bold uppercase">
                                     Administrateur
                                 </p>
                             </div>
-                            {/* Déconnexion - Icône uniquement sur mobile */}
+
+                            {/* Déconnexion */}
                             <button
                                 onClick={handleLogout}
                                 className="p-1 xs:p-1.5 sm:p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all hover:scale-105"
@@ -298,7 +305,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* ✅ ONGLETS EN HAUT - Scrollable horizontalement */}
+                {/* ONGLETS EN HAUT */}
                 <div className="px-2 xs:px-3 sm:px-4 md:px-6 py-1 xs:py-1.5 sm:py-2 flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide">
                     {menuItems.map((item) => {
                         const isActive = activeModule === item.id;
@@ -321,7 +328,6 @@ export default function AdminDashboard() {
                         );
                     })}
 
-                    {/* Indicateur de module - Masqué sur mobile */}
                     <div className="hidden lg:block ml-auto">
                         <span className="text-[7px] xs:text-[8px] text-blue-200/60 uppercase tracking-wider">
                             {menuItems.find(item => item.id === activeModule)?.label || 'Accueil'}
@@ -331,20 +337,26 @@ export default function AdminDashboard() {
             </header>
 
             {/* ============================================ */}
-            {/* CONTENU PRINCIPAL - ULTRA RESPONSIVE */}
+            {/* CONTENU PRINCIPAL */}
             {/* ============================================ */}
             <main className="max-w-full px-2 xs:px-3 sm:px-4 md:px-6 py-2 xs:py-3 sm:py-4 md:py-6">
                 <AnimatePresence mode="wait">
                     {activeModule === 'dashboard' && <DashboardModule stats={stats} key="dashboard" />}
                     {activeModule === 'panneaux' && <PanneauxModule panels={panels} key="panneaux" />}
                     {activeModule === 'reservations' && <ReservationsModule panels={panels} key="reservations" />}
-                    {activeModule === 'utilisateurs' && <UtilisateursModule societes={societes} key="utilisateurs" />}
+                    {activeModule === 'utilisateurs' && (
+                        <UtilisateursModule
+                            societes={societes}
+                            currentUser={authUser}  // ✅ Passer authUser
+                            key="utilisateurs"
+                        />
+                    )}
                     {activeModule === 'statistiques' && <StatistiquesModule stats={stats} key="statistiques" />}
                     {activeModule === 'support' && <SupportModule key="support" />}
                 </AnimatePresence>
             </main>
 
-            {/* Sidebar mobile - visible sur très petits écrans */}
+            {/* Sidebar mobile */}
             <AnimatePresence>
                 {sidebarOpen && (
                     <>
@@ -356,7 +368,6 @@ export default function AdminDashboard() {
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                             className="fixed top-0 left-0 z-50 w-64 xs:w-72 h-full bg-white shadow-2xl flex flex-col"
                         >
-                            {/* Logo sidebar mobile */}
                             <div className="p-4 border-b border-gray-200">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-800 to-blue-900 flex items-center justify-center">
@@ -371,7 +382,6 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
-                            {/* Menu sidebar mobile */}
                             <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
                                 {menuItems.map((item) => {
                                     const isActive = activeModule === item.id;
@@ -395,14 +405,15 @@ export default function AdminDashboard() {
                                 })}
                             </nav>
 
-                            {/* Profil sidebar mobile */}
+                            {/* ✅ Profil sidebar mobile */}
                             <div className="p-4 border-t border-gray-200 bg-gray-50">
                                 <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-200 shadow-sm">
                                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0">
-                                        <span className="text-white text-[9px] font-bold">{user?.email?.charAt(0).toUpperCase() || 'A'}</span>
+                                        <span className="text-white text-[9px] font-bold">{userInitial}</span>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-[9px] font-bold text-gray-800 truncate">{user?.email?.split('@')[0] || 'Admin'}</p>
+                                        <p className="text-[9px] font-bold text-gray-800 truncate">{displayName}</p>
+                                        <p className="text-[6px] text-gray-500 truncate">{userEmail}</p>
                                         <p className="text-[6px] text-amber-500 font-medium">Administrateur</p>
                                     </div>
                                     <button onClick={handleLogout} className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100">
@@ -417,6 +428,24 @@ export default function AdminDashboard() {
         </div>
     );
 }
+
+// ============================================
+// LOADING SCREEN
+// ============================================
+function LoadingScreen() {
+    return (
+        <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+            <div className="text-center">
+                <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 border-2 border-blue-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-blue-800 text-[10px] xs:text-xs font-bold uppercase tracking-wider">GDP | Chargement...</p>
+            </div>
+        </div>
+    );
+}
+
+
+
+
 
 // ============================================
 // DASHBOARD MODULE
@@ -1087,7 +1116,12 @@ function ReservationsModule({ panels }: any) {
 // ============================================
 // UTILISATEURS MODULE - VERSION AMÉLIORÉE
 // ============================================
-function UtilisateursModule({ societes }: any) {
+function UtilisateursModule({ societes, currentUser: initialUser }: any) {
+    // Utilisez currentUser comme nom de variable d'état
+    const [currentUser, setCurrentUser] = useState<any>(initialUser || null);
+
+
+
     const [activeTab, setActiveTab] = useState('agents');
     const [searchTerm, setSearchTerm] = useState('');
     const [editingUser, setEditingUser] = useState<any>(null);
@@ -1102,7 +1136,9 @@ function UtilisateursModule({ societes }: any) {
         email: '',
         telephone: '',
         role: '',
-        fonction: ''
+        fonction: '',
+        password: ''  // ✅ AJOUTER
+
     });
 
     const [createForm, setCreateForm] = useState({
@@ -1136,6 +1172,7 @@ function UtilisateursModule({ societes }: any) {
         }
     };
 
+
     const formatLastSeen = (timestamp: any) => {
         if (!timestamp) return "Jamais connecté";
         try {
@@ -1163,10 +1200,20 @@ function UtilisateursModule({ societes }: any) {
         }
     };
 
+    // ============================================
+    // HANDLE EDIT - AVEC PROTECTION SUPER ADMIN
+    // ============================================
     const handleEdit = (user: any) => {
+        // ✅ Vérifier si c'est le super administrateur
+        if (user.email === SUPER_ADMIN_EMAIL) {
+            if (currentUser?.email !== SUPER_ADMIN_EMAIL) {
+                alert("⛔ ACCÈS REFUSÉ !\n\nSeul le super administrateur peut modifier son propre compte.");
+                return;
+            }
+        }
+
         console.log("📝 Édition de l'utilisateur:", user);
 
-        // Remplir le formulaire avec les données de l'utilisateur
         setEditForm({
             nom: user.nom || '',
             postNom: user.postNom || '',
@@ -1175,13 +1222,12 @@ function UtilisateursModule({ societes }: any) {
             email: user.email || '',
             telephone: user.telephone || '',
             role: user.role || 'visiteur',
-            fonction: user.fonction || ''
+            fonction: user.fonction || '',
+            password: ''
         });
 
-        // Définir l'utilisateur en cours d'édition
         setEditingUser(user);
     };
-
     const loadData = async () => {
         try {
             // Recharger les données depuis Firebase
@@ -1212,6 +1258,8 @@ function UtilisateursModule({ societes }: any) {
             return;
         }
 
+
+
         try {
             const updateData: any = {
                 email: editForm.email.trim(),
@@ -1219,6 +1267,14 @@ function UtilisateursModule({ societes }: any) {
                 role: editForm.role || 'visiteur',
                 updatedAt: new Date().toISOString()
             };
+
+            // ✅ CORRECTION - Vérifier currentUser existe
+            if (editForm.password && editForm.password.trim() !== '') {
+                updateData.password = editForm.password.trim();
+                updateData.passwordUpdatedAt = new Date().toISOString();
+                // ✅ Utiliser currentUser s'il existe, sinon fallback
+                updateData.passwordUpdatedBy = currentUser?.email || 'Administrateur';
+            }
 
             // Si c'est un agent (a un nom)
             const isAgent = editingUser.nom || editForm.nom || editingUser.role === 'commercial';
@@ -1241,7 +1297,6 @@ function UtilisateursModule({ societes }: any) {
                     updateData.fonction = editForm.fonction.trim();
                 }
             } else {
-                // C'est un client
                 const nomSociete = editForm.nomComplet?.trim() || editingUser.nomSociete || '';
                 if (nomSociete) {
                     updateData.nomSociete = nomSociete;
@@ -1251,9 +1306,11 @@ function UtilisateursModule({ societes }: any) {
             const userRef = doc(db, "societes", editingUser.id);
             await updateDoc(userRef, updateData);
 
-            alert("✅ Utilisateur modifié avec succès !");
+            const passwordMessage = editForm.password && editForm.password.trim() !== ''
+                ? ' 🔑 Mot de passe modifié'
+                : '';
+            alert(`✅ Utilisateur modifié avec succès !${passwordMessage}`);
 
-            // Fermer le modal
             setEditingUser(null);
             setEditForm({
                 nom: '',
@@ -1263,10 +1320,10 @@ function UtilisateursModule({ societes }: any) {
                 email: '',
                 telephone: '',
                 role: '',
-                fonction: ''
+                fonction: '',
+                password: ''
             });
 
-            // Recharger la page pour voir les changements
             window.location.reload();
 
         } catch (error: any) {
@@ -1274,29 +1331,56 @@ function UtilisateursModule({ societes }: any) {
             alert(`❌ Erreur: ${error.message || "Erreur inconnue"}`);
         }
     };
-    const handleDelete = async (id: string) => {
-        if (confirm("⚠️ Supprimer définitivement cet utilisateur ?")) {
-            try {
-                await deleteDoc(doc(db, "societes", id));
-                alert("✅ Utilisateur supprimé");
-                loadData();
-            } catch (error) {
-                alert("Erreur de suppression");
-            }
+
+    const handleDelete = async (id: string, userEmail?: string, userNom?: string) => {
+        // ✅ Vérifier si c'est le super administrateur
+        if (userEmail === SUPER_ADMIN_EMAIL) {
+            alert("⛔ ACCÈS REFUSÉ !\n\nVous ne pouvez pas supprimer le super administrateur.\n\nCe compte est protégé.");
+            return;
+        }
+
+        if (!confirm(`⚠️ Supprimer définitivement "${userNom || 'cet utilisateur'}" ?\n\nCette action est irréversible.`)) {
+            return;
+        }
+
+        try {
+            await deleteDoc(doc(db, "societes", id));
+            alert(`✅ Utilisateur "${userNom || 'Inconnu'}" supprimé avec succès !`);
+            loadData();
+        } catch (error) {
+            console.error("❌ Erreur lors de la suppression:", error);
+            alert("❌ Erreur lors de la suppression de l'utilisateur");
         }
     };
 
-    const handleUpdateStatus = async (id: string, currentActif: boolean) => {
+
+    // ============================================
+    // HANDLE UPDATE STATUS - AVEC PROTECTION SUPER ADMIN
+    // ============================================
+    const handleUpdateStatus = async (id: string, currentActif: boolean, userEmail?: string) => {
+        // ✅ Vérifier si c'est le super administrateur
+        if (userEmail === SUPER_ADMIN_EMAIL) {
+            // ✅ Vérifier si l'utilisateur connecté est le super admin lui-même
+            if (currentUser?.email !== SUPER_ADMIN_EMAIL) {
+                alert("⛔ ACCÈS REFUSÉ !\n\nSeul le super administrateur peut modifier son propre compte.");
+                return;
+            }
+        }
+
         const newStatus = !currentActif;
         const action = newStatus ? "activer" : "désactiver";
-        if (confirm(`Voulez-vous vraiment ${action} ce compte ?`)) {
-            try {
-                await updateDoc(doc(db, "societes", id), { actif: newStatus });
-                alert(newStatus ? "✅ Compte activé" : "⚠️ Compte désactivé");
-                loadData();
-            } catch (error) {
-                alert("Erreur lors de la mise à jour");
-            }
+
+        if (!confirm(`Voulez-vous vraiment ${action} ce compte ?`)) {
+            return;
+        }
+
+        try {
+            await updateDoc(doc(db, "societes", id), { actif: newStatus });
+            alert(newStatus ? "✅ Compte activé" : "⚠️ Compte désactivé");
+            loadData();
+        } catch (error) {
+            console.error("❌ Erreur lors de la mise à jour:", error);
+            alert("❌ Erreur lors de la mise à jour du statut");
         }
     };
 
@@ -1442,53 +1526,85 @@ function UtilisateursModule({ societes }: any) {
                                 {/* Profil */}
                                 <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
                                     {/* Avatar */}
-                                    <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-md flex-shrink-0 ${!user.actif
-                                        ? 'bg-gradient-to-br from-gray-400 to-gray-500'
-                                        : 'bg-gradient-to-br from-blue-600 to-blue-700'
-                                        }`}>
-                                        {LOGO_URL ? (
-                                            <img src={LOGO_URL} className="w-full h-full rounded-xl object-cover" alt="logo" />
-                                        ) : (
-                                            <span className="text-white font-black text-base sm:text-lg">
-                                                {(user.nomComplet?.charAt(0) || user.nomSociete?.charAt(0) || 'U').toUpperCase()}
-                                            </span>
-                                        )}
-                                        {user.isOnline && user.actif && (
-                                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
-                                        )}
-                                    </div>
+                                    <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-md flex-shrink-0 ${
+    !user.actif
+        ? 'bg-gradient-to-br from-gray-400 to-gray-500'
+        : user.email === SUPER_ADMIN_EMAIL
+            ? 'bg-gradient-to-br from-amber-500 to-red-600'  // ✅ Couleur spéciale pour Super Admin
+            : 'bg-gradient-to-br from-blue-600 to-blue-700'
+}`}>
+    {LOGO_URL && user.email !== SUPER_ADMIN_EMAIL ? (
+        <img src={LOGO_URL} className="w-full h-full rounded-xl object-cover" alt="logo" />
+    ) : (
+        <span className="text-white font-black text-base sm:text-lg">
+            {user.email === SUPER_ADMIN_EMAIL 
+                ? '👑'  // ✅ Emoji couronne pour Super Admin
+                : (user.nomComplet?.charAt(0) || user.nomSociete?.charAt(0) || 'U').toUpperCase()
+            }
+        </span>
+    )}
+    {user.isOnline && user.actif && (
+        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
+    )}
+</div>
 
                                     {/* Infos nom */}
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className={`text-xs sm:text-sm font-bold truncate ${!user.actif ? 'text-gray-500' : 'text-gray-800'
-                                            }`}>
-                                            {user.nomComplet || user.nomSociete || 'Utilisateur'}
-                                        </h3>
-                                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[6px] sm:text-[7px] font-bold uppercase border ${getRoleStyle(user.role)}`}>
-                                                {user.role === 'commercial' ? 'agent' : user.role === 'visiteur' ? 'Client' : user.role || 'Utilisateur'}
-                                            </span>
-                                            {user.fonction && (
-                                                <span className="text-[6px] sm:text-[7px] text-gray-400">{user.fonction}</span>
-                                            )}
-                                        </div>
-                                    </div>
+                                    {/* Infos nom */}
+<div className="flex-1 min-w-0">
+    <h3 className={`text-xs sm:text-sm font-bold truncate ${
+        !user.actif ? 'text-gray-500' : 'text-gray-800'
+    }`}>
+        {user.email === SUPER_ADMIN_EMAIL 
+            ? 'Administrateur système'  // ✅ Nom remplacé
+            : (user.nomComplet || user.nomSociete || 'Utilisateur')
+        }
+    </h3>
+    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+        <span className={`px-1.5 py-0.5 rounded-full text-[6px] sm:text-[7px] font-bold uppercase border ${getRoleStyle(user.role)}`}>
+            {user.email === SUPER_ADMIN_EMAIL 
+                ? 'Super Admin' 
+                : (user.role === 'commercial' ? 'agent' : user.role === 'visiteur' ? 'Client' : user.role || 'Utilisateur')
+            }
+        </span>
+        {user.fonction && user.email !== SUPER_ADMIN_EMAIL && (
+            <span className="text-[6px] sm:text-[7px] text-gray-400">{user.fonction}</span>
+        )}
+    </div>
+</div>
+
+{/* Badge Super Admin */}
+{user.email === SUPER_ADMIN_EMAIL && (
+    <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-red-500 text-white text-[6px] font-bold rounded-full uppercase tracking-wider shadow-sm animate-pulse">
+        👑 Super Admin
+    </span>
+)}
+
+                                    {user.email === 'omeongaandre2@gmail.com' && (
+                                        <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-red-500 text-white text-[6px] font-bold rounded-full uppercase tracking-wider shadow-sm">
+                                            Super Admin
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Informations de contact */}
-                                <div className="space-y-2 sm:space-y-2.5">
+                                {/* Email - Masqué si Super Admin */}
+                                {user.email !== SUPER_ADMIN_EMAIL && (
                                     <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg bg-blue-50 group-hover:bg-blue-100 transition-colors">
                                         <Mail size={12} className="text-blue-500 shrink-0" />
                                         <span className="text-[8px] sm:text-[9px] text-gray-600 truncate flex-1">{user.email}</span>
                                     </div>
+                                )}
 
-                                    {user.telephone && (
-                                        <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg bg-blue-50 group-hover:bg-blue-100 transition-colors">
-                                            <Phone size={12} className="text-blue-500 shrink-0" />
-                                            <span className="text-[8px] sm:text-[9px] text-gray-600">{user.telephone}</span>
-                                        </div>
-                                    )}
+                                {/* Téléphone - Masqué si Super Admin */}
+                                {user.email !== SUPER_ADMIN_EMAIL && user.telephone && (
+                                    <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg bg-blue-50 group-hover:bg-blue-100 transition-colors">
+                                        <Phone size={12} className="text-blue-500 shrink-0" />
+                                        <span className="text-[8px] sm:text-[9px] text-gray-600">{user.telephone}</span>
+                                    </div>
+                                )}
 
+                                {/* Statut de connexion - Masqué si Super Admin */}
+                                {user.email !== SUPER_ADMIN_EMAIL && (
                                     <div className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg bg-blue-50 group-hover:bg-blue-100 transition-colors">
                                         <Clock size={12} className="text-blue-500 shrink-0" />
                                         <span className="text-[7px] sm:text-[8px] text-gray-500">
@@ -1499,34 +1615,58 @@ function UtilisateursModule({ societes }: any) {
                                                     : `Dernière connexion: ${formatLastSeen(user.lastLogin)}`}
                                         </span>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* Actions - Textes bleus */}
                             <div className="p-3 pt-0 flex gap-1.5 sm:gap-2 border-t border-blue-100 mt-1">
+                                {/* ✅ Bouton Activer/Désactiver - Protégé */}
                                 <button
-                                    onClick={() => handleUpdateStatus(user.id, user.actif)}
-                                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-lg text-[7px] sm:text-[8px] font-bold uppercase transition-all ${user.actif
-                                        ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                    onClick={() => handleUpdateStatus(user.id, user.actif, user.email)}
+                                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-lg text-[7px] sm:text-[8px] font-bold uppercase transition-all ${user.email === 'omeongaandre2@gmail.com' && currentUser?.email !== 'omeongaandre2@gmail.com'
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                                        : user.actif
+                                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                            : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
                                         }`}
+                                    disabled={user.email === SUPER_ADMIN_EMAIL && currentUser?.email !== SUPER_ADMIN_EMAIL}
                                 >
                                     <Power size={10} className="sm:w-3 sm:h-3" />
                                     <span className="hidden xs:inline">{user.actif ? 'Désactiver' : 'Activer'}</span>
                                 </button>
+
+                                {/* ✅ Bouton Modifier - Protégé */}
                                 <button
                                     onClick={() => handleEdit(user)}
-                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all text-[7px] sm:text-[8px] font-bold uppercase"
+                                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-lg transition-all text-[7px] sm:text-[8px] font-bold uppercase ${user.email === 'omeongaandre2@gmail.com' && currentUser?.email !== 'omeongaandre2@gmail.com'
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                        }`}
+                                    disabled={user.email === SUPER_ADMIN_EMAIL && currentUser?.email !== SUPER_ADMIN_EMAIL}
                                 >
                                     <Edit2 size={10} className="sm:w-3 sm:h-3" />
-                                    <span className="hidden xs:inline">Modifier</span>
+                                    <span className="hidden xs:inline">
+                                        {user.email === SUPER_ADMIN_EMAIL && currentUser?.email === SUPER_ADMIN_EMAIL
+                                            ? 'Modifier'
+                                            : user.email === SUPER_ADMIN_EMAIL
+                                                ? 'Protégé'
+                                                : 'Modifier'}
+                                    </span>
                                 </button>
+
+                                {/* ✅ Bouton Supprimer avec toutes les informations */}
                                 <button
-                                    onClick={() => handleDelete(user.id)}
-                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-all text-[7px] sm:text-[8px] font-bold uppercase"
+                                    onClick={() => handleDelete(user.id, user.email, user.nomComplet || user.nomSociete)}
+                                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-lg transition-all text-[7px] sm:text-[8px] font-bold uppercase ${user.email === SUPER_ADMIN_EMAIL
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                                        : 'bg-red-100 text-red-600 hover:bg-red-200'
+                                        }`}
+                                    disabled={user.email === SUPER_ADMIN_EMAIL}
                                 >
                                     <Trash2 size={10} className="sm:w-3 sm:h-3" />
-                                    <span className="hidden xs:inline">Supprimer</span>
+                                    <span className="hidden xs:inline">
+                                        {user.email === SUPER_ADMIN_EMAIL ? 'Protégé' : 'Supprimer'}
+                                    </span>
                                 </button>
                             </div>
                         </motion.div>
@@ -1550,7 +1690,9 @@ function UtilisateursModule({ societes }: any) {
                                         email: '',
                                         telephone: '',
                                         role: '',
-                                        fonction: ''
+                                        fonction: '',
+                                        password: ''
+
                                     });
                                 }
                             }}
@@ -1585,7 +1727,8 @@ function UtilisateursModule({ societes }: any) {
                                                     email: '',
                                                     telephone: '',
                                                     role: '',
-                                                    fonction: ''
+                                                    fonction: '',
+                                                    password: ''  // ✅ AJOUTER
                                                 });
                                             }}
                                             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200"
@@ -1686,7 +1829,33 @@ function UtilisateursModule({ societes }: any) {
                                             <option value="superviseurs">Superviseur</option>
                                         </select>
                                     </div>
+                                    {/* ✅ AJOUTER CE BLOC DANS LE MODAL D'ÉDITION, APRÈS LE CHAMP RÔLE */}
+                                    <div className="space-y-1">
+                                        <label className="text-[7px] xs:text-[8px] text-blue-600 font-bold uppercase tracking-wider">
+                                            Nouveau mot de passe
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder="Laisser vide pour ne pas modifier"
+                                                className="w-full px-3 py-2.5 bg-blue-50 rounded-xl text-gray-700 text-[11px] xs:text-[12px] outline-none focus:ring-2 focus:ring-blue-500 border border-blue-200 focus:border-transparent transition-all pr-10"
+                                                value={editForm.password}
+                                                onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors"
+                                            >
+                                                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                                            </button>
+                                        </div>
+                                        <p className="text-[6px] xs:text-[7px] text-gray-400">
+                                            ⚠️ Laissez vide pour conserver le mot de passe actuel
+                                        </p>
+                                    </div>
                                 </div>
+
 
                                 {/* Footer avec boutons */}
                                 <div className="px-4 xs:px-5 sm:px-6 py-3 xs:py-4 sm:py-5 bg-gray-50 border-t border-gray-200 rounded-b-2xl flex gap-3 flex-shrink-0">
@@ -1701,7 +1870,8 @@ function UtilisateursModule({ societes }: any) {
                                                 email: '',
                                                 telephone: '',
                                                 role: '',
-                                                fonction: ''
+                                                fonction: '',
+                                                password: ''  // ✅ AJOUTER
                                             });
                                         }}
                                         className="flex-1 py-2 xs:py-2.5 rounded-xl bg-gray-100 text-gray-600 text-[9px] xs:text-[10px] font-bold uppercase tracking-wider hover:bg-gray-200 transition-all duration-200"
@@ -1768,7 +1938,7 @@ function UtilisateursModule({ societes }: any) {
                                     {/* Contenu du formulaire - identique mais avec couleurs adaptées */}
                                     <div className="flex gap-2 p-1 bg-blue-50 rounded-xl">
                                         <div className="flex-1 text-center py-2 px-3 rounded-lg bg-blue-600 text-white text-[9px] xs:text-[10px] sm:text-[11px] font-bold uppercase">
-                                            Agent commercial
+                                            Agent dispromalt
                                         </div>
                                     </div>
 
@@ -2239,28 +2409,28 @@ function SupportModule() {
 
     const getTabColors = (color: string, isActive: boolean) => {
         const colors: Record<string, any> = {
-            blue: { 
+            blue: {
                 bg: isActive ? 'bg-blue-600' : 'bg-blue-50',
                 text: isActive ? 'text-white' : 'text-blue-600',
                 border: isActive ? 'border-blue-600' : 'border-blue-200',
                 shadow: isActive ? 'shadow-lg shadow-blue-500/30' : '',
                 hover: 'hover:bg-blue-100'
             },
-            amber: { 
+            amber: {
                 bg: isActive ? 'bg-amber-600' : 'bg-amber-50',
                 text: isActive ? 'text-white' : 'text-amber-600',
                 border: isActive ? 'border-amber-600' : 'border-amber-200',
                 shadow: isActive ? 'shadow-lg shadow-amber-500/30' : '',
                 hover: 'hover:bg-amber-100'
             },
-            emerald: { 
+            emerald: {
                 bg: isActive ? 'bg-emerald-600' : 'bg-emerald-50',
                 text: isActive ? 'text-white' : 'text-emerald-600',
                 border: isActive ? 'border-emerald-600' : 'border-emerald-200',
                 shadow: isActive ? 'shadow-lg shadow-emerald-500/30' : '',
                 hover: 'hover:bg-emerald-100'
             },
-            purple: { 
+            purple: {
                 bg: isActive ? 'bg-purple-600' : 'bg-purple-50',
                 text: isActive ? 'text-white' : 'text-purple-600',
                 border: isActive ? 'border-purple-600' : 'border-purple-200',
@@ -2290,10 +2460,10 @@ function SupportModule() {
     );
 
     return (
-        <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            exit={{ opacity: 0, y: -20 }} 
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
             className="space-y-6"
         >
             {/* ============================================ */}
@@ -2303,7 +2473,7 @@ function SupportModule() {
                 <div className="absolute inset-0 bg-white/5" />
                 <div className="absolute -top-24 -right-24 w-48 h-48 bg-white/10 rounded-full" />
                 <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-white/5 rounded-full" />
-                
+
                 <div className="relative flex flex-wrap justify-between items-center gap-4">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
@@ -2328,16 +2498,15 @@ function SupportModule() {
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.id;
                     const colors = getTabColors(tab.color, isActive);
-                    
+
                     return (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] sm:text-[11px] font-bold transition-all duration-300 flex-1 sm:flex-none justify-center ${
-                                isActive 
-                                    ? `${colors.bg} ${colors.text} ${colors.shadow} ${colors.border} border` 
-                                    : `${colors.text} ${colors.hover} border border-transparent`
-                            }`}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] sm:text-[11px] font-bold transition-all duration-300 flex-1 sm:flex-none justify-center ${isActive
+                                ? `${colors.bg} ${colors.text} ${colors.shadow} ${colors.border} border`
+                                : `${colors.text} ${colors.hover} border border-transparent`
+                                }`}
                         >
                             <div className={`p-1 rounded-lg ${isActive ? 'bg-white/20' : tab.iconBg}`}>
                                 <tab.icon size={14} className={isActive ? 'text-white' : tab.iconColor} />
@@ -2360,7 +2529,7 @@ function SupportModule() {
                 <div className="lg:col-span-2 space-y-6">
                     {/* Documentation */}
                     {activeTab === 'docs' && (
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300"
@@ -2377,44 +2546,44 @@ function SupportModule() {
                             <div className="space-y-4">
                                 <div className="relative">
                                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="Rechercher dans la documentation..."
                                         className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-gray-700 text-[10px] outline-none focus:ring-2 ring-blue-500 border border-gray-200 focus:border-transparent transition"
                                     />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <DocCardModern 
+                                    <DocCardModern
                                         title="Guide de démarrage"
                                         description="Premiers pas avec GDP"
                                         icon={Rocket}
                                         color="emerald"
                                     />
-                                    <DocCardModern 
+                                    <DocCardModern
                                         title="Administration"
                                         description="Gestion des utilisateurs"
                                         icon={Shield}
                                         color="blue"
                                     />
-                                    <DocCardModern 
+                                    <DocCardModern
                                         title="Panneaux"
                                         description="Configuration des supports"
                                         icon={MapPin}
                                         color="amber"
                                     />
-                                    <DocCardModern 
+                                    <DocCardModern
                                         title="Réservations"
                                         description="Gestion des locations"
                                         icon={Calendar}
                                         color="purple"
                                     />
-                                    <DocCardModern 
+                                    <DocCardModern
                                         title="Facturation"
                                         description="Suivi financier"
                                         icon={DollarSign}
                                         color="cyan"
                                     />
-                                    <DocCardModern 
+                                    <DocCardModern
                                         title="API & Développeurs"
                                         description="Intégrations techniques"
                                         icon={Code}
@@ -2427,7 +2596,7 @@ function SupportModule() {
 
                     {/* FAQ avec recherche */}
                     {activeTab === 'faq' && (
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300"
@@ -2444,8 +2613,8 @@ function SupportModule() {
                             <div className="space-y-3">
                                 <div className="relative">
                                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="Rechercher une question..."
                                         className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-gray-700 text-[10px] outline-none focus:ring-2 ring-amber-500 border border-gray-200 focus:border-transparent transition"
                                         value={searchQuery}
@@ -2464,7 +2633,7 @@ function SupportModule() {
                                 )}
                                 <div className="mt-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 text-center">
                                     <p className="text-[8px] text-gray-600">Vous n'avez pas trouvé votre réponse ?</p>
-                                    <button 
+                                    <button
                                         onClick={() => setActiveTab('contact')}
                                         className="mt-2 text-[9px] font-bold text-amber-600 hover:text-amber-700 transition"
                                     >
@@ -2477,7 +2646,7 @@ function SupportModule() {
 
                     {/* Contact */}
                     {activeTab === 'contact' && (
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300"
@@ -2492,33 +2661,33 @@ function SupportModule() {
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <ContactCardModern 
-                                    icon={Mail} 
-                                    title="Email" 
+                                <ContactCardModern
+                                    icon={Mail}
+                                    title="Email"
                                     info="support@dispromalt.cd"
                                     secondary="Réponse sous 24h"
                                     action="Envoyer un email"
                                     color="emerald"
                                 />
-                                <ContactCardModern 
-                                    icon={Phone} 
-                                    title="Téléphone" 
+                                <ContactCardModern
+                                    icon={Phone}
+                                    title="Téléphone"
                                     info="+243 815 023 699"
                                     secondary="Lun-Ven, 8h-18h"
                                     action="Appeler maintenant"
                                     color="blue"
                                 />
-                                <ContactCardModern 
-                                    icon={MessageSquare} 
-                                    title="Chat en ligne" 
+                                <ContactCardModern
+                                    icon={MessageSquare}
+                                    title="Chat en ligne"
                                     info="Disponible 24/7"
                                     secondary="Temps de réponse: ~2min"
                                     action="Ouvrir le chat"
                                     color="amber"
                                 />
-                                <ContactCardModern 
-                                    icon={Globe} 
-                                    title="Centre d'aide" 
+                                <ContactCardModern
+                                    icon={Globe}
+                                    title="Centre d'aide"
                                     info="docs.dispromalt.cd"
                                     secondary="Tutoriels vidéo"
                                     action="Accéder au centre"
@@ -2544,7 +2713,7 @@ function SupportModule() {
 
                     {/* Updates */}
                     {activeTab === 'updates' && (
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300"
@@ -2560,7 +2729,7 @@ function SupportModule() {
                             </div>
                             <div className="space-y-4">
                                 {updates.map((update, idx) => (
-                                    <motion.div 
+                                    <motion.div
                                         key={idx}
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
@@ -2601,30 +2770,30 @@ function SupportModule() {
                             </div>
                         </div>
                         <div className="space-y-3">
-                            <ResourceItemModern 
-                                icon={Video} 
-                                title="Tutoriels vidéo" 
+                            <ResourceItemModern
+                                icon={Video}
+                                title="Tutoriels vidéo"
                                 description="Guides pas à pas"
                                 badge="12 vidéos"
                                 color="blue"
                             />
-                            <ResourceItemModern 
-                                icon={FileText} 
-                                title="API Documentation" 
+                            <ResourceItemModern
+                                icon={FileText}
+                                title="API Documentation"
                                 description="Pour développeurs"
                                 badge="Complet"
                                 color="purple"
                             />
-                            <ResourceItemModern 
-                                icon={Download} 
-                                title="Téléchargements" 
+                            <ResourceItemModern
+                                icon={Download}
+                                title="Téléchargements"
                                 description="Rapports et exports"
                                 badge="PDF, Excel"
                                 color="emerald"
                             />
-                            <ResourceItemModern 
-                                icon={MessageSquare} 
-                                title="Communauté" 
+                            <ResourceItemModern
+                                icon={MessageSquare}
+                                title="Communauté"
                                 description="Forum d'entraide"
                                 badge="Actif"
                                 color="orange"
@@ -2715,7 +2884,7 @@ function DocCardModern({ title, description, icon: Icon, color = "blue" }: any) 
 // ============================================
 function FaqItemModern({ question, answer }: any) {
     const [isOpen, setIsOpen] = useState(false);
-    
+
     return (
         <div className="border-b border-gray-100 last:border-0">
             <button
@@ -2847,18 +3016,6 @@ function StatBar({ label, value, total, color }: any) {
             </div>
             <div className="w-full h-1.5 xs:h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div className={`h-full ${color} rounded-full transition-all duration-500`} style={{ width: `${percentage}%` }} />
-            </div>
-        </div>
-    );
-}
-
-// 4. LOADINGSCREEN - Écran de chargement
-function LoadingScreen() {
-    return (
-        <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
-            <div className="text-center">
-                <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 border-2 border-blue-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-blue-800 text-[10px] xs:text-xs font-bold uppercase tracking-wider">GDP | Chargement...</p>
             </div>
         </div>
     );

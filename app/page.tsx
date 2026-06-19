@@ -17,9 +17,9 @@ import {
   limit,
 } from 'firebase/firestore';
 import {
-  Search, MapPin, Filter, PlusCircle, CheckCircle2,
+  MapPin, Filter, PlusCircle,
   Menu, X, Home, Zap, Globe,
-  Lock, Mail, Loader2, FileText
+  Mail, Loader2, FileText
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -132,6 +132,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
       if (e.target === modal) closeModal();
     });
   };
+
   const LOGO_DISPROMALT = config.LOGO_DISPROMALT;
   const getActiveData = (face: any) => {
     const now = new Date();
@@ -194,15 +195,18 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
             key={fIdx}
             className="relative w-full h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[450px] rounded-2xl sm:rounded-[2rem] overflow-hidden shadow-lg sm:shadow-2xl border border-white/10 group"
           >
-            {/* IMAGE - Sans l'ombre en bas */}
-            <div className="absolute inset-0 overflow-hidden">
+            {/* ============================================ */}
+            {/* IMAGE AVEC DESIGN MODERNE */}
+            {/* ============================================ */}
+            <div className="relative w-full h-full min-h-[200px] bg-gray-100 overflow-hidden rounded-t-xl group">
+              {/* Image avec transition fluide */}
               <img
                 src={data.photo}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none"
                 alt="Face"
               />
 
-              {/* Zone de téléchargement avec délai de 3 secondes */}
+              {/* Overlay de protection - Empêche le téléchargement direct */}
               <div
                 className="absolute inset-0 z-10 cursor-pointer"
                 onClick={() => setZoomedImage(data.photo)}
@@ -222,7 +226,80 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
                 }}
                 onTouchEnd={() => pressTimer && clearTimeout(pressTimer)}
                 onContextMenu={(e) => e.preventDefault()}
-              />
+              >
+                {/* ✅ Indicateur visuel - Fond semi-transparent au survol */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                {/* ✅ Icône d'action au centre */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg transform scale-90 group-hover:scale-100 transition-transform duration-300">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-blue-600"
+                    >
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* ✅ Indicateur de téléchargement en bas */}
+                <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-white"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span className="text-[8px] text-white font-medium">Télécharger</span>
+                  <span className="text-[6px] text-white/50">(appui long)</span>
+                </div>
+              </div>
+
+              {/* ✅ Badge d'information en haut */}
+              <div className="absolute top-3 left-3 z-20 flex items-center gap-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-lg border border-white/10">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[8px] text-white font-medium">Image</span>
+              </div>
+
+              {/* ✅ Indicateur de zoom en haut à droite */}
+              <div className="absolute top-3 right-3 z-20 bg-black/50 backdrop-blur-sm p-1.5 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-white"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  <line x1="11" y1="8" x2="11" y2="14" />
+                  <line x1="8" y1="11" x2="14" y2="11" />
+                </svg>
+              </div>
             </div>
 
             {/* BADGE STATUT - Responsive */}
@@ -398,7 +475,7 @@ export default function UltimateSupervisor() {
           className="relative z-10"
         >
           <img
-                src='icon-512x512.png'
+            src='icon-512x512.png'
             className="w-24 h-24 rounded-3xl border border-white/20 shadow-[0_0_50px_rgba(212,175,55,0.25)] object-cover"
             alt="Loading GDP"
           />
@@ -449,178 +526,176 @@ export default function UltimateSupervisor() {
 
       </div>
 
-      {/* NAV HEADER - VERSION PREMIUM ULTRA MODERNE & FIXE */}
-      <nav className="fixed top-0 inset-x-0 z-[150] p-2 sm:p-3 md:p-4 lg:p-6 backdrop-blur-3xl transition-all duration-500">
-        <div className="max-w-[1800px] mx-auto">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className={`
+      {/* ============================================ */}
+{/* NAV HEADER - VERSION BLEUE PREMIUM */}
+{/* ============================================ */}
+<nav className="fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 py-2 sm:py-3 backdrop-blur-3xl transition-all duration-500">
+  <div className="max-w-[1800px] mx-auto">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className={`
         relative group overflow-visible
         flex items-center justify-between 
         h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
         px-3 sm:px-5 md:px-6 lg:px-8
         rounded-xl sm:rounded-2xl md:rounded-3xl lg:rounded-[2rem]
         transition-all duration-500
-        bg-gradient-to-r from-white/80 via-white/70 to-white/80 backdrop-blur-2xl border-white/30 shadow-2xl shadow-black/10
-        border
-        hover:border-amber-400/60
-        hover:shadow-2xl hover:shadow-amber-400/10
+        bg-gradient-to-r from-blue-50/95 via-white/95 to-blue-50/95 backdrop-blur-2xl 
+        border border-blue-200/50 shadow-xl shadow-blue-500/10
+        hover:border-blue-400/60
+        hover:shadow-2xl hover:shadow-blue-400/20
       `}
-          >
-            {/* Effet de brillance premium au survol */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+    >
+      {/* Effet de brillance au survol */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
 
-            {/* Effet de glow doré premium */}
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/8 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+      {/* Effet de glow bleu */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
-            {/* Bordure animée premium */}
-            <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
+      {/* Bordure animée */}
+      <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-blue-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
 
-            {/* Effet de verre dépoli supplémentaire */}
-            <div className="absolute inset-0 rounded-inherit bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      {/* ============================================ */}
+      {/* LOGO - Version Bleue */}
+      {/* ============================================ */}
+      <div
+        onClick={() => window.location.reload()}
+        className="relative flex items-center gap-2 sm:gap-3 md:gap-4 cursor-pointer group/logo"
+      >
+        {/* Anneau lumineux */}
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 opacity-0 group-hover/logo:opacity-100 blur-xl transition-opacity duration-500" />
 
-            {/* LOGO - Version premium */}
-            <div
-              onClick={() => window.location.reload()}
-              className="relative flex items-center gap-2 sm:gap-3 md:gap-4 cursor-pointer group/logo"
-            >
-              {/* Anneau lumineux premium */}
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-400 opacity-0 group-hover/logo:opacity-100 blur-xl transition-opacity duration-500" />
+        {/* Cercle extérieur animé */}
+        <div className="absolute -inset-1 rounded-xl border-2 border-blue-400/0 group-hover/logo:border-blue-400/30 transition-all duration-500" />
 
-              {/* Cercle extérieur animé */}
-              <div className="absolute -inset-1 rounded-xl border-2 border-amber-400/0 group-hover/logo:border-amber-400/30 transition-all duration-500" />
+        <div className="relative">
+          <div className="absolute inset-0 bg-white rounded-xl shadow-sm" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-xl" />
 
-              <div className="relative">
-                {/* Cercle de fond derrière le logo */}
-                <div className="absolute inset-0 bg-white rounded-xl shadow-sm" />
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/10 to-yellow-500/10 rounded-xl" />
-
-                <img
-                src='icon-512x512.png'
-                  className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-xl object-cover border-2 border-amber-400/30 group-hover/logo:border-amber-400/70 transition-all duration-300 shadow-md group-hover/logo:shadow-amber-400/30"
-                  alt="Logo"
-                />
-                <div className="absolute -top-1 -right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-lg shadow-amber-400/50" />
-              </div>
-
-              <div className="flex flex-col leading-[0.7] sm:leading-[0.75]">
-                <span className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black italic uppercase tracking-tighter">
-                  <span className="text-gray-900 drop-shadow-none group-hover/logo:text-amber-600 transition-all">G</span>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-yellow-600 drop-shadow-none">D</span>
-                  <span className="text-gray-900 drop-shadow-none group-hover/logo:text-amber-600 transition-all">P</span>
-                </span>
-                <span className="text-[4px] sm:text-[5px] md:text-[6px] lg:text-[7px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.3em] text-amber-600/80 mt-0.5 whitespace-nowrap">
-                  GESTION DIGITALE
-                </span>
-              </div>
-            </div>
-
-            {/* DESKTOP MENU - Version ultra premium */}
-            <div className="hidden lg:flex items-center gap-2 md:gap-3 lg:gap-4">
-
-              {/* Bouton Accueil premium */}
-              <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => window.location.reload()}
-                className="relative overflow-hidden group/btn px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider shadow-lg"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-400 bg-[length:200%_100%] animate-shimmer" />
-                <div className="absolute inset-0 bg-black/30 group-hover/btn:bg-black/0 transition-colors duration-300" />
-                <div className="absolute inset-0 rounded-full ring-2 ring-amber-400/0 group-hover/btn:ring-amber-400/50 transition-all duration-300" />
-                <span className="relative flex items-center gap-1.5 text-black font-black">
-                  <span className="text-xs md:text-sm">🏠</span>
-                  <span className="hidden md:inline">ACCUEIL</span>
-                  <span className="md:hidden">HOME</span>
-                </span>
-              </motion.button>
-
-              {/* Bouton Carte premium */}
-              <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={ouvrirLaCarte}
-                className="relative overflow-hidden group/btn px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider shadow-lg bg-gradient-to-r from-amber-400 to-yellow-500"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-yellow-500 to-amber-400 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
-                <span className="relative flex items-center gap-1.5 text-black">
-                  <MapPin size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] group-hover/btn:rotate-12 transition-transform duration-300" />
-                  <span className="hidden md:inline">🗺️ CARTE</span>
-                  <span className="md:hidden">MAP</span>
-                </span>
-              </motion.button>
-
-              {/* Bouton CTA premium - Effet néon amélioré */}
-              <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative group/cta px-5 md:px-6 lg:px-7 py-2.5 md:py-3 lg:py-3.5 rounded-full font-black uppercase text-[9px] md:text-[10px] lg:text-[11px] tracking-[0.12em] md:tracking-[0.15em] shadow-xl shadow-red-500/30 border border-red-400/40"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-500 rounded-full" />
-                <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-red-300 rounded-full opacity-0 group-hover/cta:opacity-100 transition-opacity duration-300" />
-                <div className="absolute -inset-1 bg-gradient-to-r from-red-500 to-red-400 rounded-full opacity-0 group-hover/cta:opacity-40 blur-xl transition-opacity duration-500" />
-                <div className="absolute inset-0 rounded-full ring-2 ring-red-400/0 group-hover/cta:ring-red-400/50 transition-all duration-300" />
-
-                <span className="relative flex items-center gap-1.5 text-white">
-                  <span className="text-sm md:text-base animate-bounce">✨</span>
-                  <span className="hidden sm:inline">COMMANDE</span>
-                  <span className="sm:hidden">CMD</span>
-                  <span className="text-sm md:text-base animate-pulse">⚡</span>
-                </span>
-              </motion.button>
-
-              {/* Séparateur premium */}
-              <div className="h-6 md:h-7 lg:h-8 w-px bg-gradient-to-b from-transparent via-amber-400/40 to-transparent mx-1 md:mx-2" />
-
-              {/* Bouton Menu Filtre premium - Glassmorphism avancé */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsSidebarOpen(true)}
-                className="group/filter relative overflow-hidden px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider transition-all duration-300 bg-gray-100 border border-gray-200 hover:bg-amber-500 hover:text-white shadow-md hover:shadow-amber-500/30"
-              >
-                {/* Effet de ripple premium */}
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 translate-y-full group-hover/filter:translate-y-0 transition-transform duration-300" />
-
-                {/* Effet de brillance */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover/filter:translate-x-full transition-transform duration-700" />
-
-                <span className="relative flex items-center gap-1.5 z-10">
-                  <Filter size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] text-gray-700 group-hover/filter:text-white transition-colors duration-300" />
-                  <span className="hidden lg:inline text-gray-800 group-hover/filter:text-white transition-colors">MENU PINCIPAL</span>
-                  <span className="md:hidden text-gray-800 group-hover/filter:text-white transition-colors">MENU</span>
-                </span>
-              </motion.button>
-            </div>
-
-            {/* Mobile & Tablet Menu Button - Premium */}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsSidebarOpen(true)}
-              className="relative lg:hidden p-2 sm:p-2.5 md:p-3 rounded-xl sm:rounded-2xl bg-white/10 backdrop-blur-sm border border-white/15 hover:border-amber-400/60 hover:bg-amber-400/20 transition-all duration-300 group/mobile"
-            >
-              {/* Effet de vague premium */}
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400/20 to-yellow-500/20 opacity-0 group-active/mobile:opacity-100 transition-opacity duration-300 scale-0 group-active/mobile:scale-100" />
-
-              <Menu size={20} className="sm:w-[22px] sm:h-[22px] md:w-[24px] md:h-[24px] text-amber-400 relative z-10" />
-
-              {/* Indicateur de notification premium */}
-              <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-gradient-to-r from-red-500 to-red-400 rounded-full animate-pulse shadow-lg shadow-red-500/50" />
-              <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-ping bg-red-400/50" />
-            </motion.button>
-
-            {/* Indicateur de scroll pour desktop */}
-            <div className="hidden lg:block absolute -bottom-6 left-1/2 -translate-x-1/2">
-              <div className="w-8 h-8 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="w-1 h-2 bg-amber-400 rounded-full animate-bounce" />
-              </div>
-            </div>
-          </motion.div>
+          <img
+            src='icon-512x512.png'
+            className="relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-xl object-cover border-2 border-blue-400/30 group-hover/logo:border-blue-400/70 transition-all duration-300 shadow-md group-hover/logo:shadow-blue-400/30"
+            alt="Logo"
+          />
+          <div className="absolute -top-1 -right-1 w-2 h-2 md:w-2.5 md:h-2.5 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full animate-pulse shadow-lg shadow-blue-400/50" />
         </div>
-      </nav>
-      {/* SIDEBAR / MENU LATÉRAL - ULTRA RESPONSIVE SANS ERREURS */}
+
+        <div className="flex flex-col leading-[0.7] sm:leading-[0.75]">
+          <span className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black italic uppercase tracking-tighter">
+            <span className="text-gray-900 group-hover/logo:text-blue-600 transition-all">G</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-600">D</span>
+            <span className="text-gray-900 group-hover/logo:text-blue-600 transition-all">P</span>
+          </span>
+          <span className="text-[4px] sm:text-[5px] md:text-[6px] lg:text-[7px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.3em] text-blue-600/80 mt-0.5 whitespace-nowrap">
+            GESTION DIGITALE
+          </span>
+        </div>
+      </div>
+
+      {/* ============================================ */}
+      {/* DESKTOP MENU - Version Bleue */}
+      {/* ============================================ */}
+      <div className="hidden lg:flex items-center gap-2 md:gap-3 lg:gap-4">
+
+        {/* Bouton Accueil - Bleu */}
+        <motion.button
+          whileHover={{ scale: 1.05, y: -2 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => window.location.reload()}
+          className="relative overflow-hidden group/btn px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 rounded-full ring-2 ring-blue-400/0 group-hover/btn:ring-blue-400/50 transition-all duration-300" />
+          <span className="relative flex items-center gap-1.5 z-10">
+            <span className="text-xs md:text-sm">🏠</span>
+            <span className="hidden md:inline">ACCUEIL</span>
+            <span className="md:hidden">HOME</span>
+          </span>
+        </motion.button>
+
+        {/* Bouton Carte - Bleu */}
+        <motion.button
+          whileHover={{ scale: 1.05, y: -2 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={ouvrirLaCarte}
+          className="relative overflow-hidden group/btn px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider shadow-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
+          <span className="relative flex items-center gap-1.5 z-10">
+            <MapPin size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] group-hover/btn:rotate-12 transition-transform duration-300" />
+            <span className="hidden md:inline">🗺️ CARTE</span>
+            <span className="md:hidden">MAP</span>
+          </span>
+        </motion.button>
+
+        {/* Bouton CTA - Rouge (conserve la distinction) */}
+        <motion.button
+          whileHover={{ scale: 1.05, y: -2 }}
+          whileTap={{ scale: 0.95 }}
+          className="relative group/cta px-5 md:px-6 lg:px-7 py-2.5 md:py-3 lg:py-3.5 rounded-full font-black uppercase text-[9px] md:text-[10px] lg:text-[11px] tracking-[0.12em] md:tracking-[0.15em] shadow-xl shadow-red-500/30 border border-red-400/40"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-500 rounded-full" />
+          <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-red-300 rounded-full opacity-0 group-hover/cta:opacity-100 transition-opacity duration-300" />
+          <div className="absolute -inset-1 bg-gradient-to-r from-red-500 to-red-400 rounded-full opacity-0 group-hover/cta:opacity-40 blur-xl transition-opacity duration-500" />
+          <div className="absolute inset-0 rounded-full ring-2 ring-red-400/0 group-hover/cta:ring-red-400/50 transition-all duration-300" />
+
+          <span className="relative flex items-center gap-1.5 text-white">
+            <span className="text-sm md:text-base animate-bounce">✨</span>
+            <span className="hidden sm:inline">COMMANDE</span>
+            <span className="sm:hidden">CMD</span>
+            <span className="text-sm md:text-base animate-pulse">⚡</span>
+          </span>
+        </motion.button>
+
+        {/* Séparateur */}
+        <div className="h-6 md:h-7 lg:h-8 w-px bg-gradient-to-b from-transparent via-blue-400/40 to-transparent mx-1 md:mx-2" />
+
+        {/* Bouton Menu Filtre - Bleu */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsSidebarOpen(true)}
+          className="group/filter relative overflow-hidden px-4 md:px-5 lg:px-6 py-2 md:py-2.5 lg:py-3 rounded-full font-black uppercase text-[8px] md:text-[9px] lg:text-[10px] tracking-wider transition-all duration-300 bg-blue-50 border border-blue-200 hover:bg-blue-600 hover:text-white shadow-md hover:shadow-blue-500/30"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 translate-y-full group-hover/filter:translate-y-0 transition-transform duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover/filter:translate-x-full transition-transform duration-700" />
+          <span className="relative flex items-center gap-1.5 z-10">
+            <Filter size={12} className="md:w-[13px] md:h-[13px] lg:w-[14px] lg:h-[14px] text-gray-700 group-hover/filter:text-white transition-colors duration-300" />
+            <span className="hidden lg:inline text-gray-800 group-hover/filter:text-white transition-colors">MENU PRINCIPAL</span>
+            <span className="md:hidden text-gray-800 group-hover/filter:text-white transition-colors">MENU</span>
+          </span>
+        </motion.button>
+      </div>
+
+      {/* ============================================ */}
+      {/* Mobile & Tablet Menu Button - Bleu */}
+      {/* ============================================ */}
+      <motion.button
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setIsSidebarOpen(true)}
+        className="relative lg:hidden p-2 sm:p-2.5 md:p-3 rounded-xl sm:rounded-2xl bg-blue-50/50 backdrop-blur-sm border border-blue-200/50 hover:border-blue-400/60 hover:bg-blue-100/50 transition-all duration-300 group/mobile"
+      >
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400/20 to-indigo-500/20 opacity-0 group-active/mobile:opacity-100 transition-opacity duration-300 scale-0 group-active/mobile:scale-100" />
+        <Menu size={20} className="sm:w-[22px] sm:h-[22px] md:w-[24px] md:h-[24px] text-blue-600 relative z-10" />
+        
+        {/* Indicateur de notification */}
+        <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-gradient-to-r from-red-500 to-red-400 rounded-full animate-pulse shadow-lg shadow-red-500/50" />
+        <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-ping bg-red-400/50" />
+      </motion.button>
+
+      {/* Indicateur de scroll */}
+      <div className="hidden lg:block absolute -bottom-6 left-1/2 -translate-x-1/2">
+        <div className="w-8 h-8 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="w-1 h-2 bg-blue-400 rounded-full animate-bounce" />
+        </div>
+      </div>
+    </motion.div>
+  </div>
+</nav>
+
+{/* SIDEBAR / MENU LATÉRAL - ULTRA RESPONSIVE SANS ERREURS */}
       <AnimatePresence>
         {isSidebarOpen && (
           <>
@@ -670,7 +745,7 @@ export default function UltimateSupervisor() {
                 <div className="flex justify-center mb-3">
                   <div className="relative">
                     <img
-                src='icon-512x512.png'
+                      src='icon-512x512.png'
                       alt="Logo"
                       className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl object-cover shadow-md border border-gray-200"
                     />
@@ -1071,297 +1146,297 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
   };
 
   return (
-      <AnimatePresence>
-        {isOpen && (
-          <div
-            className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-blue-900/70 backdrop-blur-md"
-            onClick={onClose}
+    <AnimatePresence>
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-blue-900/70 backdrop-blur-md"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: "100%" }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="relative w-full max-w-5xl mx-auto bg-white/95 backdrop-blur-xl border-t sm:border border-blue-200/50 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/20"
           >
-            <motion.div
-              initial={{ opacity: 0, y: "100%" }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              className="relative w-full max-w-5xl mx-auto bg-white/95 backdrop-blur-xl border-t sm:border border-blue-200/50 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/20"
+            {/* Effet de glow bleu élégant */}
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
+            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
+
+            {/* === INDICATEUR DE SWIPE (mobile) === */}
+            <div className="sm:hidden flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 bg-blue-300/50 rounded-full" />
+            </div>
+
+            {/* === BOUTONS DE FERMETURE === */}
+            <button
+              onClick={onClose}
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-white/80 backdrop-blur-xl hover:bg-red-500 hover:text-white rounded-full transition-all duration-300 border border-blue-200/50 active:scale-95 text-blue-900"
             >
-              {/* Effet de glow bleu élégant */}
-              <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
-              <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
-  
-              {/* === INDICATEUR DE SWIPE (mobile) === */}
-              <div className="sm:hidden flex justify-center pt-2 pb-1">
-                <div className="w-10 h-1 bg-blue-300/50 rounded-full" />
-              </div>
-  
-              {/* === BOUTONS DE FERMETURE === */}
+              <X size={14} className="sm:w-4 sm:h-4" />
+            </button>
+
+            {/* Bouton Fermer mobile */}
+            <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
               <button
                 onClick={onClose}
-                className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-white/80 backdrop-blur-xl hover:bg-red-500 hover:text-white rounded-full transition-all duration-300 border border-blue-200/50 active:scale-95 text-blue-900"
+                className="px-4 py-2 bg-blue-600 backdrop-blur-xl rounded-full border border-blue-400/30 text-white text-[9px] font-black uppercase tracking-wider active:scale-95 shadow-lg shadow-blue-600/20"
               >
-                <X size={14} className="sm:w-4 sm:h-4" />
+                ✕ Fermer
               </button>
-  
-              {/* Bouton Fermer mobile */}
-              <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 bg-blue-600 backdrop-blur-xl rounded-full border border-blue-400/30 text-white text-[9px] font-black uppercase tracking-wider active:scale-95 shadow-lg shadow-blue-600/20"
-                >
-                  ✕ Fermer
-                </button>
-              </div>
-  
-              {/* Layout : photo compacte + contenu */}
-              <div className="flex flex-col md:flex-row max-h-[90vh] sm:max-h-[85vh]">
-  
-                {/* --- SECTION PHOTO COMPACTE --- */}
-                <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
-                  <img
-                    src={face.photoCampagneUrl || logo}
-                    className="w-full h-full object-cover"
-                    alt="Visual"
-                  />
-  
-                  {/* Overlay élégant */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/20 to-blue-900/30" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 via-transparent to-transparent" />
-  
-                  {/* Badge Status compact */}
-                  <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
-                    <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${isLibre
-                      ? 'bg-emerald-500/20 border-emerald-500/50'
-                      : 'bg-rose-500/20 border-rose-500/50'}`}>
-                      <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                      <span className="text-[6px] sm:text-[7px] font-black text-white uppercase">{isLibre ? 'Dispo' : 'Occ'}</span>
-                    </div>
-                  </div>
-  
-                  {/* Infos compactes sur l'image */}
-                  <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
-                    <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white italic leading-tight">
-                      {panneau.idPan}
-                    </h2>
-                    <div className="flex gap-1 mt-0.5">
-                      <span className="bg-blue-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
-                        {face.sens}
-                      </span>
-                    </div>
+            </div>
+
+            {/* Layout : photo compacte + contenu */}
+            <div className="flex flex-col md:flex-row max-h-[90vh] sm:max-h-[85vh]">
+
+              {/* --- SECTION PHOTO COMPACTE --- */}
+              <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
+                <img
+                  src={face.photoCampagneUrl || logo}
+                  className="w-full h-full object-cover"
+                  alt="Visual"
+                />
+
+                {/* Overlay élégant */}
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/20 to-blue-900/30" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 via-transparent to-transparent" />
+
+                {/* Badge Status compact */}
+                <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+                  <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${isLibre
+                    ? 'bg-emerald-500/20 border-emerald-500/50'
+                    : 'bg-rose-500/20 border-rose-500/50'}`}>
+                    <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                    <span className="text-[6px] sm:text-[7px] font-black text-white uppercase">{isLibre ? 'Dispo' : 'Occ'}</span>
                   </div>
                 </div>
-  
-                {/* --- SECTION CONTENU --- */}
-                <div className="flex-1 flex flex-col bg-gradient-to-b from-blue-50/80 to-white overflow-hidden">
-  
-                  {/* Header compact */}
-                  <div className="p-2 sm:p-3 md:p-4 border-b border-blue-200/50 bg-white/50">
-                    <p className="text-blue-700 text-[7px] sm:text-[8px] font-black uppercase tracking-wider flex items-center gap-1">
-                      <MapPin size={10} className="sm:w-3 sm:h-3" />
-                      📍 {panneau.adresse?.substring(0, 50)}{panneau.adresse?.length > 50 ? '...' : ''}
-                    </p>
-                    {isSelected && (
-                      <span className="inline-block mt-1 text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-100 px-1.5 py-0.5 rounded-full">
-                        ✓ Sélectionné
-                      </span>
-                    )}
+
+                {/* Infos compactes sur l'image */}
+                <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white italic leading-tight">
+                    {panneau.idPan}
+                  </h2>
+                  <div className="flex gap-1 mt-0.5">
+                    <span className="bg-blue-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
+                      {face.sens}
+                    </span>
                   </div>
-  
-                  {/* ZONE SCROLLABLE OPTIMISÉE */}
-                  <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar bg-white/30">
-  
-                    {/* Métriques compactes - 3 cartes en ligne */}
-                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                      {[
-                        { icon: <Zap size={10} className="sm:w-3 sm:h-3" />, label: "Visibilité", val: face.visibilite || 90 },
-                        { icon: <Activity size={10} className="sm:w-3 sm:h-3" />, label: "Trafic", val: face.mobimetrie || 85 },
-                        { icon: <ShieldCheck size={10} className="sm:w-3 sm:h-3" />, label: "Score", val: 98 },
-                      ].map((m, i) => (
-                        <div key={i} className="bg-blue-50/80 border border-blue-200/60 rounded-xl p-2 sm:p-3 text-center hover:border-blue-400/80 transition-all">
-                          <div className="flex justify-center text-blue-600 mb-0.5">{m.icon}</div>
-                          <p className="text-sm sm:text-base md:text-lg font-black text-blue-900">{m.val}%</p>
-                          <p className="text-[6px] sm:text-[7px] font-bold text-blue-400 uppercase">{m.label}</p>
-                        </div>
-                      ))}
-                    </div>
-  
-                    {/* Timeline compacte */}
-                    <section className="space-y-3 sm:space-y-4">
-                      <div className="flex items-center gap-2 sm:gap-2.5">
-                        <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-blue-600" />
-                        <h4 className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-wider">Chronologie</h4>
-                        <span className="text-[8px] sm:text-[9px] text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
-                          {reservations.length} campagne{reservations.length !== 1 ? 's' : ''}
-                        </span>
+                </div>
+              </div>
+
+              {/* --- SECTION CONTENU --- */}
+              <div className="flex-1 flex flex-col bg-gradient-to-b from-blue-50/80 to-white overflow-hidden">
+
+                {/* Header compact */}
+                <div className="p-2 sm:p-3 md:p-4 border-b border-blue-200/50 bg-white/50">
+                  <p className="text-blue-700 text-[7px] sm:text-[8px] font-black uppercase tracking-wider flex items-center gap-1">
+                    <MapPin size={10} className="sm:w-3 sm:h-3" />
+                    📍 {panneau.adresse?.substring(0, 50)}{panneau.adresse?.length > 50 ? '...' : ''}
+                  </p>
+                  {isSelected && (
+                    <span className="inline-block mt-1 text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-100 px-1.5 py-0.5 rounded-full">
+                      ✓ Sélectionné
+                    </span>
+                  )}
+                </div>
+
+                {/* ZONE SCROLLABLE OPTIMISÉE */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar bg-white/30">
+
+                  {/* Métriques compactes - 3 cartes en ligne */}
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                    {[
+                      { icon: <Zap size={10} className="sm:w-3 sm:h-3" />, label: "Visibilité", val: face.visibilite || 90 },
+                      { icon: <Activity size={10} className="sm:w-3 sm:h-3" />, label: "Trafic", val: face.mobimetrie || 85 },
+                      { icon: <ShieldCheck size={10} className="sm:w-3 sm:h-3" />, label: "Score", val: 98 },
+                    ].map((m, i) => (
+                      <div key={i} className="bg-blue-50/80 border border-blue-200/60 rounded-xl p-2 sm:p-3 text-center hover:border-blue-400/80 transition-all">
+                        <div className="flex justify-center text-blue-600 mb-0.5">{m.icon}</div>
+                        <p className="text-sm sm:text-base md:text-lg font-black text-blue-900">{m.val}%</p>
+                        <p className="text-[6px] sm:text-[7px] font-bold text-blue-400 uppercase">{m.label}</p>
                       </div>
-  
-                      <div className="relative border-l-2 border-blue-200 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
-                        {reservations.length > 0 ? (
-                          reservations.map((res: any, i: number) => {
-                            const now = new Date();
-                            now.setHours(0, 0, 0, 0);
-                            const debut = new Date(res.dateDebut);
-                            const fin = new Date(res.dateFin);
-                            const joursRestants = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                            const isNearEnd = joursRestants <= 3 && joursRestants >= 0;
-                            const isExpired = now > fin;
-                            const isActive = now >= debut && now <= fin;
-  
-                            let statusLabel = "En attente";
-                            let statusColor = "text-blue-600 bg-blue-50 border-blue-200";
-  
-                            if (isExpired) {
-                              statusLabel = "Terminée";
-                              statusColor = "text-gray-400 bg-gray-50 border-gray-200";
-                            } else if (isNearEnd) {
-                              statusLabel = "Expire bientôt";
-                              statusColor = "text-orange-600 bg-orange-50 border-orange-200";
-                            } else if (isActive) {
-                              statusLabel = "En cours";
-                              statusColor = "text-emerald-600 bg-emerald-50 border-emerald-200";
-                            }
-  
-                            return (
-                              <div key={i} className="relative group">
-                                {/* Point sur la timeline */}
-                                <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-white flex items-center justify-center
+                    ))}
+                  </div>
+
+                  {/* Timeline compacte */}
+                  <section className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center gap-2 sm:gap-2.5">
+                      <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-blue-600" />
+                      <h4 className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-wider">Chronologie</h4>
+                      <span className="text-[8px] sm:text-[9px] text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
+                        {reservations.length} campagne{reservations.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    <div className="relative border-l-2 border-blue-200 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
+                      {reservations.length > 0 ? (
+                        reservations.map((res: any, i: number) => {
+                          const now = new Date();
+                          now.setHours(0, 0, 0, 0);
+                          const debut = new Date(res.dateDebut);
+                          const fin = new Date(res.dateFin);
+                          const joursRestants = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                          const isNearEnd = joursRestants <= 3 && joursRestants >= 0;
+                          const isExpired = now > fin;
+                          const isActive = now >= debut && now <= fin;
+
+                          let statusLabel = "En attente";
+                          let statusColor = "text-blue-600 bg-blue-50 border-blue-200";
+
+                          if (isExpired) {
+                            statusLabel = "Terminée";
+                            statusColor = "text-gray-400 bg-gray-50 border-gray-200";
+                          } else if (isNearEnd) {
+                            statusLabel = "Expire bientôt";
+                            statusColor = "text-orange-600 bg-orange-50 border-orange-200";
+                          } else if (isActive) {
+                            statusLabel = "En cours";
+                            statusColor = "text-emerald-600 bg-emerald-50 border-emerald-200";
+                          }
+
+                          return (
+                            <div key={i} className="relative group">
+                              {/* Point sur la timeline */}
+                              <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-white flex items-center justify-center
                                 ${isNearEnd ? 'border-orange-500 shadow-orange-500/50' :
-                                    isActive ? 'border-emerald-500 shadow-emerald-500/50' :
-                                      'border-blue-300'}`}>
-                                  <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full 
+                                  isActive ? 'border-emerald-500 shadow-emerald-500/50' :
+                                    'border-blue-300'}`}>
+                                <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full 
                                   ${isNearEnd ? 'bg-orange-500 animate-pulse' :
-                                      isActive ? 'bg-emerald-500 animate-pulse' :
-                                        'bg-blue-400'}`} />
-                                </div>
-  
-                                {/* Carte de réservation */}
-                                <div className={`bg-white border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg hover:border-blue-400/60
+                                    isActive ? 'bg-emerald-500 animate-pulse' :
+                                      'bg-blue-400'}`} />
+                              </div>
+
+                              {/* Carte de réservation */}
+                              <div className={`bg-white border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg hover:border-blue-400/60
                                 ${isNearEnd ? 'border-orange-300 shadow-orange-100' :
-                                    isActive ? 'border-emerald-300' :
-                                      'border-blue-200/60'}`}>
-  
-                                  {/* En-tête de la carte */}
-                                  <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-tight truncate">
-                                        {res.societeLocatrice}
+                                  isActive ? 'border-emerald-300' :
+                                    'border-blue-200/60'}`}>
+
+                                {/* En-tête de la carte */}
+                                <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-tight truncate">
+                                      {res.societeLocatrice}
+                                    </p>
+                                    {isNearEnd && (
+                                      <p className="text-orange-500 text-[8px] sm:text-[9px] font-black uppercase flex items-center gap-1 mt-1">
+                                        <span className="animate-pulse">⚠️</span>
+                                        Fin dans {joursRestants} jour{joursRestants > 1 ? 's' : ''}
                                       </p>
-                                      {isNearEnd && (
-                                        <p className="text-orange-500 text-[8px] sm:text-[9px] font-black uppercase flex items-center gap-1 mt-1">
-                                          <span className="animate-pulse">⚠️</span>
-                                          Fin dans {joursRestants} jour{joursRestants > 1 ? 's' : ''}
-                                        </p>
-                                      )}
-                                    </div>
-  
-                                    {/* Badge de statut */}
-                                    <span className={`shrink-0 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded-md border ${statusColor}`}>
-                                      {statusLabel}
-                                    </span>
+                                    )}
                                   </div>
-  
-                                  {/* Dates */}
-                                  <div className="flex justify-between items-center gap-2 pt-2 border-t border-blue-100">
-                                    <div className="flex gap-3 sm:gap-4">
-                                      <div className="flex flex-col">
-                                        <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Début</span>
-                                        <span className="text-[9px] sm:text-[10px] md:text-[11px] text-blue-900 font-bold">
-                                          {new Date(res.dateDebut).toLocaleDateString('fr-FR')}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-end pb-1">
-                                        <span className="text-blue-300 text-[10px]">→</span>
-                                      </div>
-                                      <div className="flex flex-col">
-                                        <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Fin</span>
-                                        <span className={`text-[9px] sm:text-[10px] md:text-[11px] font-bold ${isNearEnd ? 'text-orange-500' : 'text-blue-900'}`}>
-                                          {new Date(res.dateFin).toLocaleDateString('fr-FR')}
-                                        </span>
-                                      </div>
+
+                                  {/* Badge de statut */}
+                                  <span className={`shrink-0 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded-md border ${statusColor}`}>
+                                    {statusLabel}
+                                  </span>
+                                </div>
+
+                                {/* Dates */}
+                                <div className="flex justify-between items-center gap-2 pt-2 border-t border-blue-100">
+                                  <div className="flex gap-3 sm:gap-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Début</span>
+                                      <span className="text-[9px] sm:text-[10px] md:text-[11px] text-blue-900 font-bold">
+                                        {new Date(res.dateDebut).toLocaleDateString('fr-FR')}
+                                      </span>
                                     </div>
-  
-                                    {/* Badges supplémentaires */}
-                                    <div className="flex gap-1">
-                                      {res.validationComptable === true && (
-                                        <div className="p-1 bg-blue-100 text-blue-600 rounded-md border border-blue-200" title="Validé comptablement">
-                                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
-                                        </div>
-                                      )}
-                                      {res.facturee === "oui" && (
-                                        <div className="p-1 bg-amber-100 text-amber-600 rounded-md border border-amber-200" title="Facturée">
-                                          <span className="text-[9px] font-black">€</span>
-                                        </div>
-                                      )}
+                                    <div className="flex items-end pb-1">
+                                      <span className="text-blue-300 text-[10px]">→</span>
                                     </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Fin</span>
+                                      <span className={`text-[9px] sm:text-[10px] md:text-[11px] font-bold ${isNearEnd ? 'text-orange-500' : 'text-blue-900'}`}>
+                                        {new Date(res.dateFin).toLocaleDateString('fr-FR')}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Badges supplémentaires */}
+                                  <div className="flex gap-1">
+                                    {res.validationComptable === true && (
+                                      <div className="p-1 bg-blue-100 text-blue-600 rounded-md border border-blue-200" title="Validé comptablement">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                                      </div>
+                                    )}
+                                    {res.facturee === "oui" && (
+                                      <div className="p-1 bg-amber-100 text-amber-600 rounded-md border border-amber-200" title="Facturée">
+                                        <span className="text-[9px] font-black">€</span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
-                            );
-                          })
-                        ) : (
-                          /* Message opportunité */
-                          <div className="relative">
-                            <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-blue-500 bg-white flex items-center justify-center">
-                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                             </div>
-  
-                            <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-blue-100/50 transition-all cursor-pointer">
-                              <div className="inline-flex p-2 bg-blue-100 rounded-full text-blue-600">
-                                <PlusCircle size={16} className="sm:w-5 sm:h-5" />
-                              </div>
-                              <h3 className="text-blue-700 text-[11px] sm:text-[12px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
-                              <p className="text-blue-500/80 text-[9px] sm:text-[10px] leading-relaxed max-w-[250px] mx-auto">
-                                Cette face n'attend que votre visibilité.<br />
-                                <span className="text-blue-900 font-bold italic">Réservez-la dès maintenant.</span>
-                              </p>
-                            </div>
+                          );
+                        })
+                      ) : (
+                        /* Message opportunité */
+                        <div className="relative">
+                          <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-blue-500 bg-white flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                           </div>
-                        )}
-                      </div>
-                    </section>
-                    {/* Espace pour boutons fixes */}
-                    <div className="h-12 sm:h-14" />
-                  </div>
-  
-                  {/* Actions fixes en bas */}
-                  <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0 mt-auto">
-                    <div className="flex gap-2">
-                      <button
-                        //onClick={() => { ouvrirLaCarte(); onClose(); }}
-                        className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-blue-100 hover:bg-blue-200 rounded-lg text-blue-700 transition-all active:scale-95 border border-blue-200"
-                      >
-                        <MapPin size={14} className="sm:w-4 sm:h-4" />
-                      </button>
-  
-                      <button
-                        disabled={!isLibre && !isSelected}
-                        onClick={() => onSelect(selectionKey)}
-                        className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
-                        ${isSelected
-                            ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30'
-                            : isLibre
-                              ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-500/30 hover:shadow-blue-500/50'
-                              : 'bg-blue-100 text-blue-400 cursor-not-allowed'}`}
-                      >
-                        {isSelected ? (
-                          <><MinusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RETIRER</span><span className="xs:hidden">RETIRER</span></>
-                        ) : isLibre ? (
-                          <><PlusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RÉSERVER</span><span className="xs:hidden">RÉSERV</span></>
-                        ) : (
-                          <span className="hidden xs:inline">INDISPONIBLE</span>
-                        )}
-                      </button>
+
+                          <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-blue-100/50 transition-all cursor-pointer">
+                            <div className="inline-flex p-2 bg-blue-100 rounded-full text-blue-600">
+                              <PlusCircle size={16} className="sm:w-5 sm:h-5" />
+                            </div>
+                            <h3 className="text-blue-700 text-[11px] sm:text-[12px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
+                            <p className="text-blue-500/80 text-[9px] sm:text-[10px] leading-relaxed max-w-[250px] mx-auto">
+                              Cette face n'attend que votre visibilité.<br />
+                              <span className="text-blue-900 font-bold italic">Réservez-la dès maintenant.</span>
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  </section>
+                  {/* Espace pour boutons fixes */}
+                  <div className="h-12 sm:h-14" />
+                </div>
+
+                {/* Actions fixes en bas */}
+                <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0 mt-auto">
+                  <div className="flex gap-2">
+                    <button
+                      //onClick={() => { ouvrirLaCarte(); onClose(); }}
+                      className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-blue-100 hover:bg-blue-200 rounded-lg text-blue-700 transition-all active:scale-95 border border-blue-200"
+                    >
+                      <MapPin size={14} className="sm:w-4 sm:h-4" />
+                    </button>
+
+                    <button
+                      disabled={!isLibre && !isSelected}
+                      onClick={() => onSelect(selectionKey)}
+                      className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
+                        ${isSelected
+                          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30'
+                          : isLibre
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-500/30 hover:shadow-blue-500/50'
+                            : 'bg-blue-100 text-blue-400 cursor-not-allowed'}`}
+                    >
+                      {isSelected ? (
+                        <><MinusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RETIRER</span><span className="xs:hidden">RETIRER</span></>
+                      ) : isLibre ? (
+                        <><PlusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RÉSERVER</span><span className="xs:hidden">RÉSERV</span></>
+                      ) : (
+                        <span className="hidden xs:inline">INDISPONIBLE</span>
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    );
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
 };
 
 

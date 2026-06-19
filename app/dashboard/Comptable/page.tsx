@@ -16,6 +16,8 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, Timestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext'; // ✅ AJOUTER CET IMPORT
+
 
 // ============================================
 // IMPORT DE LA CONFIGURATION
@@ -32,7 +34,6 @@ const auth = getAuth(app);
 
 const AccountingMaster = () => {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [factures, setFactures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -69,20 +70,19 @@ const AccountingMaster = () => {
   // ============================================
   // AUTHENTIFICATION
   // ============================================
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser({
-          name: user.displayName || user.email?.split('@')[0] || "Agent",
-          email: user.email,
-          uid: user.uid,
-          logoUrl: user.photoURL || LOGO_DISPROMALT
-        });
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+  // ✅ Utilisation du contexte AuthContext
+  const { user: authUser, loading: authLoading } = useAuth();
 
+  // ✅ Transformation des données utilisateur
+  const currentUser = useMemo(() => {
+    if (!authUser) return null;
+    return {
+      name: authUser.nomComplet || authUser.nom || authUser.displayName || authUser.email?.split('@')[0] || "Agent",
+      email: authUser.email,
+      uid: authUser.uid || authUser.id,
+      logoUrl: authUser.photoURL || LOGO_DISPROMALT
+    };
+  }, [authUser]);
   // ============================================
   // DÉCONNEXION
   // ============================================
@@ -226,7 +226,7 @@ const AccountingMaster = () => {
     return Array.from(c).sort();
   }, [factures]);
 
-  if (loading) return (
+  if (authLoading || loading) return (
     <div className="h-screen flex items-center justify-center bg-white">
       <div className="text-center">
         <div className="w-12 h-12 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -296,7 +296,18 @@ const AccountingMaster = () => {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-md">
-                  <span className="text-white text-[10px] font-bold">{currentUser?.name?.charAt(0).toUpperCase() || 'A'}</span>
+                  <span className="text-white text-[10px] font-bold">
+                    {currentUser?.name?.charAt(0).toUpperCase() || 'A'}
+                  </span>
+                </div>
+                {/* ✅ AJOUT DU NOM COMPLET */}
+                <div className="hidden sm:block">
+                  <p className="text-[10px] font-bold text-white truncate max-w-[80px]">
+                    {currentUser?.name || 'Admin'}
+                  </p>
+                  <p className="text-[6px] text-blue-200 truncate max-w-[80px]">
+                    {currentUser?.email || ''}
+                  </p>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -528,11 +539,10 @@ const AccountingMaster = () => {
                 >
                   <div className="p-3 md:p-4">
                     <div className="flex justify-between items-start mb-2">
-                      <span className={`text-[6px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                        isComplet ? 'bg-emerald-100 text-emerald-700' :
-                        isPartial ? 'bg-amber-100 text-amber-700' :
-                        'bg-gray-100 text-gray-600'
-                      }`}>
+                      <span className={`text-[6px] font-bold px-2 py-0.5 rounded-full uppercase ${isComplet ? 'bg-emerald-100 text-emerald-700' :
+                          isPartial ? 'bg-amber-100 text-amber-700' :
+                            'bg-gray-100 text-gray-600'
+                        }`}>
                         {isComplet ? 'Validée' : isPartial ? 'Acompte' : 'Attente'}
                       </span>
                       <span className="text-[7px] text-gray-400 font-mono">{f.factureIdFormat}</span>
@@ -594,11 +604,10 @@ const AccountingMaster = () => {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                       {/* Client & Référence */}
                       <div className="flex items-center gap-3 md:w-[25%]">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                          isComplet ? 'bg-emerald-100 text-emerald-600' : 
-                          isPartial ? 'bg-amber-100 text-amber-600' : 
-                          'bg-gray-100 text-gray-500'
-                        }`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isComplet ? 'bg-emerald-100 text-emerald-600' :
+                            isPartial ? 'bg-amber-100 text-amber-600' :
+                              'bg-gray-100 text-gray-500'
+                          }`}>
                           <Building2 size={18} />
                         </div>
                         <div className="min-w-0">
@@ -635,11 +644,10 @@ const AccountingMaster = () => {
 
                       {/* Statut & Action */}
                       <div className="flex items-center gap-3 md:w-[25%] md:justify-end">
-                        <span className={`text-[7px] font-bold px-2.5 py-1 rounded-full border uppercase ${
-                          isComplet ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
-                          isPartial ? 'border-amber-200 bg-amber-50 text-amber-700' :
-                          'border-gray-200 bg-gray-50 text-gray-600'
-                        }`}>
+                        <span className={`text-[7px] font-bold px-2.5 py-1 rounded-full border uppercase ${isComplet ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                            isPartial ? 'border-amber-200 bg-amber-50 text-amber-700' :
+                              'border-gray-200 bg-gray-50 text-gray-600'
+                          }`}>
                           {isComplet ? 'Validée' : isPartial ? 'Acompte' : 'En attente'}
                         </span>
 
