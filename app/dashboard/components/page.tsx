@@ -473,6 +473,11 @@ export default function PageEnregistrement({
             // --- LOGIQUE IDPAN SÉCURISÉE ---
             const snapshot = await getDocs(collection(db, "panneaux"));
 
+            const dimensionFormatee = dimensions.hauteur && dimensions.largeur && dimensions.unite
+            ? `${dimensions.hauteur} x ${dimensions.largeur} ${dimensions.unite}`
+            : formData.dimension || '';
+
+            
             let maxNumber = 0;
             snapshot.forEach((doc) => {
                 const data = doc.data();
@@ -530,7 +535,7 @@ export default function PageEnregistrement({
                 adresse: formData.adresse.trim().toUpperCase(),
                 coords: new GeoPoint(latitude, longitude), // GeoPoint natif
                 gps_raw: { lat: latitude, lng: longitude }, // Pour lecture rapide
-                dimension: formData.dimension,
+                dimension: dimensionFormatee,
                 nbFaces: formData.nbFaces,
                 type: formData.type,
                 faces: formattedFaces, // Contient sens, historique, reservations
@@ -560,7 +565,21 @@ export default function PageEnregistrement({
         };
         return unitesParType[type] || ['m', 'cm', 'mm'];
     };
-
+// ============================================
+// FONCTION DE TEST DE LA CAMÉRA
+// ============================================
+const testCamera = async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' } 
+        });
+        stream.getTracks().forEach(track => track.stop());
+        alert("✅ Caméra disponible et fonctionnelle !");
+    } catch (err) {
+        console.error("❌ Erreur caméra:", err);
+        alert("❌ Caméra non disponible ou accès refusé.\n\nVérifiez les permissions de votre navigateur.");
+    }
+};
 
     return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
@@ -954,16 +973,58 @@ export default function PageEnregistrement({
                                             />
                                         </div>
 
-                                        <label className={`flex flex-col items-center justify-center py-3 rounded-lg border-2 border-dashed cursor-pointer transition ${face.photoCampagneUrl ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-blue-400'}`}>
-                                            <input type="file" accept="image/*" className="hidden" capture="environment" onChange={(e) => handlePhotoUpload(i, e.target.files?.[0] || null)} />
-                                            {localPreviews[i] || face.photoCampagneUrl ? (
-                                                <img src={localPreviews[i] || face.photoCampagneUrl} className="h-16 object-cover rounded-lg border border-gray-200" alt="preview" />
-                                            ) : (
-                                                <div className="flex items-center gap-2 text-gray-400 text-[9px]">
-                                                    <Camera size={16} /> CLIQUER POUR PHOTO
-                                                </div>
-                                            )}
-                                        </label>
+                                        {/* Section photo corrigée */}
+<label className={`flex flex-col items-center justify-center py-3 rounded-lg border-2 border-dashed cursor-pointer transition ${face.photoCampagneUrl ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-blue-400'}`}>
+    <div className="flex gap-2 w-full px-2">
+        {/* Bouton Galerie */}
+        <div className="flex-1 flex flex-col items-center justify-center py-2">
+            <input 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                id={`file-${i}`}
+                onChange={(e) => handlePhotoUpload(i, e.target.files?.[0] || null)} 
+            />
+            <label htmlFor={`file-${i}`} className="flex flex-col items-center gap-1 cursor-pointer w-full">
+                <Camera size={16} className="text-blue-400" />
+                <span className="text-[7px] text-gray-500">Galerie</span>
+            </label>
+        </div>
+        
+        {/* Bouton Caméra */}
+        <div className="flex-1 flex flex-col items-center justify-center py-2">
+            <button
+                type="button"
+                onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.capture = 'environment';
+                    input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) handlePhotoUpload(i, file);
+                    };
+                    input.click();
+                }}
+                className="flex flex-col items-center gap-1 w-full"
+            >
+                <Camera size={16} className="text-emerald-500" />
+                <span className="text-[7px] text-gray-500">📸 Caméra</span>
+            </button>
+        </div>
+        
+        {/* Aperçu si photo existe */}
+        {(localPreviews[i] || face.photoCampagneUrl) && (
+            <div className="flex-1 flex items-center justify-center">
+                <img 
+                    src={localPreviews[i] || face.photoCampagneUrl} 
+                    className="h-12 w-12 object-cover rounded-lg border border-gray-200" 
+                    alt="preview" 
+                />
+            </div>
+        )}
+    </div>
+</label>
                                     </div>
                                 )}
                             </div>

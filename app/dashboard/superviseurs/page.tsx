@@ -78,24 +78,51 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   const downloadImage = async (url: string) => {
     // Créer une boîte de dialogue personnalisée
     const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center';
+    modal.className = 'fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
     modal.innerHTML = `
-    <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 border border-white/20 shadow-2xl">
-      <div class="text-center mb-4">
-        <div class="w-16 h-16 mx-auto bg-amber-500/20 rounded-full flex items-center justify-center mb-3">
-          <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
+        <div class="bg-white rounded-2xl max-w-sm w-full mx-4 shadow-2xl overflow-hidden">
+            <!-- HEADER - BLEU ROI PROFOND -->
+            <div class="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 px-6 py-4 border-b border-white/10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
+                        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Télécharger l'image</h3>
+                        <p class="text-[8px] text-blue-200 uppercase tracking-wider">Enregistrement sur l'appareil</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CORPS -->
+            <div class="p-6">
+                <div class="text-center mb-6">
+                    <div class="w-20 h-20 mx-auto bg-blue-50 rounded-full flex items-center justify-center mb-4 border border-blue-200">
+                        <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </div>
+                    <p class="text-sm text-gray-600 font-medium">Voulez-vous enregistrer cette image sur votre appareil ?</p>
+                    <p class="text-[8px] text-gray-400 mt-1">Format: JPG • Qualité: Haute</p>
+                </div>
+
+                <!-- BOUTONS -->
+                <div class="flex gap-3">
+                    <button id="cancel-download" class="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-[9px] font-bold uppercase tracking-wider hover:bg-gray-200 transition">
+                        Annuler
+                    </button>
+                    <button id="confirm-download" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white text-[9px] font-bold uppercase tracking-wider hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Télécharger
+                    </button>
+                </div>
+            </div>
         </div>
-        <h3 class="text-lg font-bold text-white mb-2">Télécharger l'image</h3>
-        <p class="text-sm text-white/60">Voulez-vous enregistrer cette image sur votre appareil ?</p>
-      </div>
-      <div class="flex gap-3">
-        <button id="cancel-download" class="flex-1 py-2 rounded-xl bg-white/10 text-white/70 text-sm font-bold uppercase tracking-wider hover:bg-white/20 transition">Annuler</button>
-        <button id="confirm-download" class="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-sm font-bold uppercase tracking-wider hover:shadow-lg transition">Télécharger</button>
-      </div>
-    </div>
-  `;
+    `;
     document.body.appendChild(modal);
 
     // Gérer la confirmation
@@ -105,45 +132,83 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
     const closeModal = () => modal.remove();
 
     confirmBtn?.addEventListener('click', async () => {
-      closeModal();
+        closeModal();
 
-      // Afficher un toast de chargement
-      const toast = document.createElement('div');
-      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50';
-      toast.innerText = '📥 Téléchargement en cours...';
-      document.body.appendChild(toast);
+        // Afficher un toast de chargement
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-white rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-blue-200 flex items-center gap-2';
+        toast.innerHTML = `
+            <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <span class="text-gray-700 font-medium">Téléchargement en cours...</span>
+        `;
+        document.body.appendChild(toast);
 
-      try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `campagne_${Date.now()}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `campagne_${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
 
-        toast.innerText = '✅ Téléchargement terminé !';
-        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm z-50';
-        setTimeout(() => toast.remove(), 2000);
+            toast.innerHTML = `
+                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="text-emerald-700 font-medium">✅ Téléchargement terminé !</span>
+            `;
+            toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-emerald-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-emerald-200 flex items-center gap-2';
+            setTimeout(() => toast.remove(), 2000);
 
-      } catch (err) {
-        toast.innerText = '❌ Erreur lors du téléchargement';
-        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm z-50';
-        setTimeout(() => toast.remove(), 3000);
-      }
+        } catch (err) {
+            toast.innerHTML = `
+                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span class="text-red-700 font-medium">❌ Erreur lors du téléchargement</span>
+            `;
+            toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-red-200 flex items-center gap-2';
+            setTimeout(() => toast.remove(), 3000);
+        }
     });
 
     cancelBtn?.addEventListener('click', closeModal);
 
     // Fermer en cliquant à l'extérieur
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeModal();
+        if (e.target === modal) closeModal();
     });
-  };
 
+    // Fermer avec la touche Echap
+    const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') closeModal();
+    };
+    document.addEventListener('keydown', handleEsc);
+
+    // Nettoyer l'écouteur d'événements lorsque le modal est fermé
+    const originalClose = closeModal;
+    const newCloseModal = () => {
+        document.removeEventListener('keydown', handleEsc);
+        originalClose();
+    };
+
+    // Remplacer la fonction closeModal
+    const closeModalWithCleanup = () => {
+        document.removeEventListener('keydown', handleEsc);
+        modal.remove();
+    };
+
+    // Mettre à jour les références
+    const closeModalFinal = closeModalWithCleanup;
+    modal.querySelector('#cancel-download')?.addEventListener('click', closeModalFinal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModalFinal();
+    });
+};
 
   const getActiveData = (face: any) => {
     const now = new Date();
