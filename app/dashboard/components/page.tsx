@@ -973,26 +973,114 @@ const testCamera = async () => {
                                             />
                                         </div>
 
-                                        {/* Section photo corrigée */}
-<label className={`flex flex-col items-center justify-center py-3 rounded-lg border-2 border-dashed cursor-pointer transition ${face.photoCampagneUrl ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-blue-400'}`}>
-    <div className="flex gap-2 w-full px-2">
-        {/* Bouton Galerie */}
-        <div className="flex-1 flex flex-col items-center justify-center py-2">
-            <input 
-                type="file" 
-                accept="image/*" 
-                className="hidden" 
-                id={`file-${i}`}
-                onChange={(e) => handlePhotoUpload(i, e.target.files?.[0] || null)} 
-            />
-            <label htmlFor={`file-${i}`} className="flex flex-col items-center gap-1 cursor-pointer w-full">
-                <Camera size={16} className="text-blue-400" />
-                <span className="text-[7px] text-gray-500">Galerie</span>
-            </label>
-        </div>
+                                        {/* ============================================ */}
+{/* SECTION PHOTO - DISPOSITION ADAPTATIVE */}
+{/* ============================================ */}
+<div className="mt-2">
+    {/* En-tête compact */}
+    <div className="flex items-center gap-2 mb-1.5">
+        <Camera size={12} className="text-blue-500 flex-shrink-0" />
+        <span className="text-[7px] font-bold text-gray-600">Preuve d'affichage</span>
+        {(localPreviews[i] || face.photoCampagneUrl) && (
+            <span className="text-[6px] text-emerald-600 font-bold">✓ Photo</span>
+        )}
+    </div>
+
+    {/* Conteneur principal - Flex row avec photo et boutons côte à côte */}
+    <div className={`flex gap-2 ${(localPreviews[i] || face.photoCampagneUrl) ? 'items-start' : 'flex-col'}`}>
         
-        {/* Bouton Caméra */}
-        <div className="flex-1 flex flex-col items-center justify-center py-2">
+        {/* Aperçu - visible seulement si photo existe */}
+        {(localPreviews[i] || face.photoCampagneUrl) && (
+            <div className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-gray-200 cursor-pointer group">
+                <img 
+                    src={localPreviews[i] || face.photoCampagneUrl} 
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
+                    alt="Aperçu"
+                    onClick={() => {
+                        // ✅ Zoom sur la photo quand on clique
+                        const url = localPreviews[i] || face.photoCampagneUrl;
+                        if (url) {
+                            // Créer un modal de zoom
+                            const modal = document.createElement('div');
+                            modal.className = 'fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer';
+                            modal.onclick = () => modal.remove();
+                            modal.innerHTML = `
+                                <div class="relative max-w-3xl max-h-[90vh]">
+                                    <img src="${url}" class="w-full h-full object-contain rounded-lg shadow-2xl" alt="Zoom" />
+                                    <button class="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-600 rounded-full text-white text-sm">✕</button>
+                                </div>
+                            `;
+                            document.body.appendChild(modal);
+                            // Fermer avec Echap
+                            const handleEsc = (e: KeyboardEvent) => {
+                                if (e.key === 'Escape') modal.remove();
+                            };
+                            document.addEventListener('keydown', handleEsc);
+                            modal.onclick = () => {
+                                document.removeEventListener('keydown', handleEsc);
+                                modal.remove();
+                            };
+                        }
+                    }}
+                />
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        const nf = [...formData.faces];
+                        nf[i].photoCampagneUrl = '';
+                        setFormData({ ...formData, faces: nf });
+                        setLocalPreviews(prev => {
+                            const newPreviews = { ...prev };
+                            delete newPreviews[i];
+                            return newPreviews;
+                        });
+                    }}
+                    className="absolute top-0.5 right-0.5 p-0.5 bg-red-500/80 hover:bg-red-600 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                    <X size={8} />
+                </button>
+                {/* Indicateur de clic pour zoom */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                    <span className="text-[6px] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-1.5 py-0.5 rounded-full">
+                        🔍 Zoom
+                    </span>
+                </div>
+            </div>
+        )}
+
+        {/* Boutons - S'adaptent à la présence de la photo */}
+        <div className={`flex gap-2 ${(localPreviews[i] || face.photoCampagneUrl) ? 'flex-1 flex-col' : 'flex-row'}`}>
+            {/* Galerie */}
+            <div className={`relative ${(localPreviews[i] || face.photoCampagneUrl) ? 'w-full' : 'flex-1'}`}>
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    id={`file-${i}`}
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                            const objectUrl = URL.createObjectURL(file);
+                            setLocalPreviews(prev => ({ ...prev, [i]: objectUrl }));
+                            handlePhotoUpload(i, file);
+                        }
+                        e.target.value = '';
+                    }}
+                />
+                <div className={`flex items-center justify-center gap-1 py-2 rounded-lg border transition-all duration-300 ${
+                    (localPreviews[i] || face.photoCampagneUrl) 
+                        ? 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 w-full' 
+                        : 'border-blue-200 bg-blue-50 hover:bg-blue-100 flex-1'
+                } cursor-pointer`}>
+                    <Camera size={11} className={(localPreviews[i] || face.photoCampagneUrl) ? 'text-emerald-500' : 'text-blue-500'} />
+                    <span className="text-[6px] font-medium text-gray-700">
+                        {(localPreviews[i] || face.photoCampagneUrl) ? 'Changer' : 'Galerie'}
+                    </span>
+                </div>
+            </div>
+
+            {/* Caméra */}
             <button
                 type="button"
                 onClick={() => {
@@ -1002,29 +1090,45 @@ const testCamera = async () => {
                     input.capture = 'environment';
                     input.onchange = (e) => {
                         const file = (e.target as HTMLInputElement).files?.[0];
-                        if (file) handlePhotoUpload(i, file);
+                        if (file) {
+                            const objectUrl = URL.createObjectURL(file);
+                            setLocalPreviews(prev => ({ ...prev, [i]: objectUrl }));
+                            handlePhotoUpload(i, file);
+                        }
                     };
                     input.click();
                 }}
-                className="flex flex-col items-center gap-1 w-full"
+                className={`flex items-center justify-center gap-1 py-2 rounded-lg border transition-all duration-300 ${
+                    (localPreviews[i] || face.photoCampagneUrl) 
+                        ? 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 w-full' 
+                        : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 flex-1'
+                }`}
             >
-                <Camera size={16} className="text-emerald-500" />
-                <span className="text-[7px] text-gray-500">📸 Caméra</span>
+                <Camera size={11} className="text-emerald-500" />
+                <span className="text-[6px] font-medium text-gray-700">
+                    {(localPreviews[i] || face.photoCampagneUrl) ? 'Reprendre' : 'Caméra'}
+                </span>
             </button>
         </div>
-        
-        {/* Aperçu si photo existe */}
-        {(localPreviews[i] || face.photoCampagneUrl) && (
-            <div className="flex-1 flex items-center justify-center">
-                <img 
-                    src={localPreviews[i] || face.photoCampagneUrl} 
-                    className="h-12 w-12 object-cover rounded-lg border border-gray-200" 
-                    alt="preview" 
-                />
-            </div>
-        )}
     </div>
-</label>
+
+    {/* Indicateurs de statut */}
+    {uploadingIndex === i && (
+        <div className="mt-1 flex items-center gap-1.5 py-0.5 bg-blue-50 rounded-lg">
+            <div className="w-2 h-2 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-[5px] text-blue-600 font-medium">Téléchargement...</span>
+        </div>
+    )}
+
+    {(localPreviews[i] || face.photoCampagneUrl) && !uploadingIndex && (
+        <div className="mt-1 flex items-center gap-1 px-2 py-0.5 bg-emerald-50 rounded-lg">
+            <div className="w-1 h-1 rounded-full bg-emerald-500" />
+            <span className="text-[5px] font-medium text-emerald-700">Prête</span>
+            {face.photoCampagneUrl && <span className="text-[5px] text-emerald-500 ml-auto">✅</span>}
+            {!face.photoCampagneUrl && <span className="text-[5px] text-amber-500 ml-auto">⏳</span>}
+        </div>
+    )}
+</div>
                                     </div>
                                 )}
                             </div>
