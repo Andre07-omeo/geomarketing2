@@ -22,8 +22,8 @@ import { useAuth } from '@/context/AuthContext';
 // ============================================
 // IMPORTS - AJOUTER CES LIGNES
 // ============================================
-import { 
-    Edit3, Plus, Minus, 
+import {
+    Edit3, Plus, Minus,
 } from 'lucide-react';
 
 // ============================================
@@ -596,7 +596,7 @@ function PanneauxModule({ panels }: any) {
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState('all');
     const [viewMode, setViewMode] = useState('grid');
-    
+
     // ✅ États pour la modification et suppression
     const [selectedPanel, setSelectedPanel] = useState<any>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -716,7 +716,7 @@ function PanneauxModule({ panels }: any) {
         setIsSubmitting(true);
         try {
             const panelRef = doc(db, "panneaux", editingPanel.id);
-            
+
             await updateDoc(panelRef, {
                 adresse: editForm.adresse,
                 type: editForm.type,
@@ -1544,6 +1544,39 @@ function UtilisateursModule({ societes, currentUser: initialUser }: any) {
         telephone: '+243',
         password: '123456789'
     });
+
+
+    // ============================================
+    // AJOUTER CE useEffect APRÈS LA DÉCLARATION DE createForm
+    // ============================================
+
+    // ✅ Générer l'email automatiquement quand le prénom ou le nom change
+    useEffect(() => {
+        if (createForm.prenom && createForm.nom) {
+            const generateEmail = async () => {
+                const baseEmail = `${createForm.prenom.toLowerCase()}.${createForm.nom.toLowerCase()}`;
+                let randomNum = Math.floor(Math.random() * 900) + 100;
+                let email = `${baseEmail}.${randomNum}@dispromalt.cd`;
+
+                // Vérifier si l'email existe déjà
+                let exists = true;
+                let attempts = 0;
+                while (exists && attempts < 10) {
+                    const existingUser = societes.find((s: any) => s.email === email);
+                    if (!existingUser) {
+                        exists = false;
+                    } else {
+                        randomNum = Math.floor(Math.random() * 900) + 100;
+                        email = `${baseEmail}.${randomNum}@dispromalt.cd`;
+                        attempts++;
+                    }
+                }
+                setCreateForm(prev => ({ ...prev, email }));
+            };
+            generateEmail();
+        }
+    }, [createForm.prenom, createForm.nom, societes]);
+
 
     const agents = societes.filter((s: any) => s.role === 'commercial' || s.fonction === 'agent');
     const clients = societes.filter((s: any) => s.role === 'visiteur' && s.nomSociete);
