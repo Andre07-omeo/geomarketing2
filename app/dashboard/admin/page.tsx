@@ -19,6 +19,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getAuth, signOut } from 'firebase/auth';
 import { UserPlus, EyeOff, Key } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+// ============================================
+// IMPORTS - AJOUTER CES LIGNES
+// ============================================
+import { 
+    Edit3, Plus, Minus, 
+} from 'lucide-react';
 
 // ============================================
 // IMPORTATION DEPUIS LE FICHIER DE CONFIG
@@ -583,14 +589,29 @@ function DashboardModule({ stats }: any) {
 }
 
 
-
 // ============================================
-// PANNEAUX MODULE - DESIGN AMÉLIORÉ
+// PANNEAUX MODULE - AVEC MODIFICATION ET SUPPRESSION
 // ============================================
 function PanneauxModule({ panels }: any) {
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState('all');
     const [viewMode, setViewMode] = useState('grid');
+    
+    // ✅ États pour la modification et suppression
+    const [selectedPanel, setSelectedPanel] = useState<any>(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [panelToDelete, setPanelToDelete] = useState<any>(null);
+    const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
+    const [editingPanel, setEditingPanel] = useState<any>(null);
+    const [editForm, setEditForm] = useState({
+        adresse: '',
+        type: '',
+        dimension: '',
+        faces: [] as any[],
+        nbFaces: 0
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Fonction pour déterminer le statut d'une face
     const getFaceStatus = (face: any): 'libre' | 'occupe' | 'reserve' => {
@@ -613,16 +634,135 @@ function PanneauxModule({ panels }: any) {
         return 'libre';
     };
 
+    // ============================================
+    // FONCTIONS DE GESTION D'APPUI LONG
+    // ============================================
+    const handlePressStart = (panel: any) => {
+        const timer = setTimeout(() => {
+            // ✅ Ouvrir le menu d'actions après 3 secondes
+            setSelectedPanel(panel);
+            setIsDeleteModalOpen(true);
+        }, 3000);
+        setPressTimer(timer);
+    };
+
+    const handlePressEnd = () => {
+        if (pressTimer) {
+            clearTimeout(pressTimer);
+            setPressTimer(null);
+        }
+    };
+
+    const handlePressCancel = () => {
+        if (pressTimer) {
+            clearTimeout(pressTimer);
+            setPressTimer(null);
+        }
+    };
+
+    // ============================================
+    // FONCTIONS DE MODIFICATION DU PANNEAU
+    // ============================================
+    const openEditModal = (panel: any) => {
+        setEditingPanel(panel);
+        setEditForm({
+            adresse: panel.adresse || '',
+            type: panel.type || '',
+            dimension: panel.dimension || '',
+            faces: panel.faces || [],
+            nbFaces: panel.faces?.length || 0
+        });
+        setIsEditModalOpen(true);
+        setIsDeleteModalOpen(false);
+        setSelectedPanel(null);
+    };
+
+    const addFace = () => {
+        const newFace = {
+            sens: '',
+            reservations: [],
+            historique: [],
+            statut: 'Libre'
+        };
+        setEditForm({
+            ...editForm,
+            faces: [...editForm.faces, newFace],
+            nbFaces: editForm.nbFaces + 1
+        });
+    };
+
+    const removeFace = (index: number) => {
+        if (editForm.faces.length <= 1) {
+            alert("❌ Un panneau doit avoir au moins une face");
+            return;
+        }
+        const newFaces = editForm.faces.filter((_, i) => i !== index);
+        setEditForm({
+            ...editForm,
+            faces: newFaces,
+            nbFaces: newFaces.length
+        });
+    };
+
+    const updateFace = (index: number, field: string, value: any) => {
+        const newFaces = [...editForm.faces];
+        newFaces[index] = { ...newFaces[index], [field]: value };
+        setEditForm({ ...editForm, faces: newFaces });
+    };
+
+    const savePanelChanges = async () => {
+        if (!editingPanel) return;
+
+        setIsSubmitting(true);
+        try {
+            const panelRef = doc(db, "panneaux", editingPanel.id);
+            
+            await updateDoc(panelRef, {
+                adresse: editForm.adresse,
+                type: editForm.type,
+                dimension: editForm.dimension,
+                faces: editForm.faces,
+                nbFaces: editForm.nbFaces,
+                updatedAt: new Date().toISOString()
+            });
+
+            alert("✅ Panneau modifié avec succès !");
+            setIsEditModalOpen(false);
+            setEditingPanel(null);
+            // Recharger les données
+            window.location.reload();
+        } catch (error) {
+            console.error("❌ Erreur lors de la modification:", error);
+            alert("❌ Erreur lors de la modification du panneau");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const deletePanel = async () => {
+        if (!selectedPanel) return;
+
+        if (!confirm(`⚠️ Voulez-vous vraiment supprimer le panneau "${selectedPanel.idPan}" ?\n\nCette action est irréversible.`)) {
+            return;
+        }
+
+        try {
+            await deleteDoc(doc(db, "panneaux", selectedPanel.id));
+            alert("✅ Panneau supprimé avec succès !");
+            setIsDeleteModalOpen(false);
+            setSelectedPanel(null);
+            window.location.reload();
+        } catch (error) {
+            console.error("❌ Erreur lors de la suppression:", error);
+            alert("❌ Erreur lors de la suppression du panneau");
+        }
+    };
+
     // Filtrage par statut
-    // ✅ Remplacer la recherche actuelle par celle-ci (recherche uniquement par ID)
     const filteredPanels = panels.filter((p: any) => {
-        // Recherche uniquement par ID Panneau
         const searchMatch = p.idPan?.toLowerCase().includes(searchTerm.toLowerCase());
-
         if (!searchMatch) return false;
-
         if (activeTab === 'all') return true;
-
         const faces = p.faces || [];
         const hasMatchingStatus = faces.some((face: any) => {
             const status = getFaceStatus(face);
@@ -662,7 +802,7 @@ function PanneauxModule({ panels }: any) {
             className="space-y-6"
         >
             {/* ============================================ */}
-            {/* EN-TÊTE - Fond bleu clair comme Utilisateurs */}
+            {/* EN-TÊTE */}
             {/* ============================================ */}
             <div className="flex flex-wrap justify-between items-center gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-200 shadow-sm">
                 <div className="flex items-center gap-4">
@@ -673,7 +813,6 @@ function PanneauxModule({ panels }: any) {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {/* Recherche */}
                     <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" />
                         <input
@@ -684,7 +823,6 @@ function PanneauxModule({ panels }: any) {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    {/* Vue grille/liste */}
                     <div className="flex gap-1 bg-white rounded-lg p-1 border border-blue-200">
                         <button
                             onClick={() => setViewMode('grid')}
@@ -703,7 +841,7 @@ function PanneauxModule({ panels }: any) {
             </div>
 
             {/* ============================================ */}
-            {/* ONGLETS - Comme Utilisateurs */}
+            {/* ONGLETS */}
             {/* ============================================ */}
             <div className="flex flex-wrap gap-2 border-b border-blue-200 pb-2">
                 {tabs.map((tab) => (
@@ -728,7 +866,7 @@ function PanneauxModule({ panels }: any) {
             </div>
 
             {/* ============================================ */}
-            {/* STATISTIQUES RAPIDES - 4 colonnes */}
+            {/* STATISTIQUES RAPIDES */}
             {/* ============================================ */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-white rounded-xl p-3 border border-blue-200 text-center shadow-sm">
@@ -750,7 +888,7 @@ function PanneauxModule({ panels }: any) {
             </div>
 
             {/* ============================================ */}
-            {/* AFFICHAGE - Vue Grille ou Liste */}
+            {/* GRILLE DES PANNEAUX */}
             {/* ============================================ */}
             {viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
@@ -773,8 +911,21 @@ function PanneauxModule({ panels }: any) {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.03 }}
                                 whileHover={{ y: -3, scale: 1.02 }}
-                                className="bg-white rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-all p-3"
+                                className="bg-white rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-all p-3 relative cursor-pointer"
+                                onMouseDown={() => handlePressStart(panel)}
+                                onMouseUp={handlePressEnd}
+                                onMouseLeave={handlePressCancel}
+                                onTouchStart={() => handlePressStart(panel)}
+                                onTouchEnd={handlePressEnd}
+                                onTouchCancel={handlePressCancel}
                             >
+                                {/* ✅ Indicateur d'appui long */}
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-[6px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                                        Appui long
+                                    </span>
+                                </div>
+
                                 {/* ID Panneau */}
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-xs font-bold text-blue-700 truncate">
@@ -851,7 +1002,14 @@ function PanneauxModule({ panels }: any) {
                                     });
 
                                     return (
-                                        <tr key={panel.id} className="hover:bg-blue-50/50 transition-colors">
+                                        <tr key={panel.id} className="hover:bg-blue-50/50 transition-colors cursor-pointer relative"
+                                            onMouseDown={() => handlePressStart(panel)}
+                                            onMouseUp={handlePressEnd}
+                                            onMouseLeave={handlePressCancel}
+                                            onTouchStart={() => handlePressStart(panel)}
+                                            onTouchEnd={handlePressEnd}
+                                            onTouchCancel={handlePressCancel}
+                                        >
                                             <td className="px-4 py-3 text-sm font-bold text-blue-700">{panel.idPan || 'N/A'}</td>
                                             <td className="px-4 py-3 text-xs text-gray-600">{panel.adresse || 'N/A'}</td>
                                             <td className="px-4 py-3 text-xs text-gray-600">{panel.type || 'Standard'}</td>
@@ -876,9 +1034,243 @@ function PanneauxModule({ panels }: any) {
                     <p className="text-blue-500 text-sm">Aucun panneau trouvé</p>
                 </div>
             )}
+
+            {/* ============================================ */}
+            {/* MODAL D'ACTIONS - APPUI LONG */}
+            {/* ============================================ */}
+            <AnimatePresence>
+                {isDeleteModalOpen && selectedPanel && (
+                    <div
+                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) {
+                                setIsDeleteModalOpen(false);
+                                setSelectedPanel(null);
+                            }
+                        }}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative w-full max-w-sm bg-white rounded-2xl border border-blue-200 shadow-2xl overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4">
+                                <h3 className="text-white font-bold text-center">Actions disponibles</h3>
+                                <p className="text-[7px] text-blue-200 text-center">{selectedPanel.idPan}</p>
+                            </div>
+
+                            <div className="p-4 space-y-2">
+                                <button
+                                    onClick={() => openEditModal(selectedPanel)}
+                                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-blue-50 hover:bg-blue-100 transition text-blue-700 font-medium text-sm"
+                                >
+                                    <Edit3 size={18} className="text-blue-500" />
+                                    Modifier le panneau
+                                </button>
+
+                                <button
+                                    onClick={deletePanel}
+                                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 hover:bg-red-100 transition text-red-600 font-medium text-sm"
+                                >
+                                    <Trash2 size={18} className="text-red-500" />
+                                    Supprimer le panneau
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setIsDeleteModalOpen(false);
+                                        setSelectedPanel(null);
+                                    }}
+                                    className="w-full p-3 rounded-xl bg-gray-100 hover:bg-gray-200 transition text-gray-600 font-medium text-sm"
+                                >
+                                    Annuler
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* ============================================ */}
+            {/* MODAL D'ÉDITION DU PANNEAU */}
+            {/* ============================================ */}
+            <AnimatePresence>
+                {isEditModalOpen && editingPanel && (
+                    <div
+                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-md p-2 sm:p-4"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) {
+                                setIsEditModalOpen(false);
+                                setEditingPanel(null);
+                            }
+                        }}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            className="relative w-full max-w-2xl bg-white rounded-2xl border border-blue-200 shadow-2xl flex flex-col max-h-[90vh]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="relative px-4 xs:px-5 sm:px-6 py-3 xs:py-4 sm:py-5 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-base xs:text-lg sm:text-xl font-bold text-white">
+                                            Modifier le panneau
+                                        </h3>
+                                        <p className="text-[7px] xs:text-[8px] sm:text-[9px] text-blue-200 uppercase tracking-wider mt-0.5">
+                                            {editingPanel.idPan} • {editingPanel.adresse?.split('/').slice(-3).join(' / ')}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setIsEditModalOpen(false);
+                                            setEditingPanel(null);
+                                        }}
+                                        className="p-1.5 rounded-lg bg-white/10 hover:bg-red-500/80 transition-all duration-200"
+                                    >
+                                        <X size={16} className="text-white" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Corps du formulaire */}
+                            <div className="flex-1 overflow-y-auto p-4 xs:p-5 sm:p-6 space-y-4">
+                                {/* ID Panneau - Non modifiable */}
+                                <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
+                                    <label className="text-[7px] xs:text-[8px] text-gray-500 font-bold uppercase tracking-wider">
+                                        ID Panneau (non modifiable)
+                                    </label>
+                                    <p className="text-sm font-bold text-gray-800 mt-1">{editingPanel.idPan}</p>
+                                </div>
+
+                                {/* Adresse */}
+                                <div>
+                                    <label className="text-[7px] xs:text-[8px] text-blue-600 font-bold uppercase tracking-wider">
+                                        Adresse *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="w-full mt-1 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200 text-gray-700 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={editForm.adresse}
+                                        onChange={(e) => setEditForm({ ...editForm, adresse: e.target.value })}
+                                        placeholder="Ex: RDC / KINSHASA / MONT-AMBA / NGABA / KAHEMBA / 06"
+                                    />
+                                    <p className="text-[6px] xs:text-[7px] text-gray-400 mt-1">⚠️ Format: Pays / Province / District / Commune / Avenue / Numéro</p>
+                                </div>
+
+                                {/* Type & Dimension */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[7px] xs:text-[8px] text-blue-600 font-bold uppercase tracking-wider">
+                                            Type *
+                                        </label>
+                                        <select
+                                            className="w-full mt-1 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200 text-gray-700 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={editForm.type}
+                                            onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                                        >
+                                            <option value="Vinyle">Vinyle</option>
+                                            <option value="Bache">Bâche</option>
+                                            <option value="LED">LED</option>
+                                            <option value="Numérique">Numérique</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[7px] xs:text-[8px] text-blue-600 font-bold uppercase tracking-wider">
+                                            Dimension
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="w-full mt-1 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200 text-gray-700 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                            value={editForm.dimension}
+                                            onChange={(e) => setEditForm({ ...editForm, dimension: e.target.value })}
+                                            placeholder="Ex: 12 x 22"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Gestion des faces */}
+                                <div className="border-t border-gray-200 pt-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <label className="text-[7px] xs:text-[8px] text-blue-600 font-bold uppercase tracking-wider">
+                                            Faces ({editForm.faces.length})
+                                        </label>
+                                        <button
+                                            onClick={addFace}
+                                            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[8px] font-bold hover:bg-emerald-100 transition border border-emerald-200"
+                                        >
+                                            <Plus size={12} />
+                                            Ajouter
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                                        {editForm.faces.map((face: any, index: number) => (
+                                            <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-[9px] font-bold text-blue-700">
+                                                        Face {index + 1}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => removeFace(index)}
+                                                        className="p-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition"
+                                                    >
+                                                        <Minus size={12} />
+                                                    </button>
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Sens (ex: ROND POINT)"
+                                                    className="w-full px-3 py-1.5 bg-white rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
+                                                    value={face.sens || ''}
+                                                    onChange={(e) => updateFace(index, 'sens', e.target.value)}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-4 xs:px-5 sm:px-6 py-3 xs:py-4 sm:py-5 bg-gray-50 border-t border-gray-200 rounded-b-2xl flex gap-3 flex-shrink-0">
+                                <button
+                                    onClick={() => {
+                                        setIsEditModalOpen(false);
+                                        setEditingPanel(null);
+                                    }}
+                                    className="flex-1 py-2 xs:py-2.5 rounded-xl bg-gray-100 text-gray-600 text-[9px] xs:text-[10px] font-bold uppercase tracking-wider hover:bg-gray-200 transition-all duration-200"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={savePanelChanges}
+                                    disabled={isSubmitting}
+                                    className="flex-1 py-2 xs:py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white text-[9px] xs:text-[10px] font-bold uppercase tracking-wider hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50"
+                                >
+                                    {isSubmitting ? (
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
+                                    ) : (
+                                        <>
+                                            <Save size={14} className="inline mr-1" />
+                                            Enregistrer
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 }
+
+
 
 
 
@@ -1526,58 +1918,37 @@ function UtilisateursModule({ societes, currentUser: initialUser }: any) {
                                 {/* Profil */}
                                 <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
                                     {/* Avatar */}
-                                    <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-md flex-shrink-0 ${
-    !user.actif
-        ? 'bg-gradient-to-br from-gray-400 to-gray-500'
-        : user.email === SUPER_ADMIN_EMAIL
-            ? 'bg-gradient-to-br from-amber-500 to-red-600'  // ✅ Couleur spéciale pour Super Admin
-            : 'bg-gradient-to-br from-blue-600 to-blue-700'
-}`}>
-    {LOGO_URL && user.email !== SUPER_ADMIN_EMAIL ? (
-        <img src={LOGO_URL} className="w-full h-full rounded-xl object-cover" alt="logo" />
-    ) : (
-        <span className="text-white font-black text-base sm:text-lg">
-            {user.email === SUPER_ADMIN_EMAIL 
-                ? '👑'  // ✅ Emoji couronne pour Super Admin
-                : (user.nomComplet?.charAt(0) || user.nomSociete?.charAt(0) || 'U').toUpperCase()
-            }
-        </span>
-    )}
-    {user.isOnline && user.actif && (
-        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
-    )}
-</div>
+                                    <div className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shadow-md flex-shrink-0 ${!user.actif
+                                        ? 'bg-gradient-to-br from-gray-400 to-gray-500'
+                                        : 'bg-gradient-to-br from-blue-600 to-blue-700'
+                                        }`}>
+                                        {LOGO_URL ? (
+                                            <img src={LOGO_URL} className="w-full h-full rounded-xl object-cover" alt="logo" />
+                                        ) : (
+                                            <span className="text-white font-black text-base sm:text-lg">
+                                                {(user.nomComplet?.charAt(0) || user.nomSociete?.charAt(0) || 'U').toUpperCase()}
+                                            </span>
+                                        )}
+                                        {user.isOnline && user.actif && (
+                                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
+                                        )}
+                                    </div>
 
                                     {/* Infos nom */}
-                                    {/* Infos nom */}
-<div className="flex-1 min-w-0">
-    <h3 className={`text-xs sm:text-sm font-bold truncate ${
-        !user.actif ? 'text-gray-500' : 'text-gray-800'
-    }`}>
-        {user.email === SUPER_ADMIN_EMAIL 
-            ? 'Administrateur système'  // ✅ Nom remplacé
-            : (user.nomComplet || user.nomSociete || 'Utilisateur')
-        }
-    </h3>
-    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-        <span className={`px-1.5 py-0.5 rounded-full text-[6px] sm:text-[7px] font-bold uppercase border ${getRoleStyle(user.role)}`}>
-            {user.email === SUPER_ADMIN_EMAIL 
-                ? 'Super Admin' 
-                : (user.role === 'commercial' ? 'agent' : user.role === 'visiteur' ? 'Client' : user.role || 'Utilisateur')
-            }
-        </span>
-        {user.fonction && user.email !== SUPER_ADMIN_EMAIL && (
-            <span className="text-[6px] sm:text-[7px] text-gray-400">{user.fonction}</span>
-        )}
-    </div>
-</div>
-
-{/* Badge Super Admin */}
-{user.email === SUPER_ADMIN_EMAIL && (
-    <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-red-500 text-white text-[6px] font-bold rounded-full uppercase tracking-wider shadow-sm animate-pulse">
-        👑 Super Admin
-    </span>
-)}
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className={`text-xs sm:text-sm font-bold truncate ${!user.actif ? 'text-gray-500' : 'text-gray-800'
+                                            }`}>
+                                            {user.nomComplet || user.nomSociete || 'Utilisateur'}
+                                        </h3>
+                                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                            <span className={`px-1.5 py-0.5 rounded-full text-[6px] sm:text-[7px] font-bold uppercase border ${getRoleStyle(user.role)}`}>
+                                                {user.role === 'commercial' ? 'agent' : user.role === 'visiteur' ? 'Client' : user.role || 'Utilisateur'}
+                                            </span>
+                                            {user.fonction && (
+                                                <span className="text-[6px] sm:text-[7px] text-gray-400">{user.fonction}</span>
+                                            )}
+                                        </div>
+                                    </div>
 
                                     {user.email === 'omeongaandre2@gmail.com' && (
                                         <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-red-500 text-white text-[6px] font-bold rounded-full uppercase tracking-wider shadow-sm">
