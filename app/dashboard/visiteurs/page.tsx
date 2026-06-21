@@ -94,26 +94,30 @@ export default function VisiteurDashboard() {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setAuthChecked(true);
             
+            // ✅ Si pas d'utilisateur connecté, on le redirige vers la page de login
             if (!currentUser) {
-                // ✅ Utilisateur non connecté - on le redirige vers la page de connexion
-                // Mais on attend que l'état soit défini pour éviter le flash
+                console.log("❌ Aucun utilisateur connecté");
                 setLoading(false);
-                // router.push('/'); // Décommentez si vous avez une page de login
+                // Rediriger vers la page de connexion
+                router.push('/');
                 return;
             }
 
-            // ✅ Utilisateur connecté
+            console.log("✅ Utilisateur connecté:", currentUser.email);
+
             try {
                 // 1. Vérifier dans localStorage
                 const session = localStorage.getItem('userSession');
                 if (session) {
                     const userData = JSON.parse(session);
+                    console.log("📦 Utilisateur trouvé dans localStorage:", userData);
                     setUser(userData);
                     setLoading(false);
                     return;
                 }
 
                 // 2. Récupérer depuis Firestore
+                console.log("🔍 Recherche de l'utilisateur dans Firestore...");
                 const q = query(collection(db, "societes"), where("email", "==", currentUser.email));
                 const snapshot = await getDocs(q);
                 
@@ -123,15 +127,25 @@ export default function VisiteurDashboard() {
                         id: snapshot.docs[0].id, 
                         ...docData 
                     };
+                    console.log("✅ Utilisateur trouvé dans Firestore:", userData);
                     setUser(userData);
                     localStorage.setItem('userSession', JSON.stringify(userData));
                 } else {
-                    // ✅ Utilisateur trouvé dans Auth mais pas dans Firestore
-                    console.warn("Utilisateur trouvé dans Auth mais pas dans Firestore");
+                    console.warn("⚠️ Utilisateur trouvé dans Auth mais pas dans Firestore");
+                    // ✅ Créer un utilisateur par défaut si nécessaire (pour le test)
+                    const defaultUser: User = {
+                        id: currentUser.uid,
+                        email: currentUser.email || '',
+                        nomSociete: currentUser.displayName || 'Client Test',
+                        role: 'visiteur',
+                        messageAdmin: 'Bienvenue sur votre espace client !'
+                    };
+                    setUser(defaultUser);
+                    localStorage.setItem('userSession', JSON.stringify(defaultUser));
                 }
                 setLoading(false);
             } catch (error) {
-                console.error("Erreur récupération utilisateur:", error);
+                console.error("❌ Erreur récupération utilisateur:", error);
                 setLoading(false);
             }
         });
@@ -145,6 +159,8 @@ export default function VisiteurDashboard() {
     useEffect(() => {
         if (!user?.nomSociete) return;
 
+        console.log("📊 Chargement des panneaux pour:", user.nomSociete);
+
         const q = query(collection(db, "panneaux"));
 
         const unsubPanneaux = onSnapshot(q, (snap) => {
@@ -155,11 +171,14 @@ export default function VisiteurDashboard() {
             setPanneaux(allPanneaux);
 
             let tempFaces: any[] = [];
+            const nomSocieteUser = user.nomSociete?.toLowerCase().trim() || '';
+            
             allPanneaux.forEach((panneau: Panneau) => {
                 if (panneau.faces && Array.isArray(panneau.faces)) {
-                    const matched = panneau.faces.filter((f: Face) =>
-                        f.clientNom?.toLowerCase().trim() === user.nomSociete?.toLowerCase().trim()
-                    );
+                    const matched = panneau.faces.filter((f: Face) => {
+                        const clientNom = f.clientNom?.toLowerCase().trim() || '';
+                        return clientNom === nomSocieteUser;
+                    });
                     matched.forEach((f: Face) => {
                         tempFaces.push({
                             ...f,
@@ -172,11 +191,109 @@ export default function VisiteurDashboard() {
                     });
                 }
             });
+            console.log(`📊 ${tempFaces.length} faces trouvées pour ${user.nomSociete}`);
             setMesFaces(tempFaces);
         });
 
         return () => unsubPanneaux();
     }, [user?.nomSociete]);
+
+    // ============================================
+    // NOTIFICATIONS
+    // ============================================
+    useEffect(() => {
+        if (!user?.nomSociete) return;
+
+        const targetClient = user.nomSociete.toLowerCase().trim();
+        const q = query(
+            collection(db, "messages_clients"),
+            where("destinataire", "==", targetClient)
+        );
+
+        const unsub = onSnapshot(q, (snap) => {
+            const rawDocs = snap.docs.map(docSnap => {
+                const data = docSnap.data();
+                let dateStr = "À l'instant";
+                let timeVal = Date.now();
+
+                if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+                    const d = data.createdAt.toDate();
+                    dateStr = d.toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    timeVal = data.createdAt.toMillis();
+                }
+
+                return {
+                    id: docSnap.id,
+                    ...data,
+                    dateFormatee: dateStr,
+                    timeValue: timeVal
+                };
+            });
+
+            const sorted = rawDocs.sort((a, b) => b.timeValue - a.timeValue);
+            setNotifications(sorted);
+        });
+
+        return () => unsub();
+    }, [user?.nomSociete]);
+
+    // ============================================
+    // STATUT EN LIGNE
+    // ============================================
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const userDocRef = doc(db, "societes", user.id);
+
+        const updateOnlineStatus = async (status: boolean) => {
+            try {
+                await updateDoc(userDocRef, {
+                    isOnline: status,
+                    derniereConnexion: new Date().toISOString()
+                });
+            } catch (e) {
+                console.error("Erreur update status:", e);
+            }
+        };
+
+        updateOnlineStatus(true);
+
+        const handleOnline = () => {
+            setIsOnline(true);
+            updateOnlineStatus(true);
+        };
+        const handleOffline = () => {
+            setIsOnline(false);
+            updateOnlineStatus(false);
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            updateOnlineStatus(false);
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, [user?.id]);
+
+    // ============================================
+    // DÉCONNEXION
+    // ============================================
+    const handleLogout = async () => {
+        try {
+            localStorage.removeItem('userSession');
+            sessionStorage.clear();
+            router.push('/');
+        } catch (error) {
+            console.error("Erreur déconnexion:", error);
+        }
+    };
 
     // ============================================
     // AFFICHAGE PENDANT LE CHARGEMENT
@@ -256,10 +373,7 @@ export default function VisiteurDashboard() {
                         </span>
                     </div>
                     <button
-                        onClick={() => {
-                            localStorage.removeItem('userSession');
-                            router.push('/');
-                        }}
+                        onClick={handleLogout}
                         className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all border border-red-500/20 flex items-center justify-center"
                     >
                         <LogOut size={18} />
@@ -416,9 +530,8 @@ export default function VisiteurDashboard() {
 }
 
 // ============================================
-// COMPOSANTS DES SECTIONS (inchangés)
+// COMPOSANTS DES SECTIONS
 // ============================================
-// ... (les fonctions OverviewSection, AnalyticsSection, InventorySection, MapSection restent identiques)
 
 function MessageSquare({ size, className }: any) {
     return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
