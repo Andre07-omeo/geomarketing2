@@ -116,17 +116,20 @@ export default function FullscreenMap() {
   }, []);
 
   // Fonction pour ouvrir le modal d'édition
+  // ✅ CORRECTION : Gérer le panneau complet et la face sélectionnée
+  // ✅ CORRECTION : Recevoir la face et l'index, créer un panneau factice POUR L'AFFICHAGE UNIQUEMENT
+  // ✅ CORRECTION : NE PAS créer de fake panneau, utiliser le panneau COMPLET
   const handleEditPanneau = (panneau: any, faceIndex?: number, faceData?: any) => {
-    setSelectedPanneau(panneau);
+    // ✅ Utiliser le panneau COMPLET, pas un fake
+    setSelectedPanneau(panneau); // ← Panneau COMPLET avec TOUTES les faces
+
     if (faceIndex !== undefined && faceData) {
       setSelectedFace({ index: faceIndex, data: faceData });
     } else {
       setSelectedFace(null);
     }
     setIsEditModalOpen(true);
-  };
-
-  // Fonction pour fermer le modal
+  };  // Fonction pour fermer le modal
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
     setSelectedPanneau(null);
@@ -181,10 +184,10 @@ export default function FullscreenMap() {
         <EditPanneauModal
           isOpen={isEditModalOpen}
           onClose={handleCloseEditModal}
-          panneau={selectedPanneau}
-          user={user}  // ← L'utilisateur récupéré
-          preselectedFaceIndex={selectedFace?.index}
-          preselectedFaceData={selectedFace?.data}
+          panneau={selectedPanneau}  // ← Panneau COMPLET avec TOUTES les faces
+          user={user}
+          preselectedFaceIndex={selectedFace?.index}  // ← Index de la face à modifier
+          preselectedFaceData={selectedFace?.data}   // ← Données de la face à modifier
         />
       )}
     </div>
@@ -346,15 +349,8 @@ function PanneauModal({ panneau, onClose, onEdit }: any) {
                     {/* ✅ Bouton de réservation stylisé */}
                     <button
                       onClick={() => {
-                        const fakePanneau = {
-                          id: panneau.id,
-                          idPan: panneau.idPan,
-                          adresse: panneau.adresse,
-                          dimension: panneau.dimension,
-                          type: panneau.type,
-                          faces: [face]
-                        };
-                        onEdit(fakePanneau, idx, face);
+                        // ✅ Passer uniquement la face et son index
+                        onEdit(panneau, idx, face);
                       }}
                       className="shrink-0 ml-1 px-2 py-0.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-all text-[8px] font-bold uppercase border border-blue-500/30 hover:scale-105"
                       title="Réserver cette face"
