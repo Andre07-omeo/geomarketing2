@@ -80,6 +80,7 @@ export default function VisiteurDashboard() {
     const [mesFaces, setMesFaces] = useState<any[]>([]);
     const [panneaux, setPanneaux] = useState<Panneau[]>([]);
     const [loading, setLoading] = useState(true);
+    const [authChecked, setAuthChecked] = useState(false);
     const [isOnline, setIsOnline] = useState(true);
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
@@ -87,36 +88,51 @@ export default function VisiteurDashboard() {
     const router = useRouter();
 
     // ============================================
-    // AUTHENTIFICATION
+    // AUTHENTIFICATION - CORRIGÉE
     // ============================================
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            setAuthChecked(true);
+            
             if (!currentUser) {
-                router.push('/');
+                // ✅ Utilisateur non connecté - on le redirige vers la page de connexion
+                // Mais on attend que l'état soit défini pour éviter le flash
+                setLoading(false);
+                // router.push('/'); // Décommentez si vous avez une page de login
                 return;
             }
 
-            const session = localStorage.getItem('userSession');
-            if (session) {
-                const userData = JSON.parse(session);
-                setUser(userData);
-            } else {
-                // Récupérer les données de l'utilisateur depuis Firestore
-                const fetchUserData = async () => {
-                    try {
-                        const q = query(collection(db, "societes"), where("email", "==", currentUser.email));
-                        const snapshot = await getDocs(q);
-                        if (!snapshot.empty) {
-                            const docData = snapshot.docs[0].data();
-                            const userData = { id: snapshot.docs[0].id, ...docData };
-                            setUser(userData);
-                            localStorage.setItem('userSession', JSON.stringify(userData));
-                        }
-                    } catch (error) {
-                        console.error("Erreur récupération utilisateur:", error);
-                    }
-                };
-                fetchUserData();
+            // ✅ Utilisateur connecté
+            try {
+                // 1. Vérifier dans localStorage
+                const session = localStorage.getItem('userSession');
+                if (session) {
+                    const userData = JSON.parse(session);
+                    setUser(userData);
+                    setLoading(false);
+                    return;
+                }
+
+                // 2. Récupérer depuis Firestore
+                const q = query(collection(db, "societes"), where("email", "==", currentUser.email));
+                const snapshot = await getDocs(q);
+                
+                if (!snapshot.empty) {
+                    const docData = snapshot.docs[0].data();
+                    const userData: User = { 
+                        id: snapshot.docs[0].id, 
+                        ...docData 
+                    };
+                    setUser(userData);
+                    localStorage.setItem('userSession', JSON.stringify(userData));
+                } else {
+                    // ✅ Utilisateur trouvé dans Auth mais pas dans Firestore
+                    console.warn("Utilisateur trouvé dans Auth mais pas dans Firestore");
+                }
+                setLoading(false);
+            } catch (error) {
+                console.error("Erreur récupération utilisateur:", error);
+                setLoading(false);
             }
         });
 
@@ -157,115 +173,43 @@ export default function VisiteurDashboard() {
                 }
             });
             setMesFaces(tempFaces);
-            setLoading(false);
         });
 
         return () => unsubPanneaux();
     }, [user?.nomSociete]);
 
     // ============================================
-    // NOTIFICATIONS
+    // AFFICHAGE PENDANT LE CHARGEMENT
     // ============================================
-    useEffect(() => {
-        if (!user?.nomSociete) return;
-
-        const targetClient = user.nomSociete.toLowerCase().trim();
-        const q = query(
-            collection(db, "messages_clients"),
-            where("destinataire", "==", targetClient)
-        );
-
-        const unsub = onSnapshot(q, (snap) => {
-            const rawDocs = snap.docs.map(docSnap => {
-                const data = docSnap.data();
-                let dateStr = "À l'instant";
-                let timeVal = Date.now();
-
-                if (data.createdAt && typeof data.createdAt.toDate === 'function') {
-                    const d = data.createdAt.toDate();
-                    dateStr = d.toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    timeVal = data.createdAt.toMillis();
-                }
-
-                return {
-                    id: docSnap.id,
-                    ...data,
-                    dateFormatee: dateStr,
-                    timeValue: timeVal
-                };
-            });
-
-            const sorted = rawDocs.sort((a, b) => b.timeValue - a.timeValue);
-            setNotifications(sorted);
-        });
-
-        return () => unsub();
-    }, [user?.nomSociete]);
-
-    // ============================================
-    // STATUT EN LIGNE
-    // ============================================
-    useEffect(() => {
-        if (!user?.id) return;
-
-        const userDocRef = doc(db, "societes", user.id);
-
-        const updateOnlineStatus = async (status: boolean) => {
-            try {
-                await updateDoc(userDocRef, {
-                    isOnline: status,
-                    derniereConnexion: new Date().toISOString()
-                });
-            } catch (e) {
-                console.error("Erreur update status:", e);
-            }
-        };
-
-        updateOnlineStatus(true);
-
-        const handleOnline = () => {
-            setIsOnline(true);
-            updateOnlineStatus(true);
-        };
-        const handleOffline = () => {
-            setIsOnline(false);
-            updateOnlineStatus(false);
-        };
-
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-
-        return () => {
-            updateOnlineStatus(false);
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-        };
-    }, [user?.id]);
-
-    // ============================================
-    // DÉCONNEXION
-    // ============================================
-    const handleLogout = async () => {
-        try {
-            localStorage.removeItem('userSession');
-            sessionStorage.clear();
-            router.push('/');
-        } catch (error) {
-            console.error("Erreur déconnexion:", error);
-        }
-    };
-
-    if (loading) {
+    if (!authChecked || loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                     <Loader2 size={32} className="text-blue-600 animate-spin mx-auto mb-3" />
-                    <p className="text-blue-600 text-xs font-bold uppercase tracking-wider">Chargement...</p>
+                    <p className="text-blue-600 text-xs font-bold uppercase tracking-wider">
+                        {!authChecked ? 'Authentification...' : 'Chargement...'}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // ✅ Si l'utilisateur n'est pas connecté, afficher un message
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center max-w-md p-8 bg-white rounded-xl shadow-lg border border-gray-200">
+                    <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                        <AlertCircle size={32} className="text-red-500" />
+                    </div>
+                    <h1 className="text-xl font-bold text-gray-800 mb-2">Accès non autorisé</h1>
+                    <p className="text-sm text-gray-500 mb-4">Veuillez vous connecter pour accéder à cette page.</p>
+                    <button
+                        onClick={() => router.push('/')}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    >
+                        Aller à la page de connexion
+                    </button>
                 </div>
             </div>
         );
@@ -276,9 +220,7 @@ export default function VisiteurDashboard() {
     // ============================================
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-            {/* ============================================ */}
             {/* SIDEBAR */}
-            {/* ============================================ */}
             <aside className="w-full h-16 md:h-screen md:w-20 bg-gradient-to-b from-blue-800 to-blue-900 border-b md:border-b-0 md:border-r border-blue-700/50 flex flex-row md:flex-col items-center justify-between md:justify-start px-4 md:px-0 md:py-6 z-50">
                 <div className="hidden md:flex mb-8">
                     <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
@@ -314,7 +256,10 @@ export default function VisiteurDashboard() {
                         </span>
                     </div>
                     <button
-                        onClick={handleLogout}
+                        onClick={() => {
+                            localStorage.removeItem('userSession');
+                            router.push('/');
+                        }}
                         className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all border border-red-500/20 flex items-center justify-center"
                     >
                         <LogOut size={18} />
@@ -322,9 +267,7 @@ export default function VisiteurDashboard() {
                 </div>
             </aside>
 
-            {/* ============================================ */}
             {/* CONTENU PRINCIPAL */}
-            {/* ============================================ */}
             <div className="flex-1 flex flex-col overflow-y-auto h-screen">
                 {/* HEADER */}
                 <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-40 shadow-sm">
@@ -473,9 +416,19 @@ export default function VisiteurDashboard() {
 }
 
 // ============================================
-// COMPOSANTS DES SECTIONS
+// COMPOSANTS DES SECTIONS (inchangés)
 // ============================================
+// ... (les fonctions OverviewSection, AnalyticsSection, InventorySection, MapSection restent identiques)
 
+function MessageSquare({ size, className }: any) {
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>;
+}
+
+// ============================================
+// OVERVIEW SECTION
+// ============================================
 function OverviewSection({ mesFaces, user }: any) {
     const totalVues = mesFaces.length * 450;
 
@@ -523,6 +476,9 @@ function OverviewSection({ mesFaces, user }: any) {
     );
 }
 
+// ============================================
+// ANALYTICS SECTION
+// ============================================
 function AnalyticsSection({ mesFaces, user, panneaux }: any) {
     const totalImpact = (mesFaces?.length || 0) * 450;
     const [filtreSociete, setFiltreSociete] = useState('Tous');
@@ -603,6 +559,9 @@ function AnalyticsSection({ mesFaces, user, panneaux }: any) {
     );
 }
 
+// ============================================
+// INVENTORY SECTION
+// ============================================
 function InventorySection({ mesFaces }: any) {
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -693,6 +652,9 @@ function InventorySection({ mesFaces }: any) {
     );
 }
 
+// ============================================
+// MAP SECTION
+// ============================================
 function MapSection({ userConnecte, panneaux }: any) {
     const [MapLib, setMapLib] = useState<any>(null);
     const [isMounted, setIsMounted] = useState(false);
@@ -831,13 +793,4 @@ function MapSection({ userConnecte, panneaux }: any) {
             </div>
         </div>
     );
-}
-
-// ============================================
-// COMPOSANT ICÔNE
-// ============================================
-function MessageSquare({ size, className }: any) {
-    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>;
 }
