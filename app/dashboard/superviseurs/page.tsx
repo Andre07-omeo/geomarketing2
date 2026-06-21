@@ -2470,7 +2470,6 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
 };
 
 
-
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -2512,7 +2511,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
-
   const [listeSocietes, setListeSocietes] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useAuth();
@@ -2527,70 +2525,19 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     }
   }, [panneau]);
 
-  // ✅ Remplacer l'ancien useEffect par celui-ci
   useEffect(() => {
+    const fetchSocietes = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "societes"));
+        const noms = querySnapshot.docs.map(doc => doc.data().nomSociete);
+        setListeSocietes(noms);
+      } catch (err) {
+        console.error("Erreur lors de la récupération des sociétés:", err);
+      }
+    };
     fetchSocietes();
   }, []);
 
-  // ============================================
-  // FONCTION FETCH SOCIÉTÉS - RÉUTILISABLE
-  // ============================================
-  const fetchSocietes = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, "societes"));
-      const noms = querySnapshot.docs
-        .map(doc => doc.data().nomSociete)
-        .filter(nom => nom && nom.trim() !== '');
-      setListeSocietes([...new Set(noms)]);
-    } catch (err) {
-      console.error("Erreur lors de la récupération des sociétés:", err);
-    }
-  };
-
-  // ============================================
-  // FONCTION DE CRÉATION AUTOMATIQUE DE SOCIÉTÉ
-  // ============================================
-  const createSocieteIfNotExists = async (nomSociete: string) => {
-    if (!nomSociete || nomSociete.trim() === '') return null;
-
-    // Vérifier si la société existe déjà
-    const q = query(
-      collection(db, "societes"),
-      where("nomSociete", "==", nomSociete.trim().toUpperCase())
-    );
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-      // Créer la société
-      try {
-        const email = `${nomSociete.toLowerCase().replace(/\s/g, '')}@visiteur.com`;
-        const password = Math.floor(100000 + Math.random() * 900000).toString();
-
-        const docRef = await addDoc(collection(db, "societes"), {
-          nomSociete: nomSociete.trim().toUpperCase(),
-          email: email,
-          password: password,
-          role: "visiteur",
-          telephone: "",
-          actif: true,
-          isOnline: false,
-          createdAt: serverTimestamp(),
-          lastSeen: null,
-          derniereConnexion: null,
-          createdBy: user?.email || "Système"
-        });
-
-        console.log(`✅ Société "${nomSociete}" créée avec succès`);
-        // Rafraîchir la liste
-        await fetchSocietes();
-        return docRef.id;
-      } catch (error) {
-        console.error("❌ Erreur création société:", error);
-        return null;
-      }
-    }
-    return snapshot.docs[0]?.id || null;
-  };
 
 
   useEffect(() => {
@@ -2794,6 +2741,75 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
   const isButtonDisabled = isSaving || uploadingIndex !== null;
 
+
+
+// ============================================
+// FONCTION DE CRÉATION AUTOMATIQUE DE SOCIÉTÉ
+// ============================================
+const createSocieteIfNotExists = async (nomSociete: string) => {
+    if (!nomSociete || nomSociete.trim() === '') return null;
+
+    // Nettoyer le nom
+    const nomPropre = nomSociete.trim().toUpperCase();
+
+    // Vérifier si la société existe déjà
+    const q = query(
+        collection(db, "societes"),
+        where("nomSociete", "==", nomPropre)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+        // Créer la société
+        try {
+            const email = `${nomPropre.toLowerCase().replace(/\s/g, '')}@visiteur.com`;
+            const password = Math.floor(100000 + Math.random() * 900000).toString();
+            
+            await addDoc(collection(db, "societes"), {
+                nomSociete: nomPropre,
+                email: email,
+                password: password,
+                role: "visiteur",
+                telephone: "",
+                actif: true,
+                isOnline: false,
+                createdAt: serverTimestamp(),
+                lastSeen: null,
+                derniereConnexion: null,
+                createdBy: currentUser?.email || user?.email || "Système"
+            });
+            
+            console.log(`✅ Société "${nomPropre}" créée avec succès`);
+            // Rafraîchir la liste
+            await fetchSocietes();
+            return true;
+        } catch (error) {
+            console.error("❌ Erreur création société:", error);
+            return false;
+        }
+    }
+    return true; // La société existe déjà
+};
+
+
+// ============================================
+// FONCTION FETCH SOCIÉTÉS
+// ============================================
+const fetchSocietes = async () => {
+    try {
+        const querySnapshot = await getDocs(collection(db, "societes"));
+        const noms = querySnapshot.docs.map(doc => doc.data().nomSociete);
+        setListeSocietes([...new Set(noms)]);
+    } catch (err) {
+        console.error("Erreur lors de la récupération des sociétés:", err);
+    }
+};
+
+
+
+
+
+
   const handleSave = async () => {
     // === 1. VALIDATION COMPLÈTE DE TOUTES LES FACES ===
     const validationErrors: string[] = [];
@@ -2802,9 +2818,12 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       const face = formData.faces[idx];
       const statut = face.statut;
 
+      // Cas 1: Statut Libre - Pas de validation supplémentaire
       if (statut === 'Libre') continue;
 
+      // Cas 2: Statut Occupé ou Réservé - Validation stricte
       if (statut === 'Occupé' || statut === 'Réservé') {
+        // Vérifier que tous les champs sont remplis
         if (!face.clientNom || face.clientNom.trim() === '') {
           validationErrors.push(`Face ${idx + 1}: Le nom du client est obligatoire`);
         }
@@ -2814,6 +2833,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         if (!face.dateFin) {
           validationErrors.push(`Face ${idx + 1}: La date de fin est obligatoire`);
         }
+
+        // Vérifier l'ordre des dates si elles existent
         if (face.dateDebut && face.dateFin) {
           const d1 = new Date(face.dateDebut);
           const d2 = new Date(face.dateFin);
@@ -2824,6 +2845,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       }
     }
 
+    // Afficher les erreurs de validation
     if (validationErrors.length > 0) {
       alert(`❌ Erreurs de validation :\n\n${validationErrors.join('\n')}`);
       return;
@@ -2845,10 +2867,15 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       const d2 = new Date(dateFin);
       const reservationsExistantes = face.reservations || [];
 
+      // Vérifier les chevauchements (exclure la réservation en cours d'édition)
       const conflict = reservationsExistantes.find((res: any) => {
+        // Si c'est une nouvelle réservation, on vérifie tout
         if (!res.dateDebut || !res.dateFin) return false;
+
         const r1 = new Date(res.dateDebut);
         const r2 = new Date(res.dateFin);
+
+        // Chevauchement strict
         return (d1 <= r2 && d2 >= r1);
       });
 
@@ -2872,53 +2899,55 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     }
 
     // === 4. SUITE DE LA SAUVEGARDE ===
+    setIsSaving(true)
+    // On ne valide que les faces où l'utilisateur a commencé à saisir quelque chose
+    const isInvalid = formData.faces.some((f: any) => {
+      // Une face doit être validée UNIQUEMENT si elle est occupée 
+      // ET qu'elle n'est pas déjà enregistrée (pour ne pas bloquer les anciennes)
+      const aCommenceSaisie = f.dateDebut || f.dateFin || f.clientNom;
+      const estOccupée = f.statut !== "Libre";
+
+      if (estOccupée && aCommenceSaisie) {
+        // Si on a commencé, alors TOUT doit être rempli
+        return !f.dateDebut || !f.dateFin || !f.clientNom;
+      }
+      return false;
+    });
+
+    if (isInvalid) {
+      alert("Veuillez remplir les dates et le nom du client pour la face que vous modifiez.");
+      return;
+    }
+
+    if (isInvalid) {
+      alert("Veuillez remplir les dates et le nom du client pour toutes les faces occupées.");
+      return;
+    }
+
     setIsSaving(true);
 
     try {
-      // ✅ ÉTAPE 1: CRÉER LES SOCIÉTÉS MANQUANTES AVANT LA TRANSACTION
       const societesACreer: string[] = [];
-      for (const face of formData.faces) {
-        if (face.statut !== 'Libre' && face.clientNom && face.clientNom.trim() !== '') {
-          const nomClient = face.clientNom.trim().toUpperCase();
-          const existeDeja = listeSocietes.some(s =>
-            s && typeof s === 'string' && s.toUpperCase() === nomClient
-          );
-          if (!existeDeja && !societesACreer.includes(nomClient)) {
-            societesACreer.push(nomClient);
-          }
+        for (const face of formData.faces) {
+            if (face.statut !== 'Libre' && face.clientNom && face.clientNom.trim() !== '') {
+                const nomClient = face.clientNom.trim().toUpperCase();
+                const existeDeja = listeSocietes.some(s =>
+                    s && typeof s === 'string' && s.toUpperCase() === nomClient
+                );
+                if (!existeDeja && !societesACreer.includes(nomClient)) {
+                    societesACreer.push(nomClient);
+                }
+            }
         }
-      }
 
-      // ✅ Créer les sociétés manquantes
-      for (const nomSociete of societesACreer) {
-        try {
-          const email = `${nomSociete.toLowerCase().replace(/\s/g, '')}@visiteur.com`;
-          const password = Math.floor(100000 + Math.random() * 900000).toString();
-
-          await addDoc(collection(db, "societes"), {
-            nomSociete: nomSociete,
-            email: email,
-            password: password,
-            role: "visiteur",
-            telephone: "",
-            actif: true,
-            isOnline: false,
-            createdAt: serverTimestamp(),
-            lastSeen: null,
-            derniereConnexion: null,
-            createdBy: user?.email || currentUser?.email || "Système"
-          });
-
-          console.log(`✅ Société "${nomSociete}" créée avec succès`);
-        } catch (error) {
-          console.error(`❌ Erreur création société "${nomSociete}":`, error);
+        // ✅ Créer les sociétés manquantes
+        for (const nomSociete of societesACreer) {
+            await createSocieteIfNotExists(nomSociete);
         }
-      }
 
-      // ✅ ÉTAPE 2: RAFRAÎCHIR LA LISTE DES SOCIÉTÉS
-      await fetchSocietes();
+        // ✅ Rafraîchir la liste des sociétés
+        await fetchSocietes();
 
-      // ✅ ÉTAPE 3: EXÉCUTER LA TRANSACTION
       const docRef = doc(db, "panneaux", panneau?.id || formData?.id);
 
       await runTransaction(db, async (transaction) => {
@@ -2926,7 +2955,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         if (!panneauDoc.exists()) throw new Error("Panneau introuvable");
 
         const isoNow = new Date().toISOString();
-        const panneauData = panneauDoc.data();
 
         // --- GESTION DES SOCIÉTÉS ET VÉRIFICATION DES CONFLITS ---
         for (const [idx, f] of formData.faces.entries()) {
@@ -2939,7 +2967,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           const conflict = reservationsExistantes.find((res: any) => {
             const r1 = new Date(res.dateDebut).getTime();
             const r2 = new Date(res.dateFin).getTime();
-            return d1 <= r2 && d2 >= r1 && res.agentEmail !== user?.email;
+            return d1 <= r2 && d2 >= r1 && res.agentEmail !== currentUser?.email;
           });
 
           if (conflict) {
@@ -2950,41 +2978,48 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
             setIsSaving(false);
             return;
           }
+
+          // Enregistrement de la société si nouvelle
+          const nomClientSaisi = f.clientNom?.trim();
+          if (nomClientSaisi) {
+            const existeDeja = listeSocietes.some(s =>
+              s && typeof s === 'string' && s.toLowerCase() === nomClientSaisi.toLowerCase()
+            );
+
+            if (!existeDeja) {
+              const societeRef = doc(collection(db, "societes"));
+              transaction.set(societeRef, {
+                nom: nomClientSaisi,
+                createdAt: serverTimestamp(),
+                ajoutePar: currentUser?.email || "Système"
+              });
+              listeSocietes.push(nomClientSaisi);
+            }
+          }
         }
 
-        // ✅ Construction des données à mettre à jour
+
         const dataToUpdate = {
           faces: formData.faces.map((f: any, i: number) => {
-            const faceOriginale = panneauData.faces?.[i] || {};
+            const faceOriginale = panneau.faces[i];
 
             const aEteModifiee =
-              f.dateDebut !== faceOriginale.dateDebut ||
-              f.clientNom !== faceOriginale.societeLocatrice ||
-              f.dateFin !== faceOriginale.dateFin;
+              f.dateDebut !== faceOriginale?.dateDebut ||
+              f.clientNom !== faceOriginale?.societeLocatrice ||
+              f.dateFin !== faceOriginale?.dateFin;
 
             const isOccupied = f.statut !== "Libre";
+
+            // 3. Logique de création de la nouvelle réservation
             let nouvellesReservations = f.reservations || [];
 
             if (isOccupied && aEteModifiee) {
               const finalPhotoUrl = (f.photoCampagneUrl && !f.photoCampagneUrl.startsWith('blob:'))
-                ? f.photoCampagneUrl
-                : (f.photoCampagneUrl || LOGO_DISPROMALT);
-
-              // ✅ Récupérer l'email de l'agent sélectionné
-              let agentEmail = user?.email || currentUser?.email || "agent@dispromalt.cd";
-              let agentNom = user?.nomComplet || currentUser?.nom || "Agent";
-
-              // ✅ Si l'agent est sélectionné depuis la liste, utiliser son email
-              if (f.agentEmail) {
-                agentEmail = f.agentEmail;
-              }
-              if (f.agentNom) {
-                agentNom = f.agentNom;
-              }
+                ? f.photoCampagneUrl : (f.photoCampagneUrl || LOGO_DISPROMALT);
 
               const newRes = {
-                agentEmail: agentEmail,
-                agentNom: agentNom,
+                agentEmail: user?.email || "agent@dispromalt.cd",
+                agentNom: user?.nomComplet || "Agent",
                 dateDebut: f.dateDebut || "",
                 dateFin: f.dateFin || "",
                 validationComptable: false,
@@ -2998,34 +3033,32 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                 statut: f.statut || "Occupé"
               };
 
-              nouvellesReservations = [newRes];
+              // ON AJOUTE la nouvelle réservation seulement si elle est nouvelle
+              nouvellesReservations = [...nouvellesReservations, newRes];
             }
 
             return {
-              sens: f.sens || faceOriginale.sens || `Face ${i + 1}`,
+              sens: f.sens || faceOriginale?.sens || `Face ${i + 1}`,
+              // On rend le tableau mis à jour (avec la nouvelle res) ou l'ancien (si pas de modif)
               reservations: nouvellesReservations,
-              historique: f.historique || faceOriginale.historique || []
+              historique: f.historique || []
             };
           }),
           updatedAt: serverTimestamp()
         };
-
         transaction.update(docRef, dataToUpdate);
       });
 
-      // ✅ ÉTAPE 4: RAFRAÎCHIR UNE DERNIÈRE FOIS
-      await fetchSocietes();
-
-      alert("✅ Mise à jour réussie !");
+      alert("Mise à jour réussie !");
       onClose();
-
     } catch (error: any) {
-      console.error("❌ Erreur détaillée:", error);
-      alert("❌ Erreur: " + error.message);
+      console.error("Erreur détaillée:", error);
+      alert("Erreur: " + error.message);
     } finally {
       setIsSaving(false);
     }
   };
+
 
   // Surveiller les changements de statut pour valider les champs
 
@@ -3194,7 +3227,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                           {(face.statut === "Occupé" || face.statut === "Réservé") && (
                             <>
                               {/* Société */}
-                              {/* Société - Version corrigée avec datalist */}
                               <div className="space-y-0.5 sm:space-y-1">
                                 <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-1">
                                   <div className="w-0.5 h-0.5 bg-blue-600 rounded-full" /> Société
@@ -3203,12 +3235,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                                   list={`list-societes-${idx}`}
                                   value={face.clientNom || ''}
                                   disabled={isLocked}
-                                  placeholder="Sélectionner ou saisir..."
-                                  onChange={(e) => {
-                                    const valeur = e.target.value;
-                                    updateFace(idx, 'clientNom', valeur);
-                                    // Si la société n'existe pas dans la liste, elle sera créée lors de la sauvegarde
-                                  }}
+                                  placeholder="Sélectionner..."
+                                  onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
                                   className="w-full bg-blue-50/50 border border-blue-200 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-blue-900 p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all placeholder:text-blue-400/50 truncate"
                                 />
                                 <datalist id={`list-societes-${idx}`}>
