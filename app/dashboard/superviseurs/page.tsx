@@ -12,7 +12,14 @@ import {
 } from 'lucide-react';
 
 import Footer from '@/components1/Footer';
+import Link from 'next/link';
+// Ajoute AlertTriangle ici
+import { AlertTriangle } from 'lucide-react';
 
+// ============================================
+// IMPORTS À AJOUTER EN HAUT DU FICHIER
+// ============================================
+import { where, addDoc } from 'firebase/firestore';
 
 
 import {
@@ -132,83 +139,83 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
     const closeModal = () => modal.remove();
 
     confirmBtn?.addEventListener('click', async () => {
-        closeModal();
+      closeModal();
 
-        // Afficher un toast de chargement
-        const toast = document.createElement('div');
-        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-white rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-blue-200 flex items-center gap-2';
-        toast.innerHTML = `
+      // Afficher un toast de chargement
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-white rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-blue-200 flex items-center gap-2';
+      toast.innerHTML = `
             <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <span class="text-gray-700 font-medium">Téléchargement en cours...</span>
         `;
-        document.body.appendChild(toast);
+      document.body.appendChild(toast);
 
-        try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = `campagne_${Date.now()}.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `campagne_${Date.now()}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
 
-            toast.innerHTML = `
+        toast.innerHTML = `
                 <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
                 <span class="text-emerald-700 font-medium">✅ Téléchargement terminé !</span>
             `;
-            toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-emerald-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-emerald-200 flex items-center gap-2';
-            setTimeout(() => toast.remove(), 2000);
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-emerald-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-emerald-200 flex items-center gap-2';
+        setTimeout(() => toast.remove(), 2000);
 
-        } catch (err) {
-            toast.innerHTML = `
+      } catch (err) {
+        toast.innerHTML = `
                 <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
                 <span class="text-red-700 font-medium">❌ Erreur lors du téléchargement</span>
             `;
-            toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-red-200 flex items-center gap-2';
-            setTimeout(() => toast.remove(), 3000);
-        }
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-red-200 flex items-center gap-2';
+        setTimeout(() => toast.remove(), 3000);
+      }
     });
 
     cancelBtn?.addEventListener('click', closeModal);
 
     // Fermer en cliquant à l'extérieur
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
+      if (e.target === modal) closeModal();
     });
 
     // Fermer avec la touche Echap
     const handleEsc = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') closeModal();
     };
     document.addEventListener('keydown', handleEsc);
 
     // Nettoyer l'écouteur d'événements lorsque le modal est fermé
     const originalClose = closeModal;
     const newCloseModal = () => {
-        document.removeEventListener('keydown', handleEsc);
-        originalClose();
+      document.removeEventListener('keydown', handleEsc);
+      originalClose();
     };
 
     // Remplacer la fonction closeModal
     const closeModalWithCleanup = () => {
-        document.removeEventListener('keydown', handleEsc);
-        modal.remove();
+      document.removeEventListener('keydown', handleEsc);
+      modal.remove();
     };
 
     // Mettre à jour les références
     const closeModalFinal = closeModalWithCleanup;
     modal.querySelector('#cancel-download')?.addEventListener('click', closeModalFinal);
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModalFinal();
+      if (e.target === modal) closeModalFinal();
     });
-};
+  };
 
   const getActiveData = (face: any) => {
     const now = new Date();
@@ -341,6 +348,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    // ✅ Passer la face complète avec toutes ses données
                     setSelectedFaceDetails(face);
                   }}
                   className="relative z-20 flex-1 py-1.5 xs:py-2 sm:py-2.5 md:py-3 bg-white/10 backdrop-blur-md rounded-lg xs:rounded-xl text-[8px] xs:text-[9px] sm:text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all active:scale-95"
@@ -1099,13 +1107,13 @@ export default function UltimateSupervisor() {
       </div>
 
       {/* NAVIGATION FIXE */}
-<nav className="fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 py-2 sm:py-3 backdrop-blur-3xl transition-all duration-500">
-  <div className="max-w-[1800px] mx-auto">
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className={`
+      <nav className="fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 py-2 sm:py-3 backdrop-blur-3xl transition-all duration-500">
+        <div className="max-w-[1800px] mx-auto">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className={`
         relative group overflow-visible
         flex items-center justify-between 
         h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
@@ -1117,143 +1125,143 @@ export default function UltimateSupervisor() {
         hover:border-blue-400/60
         hover:shadow-2xl hover:shadow-blue-400/20
       `}
-    >
-      {/* Effets visuels */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-      <div className="absolute bottom-0 left-4 right-4 h-[1.5px] bg-gradient-to-r from-transparent via-blue-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
-
-      {/* ========== LOGO ========== */}
-      <div
-        onClick={() => window.location.reload()}
-        className="relative flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 md:gap-3 cursor-pointer group/logo flex-shrink-0"
-      >
-        <div className="absolute -inset-1 rounded-xl border-2 border-blue-400/0 group-hover/logo:border-blue-400/20 transition-all duration-500" />
-
-        <div className="relative">
-          <div className="absolute inset-0 bg-white rounded-lg shadow-sm" />
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-lg" />
-          <img
-            src="/icon-192x192.png"
-            className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-lg object-cover border border-blue-400/30 group-hover/logo:border-blue-400/60 transition-all duration-300 shadow-sm"
-            alt="Logo"
-          />
-          <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full animate-pulse shadow-sm" />
-        </div>
-
-        <div className="flex flex-col leading-tight">
-          <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase tracking-tighter">
-            <span className="text-gray-800 group-hover/logo:text-blue-600 transition-all">G</span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-600">D</span>
-            <span className="text-gray-800 group-hover/logo:text-blue-600 transition-all">P</span>
-          </span>
-          <span className="text-[3px] xs:text-[4px] sm:text-[5px] md:text-[6px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-blue-600/70 whitespace-nowrap">
-            GESTION DIGITALE
-          </span>
-        </div>
-      </div>
-
-      {/* ========== BOUTONS DE NAVIGATION ========== */}
-      <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5">
-        {/* Accueil - Bleu */}
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => window.location.reload()}
-          className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 active:bg-blue-100"
-          aria-label="Accueil"
-        >
-          <Home size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all" />
-          <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
-            Accueil
-          </span>
-        </motion.button>
-
-        {/* Carte - Bleu */}
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={ouvrirLaCarte}
-          className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 active:bg-blue-100"
-          aria-label="Carte"
-        >
-          <MapPin size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all group-hover:rotate-6" />
-          <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
-            Carte
-          </span>
-        </motion.button>
-
-        {/* Rapport - Bleu avec badge */}
-        <Link href="/dashboard/superviseurs/rapport">
-          <motion.div
-            whileTap={{ scale: 0.95 }}
-            className="relative group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 cursor-pointer active:bg-blue-100"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-            <FilePieChart size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all group-hover:rotate-6" />
-            <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
-              Rapports
-            </span>
-            <span className="relative hidden sm:block ml-1.5 text-[6px] bg-blue-500/20 text-blue-600 px-1 py-0.5 rounded-full font-black">
-              LIVE
-            </span>
-          </motion.div>
-        </Link>
-      </div>
+            {/* Effets visuels */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+            <div className="absolute bottom-0 left-4 right-4 h-[1.5px] bg-gradient-to-r from-transparent via-blue-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
 
-      {/* ========== USER SECTION ========== */}
-      <div className="flex items-center gap-1 xs:gap-2 shrink-0 pl-1 xs:pl-2 sm:pl-3 lg:pl-4 border-l border-blue-200">
-        {user ? (
-          <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
-            {/* Infos utilisateur */}
-            <div className="hidden sm:block text-right">
-              <p className="text-[10px] sm:text-[11px] font-black text-gray-700 uppercase tracking-tight truncate max-w-[100px]">
-                {user.nom || user.nomComplet?.split(' ')[0] || 'Agent'}
-              </p>
-              <p className="text-[6px] sm:text-[7px] font-bold text-blue-500 uppercase tracking-wider">
-                {user.role || "Utilisateur"}
-              </p>
+            {/* ========== LOGO ========== */}
+            <div
+              onClick={() => window.location.reload()}
+              className="relative flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 md:gap-3 cursor-pointer group/logo flex-shrink-0"
+            >
+              <div className="absolute -inset-1 rounded-xl border-2 border-blue-400/0 group-hover/logo:border-blue-400/20 transition-all duration-500" />
+
+              <div className="relative">
+                <div className="absolute inset-0 bg-white rounded-lg shadow-sm" />
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-lg" />
+                <img
+                  src="/icon-192x192.png"
+                  className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-lg object-cover border border-blue-400/30 group-hover/logo:border-blue-400/60 transition-all duration-300 shadow-sm"
+                  alt="Logo"
+                />
+                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full animate-pulse shadow-sm" />
+              </div>
+
+              <div className="flex flex-col leading-tight">
+                <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase tracking-tighter">
+                  <span className="text-gray-800 group-hover/logo:text-blue-600 transition-all">G</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-600">D</span>
+                  <span className="text-gray-800 group-hover/logo:text-blue-600 transition-all">P</span>
+                </span>
+                <span className="text-[3px] xs:text-[4px] sm:text-[5px] md:text-[6px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-blue-600/70 whitespace-nowrap">
+                  GESTION DIGITALE
+                </span>
+              </div>
             </div>
 
-            {/* Bouton déconnexion - Rouge (conserve la distinction) */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleLogout();
-              }}
-              className="group flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 text-red-500 px-2 xs:px-2.5 sm:px-3 py-1.5 xs:py-2 rounded-full transition-all border border-red-200 active:scale-95 shadow-sm hover:shadow-md"
-              title="Déconnexion"
-            >
-              <img
-                src={logoUrl}
-                className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border border-blue-400 object-cover bg-white shadow-sm"
-                alt="Profil"
-                onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
-              />
-              <LogOut size={12} className="xs:w-[13px] xs:h-[13px] sm:w-[14px] sm:h-[14px] flex-shrink-0 group-hover:scale-110 transition-transform" />
-              <span className="hidden xs:inline text-[8px] sm:text-[9px] font-bold uppercase">Déconnexion</span>
-            </button>
-          </div>
-        ) : (
-          // Bouton Connexion - Bleu
-          <button
-            onClick={() => setIsLoginOpen(true)}
-            className="group relative overflow-hidden px-3 xs:px-4 sm:px-5 py-1.5 xs:py-2 sm:py-2.5 rounded-xl font-black uppercase text-[8px] xs:text-[9px] sm:text-[10px] transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            <span className="relative z-10 flex items-center gap-1">
-              <span>🔐</span>
-              <span className="hidden xs:inline">Connexion</span>
-            </span>
-          </button>
-        )}
-      </div>
-    </motion.div>
-  </div>
-</nav>
+            {/* ========== BOUTONS DE NAVIGATION ========== */}
+            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5">
+              {/* Accueil - Bleu */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.reload()}
+                className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 active:bg-blue-100"
+                aria-label="Accueil"
+              >
+                <Home size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all" />
+                <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+                  Accueil
+                </span>
+              </motion.button>
 
-{/* MAIN CONTENT */}
+              {/* Carte - Bleu */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={ouvrirLaCarte}
+                className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 active:bg-blue-100"
+                aria-label="Carte"
+              >
+                <MapPin size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all group-hover:rotate-6" />
+                <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+                  Carte
+                </span>
+              </motion.button>
+
+              {/* Rapport - Bleu avec badge */}
+              <Link href="/dashboard/superviseurs/rapport">
+                <motion.div
+                  whileTap={{ scale: 0.95 }}
+                  className="relative group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 cursor-pointer active:bg-blue-100"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                  <FilePieChart size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all group-hover:rotate-6" />
+                  <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+                    Rapports
+                  </span>
+                  <span className="relative hidden sm:block ml-1.5 text-[6px] bg-blue-500/20 text-blue-600 px-1 py-0.5 rounded-full font-black">
+                    LIVE
+                  </span>
+                </motion.div>
+              </Link>
+            </div>
+
+            {/* ========== USER SECTION ========== */}
+            <div className="flex items-center gap-1 xs:gap-2 shrink-0 pl-1 xs:pl-2 sm:pl-3 lg:pl-4 border-l border-blue-200">
+              {user ? (
+                <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
+                  {/* Infos utilisateur */}
+                  <div className="hidden sm:block text-right">
+                    <p className="text-[10px] sm:text-[11px] font-black text-gray-700 uppercase tracking-tight truncate max-w-[100px]">
+                      {user.nom || user.nomComplet?.split(' ')[0] || 'Agent'}
+                    </p>
+                    <p className="text-[6px] sm:text-[7px] font-bold text-blue-500 uppercase tracking-wider">
+                      {user.role || "Utilisateur"}
+                    </p>
+                  </div>
+
+                  {/* Bouton déconnexion - Rouge (conserve la distinction) */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleLogout();
+                    }}
+                    className="group flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 text-red-500 px-2 xs:px-2.5 sm:px-3 py-1.5 xs:py-2 rounded-full transition-all border border-red-200 active:scale-95 shadow-sm hover:shadow-md"
+                    title="Déconnexion"
+                  >
+                    <img
+                      src={logoUrl}
+                      className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border border-blue-400 object-cover bg-white shadow-sm"
+                      alt="Profil"
+                      onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
+                    />
+                    <LogOut size={12} className="xs:w-[13px] xs:h-[13px] sm:w-[14px] sm:h-[14px] flex-shrink-0 group-hover:scale-110 transition-transform" />
+                    <span className="hidden xs:inline text-[8px] sm:text-[9px] font-bold uppercase">Déconnexion</span>
+                  </button>
+                </div>
+              ) : (
+                // Bouton Connexion - Bleu
+                <button
+                  onClick={() => setIsLoginOpen(true)}
+                  className="group relative overflow-hidden px-3 xs:px-4 sm:px-5 py-1.5 xs:py-2 sm:py-2.5 rounded-xl font-black uppercase text-[8px] xs:text-[9px] sm:text-[10px] transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  <span className="relative z-10 flex items-center gap-1">
+                    <span>🔐</span>
+                    <span className="hidden xs:inline">Connexion</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      </nav>
+
+      {/* MAIN CONTENT */}
       <main className="relative z-20 max-w-[1800px] mx-auto px-6 pt-44 pb-40">
         <header className="mb-20 relative">
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
@@ -1423,573 +1431,567 @@ export default function UltimateSupervisor() {
 
 
 
-         <AnimatePresence>
-  {isCartOpen && (
-    <>
-      {/* OVERLAY TRÈS TRANSPARENT */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={() => setIsCartOpen(false)}
-        className="fixed inset-0 z-[100]"
-      >
-        {/* Fond très transparent avec effet de flou */}
-        <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-200/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-300/5 rounded-full blur-3xl" />
-        </div>
-      </motion.div>
-
-      {/* PANEL LATÉRAL PREMIUM - TRANSPARENT */}
-      <motion.div
-        initial={{ x: "100%", opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: "100%", opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-white/90 backdrop-blur-xl border-l border-white/20 z-[101] shadow-2xl shadow-black/5 flex flex-col"
-      >
-        {/* HEADER PREMIUM - TRANSPARENT */}
-        <div className="relative p-4 sm:p-5 border-b border-white/10 bg-white/40 backdrop-blur-sm flex-shrink-0">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
-
-          <div className="flex justify-between items-center relative z-10">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-blue-700 rounded-full" />
-                <p className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em]">Facturation</p>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black text-gray-800">
-                Mes <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-800">Réservations</span>
-              </h2>
-              <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold mt-1">
-                {reservationsEnAttente.length} réservation(s) en attente
-              </p>
-            </div>
-            <button
-              onClick={() => setIsCartOpen(false)}
-              className="group p-2 bg-white/50 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-gray-600 backdrop-blur-sm border border-white/20"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:rotate-90 transition-transform duration-300">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* CONTENU SCROLLABLE - ESPACE OPTIMISÉ */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-transparent">
-          <div className="grid grid-cols-1 gap-3">
-            {reservationsEnAttente.length === 0 ? (
-              /* ÉTAT VIDE */
-              <div className="flex flex-col items-center justify-center h-full py-8">
-                <div className="text-center">
-                  <div className="w-16 h-16 mx-auto bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center mb-3 border border-white/20">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-400">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-700 text-base font-bold uppercase tracking-wider">Panier vide</p>
-                  <p className="text-gray-400/60 text-[10px] mt-2 max-w-[200px] mx-auto">
-                    Vous n'avez aucune réservation en attente de facturation
-                  </p>
-                </div>
-
-                {/* BOUTON FERMETURE EN BAS */}
-                <div className="absolute bottom-6 left-6 right-6">
-                  <button
-                    onClick={() => setIsCartOpen(false)}
-                    className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                    Fermer
-                  </button>
-                </div>
-              </div>
-            ) : (
-              reservationsEnAttente.map((res: any, index: number) => {
-                const key = res.resUniqueId;
-                const unitPrice = prices[key] || 0;
-                const isSelected = selectedForPrint[key] || false;
-                const numeroOrdre = index + 1;
-                const uniqueKey = key || `temp-${index}`;
-
-                return (
-                  <motion.div
-                    key={uniqueKey}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className={`group relative p-3 rounded-xl border transition-all duration-300 backdrop-blur-sm ${
-                      isSelected
-                        ? 'bg-blue-50/60 border-blue-400/60 shadow-lg shadow-blue-200/30'
-                        : 'bg-white/40 border-white/30 hover:border-blue-400/40 hover:shadow-md hover:shadow-blue-100/20'
-                    }`}
-                  >
-                    {/* HEADER CARTE - COMPACT */}
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-blue-600 animate-pulse' : 'bg-gray-400'}`} />
-                        <span className="text-[7px] font-black text-blue-600 uppercase tracking-wider">
-                          Réservation # {numeroOrdre}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
-                        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                          isSelected
-                            ? 'bg-blue-600 border-blue-600'
-                            : 'border-gray-300 hover:border-blue-500'
-                        }`}
-                      >
-                        {isSelected && (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-
-                    {/* INFOS PRINCIPALES - COMPACT */}
-                    <div className="mb-2">
-                      <p className="text-gray-800 text-xs font-black uppercase truncate">{res.societeLocatrice}</p>
-                      <p className="text-[8px] text-gray-500 font-medium mt-0.5">
-                        Face: {res.faceLabel} • {res.dureeMois} mois
-                      </p>
-                    </div>
-
-                    {/* SECTION PRIX - COMPACT */}
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <div className="bg-white/40 backdrop-blur-sm rounded-lg p-1.5 border border-white/30">
-                        <label className="text-[6px] text-gray-400 uppercase font-bold block">Prix unitaire</label>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            value={unitPrice === 0 ? "" : unitPrice}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setPrices(prev => ({ ...prev, [key]: val === "" ? 0 : Number(val) }));
-                            }}
-                            placeholder="0"
-                            className="w-full bg-transparent text-xs text-gray-800 font-bold outline-none"
-                          />
-                          <span className="text-[8px] text-blue-600 font-bold">$</span>
-                        </div>
-                      </div>
-                      <div className="bg-white/40 backdrop-blur-sm rounded-lg p-1.5 text-right border border-white/30">
-                        <label className="text-[6px] text-gray-400 uppercase font-bold block">Total</label>
-                        <span className="text-blue-600 text-xs font-black">
-                          {(unitPrice * res.dureeMois).toLocaleString()} $
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* BOUTON SUPPRIMER - PLUS COMPACT */}
-                    <div className="flex justify-end pt-1.5 border-t border-white/20">
-                      <button
-                        onClick={() => processOperations('delete', res, index)}
-                        className="px-2.5 py-1 bg-red-50/60 backdrop-blur-sm border border-red-200/50 text-red-600 rounded-lg font-black text-[7px] uppercase hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center gap-1"
-                      >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        </svg>
-                        Supprimer
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* FOOTER ACTIONS - COMPACT */}
-        {reservationsEnAttente.length > 0 && (
-          <div className="p-3 border-t border-white/20 bg-white/30 backdrop-blur-sm flex-shrink-0">
-            {/* SECTION MODE DE PAIEMENT GLOBAL - COMPACT */}
-            <div className="mb-2 p-2 bg-white/30 backdrop-blur-sm rounded-lg border border-white/20">
-              <h3 className="text-[8px] font-black text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <CreditCard size={10} />
-                Mode de paiement - Global
-              </h3>
-
-              <div className="flex gap-1.5 mb-2">
-                {['total', 'tranche'].map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setGlobalPaymentMode(mode as 'total' | 'tranche')}
-                    className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${
-                      globalPaymentMode === mode
-                        ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/20'
-                        : 'bg-white/30 text-gray-500 hover:text-gray-700 border border-white/20'
-                    }`}
-                  >
-                    {mode === 'total' ? '💰 Comptant' : '📅 Tranches'}
-                  </button>
-                ))}
-              </div>
-
-              {globalPaymentMode === 'tranche' && (
+          <AnimatePresence>
+            {isCartOpen && (
+              <>
+                {/* OVERLAY TRÈS TRANSPARENT */}
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="p-2 bg-white/30 backdrop-blur-sm rounded-lg border border-white/20"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsCartOpen(false)}
+                  className="fixed inset-0 z-[100]"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[7px] text-gray-600 uppercase font-bold">Nombre de tranches</span>
-                    <input
-                      type="number"
-                      min="2"
-                      max="12"
-                      value={globalTranchesCount}
-                      onChange={(e) => setGlobalTranchesCount(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
-                      className="w-16 bg-white/50 border border-white/30 rounded-lg px-2 py-0.5 text-gray-800 text-center text-[9px] font-bold outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
-                    />
-                  </div>
-                  <div className="mt-1.5 pt-1.5 border-t border-white/20">
-                    <div className="flex justify-between text-[7px] text-gray-500">
-                      <span>Total facture:</span>
-                      <span className="text-blue-700 font-bold">{totalFactureAmount.toLocaleString()} $</span>
-                    </div>
-                    <div className="flex justify-between text-[7px] text-gray-500 mt-0.5">
-                      <span>Montant par tranche:</span>
-                      <span className="text-blue-700 font-bold">{(totalFactureAmount / globalTranchesCount).toLocaleString()} $</span>
-                    </div>
+                  {/* Fond très transparent avec effet de flou */}
+                  <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]">
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-blue-200/5 rounded-full blur-3xl" />
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-300/5 rounded-full blur-3xl" />
                   </div>
                 </motion.div>
-              )}
 
-              {globalPaymentMode === 'total' && totalFactureAmount > 0 && (
-                <div className="flex justify-between items-center pt-1.5 border-t border-white/20">
-                  <span className="text-[7px] text-gray-600 uppercase font-bold">Total à payer:</span>
-                  <span className="text-blue-700 font-bold text-sm">{totalFactureAmount.toLocaleString()} $</span>
-                </div>
-              )}
-            </div>
+                {/* PANEL LATÉRAL PREMIUM - TRANSPARENT */}
+                <motion.div
+                  initial={{ x: "100%", opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: "100%", opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-white/90 backdrop-blur-xl border-l border-white/20 z-[101] shadow-2xl shadow-black/5 flex flex-col"
+                >
+                  {/* HEADER PREMIUM - TRANSPARENT */}
+                  <div className="relative p-4 sm:p-5 border-b border-white/10 bg-white/40 backdrop-blur-sm flex-shrink-0">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
 
-            {/* BOUTON PRINCIPAL - COMPACT */}
-            <button
-              disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
-              onClick={() => processOperations('selection')}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg font-black text-[9px] uppercase flex justify-between px-4 items-center hover:shadow-xl hover:shadow-blue-500/20 transition-all active:scale-[0.98]"
-            >
-              <span>📄 Facturer la sélection</span>
-              <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-[8px]">
-                {Object.values(selectedForPrint).filter(v => v).length} face(s)
-              </span>
-            </button>
-
-            {/* BOUTONS SECONDAIRES - COMPACT */}
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={() => {
-                  const allSelected: Record<string, boolean> = {};
-                  reservationsEnAttente.forEach((res: any) => {
-                    allSelected[res.resUniqueId] = true;
-                  });
-                  setSelectedForPrint(allSelected);
-                }}
-                className="flex-1 flex items-center justify-center gap-1.5 bg-white/30 backdrop-blur-sm border border-white/20 text-gray-700 py-1.5 rounded-lg font-black text-[7px] uppercase hover:bg-white/50 transition-all"
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <polyline points="9 12 11 14 15 10" />
-                </svg>
-                Tout sélectionner
-              </button>
-              <button
-                onClick={() => setIsCartOpen(false)}
-                className="flex-1 flex items-center justify-center gap-1.5 bg-red-50/30 backdrop-blur-sm border border-red-200/30 text-red-600 py-1.5 rounded-lg font-black text-[7px] uppercase hover:bg-red-600 hover:text-white transition-all"
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-                Fermer
-              </button>
-            </div>
-
-            {/* INFOS UTILISATEUR - COMPACT */}
-            <div className="mt-2 pt-1.5 border-t border-white/20 text-center">
-              <p className="text-[8px] text-gray-700 font-black uppercase tracking-wider">{user?.nomComplet || "Agent"}</p>
-              <p className="text-[6px] text-gray-400 font-medium">{user?.email}</p>
-            </div>
-          </div>
-        )}
-      </motion.div>
-    </>
-  )}
-</AnimatePresence>
-
-          <AnimatePresence>
-  {isStatsOpen && (
-    <>
-      {/* OVERLAY TRÈS TRANSPARENT */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={() => setIsStatsOpen(false)}
-        className="fixed inset-0 z-[100]"
-      >
-        <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-200/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-200/5 rounded-full blur-3xl" />
-        </div>
-      </motion.div>
-
-      {/* PANEL LATÉRAL PREMIUM - TRANSPARENT */}
-      <motion.div
-        initial={{ x: "100%", opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: "100%", opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-white/90 backdrop-blur-xl border-l border-white/20 z-[101] flex flex-col shadow-2xl shadow-black/5"
-      >
-        {/* HEADER PREMIUM - TRANSPARENT */}
-        <div className="relative p-4 sm:p-5 border-b border-white/10 bg-white/40 backdrop-blur-sm flex-shrink-0">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
-
-          <div className="flex justify-between items-center relative z-10">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
-                <p className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em]">Performance</p>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black text-gray-800">
-                Panel <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Agent</span>
-              </h2>
-              <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold mt-1">Performance & Suivi</p>
-            </div>
-            <button
-              onClick={() => setIsStatsOpen(false)}
-              className="group p-2 bg-white/50 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-gray-600 backdrop-blur-sm border border-white/20"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:rotate-90 transition-transform duration-300">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* CONTENU SCROLLABLE - OPTIMISÉ */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-transparent">
-          {activeTab === 'stats' ? (
-            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
-              {/* CERCLE DE PERFORMANCE - COMPACT */}
-              <div className="flex flex-col items-center py-2">
-                <div className="relative w-32 h-32 flex items-center justify-center">
-                  {/* Cercle de fond */}
-                  <svg className="w-full h-full -rotate-90">
-                    <circle cx="64" cy="64" r="56" fill="none" stroke="currentColor" strokeWidth="6" className="text-gray-200" />
-                    <circle
-                      cx="64" cy="64" r="56" fill="none"
-                      stroke="url(#gradientStats)"
-                      strokeWidth="6"
-                      strokeDasharray="352"
-                      strokeDashoffset={352 - (352 * Number(statsEfficacite().performance)) / 100}
-                      className="transition-all duration-1000"
-                    />
-                  </svg>
-                  {/* Gradient SVG */}
-                  <svg width="0" height="0">
-                    <defs>
-                      <linearGradient id="gradientStats" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#3b82f6" />
-                        <stop offset="100%" stopColor="#8b5cf6" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-black text-gray-800">{statsEfficacite().performance}%</span>
-                    <span className="text-[7px] text-gray-400 uppercase font-bold tracking-tighter">Efficacité</span>
+                    <div className="flex justify-between items-center relative z-10">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-blue-700 rounded-full" />
+                          <p className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em]">Facturation</p>
+                        </div>
+                        <h2 className="text-xl sm:text-2xl font-black text-gray-800">
+                          Mes <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-800">Réservations</span>
+                        </h2>
+                        <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold mt-1">
+                          {reservationsEnAttente.length} réservation(s) en attente
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setIsCartOpen(false)}
+                        className="group p-2 bg-white/50 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-gray-600 backdrop-blur-sm border border-white/20"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:rotate-90 transition-transform duration-300">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* STATS RAPIDES - COMPACT */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white/40 backdrop-blur-sm rounded-xl p-3 border border-white/30 hover:border-blue-400/40 transition-all">
-                  <p className="text-xl font-black text-gray-800">{statsEfficacite().totalAgent}</p>
-                  <p className="text-[7px] uppercase text-gray-400 font-bold tracking-wider">Mes Actions</p>
-                </div>
-                <div className="bg-white/40 backdrop-blur-sm rounded-xl p-3 border border-white/30 hover:border-blue-400/40 transition-all">
-                  <p className="text-xl font-black text-gray-800">{statsEfficacite().totalGlobal}</p>
-                  <p className="text-[7px] uppercase text-gray-400 font-bold tracking-wider">Global Agence</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              {/* FILTRES - COMPACT */}
-              <div className="space-y-3">
-                <div className="flex bg-white/30 p-1 rounded-lg border border-white/20 gap-1">
-                  {['avant', 'present', 'futur'].map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTimeFilter(t as any)}
-                      className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
-                        timeFilter === t
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                          : 'text-gray-400 hover:text-gray-700'
-                      }`}
-                    >
-                      {t === 'avant' ? 'Passé' : t === 'present' ? 'Présent' : 'Futur'}
-                    </button>
-                  ))}
-                </div>
+                  {/* CONTENU SCROLLABLE - ESPACE OPTIMISÉ */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-transparent">
+                    <div className="grid grid-cols-1 gap-3">
+                      {reservationsEnAttente.length === 0 ? (
+                        /* ÉTAT VIDE */
+                        <div className="flex flex-col items-center justify-center h-full py-8">
+                          <div className="text-center">
+                            <div className="w-16 h-16 mx-auto bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center mb-3 border border-white/20">
+                              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-400">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                <line x1="16" y1="2" x2="16" y2="6" />
+                                <line x1="8" y1="2" x2="8" y2="6" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                              </svg>
+                            </div>
+                            <p className="text-gray-700 text-base font-bold uppercase tracking-wider">Panier vide</p>
+                            <p className="text-gray-400/60 text-[10px] mt-2 max-w-[200px] mx-auto">
+                              Vous n'avez aucune réservation en attente de facturation
+                            </p>
+                          </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  {timeFilter !== 'present' && (
-                    <div className="flex items-center justify-between bg-white/30 px-2.5 py-1.5 rounded-lg border border-white/20">
-                      <span className="text-[7px] text-gray-400 font-black uppercase">Mois :</span>
-                      <input
-                        type="number"
-                        value={monthCount}
-                        onChange={(e) => setMonthCount(Math.max(1, parseInt(e.target.value)))}
-                        className="w-8 bg-transparent text-right font-black text-blue-600 outline-none text-xs"
-                      />
+                          {/* BOUTON FERMETURE EN BAS */}
+                          <div className="absolute bottom-6 left-6 right-6">
+                            <button
+                              onClick={() => setIsCartOpen(false)}
+                              className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M18 6L6 18M6 6l12 12" />
+                              </svg>
+                              Fermer
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        reservationsEnAttente.map((res: any, index: number) => {
+                          const key = res.resUniqueId;
+                          const unitPrice = prices[key] || 0;
+                          const isSelected = selectedForPrint[key] || false;
+                          const numeroOrdre = index + 1;
+                          const uniqueKey = key || `temp-${index}`;
+
+                          return (
+                            <motion.div
+                              key={uniqueKey}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.05 }}
+                              className={`group relative p-3 rounded-xl border transition-all duration-300 backdrop-blur-sm ${isSelected
+                                ? 'bg-blue-50/60 border-blue-400/60 shadow-lg shadow-blue-200/30'
+                                : 'bg-white/40 border-white/30 hover:border-blue-400/40 hover:shadow-md hover:shadow-blue-100/20'
+                                }`}
+                            >
+                              {/* HEADER CARTE - COMPACT */}
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-blue-600 animate-pulse' : 'bg-gray-400'}`} />
+                                  <span className="text-[7px] font-black text-blue-600 uppercase tracking-wider">
+                                    Réservation # {numeroOrdre}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
+                                  className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${isSelected
+                                    ? 'bg-blue-600 border-blue-600'
+                                    : 'border-gray-300 hover:border-blue-500'
+                                    }`}
+                                >
+                                  {isSelected && (
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  )}
+                                </button>
+                              </div>
+
+                              {/* INFOS PRINCIPALES - COMPACT */}
+                              <div className="mb-2">
+                                <p className="text-gray-800 text-xs font-black uppercase truncate">{res.societeLocatrice}</p>
+                                <p className="text-[8px] text-gray-500 font-medium mt-0.5">
+                                  Face: {res.faceLabel} • {res.dureeMois} mois
+                                </p>
+                              </div>
+
+                              {/* SECTION PRIX - COMPACT */}
+                              <div className="grid grid-cols-2 gap-2 mb-2">
+                                <div className="bg-white/40 backdrop-blur-sm rounded-lg p-1.5 border border-white/30">
+                                  <label className="text-[6px] text-gray-400 uppercase font-bold block">Prix unitaire</label>
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={unitPrice === 0 ? "" : unitPrice}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setPrices(prev => ({ ...prev, [key]: val === "" ? 0 : Number(val) }));
+                                      }}
+                                      placeholder="0"
+                                      className="w-full bg-transparent text-xs text-gray-800 font-bold outline-none"
+                                    />
+                                    <span className="text-[8px] text-blue-600 font-bold">$</span>
+                                  </div>
+                                </div>
+                                <div className="bg-white/40 backdrop-blur-sm rounded-lg p-1.5 text-right border border-white/30">
+                                  <label className="text-[6px] text-gray-400 uppercase font-bold block">Total</label>
+                                  <span className="text-blue-600 text-xs font-black">
+                                    {(unitPrice * res.dureeMois).toLocaleString()} $
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* BOUTON SUPPRIMER - PLUS COMPACT */}
+                              <div className="flex justify-end pt-1.5 border-t border-white/20">
+                                <button
+                                  onClick={() => processOperations('delete', res, index)}
+                                  className="px-2.5 py-1 bg-red-50/60 backdrop-blur-sm border border-red-200/50 text-red-600 rounded-lg font-black text-[7px] uppercase hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center gap-1"
+                                >
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                  </svg>
+                                  Supprimer
+                                </button>
+                              </div>
+                            </motion.div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* FOOTER ACTIONS - COMPACT */}
+                  {reservationsEnAttente.length > 0 && (
+                    <div className="p-3 border-t border-white/20 bg-white/30 backdrop-blur-sm flex-shrink-0">
+                      {/* SECTION MODE DE PAIEMENT GLOBAL - COMPACT */}
+                      <div className="mb-2 p-2 bg-white/30 backdrop-blur-sm rounded-lg border border-white/20">
+                        <h3 className="text-[8px] font-black text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <CreditCard size={10} />
+                          Mode de paiement - Global
+                        </h3>
+
+                        <div className="flex gap-1.5 mb-2">
+                          {['total', 'tranche'].map((mode) => (
+                            <button
+                              key={mode}
+                              onClick={() => setGlobalPaymentMode(mode as 'total' | 'tranche')}
+                              className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${globalPaymentMode === mode
+                                ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/20'
+                                : 'bg-white/30 text-gray-500 hover:text-gray-700 border border-white/20'
+                                }`}
+                            >
+                              {mode === 'total' ? '💰 Comptant' : '📅 Tranches'}
+                            </button>
+                          ))}
+                        </div>
+
+                        {globalPaymentMode === 'tranche' && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="p-2 bg-white/30 backdrop-blur-sm rounded-lg border border-white/20"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[7px] text-gray-600 uppercase font-bold">Nombre de tranches</span>
+                              <input
+                                type="number"
+                                min="2"
+                                max="12"
+                                value={globalTranchesCount}
+                                onChange={(e) => setGlobalTranchesCount(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
+                                className="w-16 bg-white/50 border border-white/30 rounded-lg px-2 py-0.5 text-gray-800 text-center text-[9px] font-bold outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+                              />
+                            </div>
+                            <div className="mt-1.5 pt-1.5 border-t border-white/20">
+                              <div className="flex justify-between text-[7px] text-gray-500">
+                                <span>Total facture:</span>
+                                <span className="text-blue-700 font-bold">{totalFactureAmount.toLocaleString()} $</span>
+                              </div>
+                              <div className="flex justify-between text-[7px] text-gray-500 mt-0.5">
+                                <span>Montant par tranche:</span>
+                                <span className="text-blue-700 font-bold">{(totalFactureAmount / globalTranchesCount).toLocaleString()} $</span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {globalPaymentMode === 'total' && totalFactureAmount > 0 && (
+                          <div className="flex justify-between items-center pt-1.5 border-t border-white/20">
+                            <span className="text-[7px] text-gray-600 uppercase font-bold">Total à payer:</span>
+                            <span className="text-blue-700 font-bold text-sm">{totalFactureAmount.toLocaleString()} $</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* BOUTON PRINCIPAL - COMPACT */}
+                      <button
+                        disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
+                        onClick={() => processOperations('selection')}
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg font-black text-[9px] uppercase flex justify-between px-4 items-center hover:shadow-xl hover:shadow-blue-500/20 transition-all active:scale-[0.98]"
+                      >
+                        <span>📄 Facturer la sélection</span>
+                        <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-[8px]">
+                          {Object.values(selectedForPrint).filter(v => v).length} face(s)
+                        </span>
+                      </button>
+
+                      {/* BOUTONS SECONDAIRES - COMPACT */}
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => {
+                            const allSelected: Record<string, boolean> = {};
+                            reservationsEnAttente.forEach((res: any) => {
+                              allSelected[res.resUniqueId] = true;
+                            });
+                            setSelectedForPrint(allSelected);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-white/30 backdrop-blur-sm border border-white/20 text-gray-700 py-1.5 rounded-lg font-black text-[7px] uppercase hover:bg-white/50 transition-all"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <polyline points="9 12 11 14 15 10" />
+                          </svg>
+                          Tout sélectionner
+                        </button>
+                        <button
+                          onClick={() => setIsCartOpen(false)}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-red-50/30 backdrop-blur-sm border border-red-200/30 text-red-600 py-1.5 rounded-lg font-black text-[7px] uppercase hover:bg-red-600 hover:text-white transition-all"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                          Fermer
+                        </button>
+                      </div>
+
+                      {/* INFOS UTILISATEUR - COMPACT */}
+                      <div className="mt-2 pt-1.5 border-t border-white/20 text-center">
+                        <p className="text-[8px] text-gray-700 font-black uppercase tracking-wider">{user?.nomComplet || "Agent"}</p>
+                        <p className="text-[6px] text-gray-400 font-medium">{user?.email}</p>
+                      </div>
                     </div>
                   )}
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="flex-1 bg-white/30 border border-white/20 rounded-lg px-2.5 py-1.5 text-[8px] font-black uppercase text-gray-700 outline-none focus:border-blue-400 transition-all"
-                  >
-                    <option value="tous" className="bg-white">Tous les statuts</option>
-                    <option value="Occupé" className="bg-white">Occupé (En cours)</option>
-                    <option value="Reservé" className="bg-white">Réservé (En attente)</option>
-                  </select>
-                </div>
-              </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
 
-              {/* LISTE DES RÉSERVATIONS - COMPACT */}
-              <div className="space-y-2">
-                {getFilteredReservations().length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 mx-auto bg-white/30 rounded-full flex items-center justify-center mb-2 border border-white/20">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-400">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                        <line x1="16" y1="2" x2="16" y2="6" />
-                        <line x1="8" y1="2" x2="8" y2="6" />
-                        <line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
-                    </div>
-                    <p className="text-gray-500 text-xs font-bold uppercase">Aucune réservation</p>
-                    <p className="text-gray-400/60 text-[7px] mt-1">Aucune réservation trouvée</p>
+          <AnimatePresence>
+            {isStatsOpen && (
+              <>
+                {/* OVERLAY TRÈS TRANSPARENT */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsStatsOpen(false)}
+                  className="fixed inset-0 z-[100]"
+                >
+                  <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]">
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-blue-200/5 rounded-full blur-3xl" />
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-200/5 rounded-full blur-3xl" />
                   </div>
-                ) : (
-                  getFilteredReservations().map((res, idx) => (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="flex items-center gap-2.5 p-2.5 bg-white/40 backdrop-blur-sm border border-white/30 rounded-xl hover:border-blue-400/50 hover:shadow-md hover:shadow-blue-100/20 transition-all group"
-                    >
-                      {/* PHOTO MINIATURE */}
-                      <div className="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-white/30">
-                        <img src={res.photoCampagneUrl} className="w-full h-full object-cover" alt="" />
-                        <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                          <input type="file" className="hidden" onChange={(e) => handlePhotoUpdate(e, res.id)} />
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                            <circle cx="12" cy="13" r="4" />
-                          </svg>
-                        </label>
-                      </div>
+                </motion.div>
 
-                      {/* INFOS - COMPACT */}
-                      <div className="flex-1 min-w-0 grid grid-cols-2 items-center gap-1.5">
-                        <div>
-                          <p className="text-[7px] font-black text-blue-600 truncate uppercase">{res.faceId}</p>
-                          <p className="text-[9px] text-gray-800 font-bold truncate uppercase leading-tight">{res.societeLocatrice}</p>
+                {/* PANEL LATÉRAL PREMIUM - TRANSPARENT */}
+                <motion.div
+                  initial={{ x: "100%", opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: "100%", opacity: 0 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-white/90 backdrop-blur-xl border-l border-white/20 z-[101] flex flex-col shadow-2xl shadow-black/5"
+                >
+                  {/* HEADER PREMIUM - TRANSPARENT */}
+                  <div className="relative p-4 sm:p-5 border-b border-white/10 bg-white/40 backdrop-blur-sm flex-shrink-0">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
+
+                    <div className="flex justify-between items-center relative z-10">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+                          <p className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em]">Performance</p>
                         </div>
-                        <div className="text-right flex items-center justify-end gap-1.5">
-                          <div className="flex flex-col">
-                            <p className="text-[7px] text-gray-500 font-bold">{res.dateDebut}</p>
-                            <p className="text-[6px] text-gray-400 uppercase">au {res.dateFin}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteReservation(res)}
-                            className="p-1 bg-red-50/60 hover:bg-red-100 text-red-500 rounded-lg transition-colors border border-red-200/30"
-                          >
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <h2 className="text-xl sm:text-2xl font-black text-gray-800">
+                          Panel <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Agent</span>
+                        </h2>
+                        <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold mt-1">Performance & Suivi</p>
+                      </div>
+                      <button
+                        onClick={() => setIsStatsOpen(false)}
+                        className="group p-2 bg-white/50 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-gray-600 backdrop-blur-sm border border-white/20"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:rotate-90 transition-transform duration-300">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* CONTENU SCROLLABLE - OPTIMISÉ */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-transparent">
+                    {activeTab === 'stats' ? (
+                      <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+                        {/* CERCLE DE PERFORMANCE - COMPACT */}
+                        <div className="flex flex-col items-center py-2">
+                          <div className="relative w-32 h-32 flex items-center justify-center">
+                            {/* Cercle de fond */}
+                            <svg className="w-full h-full -rotate-90">
+                              <circle cx="64" cy="64" r="56" fill="none" stroke="currentColor" strokeWidth="6" className="text-gray-200" />
+                              <circle
+                                cx="64" cy="64" r="56" fill="none"
+                                stroke="url(#gradientStats)"
+                                strokeWidth="6"
+                                strokeDasharray="352"
+                                strokeDashoffset={352 - (352 * Number(statsEfficacite().performance)) / 100}
+                                className="transition-all duration-1000"
+                              />
                             </svg>
-                          </button>
+                            {/* Gradient SVG */}
+                            <svg width="0" height="0">
+                              <defs>
+                                <linearGradient id="gradientStats" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#3b82f6" />
+                                  <stop offset="100%" stopColor="#8b5cf6" />
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-2xl font-black text-gray-800">{statsEfficacite().performance}%</span>
+                              <span className="text-[7px] text-gray-400 uppercase font-bold tracking-tighter">Efficacité</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* STATS RAPIDES - COMPACT */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-white/40 backdrop-blur-sm rounded-xl p-3 border border-white/30 hover:border-blue-400/40 transition-all">
+                            <p className="text-xl font-black text-gray-800">{statsEfficacite().totalAgent}</p>
+                            <p className="text-[7px] uppercase text-gray-400 font-bold tracking-wider">Mes Actions</p>
+                          </div>
+                          <div className="bg-white/40 backdrop-blur-sm rounded-xl p-3 border border-white/30 hover:border-blue-400/40 transition-all">
+                            <p className="text-xl font-black text-gray-800">{statsEfficacite().totalGlobal}</p>
+                            <p className="text-[7px] uppercase text-gray-400 font-bold tracking-wider">Global Agence</p>
+                          </div>
                         </div>
                       </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+                    ) : (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        {/* FILTRES - COMPACT */}
+                        <div className="space-y-3">
+                          <div className="flex bg-white/30 p-1 rounded-lg border border-white/20 gap-1">
+                            {['avant', 'present', 'futur'].map((t) => (
+                              <button
+                                key={t}
+                                onClick={() => setTimeFilter(t as any)}
+                                className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${timeFilter === t
+                                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                                  : 'text-gray-400 hover:text-gray-700'
+                                  }`}
+                              >
+                                {t === 'avant' ? 'Passé' : t === 'present' ? 'Présent' : 'Futur'}
+                              </button>
+                            ))}
+                          </div>
 
-        {/* BOTTOM PANEL - COMPACT */}
-        <div className="p-3 border-t border-white/20 bg-white/30 backdrop-blur-sm flex-shrink-0 space-y-3">
-          {/* IDENTITÉ - COMPACT */}
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-white font-black uppercase text-xs shadow-lg">
-              {user?.displayName?.[0] || "A"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-gray-800 uppercase truncate">{user?.nomComplet || "Agent Kin-Geo"}</p>
-              <p className="text-[7px] text-gray-400 truncate font-medium">{user?.email}</p>
-            </div>
-          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {timeFilter !== 'present' && (
+                              <div className="flex items-center justify-between bg-white/30 px-2.5 py-1.5 rounded-lg border border-white/20">
+                                <span className="text-[7px] text-gray-400 font-black uppercase">Mois :</span>
+                                <input
+                                  type="number"
+                                  value={monthCount}
+                                  onChange={(e) => setMonthCount(Math.max(1, parseInt(e.target.value)))}
+                                  className="w-8 bg-transparent text-right font-black text-blue-600 outline-none text-xs"
+                                />
+                              </div>
+                            )}
+                            <select
+                              value={statusFilter}
+                              onChange={(e) => setStatusFilter(e.target.value as any)}
+                              className="flex-1 bg-white/30 border border-white/20 rounded-lg px-2.5 py-1.5 text-[8px] font-black uppercase text-gray-700 outline-none focus:border-blue-400 transition-all"
+                            >
+                              <option value="tous" className="bg-white">Tous les statuts</option>
+                              <option value="Occupé" className="bg-white">Occupé (En cours)</option>
+                              <option value="Reservé" className="bg-white">Réservé (En attente)</option>
+                            </select>
+                          </div>
+                        </div>
 
-          {/* SWITCHER STATS / GESTION - COMPACT */}
-          <div className="flex bg-white/30 p-0.5 rounded-lg border border-white/20">
-            <button
-              onClick={() => setActiveTab('stats')}
-              className={`flex-1 py-1.5 rounded-lg text-[7px] font-black uppercase transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'stats'
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                  : 'text-gray-400 hover:text-gray-700'
-              }`}
-            >
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                <path d="M12 20V10M18 20V4M6 20v-4" />
-              </svg>
-              Stats
-            </button>
-            <button
-              onClick={() => setActiveTab('reservations')}
-              className={`flex-1 py-1.5 rounded-lg text-[7px] font-black uppercase transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'reservations'
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                  : 'text-gray-400 hover:text-gray-700'
-              }`}
-            >
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-              </svg>
-              Gestion
-            </button>
-          </div>
+                        {/* LISTE DES RÉSERVATIONS - COMPACT */}
+                        <div className="space-y-2">
+                          {getFilteredReservations().length === 0 ? (
+                            <div className="text-center py-8">
+                              <div className="w-12 h-12 mx-auto bg-white/30 rounded-full flex items-center justify-center mb-2 border border-white/20">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-400">
+                                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                  <line x1="16" y1="2" x2="16" y2="6" />
+                                  <line x1="8" y1="2" x2="8" y2="6" />
+                                  <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
+                              </div>
+                              <p className="text-gray-500 text-xs font-bold uppercase">Aucune réservation</p>
+                              <p className="text-gray-400/60 text-[7px] mt-1">Aucune réservation trouvée</p>
+                            </div>
+                          ) : (
+                            getFilteredReservations().map((res, idx) => (
+                              <motion.div
+                                key={idx}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.05 }}
+                                className="flex items-center gap-2.5 p-2.5 bg-white/40 backdrop-blur-sm border border-white/30 rounded-xl hover:border-blue-400/50 hover:shadow-md hover:shadow-blue-100/20 transition-all group"
+                              >
+                                {/* PHOTO MINIATURE */}
+                                <div className="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-white/30">
+                                  <img src={res.photoCampagneUrl} className="w-full h-full object-cover" alt="" />
+                                  <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                                    <input type="file" className="hidden" onChange={(e) => handlePhotoUpdate(e, res.id)} />
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                                      <circle cx="12" cy="13" r="4" />
+                                    </svg>
+                                  </label>
+                                </div>
 
-          {/* BOUTON FERMER - COMPACT */}
-          <button
-            onClick={() => setIsStatsOpen(false)}
-            className="w-full py-2 bg-white/40 border border-white/20 text-gray-600 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all rounded-lg font-black uppercase text-[8px] tracking-[0.15em] active:scale-95"
-          >
-            Fermer le panel
-          </button>
-        </div>
-      </motion.div>
-    </>
-  )}
-</AnimatePresence>
+                                {/* INFOS - COMPACT */}
+                                <div className="flex-1 min-w-0 grid grid-cols-2 items-center gap-1.5">
+                                  <div>
+                                    <p className="text-[7px] font-black text-blue-600 truncate uppercase">{res.faceId}</p>
+                                    <p className="text-[9px] text-gray-800 font-bold truncate uppercase leading-tight">{res.societeLocatrice}</p>
+                                  </div>
+                                  <div className="text-right flex items-center justify-end gap-1.5">
+                                    <div className="flex flex-col">
+                                      <p className="text-[7px] text-gray-500 font-bold">{res.dateDebut}</p>
+                                      <p className="text-[6px] text-gray-400 uppercase">au {res.dateFin}</p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteReservation(res)}
+                                      className="p-1 bg-red-50/60 hover:bg-red-100 text-red-500 rounded-lg transition-colors border border-red-200/30"
+                                    >
+                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <polyline points="3 6 5 6 21 6" />
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* BOTTOM PANEL - COMPACT */}
+                  <div className="p-3 border-t border-white/20 bg-white/30 backdrop-blur-sm flex-shrink-0 space-y-3">
+                    {/* IDENTITÉ - COMPACT */}
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-white font-black uppercase text-xs shadow-lg">
+                        {user?.displayName?.[0] || "A"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black text-gray-800 uppercase truncate">{user?.nomComplet || "Agent Kin-Geo"}</p>
+                        <p className="text-[7px] text-gray-400 truncate font-medium">{user?.email}</p>
+                      </div>
+                    </div>
+
+                    {/* SWITCHER STATS / GESTION - COMPACT */}
+                    <div className="flex bg-white/30 p-0.5 rounded-lg border border-white/20">
+                      <button
+                        onClick={() => setActiveTab('stats')}
+                        className={`flex-1 py-1.5 rounded-lg text-[7px] font-black uppercase transition-all flex items-center justify-center gap-1.5 ${activeTab === 'stats'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-gray-700'
+                          }`}
+                      >
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M12 20V10M18 20V4M6 20v-4" />
+                        </svg>
+                        Stats
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('reservations')}
+                        className={`flex-1 py-1.5 rounded-lg text-[7px] font-black uppercase transition-all flex items-center justify-center gap-1.5 ${activeTab === 'reservations'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-gray-700'
+                          }`}
+                      >
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                        </svg>
+                        Gestion
+                      </button>
+                    </div>
+
+                    {/* BOUTON FERMER - COMPACT */}
+                    <button
+                      onClick={() => setIsStatsOpen(false)}
+                      className="w-full py-2 bg-white/40 border border-white/20 text-gray-600 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all rounded-lg font-black uppercase text-[8px] tracking-[0.15em] active:scale-95"
+                    >
+                      Fermer le panel
+                    </button>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
 
 
         </header>
@@ -2510,6 +2512,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
+
   const [listeSocietes, setListeSocietes] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useAuth();
@@ -2524,19 +2527,70 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     }
   }, [panneau]);
 
+  // ✅ Remplacer l'ancien useEffect par celui-ci
   useEffect(() => {
-    const fetchSocietes = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "societes"));
-        const noms = querySnapshot.docs.map(doc => doc.data().nomSociete);
-        setListeSocietes(noms);
-      } catch (err) {
-        console.error("Erreur lors de la récupération des sociétés:", err);
-      }
-    };
     fetchSocietes();
   }, []);
 
+  // ============================================
+  // FONCTION FETCH SOCIÉTÉS - RÉUTILISABLE
+  // ============================================
+  const fetchSocietes = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "societes"));
+      const noms = querySnapshot.docs
+        .map(doc => doc.data().nomSociete)
+        .filter(nom => nom && nom.trim() !== '');
+      setListeSocietes([...new Set(noms)]);
+    } catch (err) {
+      console.error("Erreur lors de la récupération des sociétés:", err);
+    }
+  };
+
+  // ============================================
+  // FONCTION DE CRÉATION AUTOMATIQUE DE SOCIÉTÉ
+  // ============================================
+  const createSocieteIfNotExists = async (nomSociete: string) => {
+    if (!nomSociete || nomSociete.trim() === '') return null;
+
+    // Vérifier si la société existe déjà
+    const q = query(
+      collection(db, "societes"),
+      where("nomSociete", "==", nomSociete.trim().toUpperCase())
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      // Créer la société
+      try {
+        const email = `${nomSociete.toLowerCase().replace(/\s/g, '')}@visiteur.com`;
+        const password = Math.floor(100000 + Math.random() * 900000).toString();
+
+        const docRef = await addDoc(collection(db, "societes"), {
+          nomSociete: nomSociete.trim().toUpperCase(),
+          email: email,
+          password: password,
+          role: "visiteur",
+          telephone: "",
+          actif: true,
+          isOnline: false,
+          createdAt: serverTimestamp(),
+          lastSeen: null,
+          derniereConnexion: null,
+          createdBy: user?.email || "Système"
+        });
+
+        console.log(`✅ Société "${nomSociete}" créée avec succès`);
+        // Rafraîchir la liste
+        await fetchSocietes();
+        return docRef.id;
+      } catch (error) {
+        console.error("❌ Erreur création société:", error);
+        return null;
+      }
+    }
+    return snapshot.docs[0]?.id || null;
+  };
 
 
   useEffect(() => {
@@ -2748,12 +2802,9 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       const face = formData.faces[idx];
       const statut = face.statut;
 
-      // Cas 1: Statut Libre - Pas de validation supplémentaire
       if (statut === 'Libre') continue;
 
-      // Cas 2: Statut Occupé ou Réservé - Validation stricte
       if (statut === 'Occupé' || statut === 'Réservé') {
-        // Vérifier que tous les champs sont remplis
         if (!face.clientNom || face.clientNom.trim() === '') {
           validationErrors.push(`Face ${idx + 1}: Le nom du client est obligatoire`);
         }
@@ -2763,8 +2814,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         if (!face.dateFin) {
           validationErrors.push(`Face ${idx + 1}: La date de fin est obligatoire`);
         }
-
-        // Vérifier l'ordre des dates si elles existent
         if (face.dateDebut && face.dateFin) {
           const d1 = new Date(face.dateDebut);
           const d2 = new Date(face.dateFin);
@@ -2775,7 +2824,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       }
     }
 
-    // Afficher les erreurs de validation
     if (validationErrors.length > 0) {
       alert(`❌ Erreurs de validation :\n\n${validationErrors.join('\n')}`);
       return;
@@ -2797,15 +2845,10 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       const d2 = new Date(dateFin);
       const reservationsExistantes = face.reservations || [];
 
-      // Vérifier les chevauchements (exclure la réservation en cours d'édition)
       const conflict = reservationsExistantes.find((res: any) => {
-        // Si c'est une nouvelle réservation, on vérifie tout
         if (!res.dateDebut || !res.dateFin) return false;
-
         const r1 = new Date(res.dateDebut);
         const r2 = new Date(res.dateFin);
-
-        // Chevauchement strict
         return (d1 <= r2 && d2 >= r1);
       });
 
@@ -2829,34 +2872,53 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     }
 
     // === 4. SUITE DE LA SAUVEGARDE ===
-    setIsSaving(true)
-    // On ne valide que les faces où l'utilisateur a commencé à saisir quelque chose
-    const isInvalid = formData.faces.some((f: any) => {
-      // Une face doit être validée UNIQUEMENT si elle est occupée 
-      // ET qu'elle n'est pas déjà enregistrée (pour ne pas bloquer les anciennes)
-      const aCommenceSaisie = f.dateDebut || f.dateFin || f.clientNom;
-      const estOccupée = f.statut !== "Libre";
-
-      if (estOccupée && aCommenceSaisie) {
-        // Si on a commencé, alors TOUT doit être rempli
-        return !f.dateDebut || !f.dateFin || !f.clientNom;
-      }
-      return false;
-    });
-
-    if (isInvalid) {
-      alert("Veuillez remplir les dates et le nom du client pour la face que vous modifiez.");
-      return;
-    }
-
-    if (isInvalid) {
-      alert("Veuillez remplir les dates et le nom du client pour toutes les faces occupées.");
-      return;
-    }
-
     setIsSaving(true);
 
     try {
+      // ✅ ÉTAPE 1: CRÉER LES SOCIÉTÉS MANQUANTES AVANT LA TRANSACTION
+      const societesACreer: string[] = [];
+      for (const face of formData.faces) {
+        if (face.statut !== 'Libre' && face.clientNom && face.clientNom.trim() !== '') {
+          const nomClient = face.clientNom.trim().toUpperCase();
+          const existeDeja = listeSocietes.some(s =>
+            s && typeof s === 'string' && s.toUpperCase() === nomClient
+          );
+          if (!existeDeja && !societesACreer.includes(nomClient)) {
+            societesACreer.push(nomClient);
+          }
+        }
+      }
+
+      // ✅ Créer les sociétés manquantes
+      for (const nomSociete of societesACreer) {
+        try {
+          const email = `${nomSociete.toLowerCase().replace(/\s/g, '')}@visiteur.com`;
+          const password = Math.floor(100000 + Math.random() * 900000).toString();
+
+          await addDoc(collection(db, "societes"), {
+            nomSociete: nomSociete,
+            email: email,
+            password: password,
+            role: "visiteur",
+            telephone: "",
+            actif: true,
+            isOnline: false,
+            createdAt: serverTimestamp(),
+            lastSeen: null,
+            derniereConnexion: null,
+            createdBy: user?.email || currentUser?.email || "Système"
+          });
+
+          console.log(`✅ Société "${nomSociete}" créée avec succès`);
+        } catch (error) {
+          console.error(`❌ Erreur création société "${nomSociete}":`, error);
+        }
+      }
+
+      // ✅ ÉTAPE 2: RAFRAÎCHIR LA LISTE DES SOCIÉTÉS
+      await fetchSocietes();
+
+      // ✅ ÉTAPE 3: EXÉCUTER LA TRANSACTION
       const docRef = doc(db, "panneaux", panneau?.id || formData?.id);
 
       await runTransaction(db, async (transaction) => {
@@ -2864,6 +2926,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         if (!panneauDoc.exists()) throw new Error("Panneau introuvable");
 
         const isoNow = new Date().toISOString();
+        const panneauData = panneauDoc.data();
 
         // --- GESTION DES SOCIÉTÉS ET VÉRIFICATION DES CONFLITS ---
         for (const [idx, f] of formData.faces.entries()) {
@@ -2876,7 +2939,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           const conflict = reservationsExistantes.find((res: any) => {
             const r1 = new Date(res.dateDebut).getTime();
             const r2 = new Date(res.dateFin).getTime();
-            return d1 <= r2 && d2 >= r1 && res.agentEmail !== currentUser?.email;
+            return d1 <= r2 && d2 >= r1 && res.agentEmail !== user?.email;
           });
 
           if (conflict) {
@@ -2887,48 +2950,41 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
             setIsSaving(false);
             return;
           }
-
-          // Enregistrement de la société si nouvelle
-          const nomClientSaisi = f.clientNom?.trim();
-          if (nomClientSaisi) {
-            const existeDeja = listeSocietes.some(s =>
-              s && typeof s === 'string' && s.toLowerCase() === nomClientSaisi.toLowerCase()
-            );
-
-            if (!existeDeja) {
-              const societeRef = doc(collection(db, "societes"));
-              transaction.set(societeRef, {
-                nom: nomClientSaisi,
-                createdAt: serverTimestamp(),
-                ajoutePar: currentUser?.email || "Système"
-              });
-              listeSocietes.push(nomClientSaisi);
-            }
-          }
         }
 
-
+        // ✅ Construction des données à mettre à jour
         const dataToUpdate = {
           faces: formData.faces.map((f: any, i: number) => {
-            const faceOriginale = panneau.faces[i];
+            const faceOriginale = panneauData.faces?.[i] || {};
 
             const aEteModifiee =
-              f.dateDebut !== faceOriginale?.dateDebut ||
-              f.clientNom !== faceOriginale?.societeLocatrice ||
-              f.dateFin !== faceOriginale?.dateFin;
+              f.dateDebut !== faceOriginale.dateDebut ||
+              f.clientNom !== faceOriginale.societeLocatrice ||
+              f.dateFin !== faceOriginale.dateFin;
 
             const isOccupied = f.statut !== "Libre";
-
-            // 3. Logique de création de la nouvelle réservation
             let nouvellesReservations = f.reservations || [];
 
             if (isOccupied && aEteModifiee) {
               const finalPhotoUrl = (f.photoCampagneUrl && !f.photoCampagneUrl.startsWith('blob:'))
-                ? f.photoCampagneUrl : (f.photoCampagneUrl || LOGO_DISPROMALT);
+                ? f.photoCampagneUrl
+                : (f.photoCampagneUrl || LOGO_DISPROMALT);
+
+              // ✅ Récupérer l'email de l'agent sélectionné
+              let agentEmail = user?.email || currentUser?.email || "agent@dispromalt.cd";
+              let agentNom = user?.nomComplet || currentUser?.nom || "Agent";
+
+              // ✅ Si l'agent est sélectionné depuis la liste, utiliser son email
+              if (f.agentEmail) {
+                agentEmail = f.agentEmail;
+              }
+              if (f.agentNom) {
+                agentNom = f.agentNom;
+              }
 
               const newRes = {
-                agentEmail: user?.email || "agent@dispromalt.cd",
-                agentNom: user?.nomComplet || "Agent",
+                agentEmail: agentEmail,
+                agentNom: agentNom,
                 dateDebut: f.dateDebut || "",
                 dateFin: f.dateFin || "",
                 validationComptable: false,
@@ -2942,32 +2998,34 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                 statut: f.statut || "Occupé"
               };
 
-              // ON AJOUTE la nouvelle réservation seulement si elle est nouvelle
-              nouvellesReservations = [...nouvellesReservations, newRes];
+              nouvellesReservations = [newRes];
             }
 
             return {
-              sens: f.sens || faceOriginale?.sens || `Face ${i + 1}`,
-              // On rend le tableau mis à jour (avec la nouvelle res) ou l'ancien (si pas de modif)
+              sens: f.sens || faceOriginale.sens || `Face ${i + 1}`,
               reservations: nouvellesReservations,
-              historique: f.historique || []
+              historique: f.historique || faceOriginale.historique || []
             };
           }),
           updatedAt: serverTimestamp()
         };
+
         transaction.update(docRef, dataToUpdate);
       });
 
-      alert("Mise à jour réussie !");
+      // ✅ ÉTAPE 4: RAFRAÎCHIR UNE DERNIÈRE FOIS
+      await fetchSocietes();
+
+      alert("✅ Mise à jour réussie !");
       onClose();
+
     } catch (error: any) {
-      console.error("Erreur détaillée:", error);
-      alert("Erreur: " + error.message);
+      console.error("❌ Erreur détaillée:", error);
+      alert("❌ Erreur: " + error.message);
     } finally {
       setIsSaving(false);
     }
   };
-
 
   // Surveiller les changements de statut pour valider les champs
 
@@ -3136,6 +3194,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                           {(face.statut === "Occupé" || face.statut === "Réservé") && (
                             <>
                               {/* Société */}
+                              {/* Société - Version corrigée avec datalist */}
                               <div className="space-y-0.5 sm:space-y-1">
                                 <label className="text-[6px] sm:text-[7px] md:text-[8px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-1">
                                   <div className="w-0.5 h-0.5 bg-blue-600 rounded-full" /> Société
@@ -3144,8 +3203,12 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                                   list={`list-societes-${idx}`}
                                   value={face.clientNom || ''}
                                   disabled={isLocked}
-                                  placeholder="Sélectionner..."
-                                  onChange={(e) => updateFace(idx, 'clientNom', e.target.value)}
+                                  placeholder="Sélectionner ou saisir..."
+                                  onChange={(e) => {
+                                    const valeur = e.target.value;
+                                    updateFace(idx, 'clientNom', valeur);
+                                    // Si la société n'existe pas dans la liste, elle sera créée lors de la sauvegarde
+                                  }}
                                   className="w-full bg-blue-50/50 border border-blue-200 rounded-lg text-[9px] sm:text-[10px] md:text-[11px] lg:text-xs text-blue-900 p-1.5 sm:p-2 md:p-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all placeholder:text-blue-400/50 truncate"
                                 />
                                 <datalist id={`list-societes-${idx}`}>
@@ -3243,7 +3306,3 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     </div>
   );
 };
-
-import Link from 'next/link';
-// Ajoute AlertTriangle ici
-import { AlertTriangle } from 'lucide-react';

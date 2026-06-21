@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { MapPin, X, Camera, Loader2, Save ,Building2,Layers,} from 'lucide-react';
+import { MapPin, X, Camera, Loader2, Save, Building2, Layers, } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 
@@ -133,7 +133,46 @@ export default function PageEnregistrement({
     });
 
 
+    // ============================================
+    // FONCTION DE CRÉATION AUTOMATIQUE DE SOCIÉTÉ
+    // ============================================
+    const createSocieteIfNotExists = async (nomSociete: string) => {
+        if (!nomSociete || nomSociete.trim() === '') return;
 
+        // Vérifier si la société existe déjà
+        const q = query(
+            collection(db, "societes"),
+            where("nomSociete", "==", nomSociete.toUpperCase())
+        );
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            // Créer la société
+            try {
+                const email = `${nomSociete.toLowerCase().replace(/\s/g, '')}@visiteur.com`;
+                const password = Math.floor(100000 + Math.random() * 900000).toString();
+
+                await addDoc(collection(db, "societes"), {
+                    nomSociete: nomSociete.toUpperCase(),
+                    email: email,
+                    password: password,
+                    role: "visiteur",
+                    telephone: "",
+                    actif: true,
+                    isOnline: false,
+                    createdAt: serverTimestamp(),
+                    lastSeen: null,
+                    derniereConnexion: null
+                });
+
+                console.log(`✅ Société "${nomSociete}" créée avec succès`);
+                // Rafraîchir la liste
+                await fetchDonnees();
+            } catch (error) {
+                console.error("❌ Erreur création société:", error);
+            }
+        }
+    };
 
 
     const [isLocating, setIsLocating] = useState(false);
@@ -215,70 +254,16 @@ export default function PageEnregistrement({
         }
     }, [geo, isAdresseComplete, setFormData]);
 
-
-
-
-
     // À ajouter après les autres useState
     const [dimensions, setDimensions] = useState({
         hauteur: '',
         largeur: '',
         unite: ''
     });
-
-
-
-
-
-
-
-
+    // ✅ Remplacer l'ancien useEffect par celui-ci
     useEffect(() => {
-        const fetchDonnees = async () => {
-            try {
-                const querySnapshot = await getDocs(collection(db, "societes"));
-
-                // On récupère toutes les données brutes
-                const donneesBrutes = querySnapshot.docs.map(doc => doc.data());
-
-                // 1. Extraction propre des Sociétés
-                const nomsSocietes = donneesBrutes
-                    .filter(d => d.role === "visiteur" && d.nomSociete)
-                    .map(d => d.nomSociete);
-
-                // 2. Extraction propre des Agents Commerciaux
-                // On vérifie le rôle ou la fonction, et on construit le nom
-                // 1. Filtrage et formatage initial
-                const agentsBruts = donneesBrutes
-                    .filter(d => d.role === "commercial" && d.fonction === "agent")
-                    .map(d => ({
-                        nom: d.nomComplet || d.nom || "Sans nom",
-                        email: d.email || ""
-                    }))
-                    .filter(a => a.nom !== "Sans nom");
-
-                // 2. Suppression des doublons (La méthode Map est plus sûre)
-                // On utilise le 'nom' comme clé unique
-                const nomsAgents = Array.from(
-                    new Map(agentsBruts.map(agent => [agent.nom, agent])).values()
-                );
-
-                setListeCommerciaux(nomsAgents);
-
-                // On met à jour les états avec des listes uniques (sans doublons)
-                setListeSocietes([...new Set(nomsSocietes)]);
-                //setListeCommerciaux([...new Set(nomsAgents)]);
-
-            } catch (err) {
-                console.error("Erreur de récupération :", err);
-            }
-        };
         fetchDonnees();
     }, []);
-    const [recherche, setRecherche] = useState("");
-
-
-
 
     const handleNbFacesChange = (n: number) => {
         const val = n < 1 ? 1 : n;
@@ -471,13 +456,20 @@ export default function PageEnregistrement({
         setLoading(true);
         try {
             // --- LOGIQUE IDPAN SÉCURISÉE ---
+
+            for (const face of formData.faces) {
+                if (face.clientNom && face.clientNom.trim() !== '') {
+                    await createSocieteIfNotExists(face.clientNom);
+                }
+            }
+
             const snapshot = await getDocs(collection(db, "panneaux"));
 
             const dimensionFormatee = dimensions.hauteur && dimensions.largeur && dimensions.unite
-            ? `${dimensions.hauteur} x ${dimensions.largeur} ${dimensions.unite}`
-            : formData.dimension || '';
+                ? `${dimensions.hauteur} x ${dimensions.largeur} ${dimensions.unite}`
+                : formData.dimension || '';
 
-            
+
             let maxNumber = 0;
             snapshot.forEach((doc) => {
                 const data = doc.data();
@@ -509,11 +501,7 @@ export default function PageEnregistrement({
                 // Préparation de l'objet de réservation 
                 const reservationData = isOccupied ? {
                     agentEmail: (f as any).agentEmail || "non-specifie@mail.com",
-                    // On prend le nom sélectionné dans la liste, sinon le nom de l'admin
                     agentNom: (f as any).agentNom || "Agent inconnu",
-
-
-
                     dateDebut: f.dateDebut || "",
                     dateFin: f.dateFin || "",
                     dateModification: isoNow,
@@ -556,6 +544,41 @@ export default function PageEnregistrement({
         }
     };
 
+
+
+    // ============================================
+    // FONCTION FETCH DONNÉES - RENDUE RÉUTILISABLE
+    // ============================================
+    const fetchDonnees = async () => {
+        try {
+            const querySnapshot = await getDocs(collection(db, "societes"));
+            const donneesBrutes = querySnapshot.docs.map(doc => doc.data());
+
+            // Extraction des Sociétés (role: visiteur)
+            const nomsSocietes = donneesBrutes
+                .filter(d => d.role === "visiteur" && d.nomSociete)
+                .map(d => d.nomSociete);
+
+            // Extraction des Agents Commerciaux (role: commercial)
+            const agentsBruts = donneesBrutes
+                .filter(d => d.role === "commercial" && d.fonction === "agent")
+                .map(d => ({
+                    nom: d.nomComplet || d.nom || "Sans nom",
+                    email: d.email || ""
+                }))
+                .filter(a => a.nom !== "Sans nom");
+
+            const nomsAgents = Array.from(
+                new Map(agentsBruts.map(agent => [agent.nom, agent])).values()
+            );
+
+            setListeCommerciaux(nomsAgents);
+            setListeSocietes([...new Set(nomsSocietes)]);
+
+        } catch (err) {
+            console.error("Erreur de récupération :", err);
+        }
+    };
     // Fonction pour obtenir les unités selon le type de panneau
     const getUnitesForType = (type: string) => {
         const unitesParType: Record<string, string[]> = {
@@ -565,594 +588,617 @@ export default function PageEnregistrement({
         };
         return unitesParType[type] || ['m', 'cm', 'mm'];
     };
-// ============================================
-// FONCTION DE TEST DE LA CAMÉRA
-// ============================================
-const testCamera = async () => {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment' } 
-        });
-        stream.getTracks().forEach(track => track.stop());
-        alert("✅ Caméra disponible et fonctionnelle !");
-    } catch (err) {
-        console.error("❌ Erreur caméra:", err);
-        alert("❌ Caméra non disponible ou accès refusé.\n\nVérifiez les permissions de votre navigateur.");
-    }
-};
+
 
     return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
-        {/* ============================================ */}
-        {/* MODAL PRINCIPAL - FOND BLANC */}
-        {/* ============================================ */}
-        <div className="relative w-full max-w-4xl max-h-[95vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-            
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
             {/* ============================================ */}
-            {/* HEADER - BLEU ROI PROFOND */}
+            {/* MODAL PRINCIPAL - FOND BLANC */}
             {/* ============================================ */}
-            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-white/10 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
-                        <MapPin size={16} className="text-amber-400" />
-                    </div>
-                    <div>
-                        <h2 className="text-sm sm:text-base md:text-lg font-bold text-white">
-                            <span className="text-amber-400">Nouveau</span> Panneau
-                        </h2>
-                        <p className="text-[6px] sm:text-[7px] text-blue-200 uppercase tracking-[0.2em]">
-                            Enregistrement • Gestion Digitale Panneaux
-                        </p>
-                    </div>
-                </div>
+            <div className="relative w-full max-w-4xl max-h-[95vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
 
-                {/* Actions header */}
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={goToMap}
-                        className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 transition-all"
-                    >
-                        <MapPin size={14} className="text-emerald-400" />
-                        <span className="hidden xs:inline text-[7px] sm:text-[8px] font-bold text-emerald-400 uppercase">Carte</span>
-                    </button>
-
-                    {user ? (
-                        <div className="flex items-center gap-2">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-[8px] sm:text-[9px] font-bold text-white truncate max-w-[80px] sm:max-w-[120px]">
-                                    {user.nomComplet || user.nom || user.email?.split('@')[0] || "Agent"}
-                                </p>
-                                <p className="text-[6px] text-amber-400 font-bold uppercase">{user.role || "Commercial"}</p>
-                            </div>
-                            <button
-                                onClick={handleLogout}
-                                className="p-1.5 sm:p-2 rounded-lg bg-white/10 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 transition-all"
-                            >
-                                <LogOut size={14} className="text-red-400" />
-                            </button>
+                {/* ============================================ */}
+                {/* HEADER - BLEU ROI PROFOND */}
+                {/* ============================================ */}
+                <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-white/10 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
+                            <MapPin size={16} className="text-amber-400" />
                         </div>
-                    ) : (
+                        <div>
+                            <h2 className="text-sm sm:text-base md:text-lg font-bold text-white">
+                                <span className="text-amber-400">Nouveau</span> Panneau
+                            </h2>
+                            <p className="text-[6px] sm:text-[7px] text-blue-200 uppercase tracking-[0.2em]">
+                                Enregistrement • Gestion Digitale Panneaux
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Actions header */}
+                    <div className="flex items-center gap-2">
                         <button
-                            onClick={() => setIsLoginOpen(true)}
-                            className="px-3 sm:px-4 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[8px] sm:text-[9px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all"
+                            onClick={goToMap}
+                            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 transition-all"
                         >
-                            🔐 Connexion
+                            <MapPin size={14} className="text-emerald-400" />
+                            <span className="hidden xs:inline text-[7px] sm:text-[8px] font-bold text-emerald-400 uppercase">Carte</span>
                         </button>
-                    )}
-                </div>
-            </div>
 
-            {/* ============================================ */}
-            {/* CORPS - SCROLLABLE */}
-            {/* ============================================ */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gray-50">
-                
-                {/* ============================================ */}
-                {/* SECTION LOCALISATION */}
-                {/* ============================================ */}
-                <div className="bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden">
-                    <button
-                        type="button"
-                        disabled={isLocating}
-                        onClick={handleGetLocation}
-                        className={`w-full p-4 text-left transition-all hover:bg-blue-50 ${coords ? 'border-l-4 border-emerald-500' : 'border-l-4 border-amber-500'}`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${coords ? 'bg-emerald-100' : 'bg-amber-100'}`}>
-                                    {isLocating ? (
-                                        <Loader2 size={18} className="animate-spin text-amber-600" />
-                                    ) : (
-                                        <MapPin size={18} className={coords ? 'text-emerald-600' : 'text-amber-600'} />
-                                    )}
-                                </div>
-                                <div>
-                                    <p className={`text-xs font-bold ${coords ? 'text-emerald-700' : 'text-amber-700'}`}>
-                                        {isLocating ? '🔍 Synchronisation GPS...' : coords ? '📍 Position capturée' : '📍 Géolocalisation requise'}
+                        {user ? (
+                            <div className="flex items-center gap-2">
+                                <div className="text-right hidden sm:block">
+                                    <p className="text-[8px] sm:text-[9px] font-bold text-white truncate max-w-[80px] sm:max-w-[120px]">
+                                        {user.nomComplet || user.nom || user.email?.split('@')[0] || "Agent"}
                                     </p>
-                                    <p className="text-[7px] text-gray-500">
-                                        {isLocating ? 'Recherche en cours...' : coords ? 'Cliquez pour actualiser' : 'Cliquez pour activer la localisation'}
-                                    </p>
+                                    <p className="text-[6px] text-amber-400 font-bold uppercase">{user.role || "Commercial"}</p>
                                 </div>
+                                <button
+                                    onClick={handleLogout}
+                                    className="p-1.5 sm:p-2 rounded-lg bg-white/10 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 transition-all"
+                                >
+                                    <LogOut size={14} className="text-red-400" />
+                                </button>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-[7px] font-bold uppercase ${coords ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                {coords ? '✓ ACTIF' : '● REQUIS'}
-                            </span>
-                        </div>
-
-                        {coords && !isLocating && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 5 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="mt-3 pt-3 border-t border-gray-200"
-                            >
-                                <div className="flex flex-wrap items-center gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[7px] text-gray-500 font-mono uppercase">Latitude</span>
-                                        <code className="text-[9px] font-mono text-emerald-700 font-bold">{coords.lat.substring(0, 12)}</code>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[7px] text-gray-500 font-mono uppercase">Longitude</span>
-                                        <code className="text-[9px] font-mono text-emerald-700 font-bold">{coords.lng.substring(0, 12)}</code>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-[7px] text-emerald-600 font-bold">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                        Précision élevée
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </button>
-                </div>
-
-                {/* ============================================ */}
-                {/* SECTION ADRESSE */}
-                {/* ============================================ */}
-                <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-4">
-                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
-                        <Building2 size={16} className="text-blue-600" />
-                        <h3 className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Adresse du panneau</h3>
-                    </div>
-
-                    {!isAdresseComplete ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <input
-                                type="text"
-                                placeholder="Avenue / Rue"
-                                className="col-span-2 sm:col-span-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
-                                value={geo.avenue || ""}
-                                onChange={e => setGeo({ ...geo, avenue: e.target.value })}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Numéro"
-                                className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
-                                value={geo.numero || ""}
-                                onChange={e => setGeo({ ...geo, numero: e.target.value })}
-                            />
-                            <select
-                                className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
-                                value={geo.pays}
-                                onChange={e => setGeo({ ...geo, pays: e.target.value, province: "", villeOuDistrict: "", communeOuZone: "" })}
-                            >
-                                <option value="">Pays</option>
-                                {Object.keys(GEOGRAPHIE).map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                            {geo.pays && (
-                                <select
-                                    className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={geo.province}
-                                    onChange={e => setGeo({ ...geo, province: e.target.value, villeOuDistrict: "", communeOuZone: "" })}
-                                >
-                                    <option value="">Province / Région</option>
-                                    {Object.keys(GEOGRAPHIE[geo.pays as keyof typeof GEOGRAPHIE] || {}).map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                            )}
-                            {geo.pays && geo.province && (
-                                <select
-                                    className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={geo.villeOuDistrict}
-                                    onChange={e => setGeo({ ...geo, villeOuDistrict: e.target.value, communeOuZone: "" })}
-                                >
-                                    <option value="">Ville / District</option>
-                                    {Object.keys((GEOGRAPHIE[geo.pays as keyof typeof GEOGRAPHIE] as any)?.[geo.province] || {}).map(v => <option key={v} value={v}>{v}</option>)}
-                                </select>
-                            )}
-                            {geo.pays && geo.province && geo.villeOuDistrict && (
-                                <select
-                                    className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={geo.communeOuZone}
-                                    onChange={e => setGeo({ ...geo, communeOuZone: e.target.value })}
-                                >
-                                    <option value="">Commune / Zone</option>
-                                    {((GEOGRAPHIE[geo.pays as keyof typeof GEOGRAPHIE] as any)?.[geo.province]?.[geo.villeOuDistrict] as string[] || []).map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
-                            <div>
-                                <p className="text-[8px] text-blue-600 font-bold uppercase">Adresse finalisée</p>
-                                <p className="text-sm font-medium text-gray-800">{formData.adresse}</p>
-                            </div>
+                        ) : (
                             <button
-                                type="button"
-                                onClick={() => setGeo({ pays: "", province: "", villeOuDistrict: "", communeOuZone: "", avenue: "", numero: "" })}
-                                className="text-[10px] text-red-500 hover:text-red-700 font-medium underline"
+                                onClick={() => setIsLoginOpen(true)}
+                                className="px-3 sm:px-4 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[8px] sm:text-[9px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all"
                             >
-                                Modifier
+                                🔐 Connexion
                             </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 {/* ============================================ */}
-                {/* SECTION CARACTÉRISTIQUES TECHNIQUES */}
+                {/* CORPS - SCROLLABLE */}
                 {/* ============================================ */}
-                <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-4">
-                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
-                        <Layers size={16} className="text-blue-600" />
-                        <h3 className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Caractéristiques techniques</h3>
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gray-50">
+
+                    {/* ============================================ */}
+                    {/* SECTION LOCALISATION */}
+                    {/* ============================================ */}
+                    <div className="bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden">
+                        <button
+                            type="button"
+                            disabled={isLocating}
+                            onClick={handleGetLocation}
+                            className={`w-full p-4 text-left transition-all hover:bg-blue-50 ${coords ? 'border-l-4 border-emerald-500' : 'border-l-4 border-amber-500'}`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${coords ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                                        {isLocating ? (
+                                            <Loader2 size={18} className="animate-spin text-amber-600" />
+                                        ) : (
+                                            <MapPin size={18} className={coords ? 'text-emerald-600' : 'text-amber-600'} />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className={`text-xs font-bold ${coords ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                            {isLocating ? '🔍 Synchronisation GPS...' : coords ? '📍 Position capturée' : '📍 Géolocalisation requise'}
+                                        </p>
+                                        <p className="text-[7px] text-gray-500">
+                                            {isLocating ? 'Recherche en cours...' : coords ? 'Cliquez pour actualiser' : 'Cliquez pour activer la localisation'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <span className={`px-3 py-1 rounded-full text-[7px] font-bold uppercase ${coords ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {coords ? '✓ ACTIF' : '● REQUIS'}
+                                </span>
+                            </div>
+
+                            {coords && !isLocating && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="mt-3 pt-3 border-t border-gray-200"
+                                >
+                                    <div className="flex flex-wrap items-center gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[7px] text-gray-500 font-mono uppercase">Latitude</span>
+                                            <code className="text-[9px] font-mono text-emerald-700 font-bold">{coords.lat.substring(0, 12)}</code>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[7px] text-gray-500 font-mono uppercase">Longitude</span>
+                                            <code className="text-[9px] font-mono text-emerald-700 font-bold">{coords.lng.substring(0, 12)}</code>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-[7px] text-emerald-600 font-bold">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                            Précision élevée
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Type de support *</label>
-                            <select
-                                className="w-full mt-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
-                                value={formData.type}
-                                onChange={e => {
-                                    setFormData({ ...formData, type: e.target.value });
-                                    setDimensions({ hauteur: '', largeur: '', unite: '' });
-                                }}
-                            >
-                                <option value="">Sélectionner un type</option>
-                                {TYPES_PANNEAUX.map((t: string) => (
-                                    <option key={t} value={t}>{t.toUpperCase()}</option>
-                                ))}
-                            </select>
+                    {/* ============================================ */}
+                    {/* SECTION ADRESSE */}
+                    {/* ============================================ */}
+                    <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-4">
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+                            <Building2 size={16} className="text-blue-600" />
+                            <h3 className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Adresse du panneau</h3>
                         </div>
 
-                        <div>
-                            <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Dimensions *</label>
-                            <div className="flex items-center gap-2 mt-1">
+                        {!isAdresseComplete ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                 <input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="H"
-                                    className="w-1/3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] text-center outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={dimensions.hauteur}
-                                    onChange={e => setDimensions({ ...dimensions, hauteur: e.target.value })}
+                                    type="text"
+                                    placeholder="Avenue / Rue"
+                                    className="col-span-2 sm:col-span-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={geo.avenue || ""}
+                                    onChange={e => setGeo({ ...geo, avenue: e.target.value })}
                                 />
-                                <span className="text-blue-600 font-bold">×</span>
                                 <input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="L"
-                                    className="w-1/3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] text-center outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={dimensions.largeur}
-                                    onChange={e => setDimensions({ ...dimensions, largeur: e.target.value })}
+                                    type="text"
+                                    placeholder="Numéro"
+                                    className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={geo.numero || ""}
+                                    onChange={e => setGeo({ ...geo, numero: e.target.value })}
                                 />
                                 <select
-                                    className="w-1/3 px-2 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={dimensions.unite}
-                                    onChange={e => setDimensions({ ...dimensions, unite: e.target.value })}
-                                    disabled={!formData.type}
+                                    className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={geo.pays}
+                                    onChange={e => setGeo({ ...geo, pays: e.target.value, province: "", villeOuDistrict: "", communeOuZone: "" })}
                                 >
-                                    <option value="">Unité</option>
-                                    {getUnitesForType(formData.type).map((unite: string) => (
-                                        <option key={unite} value={unite}>{unite}</option>
+                                    <option value="">Pays</option>
+                                    {Object.keys(GEOGRAPHIE).map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                                {geo.pays && (
+                                    <select
+                                        className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={geo.province}
+                                        onChange={e => setGeo({ ...geo, province: e.target.value, villeOuDistrict: "", communeOuZone: "" })}
+                                    >
+                                        <option value="">Province / Région</option>
+                                        {Object.keys(GEOGRAPHIE[geo.pays as keyof typeof GEOGRAPHIE] || {}).map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                )}
+                                {geo.pays && geo.province && (
+                                    <select
+                                        className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={geo.villeOuDistrict}
+                                        onChange={e => setGeo({ ...geo, villeOuDistrict: e.target.value, communeOuZone: "" })}
+                                    >
+                                        <option value="">Ville / District</option>
+                                        {Object.keys((GEOGRAPHIE[geo.pays as keyof typeof GEOGRAPHIE] as any)?.[geo.province] || {}).map(v => <option key={v} value={v}>{v}</option>)}
+                                    </select>
+                                )}
+                                {geo.pays && geo.province && geo.villeOuDistrict && (
+                                    <select
+                                        className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={geo.communeOuZone}
+                                        onChange={e => setGeo({ ...geo, communeOuZone: e.target.value })}
+                                    >
+                                        <option value="">Commune / Zone</option>
+                                        {((GEOGRAPHIE[geo.pays as keyof typeof GEOGRAPHIE] as any)?.[geo.province]?.[geo.villeOuDistrict] as string[] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                <div>
+                                    <p className="text-[8px] text-blue-600 font-bold uppercase">Adresse finalisée</p>
+                                    <p className="text-sm font-medium text-gray-800">{formData.adresse}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setGeo({ pays: "", province: "", villeOuDistrict: "", communeOuZone: "", avenue: "", numero: "" })}
+                                    className="text-[10px] text-red-500 hover:text-red-700 font-medium underline"
+                                >
+                                    Modifier
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ============================================ */}
+                    {/* SECTION CARACTÉRISTIQUES TECHNIQUES */}
+                    {/* ============================================ */}
+                    <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-4">
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+                            <Layers size={16} className="text-blue-600" />
+                            <h3 className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Caractéristiques techniques</h3>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Type de support *</label>
+                                <select
+                                    className="w-full mt-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={formData.type}
+                                    onChange={e => {
+                                        setFormData({ ...formData, type: e.target.value });
+                                        setDimensions({ hauteur: '', largeur: '', unite: '' });
+                                    }}
+                                >
+                                    <option value="">Sélectionner un type</option>
+                                    {TYPES_PANNEAUX.map((t: string) => (
+                                        <option key={t} value={t}>{t.toUpperCase()}</option>
                                     ))}
                                 </select>
                             </div>
-                            {dimensions.hauteur && dimensions.largeur && dimensions.unite && (
-                                <p className="mt-1 text-[8px] text-blue-600 font-mono">
-                                    Dimension: {dimensions.hauteur} × {dimensions.largeur} {dimensions.unite}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                </div>
 
-                {/* ============================================ */}
-                {/* SECTION FACES */}
-                {/* ============================================ */}
-                <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-4">
-                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
-                        <div className="flex items-center gap-2">
-                            <Layers size={16} className="text-blue-600" />
-                            <h3 className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Configuration des faces</h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => handleNbFacesChange(Math.max(1, (formData.nbFaces || 1) - 1))}
-                                className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 transition"
-                            >
-                                −
-                            </button>
-                            <span className="text-lg font-bold text-blue-600 w-8 text-center">{formData.nbFaces}</span>
-                            <button
-                                type="button"
-                                onClick={() => handleNbFacesChange((formData.nbFaces || 1) + 1)}
-                                className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-600 transition"
-                            >
-                                +
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Liste des faces */}
-                    <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-1">
-                        {formData.faces.map((face, i) => (
-                            <div key={i} className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-xs font-bold text-blue-700">FACE {String.fromCharCode(65 + i)}</span>
+                            <div>
+                                <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Dimensions *</label>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="H"
+                                        className="w-1/3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] text-center outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={dimensions.hauteur}
+                                        onChange={e => setDimensions({ ...dimensions, hauteur: e.target.value })}
+                                    />
+                                    <span className="text-blue-600 font-bold">×</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="L"
+                                        className="w-1/3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] text-center outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={dimensions.largeur}
+                                        onChange={e => setDimensions({ ...dimensions, largeur: e.target.value })}
+                                    />
                                     <select
-                                        className={`text-[8px] font-bold px-3 py-1 rounded-lg border outline-none ${face.statut === 'Occupé'
-                                            ? 'bg-amber-100 text-amber-700 border-amber-300'
-                                            : face.statut === 'Réservé'
-                                            ? 'bg-blue-100 text-blue-700 border-blue-300'
-                                            : 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                                        }`}
-                                        value={face.statut}
-                                        onChange={e => {
-                                            const nf = [...formData.faces];
-                                            nf[i].statut = e.target.value;
-                                            setFormData({ ...formData, faces: nf });
-                                        }}
+                                        className="w-1/3 px-2 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={dimensions.unite}
+                                        onChange={e => setDimensions({ ...dimensions, unite: e.target.value })}
+                                        disabled={!formData.type}
                                     >
-                                        <option value="Libre">LIBRE</option>
-                                        <option value="Occupé">OCCUPÉ</option>
-                                        <option value="Réservé">RÉSERVÉ</option>
+                                        <option value="">Unité</option>
+                                        {getUnitesForType(formData.type).map((unite: string) => (
+                                            <option key={unite} value={unite}>{unite}</option>
+                                        ))}
                                     </select>
                                 </div>
+                                {dimensions.hauteur && dimensions.largeur && dimensions.unite && (
+                                    <p className="mt-1 text-[8px] text-blue-600 font-mono">
+                                        Dimension: {dimensions.hauteur} × {dimensions.largeur} {dimensions.unite}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
 
-                                <input
-                                    placeholder="Sens trafic (ex: DIRECTION CENTRE VILLE) *"
-                                    className="w-full px-3 py-2 bg-white rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={face.sens}
-                                    onChange={e => {
-                                        const nf = [...formData.faces];
-                                        nf[i].sens = e.target.value.toUpperCase();
-                                        setFormData({ ...formData, faces: nf });
-                                    }}
-                                />
+                    {/* ============================================ */}
+                    {/* SECTION FACES */}
+                    {/* ============================================ */}
+                    <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-4">
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+                            <div className="flex items-center gap-2">
+                                <Layers size={16} className="text-blue-600" />
+                                <h3 className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Configuration des faces</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleNbFacesChange(Math.max(1, (formData.nbFaces || 1) - 1))}
+                                    className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 transition"
+                                >
+                                    −
+                                </button>
+                                <span className="text-lg font-bold text-blue-600 w-8 text-center">{formData.nbFaces}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => handleNbFacesChange((formData.nbFaces || 1) + 1)}
+                                    className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-600 transition"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
 
-                                {(face.statut === 'Occupé' || face.statut === 'Réservé') && (
-                                    <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200 space-y-3">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <input
-                                                placeholder="Client / Société *"
-                                                className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
-                                                value={face.clientNom || ''}
-                                                onChange={e => {
-                                                    const nf = [...formData.faces];
-                                                    nf[i].clientNom = e.target.value.toUpperCase();
-                                                    setFormData({ ...formData, faces: nf });
-                                                }}
-                                            />
-                                            <input
-                                                placeholder="Agent commercial *"
-                                                className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
-                                                value={(face as any).agentNom || ''}
-                                                onChange={(e) => {
-                                                    const valeur = e.target.value;
-                                                    const nf = [...formData.faces];
-                                                    const faceActuelle = nf[i] as any;
-                                                    faceActuelle.agentNom = valeur;
-                                                    if (listeCommerciaux) {
-                                                        const found = listeCommerciaux.find((c: any) => (c.nom || c) === valeur);
-                                                        faceActuelle.agentEmail = found?.email || "";
-                                                    }
-                                                    setFormData({ ...formData, faces: nf });
-                                                }}
-                                            />
-                                        </div>
+                        {/* Liste des faces */}
+                        <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-1">
+                            {formData.faces.map((face, i) => (
+                                <div key={i} className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-xs font-bold text-blue-700">FACE {String.fromCharCode(65 + i)}</span>
+                                        <select
+                                            className={`text-[8px] font-bold px-3 py-1 rounded-lg border outline-none ${face.statut === 'Occupé'
+                                                ? 'bg-amber-100 text-amber-700 border-amber-300'
+                                                : face.statut === 'Réservé'
+                                                    ? 'bg-blue-100 text-blue-700 border-blue-300'
+                                                    : 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                                                }`}
+                                            value={face.statut}
+                                            onChange={e => {
+                                                const nf = [...formData.faces];
+                                                nf[i].statut = e.target.value;
+                                                setFormData({ ...formData, faces: nf });
+                                            }}
+                                        >
+                                            <option value="Libre">LIBRE</option>
+                                            <option value="Occupé">OCCUPÉ</option>
+                                            <option value="Réservé">RÉSERVÉ</option>
+                                        </select>
+                                    </div>
 
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <input
-                                                type="date"
-                                                className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
-                                                value={face.dateDebut}
-                                                onChange={e => {
-                                                    const nf = [...formData.faces];
-                                                    nf[i].dateDebut = e.target.value;
-                                                    setFormData({ ...formData, faces: nf });
-                                                }}
-                                            />
-                                            <input
-                                                type="date"
-                                                className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
-                                                value={face.dateFin}
-                                                onChange={e => {
-                                                    const nf = [...formData.faces];
-                                                    nf[i].dateFin = e.target.value;
-                                                    setFormData({ ...formData, faces: nf });
-                                                }}
-                                            />
-                                        </div>
+                                    <input
+                                        placeholder="Sens trafic (ex: DIRECTION CENTRE VILLE) *"
+                                        className="w-full px-3 py-2 bg-white rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
+                                        value={face.sens}
+                                        onChange={e => {
+                                            const nf = [...formData.faces];
+                                            nf[i].sens = e.target.value.toUpperCase();
+                                            setFormData({ ...formData, faces: nf });
+                                        }}
+                                    />
 
-                                        {/* ============================================ */}
-{/* SECTION PHOTO - DISPOSITION ADAPTATIVE */}
-{/* ============================================ */}
-<div className="mt-2">
-    {/* En-tête compact */}
-    <div className="flex items-center gap-2 mb-1.5">
-        <Camera size={12} className="text-blue-500 flex-shrink-0" />
-        <span className="text-[7px] font-bold text-gray-600">Preuve d'affichage</span>
-        {(localPreviews[i] || face.photoCampagneUrl) && (
-            <span className="text-[6px] text-emerald-600 font-bold">✓ Photo</span>
-        )}
-    </div>
+                                    {(face.statut === 'Occupé' || face.statut === 'Réservé') && (
+                                        <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200 space-y-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {/* ============================================ */}
+                                                {/* CLIENT / SOCIÉTÉ - AVEC DATALIST ET SAISIE LIBRE */}
+                                                {/* ============================================ */}
+                                                <div className="space-y-1">
+                                                    <label className="text-[7px] xs:text-[8px] text-blue-600 font-bold uppercase tracking-wider">
+                                                        Client / Société *
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            list={`clients-list-${i}`}
+                                                            placeholder="Rechercher ou saisir un client..."
+                                                            className="w-full px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
+                                                            value={face.clientNom || ''}
+                                                            onChange={e => {
+                                                                const nf = [...formData.faces];
+                                                                nf[i].clientNom = e.target.value.toUpperCase();
+                                                                setFormData({ ...formData, faces: nf });
+                                                            }}
+                                                        />
+                                                        <datalist id={`clients-list-${i}`}>
+                                                            {listeSocietes.map((nom: string, idx: number) => (
+                                                                <option key={idx} value={nom} />
+                                                            ))}
+                                                        </datalist>
+                                                        {listeSocietes.length === 0 && (
+                                                            <p className="text-[6px] text-amber-500 mt-1">⚠️ Aucun client disponible, vous pouvez en saisir un</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {/* ============================================ */}
+                                                {/* AGENT COMMERCIAL - AVEC DATALIST ET RECHERCHE */}
+                                                {/* ============================================ */}
+                                                <div className="space-y-1">
+                                                    <label className="text-[7px] xs:text-[8px] text-blue-600 font-bold uppercase tracking-wider">
+                                                        Agent commercial *
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            list={`agents-list-${i}`}
+                                                            placeholder="Rechercher un agent..."
+                                                            className="w-full px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
+                                                            value={(face as any).agentNom || ''}
+                                                            onChange={(e) => {
+                                                                const valeur = e.target.value;
+                                                                const nf = [...formData.faces];
+                                                                const faceActuelle = nf[i] as any;
+                                                                faceActuelle.agentNom = valeur;
+                                                                // Chercher l'email correspondant
+                                                                const found = listeCommerciaux.find((c: any) =>
+                                                                    c.nom.toLowerCase() === valeur.toLowerCase()
+                                                                );
+                                                                faceActuelle.agentEmail = found?.email || "";
+                                                                setFormData({ ...formData, faces: nf });
+                                                            }}
+                                                        />
+                                                        <datalist id={`agents-list-${i}`}>
+                                                            {listeCommerciaux.map((agent: any, idx: number) => (
+                                                                <option key={idx} value={agent.nom} />
+                                                            ))}
+                                                        </datalist>
+                                                        {listeCommerciaux.length === 0 && (
+                                                            <p className="text-[6px] text-amber-500 mt-1">⚠️ Aucun agent disponible, veuillez en créer un</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
 
-    {/* Conteneur principal - Flex row avec photo et boutons côte à côte */}
-    <div className={`flex gap-2 ${(localPreviews[i] || face.photoCampagneUrl) ? 'items-start' : 'flex-col'}`}>
-        
-        {/* Aperçu - visible seulement si photo existe */}
-        {(localPreviews[i] || face.photoCampagneUrl) && (
-            <div className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-gray-200 cursor-pointer group">
-                <img 
-                    src={localPreviews[i] || face.photoCampagneUrl} 
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
-                    alt="Aperçu"
-                    onClick={() => {
-                        // ✅ Zoom sur la photo quand on clique
-                        const url = localPreviews[i] || face.photoCampagneUrl;
-                        if (url) {
-                            // Créer un modal de zoom
-                            const modal = document.createElement('div');
-                            modal.className = 'fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer';
-                            modal.onclick = () => modal.remove();
-                            modal.innerHTML = `
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <input
+                                                    type="date"
+                                                    className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
+                                                    value={face.dateDebut}
+                                                    onChange={e => {
+                                                        const nf = [...formData.faces];
+                                                        nf[i].dateDebut = e.target.value;
+                                                        setFormData({ ...formData, faces: nf });
+                                                    }}
+                                                />
+                                                <input
+                                                    type="date"
+                                                    className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[10px] outline-none focus:ring-2 focus:ring-blue-500"
+                                                    value={face.dateFin}
+                                                    onChange={e => {
+                                                        const nf = [...formData.faces];
+                                                        nf[i].dateFin = e.target.value;
+                                                        setFormData({ ...formData, faces: nf });
+                                                    }}
+                                                />
+                                            </div>
+
+                                            {/* ============================================ */}
+                                            {/* SECTION PHOTO - DISPOSITION ADAPTATIVE */}
+                                            {/* ============================================ */}
+                                            <div className="mt-2">
+                                                {/* En-tête compact */}
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <Camera size={12} className="text-blue-500 flex-shrink-0" />
+                                                    <span className="text-[7px] font-bold text-gray-600">Preuve d'affichage</span>
+                                                    {(localPreviews[i] || face.photoCampagneUrl) && (
+                                                        <span className="text-[6px] text-emerald-600 font-bold">✓ Photo</span>
+                                                    )}
+                                                </div>
+
+                                                {/* Conteneur principal - Flex row avec photo et boutons côte à côte */}
+                                                <div className={`flex gap-2 ${(localPreviews[i] || face.photoCampagneUrl) ? 'items-start' : 'flex-col'}`}>
+
+                                                    {/* Aperçu - visible seulement si photo existe */}
+                                                    {(localPreviews[i] || face.photoCampagneUrl) && (
+                                                        <div className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-gray-200 cursor-pointer group">
+                                                            <img
+                                                                src={localPreviews[i] || face.photoCampagneUrl}
+                                                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                                                alt="Aperçu"
+                                                                onClick={() => {
+                                                                    // ✅ Zoom sur la photo quand on clique
+                                                                    const url = localPreviews[i] || face.photoCampagneUrl;
+                                                                    if (url) {
+                                                                        // Créer un modal de zoom
+                                                                        const modal = document.createElement('div');
+                                                                        modal.className = 'fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer';
+                                                                        modal.onclick = () => modal.remove();
+                                                                        modal.innerHTML = `
                                 <div class="relative max-w-3xl max-h-[90vh]">
                                     <img src="${url}" class="w-full h-full object-contain rounded-lg shadow-2xl" alt="Zoom" />
                                     <button class="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-600 rounded-full text-white text-sm">✕</button>
                                 </div>
                             `;
-                            document.body.appendChild(modal);
-                            // Fermer avec Echap
-                            const handleEsc = (e: KeyboardEvent) => {
-                                if (e.key === 'Escape') modal.remove();
-                            };
-                            document.addEventListener('keydown', handleEsc);
-                            modal.onclick = () => {
-                                document.removeEventListener('keydown', handleEsc);
-                                modal.remove();
-                            };
-                        }
-                    }}
-                />
-                <button
-                    type="button"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        const nf = [...formData.faces];
-                        nf[i].photoCampagneUrl = '';
-                        setFormData({ ...formData, faces: nf });
-                        setLocalPreviews(prev => {
-                            const newPreviews = { ...prev };
-                            delete newPreviews[i];
-                            return newPreviews;
-                        });
-                    }}
-                    className="absolute top-0.5 right-0.5 p-0.5 bg-red-500/80 hover:bg-red-600 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                    <X size={8} />
-                </button>
-                {/* Indicateur de clic pour zoom */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                    <span className="text-[6px] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-1.5 py-0.5 rounded-full">
-                        🔍 Zoom
-                    </span>
-                </div>
-            </div>
-        )}
+                                                                        document.body.appendChild(modal);
+                                                                        // Fermer avec Echap
+                                                                        const handleEsc = (e: KeyboardEvent) => {
+                                                                            if (e.key === 'Escape') modal.remove();
+                                                                        };
+                                                                        document.addEventListener('keydown', handleEsc);
+                                                                        modal.onclick = () => {
+                                                                            document.removeEventListener('keydown', handleEsc);
+                                                                            modal.remove();
+                                                                        };
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const nf = [...formData.faces];
+                                                                    nf[i].photoCampagneUrl = '';
+                                                                    setFormData({ ...formData, faces: nf });
+                                                                    setLocalPreviews(prev => {
+                                                                        const newPreviews = { ...prev };
+                                                                        delete newPreviews[i];
+                                                                        return newPreviews;
+                                                                    });
+                                                                }}
+                                                                className="absolute top-0.5 right-0.5 p-0.5 bg-red-500/80 hover:bg-red-600 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <X size={8} />
+                                                            </button>
+                                                            {/* Indicateur de clic pour zoom */}
+                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                                                <span className="text-[6px] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-1.5 py-0.5 rounded-full">
+                                                                    🔍 Zoom
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
 
-        {/* Boutons - S'adaptent à la présence de la photo */}
-        <div className={`flex gap-2 ${(localPreviews[i] || face.photoCampagneUrl) ? 'flex-1 flex-col' : 'flex-row'}`}>
-            {/* Galerie */}
-            <div className={`relative ${(localPreviews[i] || face.photoCampagneUrl) ? 'w-full' : 'flex-1'}`}>
-                <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    id={`file-${i}`}
-                    onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                            const objectUrl = URL.createObjectURL(file);
-                            setLocalPreviews(prev => ({ ...prev, [i]: objectUrl }));
-                            handlePhotoUpload(i, file);
-                        }
-                        e.target.value = '';
-                    }}
-                />
-                <div className={`flex items-center justify-center gap-1 py-2 rounded-lg border transition-all duration-300 ${
-                    (localPreviews[i] || face.photoCampagneUrl) 
-                        ? 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 w-full' 
-                        : 'border-blue-200 bg-blue-50 hover:bg-blue-100 flex-1'
-                } cursor-pointer`}>
-                    <Camera size={11} className={(localPreviews[i] || face.photoCampagneUrl) ? 'text-emerald-500' : 'text-blue-500'} />
-                    <span className="text-[6px] font-medium text-gray-700">
-                        {(localPreviews[i] || face.photoCampagneUrl) ? 'Changer' : 'Galerie'}
-                    </span>
-                </div>
-            </div>
+                                                    {/* Boutons - S'adaptent à la présence de la photo */}
+                                                    <div className={`flex gap-2 ${(localPreviews[i] || face.photoCampagneUrl) ? 'flex-1 flex-col' : 'flex-row'}`}>
+                                                        {/* Galerie */}
+                                                        <div className={`relative ${(localPreviews[i] || face.photoCampagneUrl) ? 'w-full' : 'flex-1'}`}>
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                                id={`file-${i}`}
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) {
+                                                                        const objectUrl = URL.createObjectURL(file);
+                                                                        setLocalPreviews(prev => ({ ...prev, [i]: objectUrl }));
+                                                                        handlePhotoUpload(i, file);
+                                                                    }
+                                                                    e.target.value = '';
+                                                                }}
+                                                            />
+                                                            <div className={`flex items-center justify-center gap-1 py-2 rounded-lg border transition-all duration-300 ${(localPreviews[i] || face.photoCampagneUrl)
+                                                                ? 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 w-full'
+                                                                : 'border-blue-200 bg-blue-50 hover:bg-blue-100 flex-1'
+                                                                } cursor-pointer`}>
+                                                                <Camera size={11} className={(localPreviews[i] || face.photoCampagneUrl) ? 'text-emerald-500' : 'text-blue-500'} />
+                                                                <span className="text-[6px] font-medium text-gray-700">
+                                                                    {(localPreviews[i] || face.photoCampagneUrl) ? 'Changer' : 'Galerie'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
 
-            {/* Caméra */}
-            <button
-                type="button"
-                onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.capture = 'environment';
-                    input.onchange = (e) => {
-                        const file = (e.target as HTMLInputElement).files?.[0];
-                        if (file) {
-                            const objectUrl = URL.createObjectURL(file);
-                            setLocalPreviews(prev => ({ ...prev, [i]: objectUrl }));
-                            handlePhotoUpload(i, file);
-                        }
-                    };
-                    input.click();
-                }}
-                className={`flex items-center justify-center gap-1 py-2 rounded-lg border transition-all duration-300 ${
-                    (localPreviews[i] || face.photoCampagneUrl) 
-                        ? 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 w-full' 
-                        : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 flex-1'
-                }`}
-            >
-                <Camera size={11} className="text-emerald-500" />
-                <span className="text-[6px] font-medium text-gray-700">
-                    {(localPreviews[i] || face.photoCampagneUrl) ? 'Reprendre' : 'Caméra'}
-                </span>
-            </button>
-        </div>
-    </div>
+                                                        {/* Caméra */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const input = document.createElement('input');
+                                                                input.type = 'file';
+                                                                input.accept = 'image/*';
+                                                                input.capture = 'environment';
+                                                                input.onchange = (e) => {
+                                                                    const file = (e.target as HTMLInputElement).files?.[0];
+                                                                    if (file) {
+                                                                        const objectUrl = URL.createObjectURL(file);
+                                                                        setLocalPreviews(prev => ({ ...prev, [i]: objectUrl }));
+                                                                        handlePhotoUpload(i, file);
+                                                                    }
+                                                                };
+                                                                input.click();
+                                                            }}
+                                                            className={`flex items-center justify-center gap-1 py-2 rounded-lg border transition-all duration-300 ${(localPreviews[i] || face.photoCampagneUrl)
+                                                                ? 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 w-full'
+                                                                : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 flex-1'
+                                                                }`}
+                                                        >
+                                                            <Camera size={11} className="text-emerald-500" />
+                                                            <span className="text-[6px] font-medium text-gray-700">
+                                                                {(localPreviews[i] || face.photoCampagneUrl) ? 'Reprendre' : 'Caméra'}
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                </div>
 
-    {/* Indicateurs de statut */}
-    {uploadingIndex === i && (
-        <div className="mt-1 flex items-center gap-1.5 py-0.5 bg-blue-50 rounded-lg">
-            <div className="w-2 h-2 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-[5px] text-blue-600 font-medium">Téléchargement...</span>
-        </div>
-    )}
+                                                {/* Indicateurs de statut */}
+                                                {uploadingIndex === i && (
+                                                    <div className="mt-1 flex items-center gap-1.5 py-0.5 bg-blue-50 rounded-lg">
+                                                        <div className="w-2 h-2 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                                        <span className="text-[5px] text-blue-600 font-medium">Téléchargement...</span>
+                                                    </div>
+                                                )}
 
-    {(localPreviews[i] || face.photoCampagneUrl) && !uploadingIndex && (
-        <div className="mt-1 flex items-center gap-1 px-2 py-0.5 bg-emerald-50 rounded-lg">
-            <div className="w-1 h-1 rounded-full bg-emerald-500" />
-            <span className="text-[5px] font-medium text-emerald-700">Prête</span>
-            {face.photoCampagneUrl && <span className="text-[5px] text-emerald-500 ml-auto">✅</span>}
-            {!face.photoCampagneUrl && <span className="text-[5px] text-amber-500 ml-auto">⏳</span>}
-        </div>
-    )}
-</div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                                                {(localPreviews[i] || face.photoCampagneUrl) && !uploadingIndex && (
+                                                    <div className="mt-1 flex items-center gap-1 px-2 py-0.5 bg-emerald-50 rounded-lg">
+                                                        <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                                                        <span className="text-[5px] font-medium text-emerald-700">Prête</span>
+                                                        {face.photoCampagneUrl && <span className="text-[5px] text-emerald-500 ml-auto">✅</span>}
+                                                        {!face.photoCampagneUrl && <span className="text-[5px] text-amber-500 ml-auto">⏳</span>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
 
-                {/* ============================================ */}
-                {/* BOUTON DE SOUMISSION */}
-                {/* ============================================ */}
-                <button
-                    onClick={enregistrerPanneau}
-                    disabled={loading || uploadingIndex !== null}
-                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                >
-                    {loading ? (
-                        <Loader2 size={20} className="animate-spin" />
-                    ) : (
-                        <Save size={20} />
-                    )}
-                    {loading ? "TRAITEMENT EN COURS..." : "FINALISER L'ENREGISTREMENT"}
-                </button>
+                    {/* ============================================ */}
+                    {/* BOUTON DE SOUMISSION */}
+                    {/* ============================================ */}
+                    <button
+                        onClick={enregistrerPanneau}
+                        disabled={loading || uploadingIndex !== null}
+                        className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                    >
+                        {loading ? (
+                            <Loader2 size={20} className="animate-spin" />
+                        ) : (
+                            <Save size={20} />
+                        )}
+                        {loading ? "TRAITEMENT EN COURS..." : "FINALISER L'ENREGISTREMENT"}
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
 }
