@@ -842,13 +842,40 @@ export default function UltimateSupervisor() {
   };
 
   const handleLogout = () => {
-    if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-      logout();
-      localStorage.clear();
-      sessionStorage.clear();
-      router.push('/');
-    }
+  if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+    // Nettoyer le localStorage et sessionStorage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // D'abord, effacer l'historique
+    window.history.pushState(null, "", window.location.href);
+    window.onpopstate = function () {
+      window.history.pushState(null, "", window.location.href);
+    };
+    
+    // Puis déconnecter et rediriger
+    logout();
+    router.push('/');
+  }
+};
+
+// Ajoutez ce useEffect dans votre composant, juste après la déclaration des states
+useEffect(() => {
+  // Fonction pour empêcher le retour en arrière
+  const preventBack = () => {
+    window.history.pushState(null, "", window.location.href);
   };
+
+  // Bloquer le retour en arrière
+  window.history.pushState(null, "", window.location.href);
+  window.addEventListener('popstate', preventBack);
+
+  return () => {
+    window.removeEventListener('popstate', preventBack);
+  };
+}, []);
+
+
   const [statsTab, setStatsTab] = useState<'perf' | 'gestion'>('perf');
   const [monthRange, setMonthRange] = useState(1);
   // Gestion de l'onglet actif (Performance ou Gestion)

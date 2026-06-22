@@ -1850,7 +1850,7 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3.5 pl-12 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
-                placeholder="omeongaandre2@gmail.com" // ← placeholder demandé
+                placeholder=".....@dispromalt.cd" 
               />
             </div>
           </div>
@@ -1866,18 +1866,9 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3.5 pl-12 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
-                placeholder="••••••••••••"
+                placeholder="••••••••••"
               />
             </div>
-          </div>
-          {/* Lien oublié */}
-          <div className="flex justify-end">
-            <button
-              type="button"
-              className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              Mot de passe oublié ?
-            </button>
           </div>
           {/* Bouton Connexion */}
           <button
