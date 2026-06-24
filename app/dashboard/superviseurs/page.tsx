@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useScroll, useSpring, useMotionValueEvent } from 'framer-motion';
 import {
   Search, MapPin, Filter, PlusCircle, CheckCircle2,
-  Menu, X, Home, Zap, Globe, Loader2, FileText
+  Menu, X, Home, Zap, Globe, Loader2, Clock, UserCheck, FileText, Send
 } from 'lucide-react';
 
 import Footer from '@/components1/Footer';
@@ -401,9 +401,26 @@ interface Panneau {
   faces?: Face[];
   createdAt?: any;
 }
-
-
-
+// Interface pour les RDV
+interface RdvData {
+  id: string;
+  clientNom: string;
+  clientContact?: string;
+  dateVisite: string;
+  heureVisite?: string;
+  objet: string;
+  description?: string;
+  resultat?: string;
+  prochainRdv?: string;
+  statut: 'en_attente' | 'valide' | 'rejete' | 'realise' | 'annule' | 'reporte';
+  agentEmail: string;
+  agentNom: string;
+  createdAt: any;
+  dateModification: any;
+  userId: string;
+  luParResponsable?: boolean;
+  commentaireResponsable?: string;
+}
 import {
   // ... autres imports
   CreditCard  // ← Ajoutez ceci
@@ -422,6 +439,22 @@ const logoUrl = logo;
 
 // --- 3. COMPOSANT PRINCIPAL ---
 export default function UltimateSupervisor() {
+
+  
+// Constantes pour les statuts
+const STATUTS_RDV = {
+  en_attente: { label: 'En attente', color: 'bg-amber-100 text-amber-700 border-amber-300', icon: '⏳' },
+  valide: { label: 'Validé', color: 'bg-emerald-100 text-emerald-700 border-emerald-300', icon: '✅' },
+  rejete: { label: 'Rejeté', color: 'bg-red-100 text-red-700 border-red-300', icon: '❌' },
+  realise: { label: 'Réalisé', color: 'bg-blue-100 text-blue-700 border-blue-300', icon: '📋' },
+  annule: { label: 'Annulé', color: 'bg-gray-100 text-gray-600 border-gray-300', icon: '🚫' },
+  reporte: { label: 'Reporté', color: 'bg-purple-100 text-purple-700 border-purple-300', icon: '🔄' }
+};
+
+// Email de l'admin responsable
+const ADMIN_RESPONSABLE = 'admincommerciaux@dispromalt.cd';
+
+
   const router = useRouter();
   const { user, logout } = useAuth();
 
@@ -442,6 +475,13 @@ export default function UltimateSupervisor() {
   const [panneauxData, setPanneauxData] = useState<Panneau[]>([]);
 
 
+
+  // Ajoutez ces états après les autres déclarations d'états (vers la ligne ~200)
+
+ 
+
+
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8); // 8 panneaux par page
@@ -457,6 +497,42 @@ export default function UltimateSupervisor() {
 
 
   const [dernierIdFacture, setDernierIdFacture] = useState(0); // <--- DOIT ÊTRE ICI
+
+
+
+
+
+
+
+// États pour le module RDV (complétés)
+const [rdvForm, setRdvForm] = useState({
+  clientNom: '',
+  clientContact: '',
+  dateVisite: new Date().toISOString().split('T')[0],
+  heureVisite: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+  objet: '',
+  description: '',
+  resultat: '',
+  prochainRdv: '',
+  statut: 'en_attente' as 'en_attente' | 'valide' | 'rejete' | 'realise' | 'annule' | 'reporte'
+});
+
+const [isSubmittingRdv, setIsSubmittingRdv] = useState(false);
+const [rdvHistory, setRdvHistory] = useState<RdvData[]>([]);
+const [showRdvForm, setShowRdvForm] = useState(false);
+const [rdvFilter, setRdvFilter] = useState<'tous' | 'en_attente' | 'valide' | 'rejete' | 'realise' | 'annule' | 'reporte'>('tous');
+const [expandedRdvId, setExpandedRdvId] = useState<string | null>(null);
+const [editingRdvId, setEditingRdvId] = useState<string | null>(null);
+const [commentaireResponsable, setCommentaireResponsable] = useState('');
+const [showCommentModal, setShowCommentModal] = useState(false);
+const [selectedRdvForAction, setSelectedRdvForAction] = useState<RdvData | null>(null);
+
+
+
+
+
+
+
   // 2. Place le code ici (il s'exécute une seule fois au chargement)
   useEffect(() => {
     const fetchLastId = async () => {
@@ -602,6 +678,225 @@ export default function UltimateSupervisor() {
       alert("❌ Erreur lors de la suppression de la réservation");
     }
   };
+
+
+  // Fonction pour soumettre un rapport de rendez-vous
+const submitRdvReport = async () => {
+  // Validation des champs obligatoires
+  if (!rdvForm.clientNom.trim()) {
+    alert("⚠️ Veuillez saisir le nom du client");
+    return;
+  }
+  if (!rdvForm.dateVisite) {
+    alert("⚠️ Veuillez sélectionner une date de visite");
+    return;
+  }
+  if (!rdvForm.objet.trim()) {
+    alert("⚠️ Veuillez décrire l'objet du rendez-vous");
+    return;
+  }
+
+  setIsSubmittingRdv(true);
+
+  try {
+    const rdvData = {
+      ...rdvForm,
+      agentEmail: user?.email || "agent@dispromalt.cd",
+      agentNom: user?.nomComplet || user?.nom || "Agent",
+      createdAt: serverTimestamp(),
+      dateModification: serverTimestamp(),
+      userId: user?.uid || "anonymous",
+      luParResponsable: false,
+      commentaireResponsable: null
+    };
+
+    await addDoc(collection(db, "rapports_visite"), rdvData);
+
+    // Réinitialiser le formulaire
+    setRdvForm({
+      clientNom: '',
+      clientContact: '',
+      dateVisite: new Date().toISOString().split('T')[0],
+      heureVisite: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      objet: '',
+      description: '',
+      resultat: '',
+      prochainRdv: '',
+      statut: 'en_attente'
+    });
+    setShowRdvForm(false);
+
+    alert("✅ Rapport de visite envoyé avec succès !");
+  } catch (error) {
+    console.error("Erreur lors de l'envoi du rapport:", error);
+    alert("❌ Erreur lors de l'envoi du rapport");
+  } finally {
+    setIsSubmittingRdv(false);
+  }
+};
+
+
+// Fonction pour valider un RDV (admin)
+const validerRdv = async (rdv: RdvData) => {
+  if (!window.confirm(`Valider le rapport de ${rdv.clientNom} ?`)) return;
+  
+  try {
+    const docRef = doc(db, "rapports_visite", rdv.id);
+    await updateDoc(docRef, {
+      statut: 'valide',
+      luParResponsable: true,
+      dateModification: serverTimestamp()
+    });
+    alert("✅ Rapport validé avec succès !");
+  } catch (error) {
+    console.error("Erreur:", error);
+    alert("❌ Erreur lors de la validation");
+  }
+};
+
+// Fonction pour rejeter un RDV (admin)
+const rejeterRdv = async (rdv: RdvData, commentaire: string) => {
+  if (!commentaire.trim()) {
+    alert("⚠️ Veuillez saisir un commentaire de rejet");
+    return;
+  }
+  
+  try {
+    const docRef = doc(db, "rapports_visite", rdv.id);
+    await updateDoc(docRef, {
+      statut: 'rejete',
+      luParResponsable: true,
+      commentaireResponsable: commentaire,
+      dateModification: serverTimestamp()
+    });
+    alert("✅ Rapport rejeté avec commentaire");
+    setShowCommentModal(false);
+    setCommentaireResponsable('');
+  } catch (error) {
+    console.error("Erreur:", error);
+    alert("❌ Erreur lors du rejet");
+  }
+};
+
+// Fonction pour modifier un RDV (agent)
+const modifierRdv = async (rdv: RdvData) => {
+  // Vérifier si le responsable a déjà lu
+  if (rdv.luParResponsable) {
+    alert("⚠️ Ce rapport a déjà été lu par le responsable. Modification non autorisée.");
+    return;
+  }
+  
+  try {
+    // Mettre à jour avec les nouvelles valeurs du formulaire
+    const docRef = doc(db, "rapports_visite", rdv.id);
+    await updateDoc(docRef, {
+      clientNom: rdvForm.clientNom || rdv.clientNom,
+      clientContact: rdvForm.clientContact || rdv.clientContact,
+      dateVisite: rdvForm.dateVisite || rdv.dateVisite,
+      heureVisite: rdvForm.heureVisite || rdv.heureVisite,
+      objet: rdvForm.objet || rdv.objet,
+      description: rdvForm.description || rdv.description,
+      resultat: rdvForm.resultat || rdv.resultat,
+      prochainRdv: rdvForm.prochainRdv || rdv.prochainRdv,
+      dateModification: serverTimestamp()
+    });
+    
+    setEditingRdvId(null);
+    alert("✅ Rapport modifié avec succès !");
+  } catch (error) {
+    console.error("Erreur:", error);
+    alert("❌ Erreur lors de la modification");
+  }
+};
+
+// Fonction pour supprimer un RDV (admin)
+const supprimerRdv = async (rdv: RdvData) => {
+  if (!window.confirm(`Supprimer définitivement le rapport de ${rdv.clientNom} ?`)) return;
+  
+  try {
+    const docRef = doc(db, "rapports_visite", rdv.id);
+    await deleteDoc(docRef);
+    alert("✅ Rapport supprimé avec succès !");
+  } catch (error) {
+    console.error("Erreur:", error);
+    alert("❌ Erreur lors de la suppression");
+  }
+};
+
+// Fonction pour basculer l'expansion d'un RDV
+const toggleExpandRdv = (rdvId: string) => {
+  setExpandedRdvId(expandedRdvId === rdvId ? null : rdvId);
+};
+
+// Fonction pour préparer l'édition d'un RDV
+const prepareEditRdv = (rdv: RdvData) => {
+  if (rdv.luParResponsable) {
+    alert("⚠️ Ce rapport a déjà été lu par le responsable. Modification non autorisée.");
+    return;
+  }
+  
+  setRdvForm({
+    clientNom: rdv.clientNom || '',
+    clientContact: rdv.clientContact || '',
+    dateVisite: rdv.dateVisite || '',
+    heureVisite: rdv.heureVisite || '',
+    objet: rdv.objet || '',
+    description: rdv.description || '',
+    resultat: rdv.resultat || '',
+    prochainRdv: rdv.prochainRdv || '',
+    statut: rdv.statut || 'en_attente'
+  });
+  setEditingRdvId(rdv.id);
+  setShowRdvForm(true);
+};
+
+
+
+  // Charger l'historique des RDV
+useEffect(() => {
+  if (!user?.email) return;
+
+  const q = query(
+    collection(db, "rapports_visite")
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const data: any[] = [];
+    snapshot.docs.forEach(doc => {
+      data.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    // Filtrer selon le rôle de l'utilisateur
+    const isAdmin = user.email === ADMIN_RESPONSABLE;
+    let filteredData = data;
+    
+    if (!isAdmin) {
+      // Agent : ne voit que ses propres RDV
+      filteredData = data.filter(rdv => rdv.agentEmail === user.email);
+    }
+    
+    // Trier du plus récent au plus ancien
+    const sortedData = filteredData.sort((a, b) => {
+      const getTime = (val: any) => {
+        if (!val) return 0;
+        if (typeof val === 'object' && val.toDate) return val.toDate().getTime();
+        return new Date(val).getTime();
+      };
+      return getTime(b.createdAt) - getTime(a.createdAt);
+    });
+    
+    setRdvHistory(sortedData);
+  }, (error) => {
+    console.error("Erreur chargement RDV:", error);
+  });
+
+  return () => unsubscribe();
+}, [user?.email]);
+
+
 
 
   const processOperations = async (type: 'unique' | 'selection' | 'delete', data?: any, index?: number) => {
@@ -842,44 +1137,49 @@ export default function UltimateSupervisor() {
   };
 
   const handleLogout = () => {
-  if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-    // Nettoyer le localStorage et sessionStorage
-    localStorage.clear();
-    sessionStorage.clear();
-    
-    // D'abord, effacer l'historique
-    window.history.pushState(null, "", window.location.href);
-    window.onpopstate = function () {
+    if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+      // Nettoyer le localStorage et sessionStorage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // D'abord, effacer l'historique
+      window.history.pushState(null, "", window.location.href);
+      window.onpopstate = function () {
+        window.history.pushState(null, "", window.location.href);
+      };
+
+      // Puis déconnecter et rediriger
+      logout();
+      router.push('/');
+    }
+  };
+
+  // Ajoutez ce useEffect dans votre composant, juste après la déclaration des states
+  useEffect(() => {
+    // Fonction pour empêcher le retour en arrière
+    const preventBack = () => {
       window.history.pushState(null, "", window.location.href);
     };
-    
-    // Puis déconnecter et rediriger
-    logout();
-    router.push('/');
-  }
-};
 
-// Ajoutez ce useEffect dans votre composant, juste après la déclaration des states
-useEffect(() => {
-  // Fonction pour empêcher le retour en arrière
-  const preventBack = () => {
+    // Bloquer le retour en arrière
     window.history.pushState(null, "", window.location.href);
-  };
+    window.addEventListener('popstate', preventBack);
 
-  // Bloquer le retour en arrière
-  window.history.pushState(null, "", window.location.href);
-  window.addEventListener('popstate', preventBack);
+    return () => {
+      window.removeEventListener('popstate', preventBack);
+    };
+  }, []);
 
-  return () => {
-    window.removeEventListener('popstate', preventBack);
-  };
-}, []);
+
+
+
 
 
   const [statsTab, setStatsTab] = useState<'perf' | 'gestion'>('perf');
   const [monthRange, setMonthRange] = useState(1);
   // Gestion de l'onglet actif (Performance ou Gestion)
-  const [activeTab, setActiveTab] = useState<'stats' | 'reservations'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'reservations' | 'rdv'>('stats');
+
 
   // Filtres pour la partie Gestion
   const [timeFilter, setTimeFilter] = useState<'avant' | 'present' | 'futur'>('present');
@@ -1456,8 +1756,6 @@ useEffect(() => {
             </button>
           </div>
 
-
-
           <AnimatePresence>
             {isCartOpen && (
               <>
@@ -1809,13 +2107,15 @@ useEffect(() => {
                   </div>
 
                   {/* CONTENU SCROLLABLE - OPTIMISÉ */}
+                  {/* CONTENU SCROLLABLE - OPTIMISÉ */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-transparent">
-                    {activeTab === 'stats' ? (
+
+                    {/* ========== ONGLET STATS ========== */}
+                    {activeTab === 'stats' && (
                       <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
                         {/* CERCLE DE PERFORMANCE - COMPACT */}
                         <div className="flex flex-col items-center py-2">
                           <div className="relative w-32 h-32 flex items-center justify-center">
-                            {/* Cercle de fond */}
                             <svg className="w-full h-full -rotate-90">
                               <circle cx="64" cy="64" r="56" fill="none" stroke="currentColor" strokeWidth="6" className="text-gray-200" />
                               <circle
@@ -1827,7 +2127,6 @@ useEffect(() => {
                                 className="transition-all duration-1000"
                               />
                             </svg>
-                            {/* Gradient SVG */}
                             <svg width="0" height="0">
                               <defs>
                                 <linearGradient id="gradientStats" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -1855,7 +2154,10 @@ useEffect(() => {
                           </div>
                         </div>
                       </div>
-                    ) : (
+                    )}
+
+                    {/* ========== ONGLET GESTION ========== */}
+                    {activeTab === 'reservations' && (
                       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         {/* FILTRES - COMPACT */}
                         <div className="space-y-3">
@@ -1922,7 +2224,6 @@ useEffect(() => {
                                 transition={{ delay: idx * 0.05 }}
                                 className="flex items-center gap-2.5 p-2.5 bg-white/40 backdrop-blur-sm border border-white/30 rounded-xl hover:border-blue-400/50 hover:shadow-md hover:shadow-blue-100/20 transition-all group"
                               >
-                                {/* PHOTO MINIATURE */}
                                 <div className="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-white/30">
                                   <img src={res.photoCampagneUrl} className="w-full h-full object-cover" alt="" />
                                   <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
@@ -1933,8 +2234,6 @@ useEffect(() => {
                                     </svg>
                                   </label>
                                 </div>
-
-                                {/* INFOS - COMPACT */}
                                 <div className="flex-1 min-w-0 grid grid-cols-2 items-center gap-1.5">
                                   <div>
                                     <p className="text-[7px] font-black text-blue-600 truncate uppercase">{res.faceId}</p>
@@ -1963,8 +2262,636 @@ useEffect(() => {
                         </div>
                       </div>
                     )}
-                  </div>
 
+                    {/* ========== ONGLET RDV (NOUVEAU) ========== */}
+                    {/* ========== ONGLET RDV ========== */}
+{activeTab === 'rdv' && (
+  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+    
+    {/* VÉRIFICATION SI C'EST L'ADMIN OU UN AGENT */}
+    {user?.email === ADMIN_RESPONSABLE ? (
+      // ========== VUE ADMIN ==========
+      <>
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-3 text-white">
+          <p className="text-[10px] font-black uppercase flex items-center gap-2">
+            <ShieldCheck size={14} />
+            Panneau d'administration - Tous les rapports
+          </p>
+          <p className="text-[7px] text-white/70 mt-0.5">
+            {rdvHistory.length} rapport(s) en attente de traitement
+          </p>
+        </div>
+        
+        {/* FILTRES ADMIN */}
+        <div className="flex gap-1 bg-white/30 p-1 rounded-lg border border-white/20 overflow-x-auto flex-wrap">
+          {['tous', 'en_attente', 'valide', 'rejete', 'realise', 'annule', 'reporte'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setRdvFilter(f as any)}
+              className={`px-2 py-1 rounded-lg text-[6px] font-black uppercase whitespace-nowrap transition-all ${rdvFilter === f
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                : 'text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              {STATUTS_RDV[f as keyof typeof STATUTS_RDV]?.icon || '📋'} {f === 'tous' ? 'Tous' : STATUTS_RDV[f as keyof typeof STATUTS_RDV]?.label || f}
+            </button>
+          ))}
+        </div>
+        
+        {/* LISTE DES RDV - ADMIN */}
+        <div className="space-y-2">
+          {rdvHistory.filter(r => rdvFilter === 'tous' || r.statut === rdvFilter).length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 mx-auto bg-white/30 rounded-full flex items-center justify-center mb-2 border border-white/20">
+                <Calendar size={18} className="text-gray-400" />
+              </div>
+              <p className="text-gray-500 text-xs font-bold uppercase">Aucun rapport</p>
+              <p className="text-gray-400/60 text-[7px] mt-1">Aucun rapport trouvé</p>
+            </div>
+          ) : (
+            rdvHistory
+              .filter(r => rdvFilter === 'tous' || r.statut === rdvFilter)
+              .map((rdv, idx) => {
+                const statusInfo = STATUTS_RDV[rdv.statut as keyof typeof STATUTS_RDV] || STATUTS_RDV.en_attente;
+                const isExpanded = expandedRdvId === rdv.id;
+                
+                return (
+                  <motion.div
+                    key={rdv.id || idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="bg-white/40 backdrop-blur-sm border border-white/30 rounded-xl hover:border-blue-400/50 transition-all overflow-hidden"
+                  >
+                    {/* EN-TÊTE CARTE (toujours visible) */}
+                    <div 
+                      className="p-3 cursor-pointer hover:bg-white/20 transition-colors"
+                      onClick={() => toggleExpandRdv(rdv.id)}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-[9px] font-black text-gray-800 truncate">{rdv.clientNom}</p>
+                            <span className="text-[6px] text-gray-400">•</span>
+                            <p className="text-[7px] text-gray-500 font-medium truncate">{rdv.agentNom}</p>
+                          </div>
+                          <p className="text-[7px] text-gray-500 font-medium truncate">{rdv.objet}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[6px] text-gray-400">{rdv.dateVisite}</span>
+                            {rdv.heureVisite && (
+                              <span className="text-[6px] text-gray-400">• {rdv.heureVisite}</span>
+                            )}
+                            {rdv.luParResponsable && (
+                              <span className="text-[6px] text-blue-500">• 👁️ Lu</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className={`text-[6px] font-black uppercase px-1.5 py-0.5 rounded-md border ${statusInfo.color}`}>
+                            {statusInfo.icon} {statusInfo.label}
+                          </span>
+                          <button className="p-0.5 text-gray-400 hover:text-blue-600 transition-colors">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* DÉTAILS DÉROULANTS */}
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="px-3 pb-3 pt-1 border-t border-white/20"
+                      >
+                        <div className="space-y-2 text-[8px]">
+                          {/* Informations détaillées */}
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Client</p>
+                              <p className="text-gray-800 font-medium">{rdv.clientNom}</p>
+                            </div>
+                            {rdv.clientContact && (
+                              <div>
+                                <p className="text-gray-400 font-bold uppercase">Contact</p>
+                                <p className="text-gray-800 font-medium">{rdv.clientContact}</p>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Date</p>
+                              <p className="text-gray-800 font-medium">{rdv.dateVisite}</p>
+                            </div>
+                            {rdv.heureVisite && (
+                              <div>
+                                <p className="text-gray-400 font-bold uppercase">Heure</p>
+                                <p className="text-gray-800 font-medium">{rdv.heureVisite}</p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {rdv.description && (
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Description</p>
+                              <p className="text-gray-700 text-[8px]">{rdv.description}</p>
+                            </div>
+                          )}
+                          
+                          {rdv.resultat && (
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Résultat</p>
+                              <p className="text-gray-700 text-[8px]">{rdv.resultat}</p>
+                            </div>
+                          )}
+                          
+                          {rdv.prochainRdv && (
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Prochain rendez-vous</p>
+                              <p className="text-gray-800 font-medium">{rdv.prochainRdv}</p>
+                            </div>
+                          )}
+                          
+                          {rdv.commentaireResponsable && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-1.5">
+                              <p className="text-gray-400 font-bold uppercase text-[6px]">Commentaire responsable</p>
+                              <p className="text-blue-700 text-[8px]">{rdv.commentaireResponsable}</p>
+                            </div>
+                          )}
+                          
+                          {/* ACTIONS ADMIN */}
+                          {rdv.statut === 'en_attente' && (
+                            <div className="flex gap-2 pt-1.5 border-t border-white/20">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); validerRdv(rdv); }}
+                                className="flex-1 py-1 bg-emerald-500 text-white rounded-lg font-black text-[7px] uppercase flex items-center justify-center gap-1 hover:bg-emerald-600 transition-all active:scale-95"
+                              >
+                                ✅ Valider
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSelectedRdvForAction(rdv); setShowCommentModal(true); }}
+                                className="flex-1 py-1 bg-red-500 text-white rounded-lg font-black text-[7px] uppercase flex items-center justify-center gap-1 hover:bg-red-600 transition-all active:scale-95"
+                              >
+                                ❌ Rejeter
+                              </button>
+                            </div>
+                          )}
+                          
+                          {/* Actions pour tous les RDV */}
+                          <div className="flex gap-1 pt-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); supprimerRdv(rdv); }}
+                              className="px-2 py-0.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-black text-[6px] uppercase transition-all"
+                            >
+                              🗑️ Supprimer
+                            </button>
+                            <span className="text-[5px] text-gray-400 self-center">
+                              {rdv.agentEmail}
+                            </span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                );
+              })
+          )}
+        </div>
+      </>
+    ) : (
+      // ========== VUE AGENT ==========
+      <>
+        {/* BOUTON NOUVEAU RDV */}
+        {!showRdvForm ? (
+          <button
+            onClick={() => { setShowRdvForm(true); setEditingRdvId(null); }}
+            className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-black text-[9px] uppercase flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-blue-500/20 transition-all active:scale-95"
+          >
+            <Calendar size={14} />
+            Nouveau rapport de visite
+          </button>
+        ) : (
+          /* FORMULAIRE RDV */
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="bg-white/40 backdrop-blur-sm rounded-xl border border-white/30 p-3 space-y-3"
+          >
+            <div className="flex justify-between items-center">
+              <h3 className="text-[9px] font-black text-blue-700 uppercase flex items-center gap-2">
+                <FileText size={12} />
+                {editingRdvId ? 'Modifier le rapport' : 'Nouveau rapport'}
+              </h3>
+              <button
+                onClick={() => { setShowRdvForm(false); setEditingRdvId(null); }}
+                className="text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Client */}
+            <div>
+              <label className="text-[7px] font-black text-gray-500 uppercase flex items-center gap-1">
+                <UserCheck size={10} /> Client *
+              </label>
+              <input
+                type="text"
+                value={rdvForm.clientNom}
+                onChange={(e) => setRdvForm({ ...rdvForm, clientNom: e.target.value })}
+                placeholder="Nom du client"
+                className="w-full bg-white/50 border border-white/30 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-800 outline-none focus:border-blue-400 transition-all"
+              />
+            </div>
+
+            {/* Contact */}
+            <div>
+              <label className="text-[7px] font-black text-gray-500 uppercase flex items-center gap-1">
+                📞 Contact
+              </label>
+              <input
+                type="text"
+                value={rdvForm.clientContact}
+                onChange={(e) => setRdvForm({ ...rdvForm, clientContact: e.target.value })}
+                placeholder="Téléphone / Email"
+                className="w-full bg-white/50 border border-white/30 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-800 outline-none focus:border-blue-400 transition-all"
+              />
+            </div>
+
+            {/* Date et Heure */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[7px] font-black text-gray-500 uppercase">Date *</label>
+                <input
+                  type="date"
+                  value={rdvForm.dateVisite}
+                  onChange={(e) => setRdvForm({ ...rdvForm, dateVisite: e.target.value })}
+                  className="w-full bg-white/50 border border-white/30 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-800 outline-none focus:border-blue-400 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-[7px] font-black text-gray-500 uppercase flex items-center gap-1">
+                  <Clock size={10} /> Heure
+                </label>
+                <input
+                  type="time"
+                  value={rdvForm.heureVisite}
+                  onChange={(e) => setRdvForm({ ...rdvForm, heureVisite: e.target.value })}
+                  className="w-full bg-white/50 border border-white/30 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-800 outline-none focus:border-blue-400 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Objet */}
+            <div>
+              <label className="text-[7px] font-black text-gray-500 uppercase">Objet du rendez-vous *</label>
+              <input
+                type="text"
+                value={rdvForm.objet}
+                onChange={(e) => setRdvForm({ ...rdvForm, objet: e.target.value })}
+                placeholder="Ex: Présentation de l'offre, Signature contrat..."
+                className="w-full bg-white/50 border border-white/30 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-800 outline-none focus:border-blue-400 transition-all"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="text-[7px] font-black text-gray-500 uppercase">Description</label>
+              <textarea
+                value={rdvForm.description}
+                onChange={(e) => setRdvForm({ ...rdvForm, description: e.target.value })}
+                placeholder="Détails du rendez-vous..."
+                rows={2}
+                className="w-full bg-white/50 border border-white/30 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-800 outline-none focus:border-blue-400 transition-all resize-none"
+              />
+            </div>
+
+            {/* Résultat */}
+            <div>
+              <label className="text-[7px] font-black text-gray-500 uppercase">Résultat / Retour</label>
+              <textarea
+                value={rdvForm.resultat}
+                onChange={(e) => setRdvForm({ ...rdvForm, resultat: e.target.value })}
+                placeholder="Résumé de l'entretien, conclusion..."
+                rows={2}
+                className="w-full bg-white/50 border border-white/30 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-800 outline-none focus:border-blue-400 transition-all resize-none"
+              />
+            </div>
+
+            {/* Prochain RDV */}
+            <div>
+              <label className="text-[7px] font-black text-gray-500 uppercase">Prochain rendez-vous</label>
+              <input
+                type="date"
+                value={rdvForm.prochainRdv}
+                onChange={(e) => setRdvForm({ ...rdvForm, prochainRdv: e.target.value })}
+                className="w-full bg-white/50 border border-white/30 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-800 outline-none focus:border-blue-400 transition-all"
+              />
+            </div>
+
+            {/* Statut (visible seulement pour l'édition) */}
+            {editingRdvId && (
+              <div>
+                <label className="text-[7px] font-black text-gray-500 uppercase">Statut</label>
+                <select
+                  value={rdvForm.statut}
+                  onChange={(e) => setRdvForm({ ...rdvForm, statut: e.target.value as any })}
+                  className="w-full bg-white/50 border border-white/30 rounded-lg px-2.5 py-1.5 text-[9px] text-gray-800 outline-none focus:border-blue-400 transition-all"
+                >
+                  <option value="en_attente">En attente</option>
+                  <option value="realise">Réalisé</option>
+                  <option value="annule">Annulé</option>
+                  <option value="reporte">Reporté</option>
+                </select>
+              </div>
+            )}
+
+            {/* Boutons */}
+            <div className="flex gap-2 pt-2 border-t border-white/20">
+              <button
+                onClick={() => { setShowRdvForm(false); setEditingRdvId(null); }}
+                className="flex-1 py-1.5 bg-white/40 border border-white/20 text-gray-600 rounded-lg font-black text-[8px] uppercase transition-all hover:bg-red-500 hover:text-white"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  if (editingRdvId) {
+                    const rdv = rdvHistory.find(r => r.id === editingRdvId);
+                    if (rdv) modifierRdv(rdv);
+                  } else {
+                    submitRdvReport();
+                  }
+                }}
+                disabled={isSubmittingRdv}
+                className="flex-1 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-black text-[8px] uppercase flex items-center justify-center gap-1 hover:shadow-lg transition-all active:scale-95 disabled:opacity-50"
+              >
+                {isSubmittingRdv ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <>
+                    <Send size={10} />
+                    {editingRdvId ? 'Modifier' : 'Envoyer'}
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* FILTRES AGENT */}
+        <div className="flex gap-1 bg-white/30 p-1 rounded-lg border border-white/20 overflow-x-auto">
+          {['tous', 'en_attente', 'valide', 'rejete', 'realise', 'annule', 'reporte'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setRdvFilter(f as any)}
+              className={`px-2 py-1 rounded-lg text-[6px] font-black uppercase whitespace-nowrap transition-all ${rdvFilter === f
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                : 'text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              {STATUTS_RDV[f as keyof typeof STATUTS_RDV]?.icon || '📋'} {f === 'tous' ? 'Tous' : STATUTS_RDV[f as keyof typeof STATUTS_RDV]?.label || f}
+            </button>
+          ))}
+        </div>
+
+        {/* LISTE DES RDV - AGENT */}
+        <div className="space-y-2">
+          {rdvHistory.filter(r => rdvFilter === 'tous' || r.statut === rdvFilter).length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 mx-auto bg-white/30 rounded-full flex items-center justify-center mb-2 border border-white/20">
+                <Calendar size={18} className="text-gray-400" />
+              </div>
+              <p className="text-gray-500 text-xs font-bold uppercase">Aucun rapport</p>
+              <p className="text-gray-400/60 text-[7px] mt-1">
+                {rdvFilter === 'tous' ? 'Aucun rapport de visite' : `Aucun rapport ${STATUTS_RDV[rdvFilter as keyof typeof STATUTS_RDV]?.label || rdvFilter}`}
+              </p>
+            </div>
+          ) : (
+            rdvHistory
+              .filter(r => rdvFilter === 'tous' || r.statut === rdvFilter)
+              .map((rdv, idx) => {
+                const statusInfo = STATUTS_RDV[rdv.statut as keyof typeof STATUTS_RDV] || STATUTS_RDV.en_attente;
+                const isExpanded = expandedRdvId === rdv.id;
+                const peutModifier = rdv.statut === 'en_attente' && !rdv.luParResponsable;
+                
+                return (
+                  <motion.div
+                    key={rdv.id || idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="bg-white/40 backdrop-blur-sm border border-white/30 rounded-xl hover:border-blue-400/50 transition-all overflow-hidden"
+                  >
+                    {/* EN-TÊTE CARTE */}
+                    <div 
+                      className="p-3 cursor-pointer hover:bg-white/20 transition-colors"
+                      onClick={() => toggleExpandRdv(rdv.id)}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[9px] font-black text-gray-800 truncate">{rdv.clientNom}</p>
+                          <p className="text-[7px] text-gray-500 font-medium truncate">{rdv.objet}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[6px] text-gray-400">{rdv.dateVisite}</span>
+                            {rdv.heureVisite && (
+                              <span className="text-[6px] text-gray-400">• {rdv.heureVisite}</span>
+                            )}
+                            {rdv.luParResponsable && (
+                              <span className="text-[6px] text-blue-500">• 👁️ Lu</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className={`text-[6px] font-black uppercase px-1.5 py-0.5 rounded-md border ${statusInfo.color}`}>
+                            {statusInfo.icon} {statusInfo.label}
+                          </span>
+                          <button className="p-0.5 text-gray-400 hover:text-blue-600 transition-colors">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* DÉTAILS DÉROULANTS */}
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="px-3 pb-3 pt-1 border-t border-white/20"
+                      >
+                        <div className="space-y-2 text-[8px]">
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Client</p>
+                              <p className="text-gray-800 font-medium">{rdv.clientNom}</p>
+                            </div>
+                            {rdv.clientContact && (
+                              <div>
+                                <p className="text-gray-400 font-bold uppercase">Contact</p>
+                                <p className="text-gray-800 font-medium">{rdv.clientContact}</p>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Date</p>
+                              <p className="text-gray-800 font-medium">{rdv.dateVisite}</p>
+                            </div>
+                            {rdv.heureVisite && (
+                              <div>
+                                <p className="text-gray-400 font-bold uppercase">Heure</p>
+                                <p className="text-gray-800 font-medium">{rdv.heureVisite}</p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {rdv.description && (
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Description</p>
+                              <p className="text-gray-700 text-[8px]">{rdv.description}</p>
+                            </div>
+                          )}
+                          
+                          {rdv.resultat && (
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Résultat</p>
+                              <p className="text-gray-700 text-[8px]">{rdv.resultat}</p>
+                            </div>
+                          )}
+                          
+                          {rdv.prochainRdv && (
+                            <div>
+                              <p className="text-gray-400 font-bold uppercase">Prochain rendez-vous</p>
+                              <p className="text-gray-800 font-medium">{rdv.prochainRdv}</p>
+                            </div>
+                          )}
+                          
+                          {rdv.commentaireResponsable && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-1.5">
+                              <p className="text-gray-400 font-bold uppercase text-[6px]">Commentaire responsable</p>
+                              <p className="text-blue-700 text-[8px]">{rdv.commentaireResponsable}</p>
+                            </div>
+                          )}
+                          
+                          {/* ACTIONS AGENT */}
+                          {peutModifier && (
+                            <div className="flex gap-2 pt-1.5 border-t border-white/20">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); prepareEditRdv(rdv); }}
+                                className="flex-1 py-1 bg-blue-500 text-white rounded-lg font-black text-[7px] uppercase flex items-center justify-center gap-1 hover:bg-blue-600 transition-all active:scale-95"
+                              >
+                                ✏️ Modifier
+                              </button>
+                            </div>
+                          )}
+                          
+                          {!peutModifier && rdv.statut === 'en_attente' && rdv.luParResponsable && (
+                            <p className="text-[7px] text-blue-600 bg-blue-50 p-1 rounded-lg text-center">
+                              📌 Rapport en cours d'évaluation par le responsable
+                            </p>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                );
+              })
+          )}
+        </div>
+      </>
+    )}
+    
+    {/* MODAL DE COMMENTAIRE POUR REJET */}
+    {showCommentModal && selectedRdvForAction && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={() => { setShowCommentModal(false); setSelectedRdvForAction(null); }}
+      >
+        <div 
+          className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-base font-black text-gray-800 mb-2">Motif du rejet</h3>
+          <p className="text-[8px] text-gray-500 mb-3">
+            Veuillez expliquer pourquoi vous rejetez le rapport de {selectedRdvForAction.clientNom}
+          </p>
+          <textarea
+            value={commentaireResponsable}
+            onChange={(e) => setCommentaireResponsable(e.target.value)}
+            placeholder="Saisissez votre commentaire..."
+            rows={3}
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 outline-none focus:border-red-400 transition-all resize-none"
+          />
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={() => { setShowCommentModal(false); setSelectedRdvForAction(null); setCommentaireResponsable(''); }}
+              className="flex-1 py-2 bg-gray-100 rounded-lg font-black text-[8px] uppercase text-gray-600 hover:bg-gray-200 transition-all"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={() => { if (selectedRdvForAction) rejeterRdv(selectedRdvForAction, commentaireResponsable); }}
+              className="flex-1 py-2 bg-red-500 text-white rounded-lg font-black text-[8px] uppercase hover:bg-red-600 transition-all"
+            >
+              Confirmer le rejet
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    )}
+  </div>
+)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                  </div>
                   {/* BOTTOM PANEL - COMPACT */}
                   <div className="p-3 border-t border-white/20 bg-white/30 backdrop-blur-sm flex-shrink-0 space-y-3">
                     {/* IDENTITÉ - COMPACT */}
@@ -1979,6 +2906,7 @@ useEffect(() => {
                     </div>
 
                     {/* SWITCHER STATS / GESTION - COMPACT */}
+                    {/* SWITCHER STATS / GESTION / RDV - COMPACT */}
                     <div className="flex bg-white/30 p-0.5 rounded-lg border border-white/20">
                       <button
                         onClick={() => setActiveTab('stats')}
@@ -2005,8 +2933,17 @@ useEffect(() => {
                         </svg>
                         Gestion
                       </button>
+                      <button
+                        onClick={() => setActiveTab('rdv')}
+                        className={`flex-1 py-1.5 rounded-lg text-[7px] font-black uppercase transition-all flex items-center justify-center gap-1.5 ${activeTab === 'rdv'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-gray-700'
+                          }`}
+                      >
+                        <Calendar size={9} />
+                        RDV
+                      </button>
                     </div>
-
                     {/* BOUTON FERMER - COMPACT */}
                     <button
                       onClick={() => setIsStatsOpen(false)}
@@ -2770,10 +3707,10 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
 
 
-// ============================================
-// FONCTION DE CRÉATION AUTOMATIQUE DE SOCIÉTÉ
-// ============================================
-const createSocieteIfNotExists = async (nomSociete: string) => {
+  // ============================================
+  // FONCTION DE CRÉATION AUTOMATIQUE DE SOCIÉTÉ
+  // ============================================
+  const createSocieteIfNotExists = async (nomSociete: string) => {
     if (!nomSociete || nomSociete.trim() === '') return null;
 
     // Nettoyer le nom
@@ -2781,56 +3718,56 @@ const createSocieteIfNotExists = async (nomSociete: string) => {
 
     // Vérifier si la société existe déjà
     const q = query(
-        collection(db, "societes"),
-        where("nomSociete", "==", nomPropre)
+      collection(db, "societes"),
+      where("nomSociete", "==", nomPropre)
     );
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
-        // Créer la société
-        try {
-            const email = `${nomPropre.toLowerCase().replace(/\s/g, '')}@visiteur.com`;
-            const password = Math.floor(100000 + Math.random() * 900000).toString();
-            
-            await addDoc(collection(db, "societes"), {
-                nomSociete: nomPropre,
-                email: email,
-                password: password,
-                role: "visiteur",
-                telephone: "",
-                actif: true,
-                isOnline: false,
-                createdAt: serverTimestamp(),
-                lastSeen: null,
-                derniereConnexion: null,
-                createdBy: currentUser?.email || user?.email || "Système"
-            });
-            
-            console.log(`✅ Société "${nomPropre}" créée avec succès`);
-            // Rafraîchir la liste
-            await fetchSocietes();
-            return true;
-        } catch (error) {
-            console.error("❌ Erreur création société:", error);
-            return false;
-        }
+      // Créer la société
+      try {
+        const email = `${nomPropre.toLowerCase().replace(/\s/g, '')}@visiteur.com`;
+        const password = Math.floor(100000 + Math.random() * 900000).toString();
+
+        await addDoc(collection(db, "societes"), {
+          nomSociete: nomPropre,
+          email: email,
+          password: password,
+          role: "visiteur",
+          telephone: "",
+          actif: true,
+          isOnline: false,
+          createdAt: serverTimestamp(),
+          lastSeen: null,
+          derniereConnexion: null,
+          createdBy: currentUser?.email || user?.email || "Système"
+        });
+
+        console.log(`✅ Société "${nomPropre}" créée avec succès`);
+        // Rafraîchir la liste
+        await fetchSocietes();
+        return true;
+      } catch (error) {
+        console.error("❌ Erreur création société:", error);
+        return false;
+      }
     }
     return true; // La société existe déjà
-};
+  };
 
 
-// ============================================
-// FONCTION FETCH SOCIÉTÉS
-// ============================================
-const fetchSocietes = async () => {
+  // ============================================
+  // FONCTION FETCH SOCIÉTÉS
+  // ============================================
+  const fetchSocietes = async () => {
     try {
-        const querySnapshot = await getDocs(collection(db, "societes"));
-        const noms = querySnapshot.docs.map(doc => doc.data().nomSociete);
-        setListeSocietes([...new Set(noms)]);
+      const querySnapshot = await getDocs(collection(db, "societes"));
+      const noms = querySnapshot.docs.map(doc => doc.data().nomSociete);
+      setListeSocietes([...new Set(noms)]);
     } catch (err) {
-        console.error("Erreur lors de la récupération des sociétés:", err);
+      console.error("Erreur lors de la récupération des sociétés:", err);
     }
-};
+  };
 
 
 
@@ -2955,25 +3892,25 @@ const fetchSocietes = async () => {
 
     try {
       const societesACreer: string[] = [];
-        for (const face of formData.faces) {
-            if (face.statut !== 'Libre' && face.clientNom && face.clientNom.trim() !== '') {
-                const nomClient = face.clientNom.trim().toUpperCase();
-                const existeDeja = listeSocietes.some(s =>
-                    s && typeof s === 'string' && s.toUpperCase() === nomClient
-                );
-                if (!existeDeja && !societesACreer.includes(nomClient)) {
-                    societesACreer.push(nomClient);
-                }
-            }
+      for (const face of formData.faces) {
+        if (face.statut !== 'Libre' && face.clientNom && face.clientNom.trim() !== '') {
+          const nomClient = face.clientNom.trim().toUpperCase();
+          const existeDeja = listeSocietes.some(s =>
+            s && typeof s === 'string' && s.toUpperCase() === nomClient
+          );
+          if (!existeDeja && !societesACreer.includes(nomClient)) {
+            societesACreer.push(nomClient);
+          }
         }
+      }
 
-        // ✅ Créer les sociétés manquantes
-        for (const nomSociete of societesACreer) {
-            await createSocieteIfNotExists(nomSociete);
-        }
+      // ✅ Créer les sociétés manquantes
+      for (const nomSociete of societesACreer) {
+        await createSocieteIfNotExists(nomSociete);
+      }
 
-        // ✅ Rafraîchir la liste des sociétés
-        await fetchSocietes();
+      // ✅ Rafraîchir la liste des sociétés
+      await fetchSocietes();
 
       const docRef = doc(db, "panneaux", panneau?.id || formData?.id);
 
