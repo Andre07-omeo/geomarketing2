@@ -29,8 +29,8 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   loading: () => (
     <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
       <div className="text-center">
-        <div className="w-12 h-12 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-white/60 text-xs font-bold uppercase tracking-wider">Chargement de la carte...</p>
+        <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-white/80 text-base font-bold uppercase tracking-wider">Chargement de la carte...</p>
       </div>
     </div>
   ),
@@ -66,10 +66,10 @@ export default function FullscreenMap() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
         <div className="text-center">
-          <div className="w-16 h-16 mx-auto bg-amber-500/20 rounded-full flex items-center justify-center animate-pulse">
-            <MapPin size={32} className="text-amber-500" />
+          <div className="w-20 h-20 mx-auto bg-amber-500/30 rounded-full flex items-center justify-center animate-pulse">
+            <MapPin size={40} className="text-amber-500" />
           </div>
-          <p className="mt-4 text-white/60 text-sm font-bold uppercase tracking-wider">
+          <p className="mt-6 text-white/80 text-lg font-bold uppercase tracking-wider">
             Chargement des panneaux...
           </p>
         </div>
@@ -108,7 +108,7 @@ export default function FullscreenMap() {
 }
 
 // ============================================
-// MODALE AMÉLIORÉE - ULTRA COMPACTE
+// MODALE AMÉLIORÉE - TEXTES AGRANDIS
 // ============================================
 function PanneauModal({ panneau, onClose }: any) {
   useEffect(() => {
@@ -133,10 +133,10 @@ function PanneauModal({ panneau, onClose }: any) {
 
   const getStatusColor = (statut: string) => {
     switch (statut?.toLowerCase()) {
-      case 'libre': return { bg: 'bg-green-500/20', border: 'border-green-500/30', text: 'text-green-400', dot: 'bg-green-500' };
-      case 'occupé': return { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400', dot: 'bg-blue-500' };
-      case 'réservé': return { bg: 'bg-amber-500/20', border: 'border-amber-500/30', text: 'text-amber-400', dot: 'bg-amber-500' };
-      default: return { bg: 'bg-gray-500/20', border: 'border-gray-500/30', text: 'text-gray-400', dot: 'bg-gray-500' };
+      case 'libre': return { bg: 'bg-green-500/30', border: 'border-green-500/40', text: 'text-green-400', dot: 'bg-green-500' };
+      case 'occupé': return { bg: 'bg-blue-500/30', border: 'border-blue-500/40', text: 'text-blue-400', dot: 'bg-blue-500' };
+      case 'réservé': return { bg: 'bg-amber-500/30', border: 'border-amber-500/40', text: 'text-amber-400', dot: 'bg-amber-500' };
+      default: return { bg: 'bg-gray-500/30', border: 'border-gray-500/40', text: 'text-gray-400', dot: 'bg-gray-500' };
     }
   };
 
@@ -148,7 +148,7 @@ function PanneauModal({ panneau, onClose }: any) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={onClose}
-      className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
+      className="fixed inset-0 z-[2000] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 30 }}
@@ -156,53 +156,53 @@ function PanneauModal({ panneau, onClose }: any) {
         exit={{ scale: 0.9, opacity: 0, y: 30 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md sm:max-w-lg md:max-w-2xl rounded-xl overflow-hidden shadow-2xl bg-white"
+        className="relative w-full max-w-2xl md:max-w-3xl rounded-2xl overflow-hidden shadow-2xl bg-white"
       >
         {/* ============================================ */}
-        {/* HEADER - BLEU ROI PROFOND */}
+        {/* HEADER - BLEU ROI PROFOND - TEXTES AGRANDIS */}
         {/* ============================================ */}
-        <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 p-3 sm:p-4 border-b border-white/10">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+        <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 p-5 sm:p-6 border-b border-white/15">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             {/* ID Panneau */}
-            <div className="flex items-center justify-between sm:justify-start gap-2">
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tighter">
+            <div className="flex items-center justify-between sm:justify-start gap-3">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tighter">
                 {panneau.idPan || panneau.id}
               </h2>
               <button
                 onClick={onClose}
-                className="sm:hidden p-1.5 bg-white/10 hover:bg-red-500/80 rounded-lg transition-all duration-300 active:scale-95"
+                className="sm:hidden p-2 bg-white/15 hover:bg-red-500/80 rounded-xl transition-all duration-300 active:scale-95"
               >
-                <X size={16} className="text-white" />
+                <X size={20} className="text-white" />
               </button>
             </div>
 
             {/* Dimension */}
-            <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-blue-200">
-              <Ruler size={10} className="text-amber-400 shrink-0" />
-              <span>{panneau.dimension || 'N/A'}</span>
+            <div className="flex items-center gap-2 text-sm sm:text-base text-blue-200">
+              <Ruler size={16} className="text-amber-400 shrink-0" />
+              <span className="font-bold">{panneau.dimension || 'N/A'}</span>
             </div>
 
             {/* Adresse */}
-            <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-blue-200 min-w-0 flex-1">
-              <MapPin size={10} className="text-amber-400 shrink-0" />
-              <span className="truncate">{panneau.adresse || 'Adresse non définie'}</span>
+            <div className="flex items-center gap-2 text-sm sm:text-base text-blue-200 min-w-0 flex-1">
+              <MapPin size={16} className="text-amber-400 shrink-0" />
+              <span className="truncate font-bold">{panneau.adresse || 'Adresse non définie'}</span>
             </div>
 
             {/* Bouton fermeture Desktop */}
             <button
               onClick={onClose}
-              className="hidden sm:block shrink-0 p-1.5 bg-white/10 hover:bg-red-500/80 rounded-lg transition-all duration-300 active:scale-95"
+              className="hidden sm:block shrink-0 p-2 bg-white/15 hover:bg-red-500/80 rounded-xl transition-all duration-300 active:scale-95"
             >
-              <X size={16} className="text-white" />
+              <X size={20} className="text-white" />
             </button>
           </div>
         </div>
 
         {/* ============================================ */}
-        {/* RÉSUMÉ DES FACES - LIGNE STATS */}
+        {/* RÉSUMÉ DES FACES - LIGNE STATS AGRANDIE */}
         {/* ============================================ */}
-        <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex gap-2 flex-wrap">
+        <div className="p-4 sm:p-5 border-b border-gray-200 bg-gray-50">
+          <div className="flex gap-3 flex-wrap">
             {faces.map((face: any, idx: number) => {
               const activeRes = getActiveReservation(face);
               const currentStatus = activeRes?.statut || face.statut || 'Libre';
@@ -210,11 +210,11 @@ function PanneauModal({ panneau, onClose }: any) {
               return (
                 <div
                   key={idx}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${colors.bg} border ${colors.border}`}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${colors.bg} border ${colors.border}`}
                 >
-                  <div className={`w-1.5 h-1.5 rounded-full ${colors.dot} ${currentStatus === 'Libre' ? 'animate-pulse' : ''}`} />
-                  <span className="text-[8px] font-bold text-gray-700">F{idx + 1}</span>
-                  <span className={`text-[7px] font-black uppercase ${colors.text}`}>
+                  <div className={`w-2 h-2 rounded-full ${colors.dot} ${currentStatus === 'Libre' ? 'animate-pulse' : ''}`} />
+                  <span className="text-xs sm:text-sm font-bold text-gray-800">F{idx + 1}</span>
+                  <span className={`text-xs sm:text-sm font-black uppercase ${colors.text}`}>
                     {currentStatus === 'Libre' ? 'L' : currentStatus === 'Occupé' ? 'O' : currentStatus === 'Réservé' ? 'R' : 'M'}
                   </span>
                 </div>
@@ -224,10 +224,10 @@ function PanneauModal({ panneau, onClose }: any) {
         </div>
 
         {/* ============================================ */}
-        {/* LISTE DES FACES - SCROLLABLE */}
+        {/* LISTE DES FACES - SCROLLABLE AVEC TEXTES AGRANDIS */}
         {/* ============================================ */}
-        <div className="max-h-[50vh] sm:max-h-[55vh] overflow-y-auto p-3 sm:p-4 bg-gray-50 custom-scrollbar">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="max-h-[55vh] sm:max-h-[60vh] overflow-y-auto p-4 sm:p-5 bg-gray-50 custom-scrollbar">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {faces.map((face: any, idx: number) => {
               const activeRes = getActiveReservation(face);
               const currentStatus = activeRes?.statut || face.statut || 'Libre';
@@ -240,21 +240,21 @@ function PanneauModal({ panneau, onClose }: any) {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  className={`p-3 rounded-xl ${colors.bg} border ${colors.border} transition-all hover:shadow-md hover:scale-[1.02] bg-white`}
+                  className={`p-4 rounded-xl ${colors.bg} border ${colors.border} transition-all hover:shadow-lg hover:scale-[1.02] bg-white`}
                 >
                   {/* En-tête de la face */}
-                  <div className="flex justify-between items-start gap-1">
-                    <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
-                      <span className="text-[11px] sm:text-xs font-black text-gray-800 shrink-0">Face {idx + 1}</span>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                      <span className="text-base sm:text-lg font-black text-gray-800 shrink-0">Face {idx + 1}</span>
                       {face.sens && (
-                        <span className="text-[6px] sm:text-[7px] px-1.5 py-0.5 bg-gray-100 rounded-full text-gray-500 truncate max-w-[80px]">
+                        <span className="text-xs sm:text-sm px-2 py-0.5 bg-gray-200 rounded-full text-gray-600 truncate max-w-[100px] font-bold">
                           {face.sens}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <div className={`w-1.5 h-1.5 rounded-full ${colors.dot} ${currentStatus === 'Libre' ? 'animate-pulse' : ''}`} />
-                      <span className={`text-[7px] sm:text-[8px] font-black uppercase ${colors.text}`}>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <div className={`w-2 h-2 rounded-full ${colors.dot} ${currentStatus === 'Libre' ? 'animate-pulse' : ''}`} />
+                      <span className={`text-xs sm:text-sm font-black uppercase ${colors.text}`}>
                         {currentStatus}
                       </span>
                     </div>
@@ -262,10 +262,10 @@ function PanneauModal({ panneau, onClose }: any) {
 
                   {/* Détails de la réservation active */}
                   {isOccupied && activeRes && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <div className="flex gap-2">
+                    <div className="mt-3 pt-3 border-t-2 border-gray-200">
+                      <div className="flex gap-3">
                         {activeRes.photoCampagneUrl && (
-                          <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-md overflow-hidden border border-gray-200 shadow-sm shrink-0">
+                          <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden border-2 border-gray-200 shadow-md shrink-0">
                             <img
                               src={activeRes.photoCampagneUrl}
                               alt="Campagne"
@@ -275,18 +275,18 @@ function PanneauModal({ panneau, onClose }: any) {
                         )}
 
                         {/* Infos compactes en colonne */}
-                        <div className="flex-1 min-w-0 space-y-0.5 text-[7px] sm:text-[8px]">
-                          <div className="flex items-center gap-1 text-gray-600">
-                            <Building size={6} className="sm:w-[7px] sm:h-[7px] text-blue-500 shrink-0" />
-                            <span className="truncate font-medium">{activeRes.societeLocatrice || 'N/A'}</span>
+                        <div className="flex-1 min-w-0 space-y-1 text-xs sm:text-sm">
+                          <div className="flex items-center gap-2 text-gray-700">
+                            <Building size={14} className="sm:w-4 sm:h-4 text-blue-600 shrink-0" />
+                            <span className="truncate font-bold">{activeRes.societeLocatrice || 'N/A'}</span>
                           </div>
-                          <div className="flex items-center gap-1 text-gray-500">
-                            <Users size={6} className="sm:w-[7px] sm:h-[7px] text-blue-400 shrink-0" />
-                            <span className="truncate">{activeRes.agentNom || 'N/A'}</span>
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <Users size={14} className="sm:w-4 sm:h-4 text-blue-500 shrink-0" />
+                            <span className="truncate font-bold">{activeRes.agentNom || 'N/A'}</span>
                           </div>
-                          <div className="flex items-center gap-1 text-gray-400">
-                            <Calendar size={6} className="sm:w-[7px] sm:h-[7px] text-blue-400 shrink-0" />
-                            <span className="truncate text-[6px] sm:text-[7px]">
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <Calendar size={14} className="sm:w-4 sm:h-4 text-blue-400 shrink-0" />
+                            <span className="truncate text-xs sm:text-sm font-bold">
                               {activeRes.dateDebut} → {activeRes.dateFin}
                             </span>
                           </div>
@@ -301,25 +301,25 @@ function PanneauModal({ panneau, onClose }: any) {
         </div>
 
         {/* ============================================ */}
-        {/* FOOTER */}
+        {/* FOOTER AGRANDI */}
         {/* ============================================ */}
-        <div className="p-3 border-t border-gray-200 bg-white">
-          <div className="flex items-center justify-between">
-            <p className="text-[7px] text-gray-400 uppercase tracking-wider">
+        <div className="p-4 sm:p-5 border-t-2 border-gray-200 bg-white">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold">
               {faces.length} face(s) • Cliquez en dehors pour fermer
             </p>
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[6px] text-gray-400">Libre</span>
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <span className="text-xs sm:text-sm font-bold text-gray-600">Libre</span>
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                <span className="text-[6px] text-gray-400">Occupé</span>
+              <span className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                <span className="text-xs sm:text-sm font-bold text-gray-600">Occupé</span>
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <span className="text-[6px] text-gray-400">Réservé</span>
+              <span className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                <span className="text-xs sm:text-sm font-bold text-gray-600">Réservé</span>
               </span>
             </div>
           </div>
@@ -328,18 +328,18 @@ function PanneauModal({ panneau, onClose }: any) {
 
       <style jsx global>{`
             .custom-scrollbar::-webkit-scrollbar {
-                width: 4px;
+                width: 6px;
             }
             .custom-scrollbar::-webkit-scrollbar-track {
                 background: rgba(0, 0, 0, 0.05);
-                border-radius: 4px;
+                border-radius: 6px;
             }
             .custom-scrollbar::-webkit-scrollbar-thumb {
-                background: rgba(37, 99, 235, 0.3);
-                border-radius: 4px;
+                background: rgba(37, 99, 235, 0.4);
+                border-radius: 6px;
             }
             .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                background: rgba(37, 99, 235, 0.5);
+                background: rgba(37, 99, 235, 0.6);
             }
         `}</style>
     </motion.div>

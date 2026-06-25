@@ -28,8 +28,8 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
     loading: () => (
         <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
             <div className="text-center">
-                <div className="w-12 h-12 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-white/60 text-xs font-bold uppercase tracking-wider">Chargement de la carte...</p>
+                <div className="w-20 h-20 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-white/80 text-lg font-bold uppercase tracking-wider">Chargement de la carte...</p>
             </div>
         </div>
     ),
@@ -159,10 +159,10 @@ export default function FullscreenMap() {
         return (
             <div className="h-screen w-full flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
                 <div className="text-center">
-                    <div className="w-16 h-16 mx-auto bg-amber-500/20 rounded-full flex items-center justify-center animate-pulse">
-                        <MapPin size={32} className="text-amber-500" />
+                    <div className="w-20 h-20 mx-auto bg-amber-500/30 rounded-full flex items-center justify-center animate-pulse">
+                        <MapPin size={40} className="text-amber-500" />
                     </div>
-                    <p className="mt-4 text-white/60 text-sm font-bold uppercase tracking-wider">
+                    <p className="mt-6 text-white/80 text-xl font-bold uppercase tracking-wider">
                         Chargement des panneaux...
                     </p>
                 </div>
@@ -191,15 +191,15 @@ export default function FullscreenMap() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50" />
             </div>
 
-            {/* Indicateur GPS */}
+            {/* Indicateur GPS - AGRANDI */}
             {userLocation && (
-                <div className="absolute bottom-4 left-4 z-[1000] bg-black/60 backdrop-blur-xl rounded-full px-3 py-1.5 border border-emerald-500/30">
-                    <div className="flex items-center gap-2">
+                <div className="absolute bottom-6 left-6 z-[1000] bg-black/70 backdrop-blur-xl rounded-full px-5 py-2.5 border-2 border-emerald-500/40">
+                    <div className="flex items-center gap-3">
                         <div className="relative">
-                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                            <div className="absolute inset-0 w-2 h-2 bg-emerald-400 rounded-full animate-ping opacity-75" />
+                            <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse" />
+                            <div className="absolute inset-0 w-3 h-3 bg-emerald-400 rounded-full animate-ping opacity-75" />
                         </div>
-                        <span className="text-[8px] text-emerald-400 font-bold uppercase tracking-wider">
+                        <span className="text-sm font-bold text-emerald-400 uppercase tracking-wider">
                             GPS Actif
                         </span>
                     </div>
@@ -207,10 +207,10 @@ export default function FullscreenMap() {
             )}
 
             {locationError && (
-                <div className="absolute bottom-4 left-4 z-[1000] bg-black/60 backdrop-blur-xl rounded-full px-3 py-1.5 border border-red-500/30">
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-red-400 rounded-full" />
-                        <span className="text-[8px] text-red-400 font-bold uppercase tracking-wider">
+                <div className="absolute bottom-6 left-6 z-[1000] bg-black/70 backdrop-blur-xl rounded-full px-5 py-2.5 border-2 border-red-500/40">
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 bg-red-400 rounded-full" />
+                        <span className="text-sm font-bold text-red-400 uppercase tracking-wider">
                             {locationError}
                         </span>
                     </div>
@@ -222,7 +222,6 @@ export default function FullscreenMap() {
                 <MapComponent
                     onMarkerClick={setSelectedPanneau}
                     panneaux={panneaux}
-
                     userLocation={userLocation}
                 />
             </div>
@@ -257,7 +256,7 @@ export default function FullscreenMap() {
 }
 
 // ============================================
-// MODALE - LISTE DES RÉSERVATIONS DU PANNEAU
+// MODALE - LISTE DES RÉSERVATIONS DU PANNEAU - CORRIGÉE POUR LE SCROLL
 // ============================================
 function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: any) {
     useEffect(() => {
@@ -322,7 +321,7 @@ function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+            className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6"
         >
             <motion.div
                 initial={{ y: "100%", opacity: 0 }}
@@ -330,52 +329,53 @@ function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: 
                 exit={{ y: "100%", opacity: 0 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full sm:w-[500px] md:w-[600px] max-h-[85vh] sm:max-h-[80vh] rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl bg-white"
+                // 🔥 IMPORTANT: hauteur maximale fixe et overflow hidden sur le conteneur principal
+                className="relative w-full sm:w-[550px] md:w-[650px] max-h-[85vh] sm:max-h-[80vh] rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl bg-white flex flex-col"
             >
                 {/* ============================================ */}
-                {/* HEADER - BLEU ROI PROFOND */}
+                {/* HEADER - BLEU ROI PROFOND - FIXE (non scrollable) */}
                 {/* ============================================ */}
-                <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 p-4 sm:p-5 border-b border-white/10">
+                <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 p-5 sm:p-6 border-b border-white/15 flex-shrink-0">
                     <div className="flex justify-between items-start">
                         <div>
-                            <div className="flex items-center gap-2">
-                                <h2 className="text-xl font-black text-white">
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tighter">
                                     {panneau.idPan || panneau.id}
                                 </h2>
-                                <span className="px-2 py-0.5 bg-white/20 rounded-full text-[8px] text-white font-bold uppercase">
+                                <span className="px-3 py-1 bg-white/20 rounded-full text-xs sm:text-sm text-white font-bold uppercase">
                                     {faces.length} face(s)
                                 </span>
                             </div>
-                            <p className="text-[10px] text-blue-200 mt-0.5 flex items-center gap-1">
-                                <MapPin size={10} className="text-amber-400" />
+                            <p className="text-sm sm:text-base text-blue-200 mt-1.5 flex items-center gap-2 font-bold">
+                                <MapPin size={16} className="text-amber-400" />
                                 {panneau.adresse?.split('/').slice(-3).join(' / ') || 'Adresse'}
                             </p>
                             {panneau.type && (
-                                <span className="inline-block mt-2 text-[7px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                <span className="inline-block mt-2 text-xs sm:text-sm px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">
                                     {panneau.type}
                                 </span>
                             )}
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all text-white"
+                            className="p-2.5 bg-white/15 hover:bg-red-500/80 rounded-xl transition-all text-white flex-shrink-0"
                         >
-                            <X size={18} />
+                            <X size={22} />
                         </button>
                     </div>
                 </div>
 
                 {/* ============================================ */}
-                {/* CORPS - LISTE DES RÉSERVATIONS */}
+                {/* CORPS - LISTE DES RÉSERVATIONS - SCROLLABLE 🔥 */}
                 {/* ============================================ */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50 custom-scrollbar min-h-0">
                     {reservations.length === 0 ? (
-                        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-                            <div className="w-16 h-16 mx-auto bg-blue-50 rounded-full flex items-center justify-center mb-3">
-                                <Calendar size={24} className="text-blue-300" />
+                        <div className="text-center py-16 bg-white rounded-xl border-2 border-gray-200">
+                            <div className="w-20 h-20 mx-auto bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                                <Calendar size={32} className="text-blue-300" />
                             </div>
-                            <p className="text-gray-400 text-sm font-medium">Aucune réservation active</p>
-                            <p className="text-gray-300 text-xs mt-1">Aucune réservation pour ce panneau</p>
+                            <p className="text-gray-500 text-lg font-bold">Aucune réservation active</p>
+                            <p className="text-gray-400 text-sm mt-2">Aucune réservation pour ce panneau</p>
                         </div>
                     ) : (
                         reservations.map((item, idx) => {
@@ -389,48 +389,48 @@ function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: 
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: idx * 0.05 }}
                                     onClick={() => onSelectReservation(item)}
-                                    className={`w-full text-left p-4 rounded-xl border transition-all group ${isCurrent
+                                    className={`w-full text-left p-5 rounded-xl border-2 transition-all group ${isCurrent
                                             ? 'bg-emerald-50 border-emerald-200 hover:border-emerald-400'
-                                            : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md'
+                                            : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-lg'
                                         }`}
                                 >
                                     {/* En-tête de la réservation */}
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-2.5 h-2.5 rounded-full ${isCurrent ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                                            <span className="font-bold text-gray-800 text-sm">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-3 h-3 rounded-full ${isCurrent ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                                            <span className="font-black text-gray-800 text-base sm:text-lg">
                                                 Face {item.faceIndex + 1}
                                             </span>
                                             {item.faceSens && item.faceSens !== `Face ${item.faceIndex + 1}` && (
-                                                <span className="text-[8px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                                                <span className="text-xs sm:text-sm px-3 py-1 rounded-full bg-gray-200 text-gray-600 font-bold">
                                                     {item.faceSens}
                                                 </span>
                                             )}
                                         </div>
                                         {isCurrent ? (
-                                            <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold border border-emerald-200">
+                                            <span className="text-xs sm:text-sm px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold border-2 border-emerald-200 flex-shrink-0">
                                                 EN COURS
                                             </span>
                                         ) : (
-                                            <span className="text-[8px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold border border-amber-200">
+                                            <span className="text-xs sm:text-sm px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-bold border-2 border-amber-200 flex-shrink-0">
                                                 À VENIR
                                             </span>
                                         )}
                                     </div>
 
                                     {/* Informations de la réservation */}
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-gray-700">
-                                            <Building size={14} className="text-blue-500" />
-                                            <span className="text-sm font-medium">{res.societeLocatrice || 'N/A'}</span>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3 text-gray-700">
+                                            <Building size={18} className="text-blue-500 shrink-0" />
+                                            <span className="text-base sm:text-lg font-bold truncate">{res.societeLocatrice || 'N/A'}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-gray-600">
-                                            <Users size={14} className="text-blue-400" />
-                                            <span className="text-xs">{res.agentNom || 'N/A'}</span>
+                                        <div className="flex items-center gap-3 text-gray-600">
+                                            <Users size={18} className="text-blue-400 shrink-0" />
+                                            <span className="text-sm sm:text-base font-bold truncate">{res.agentNom || 'N/A'}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-gray-500">
-                                            <Calendar size={14} className="text-blue-400" />
-                                            <span className="text-xs">
+                                        <div className="flex items-center gap-3 text-gray-500">
+                                            <Calendar size={18} className="text-blue-400 shrink-0" />
+                                            <span className="text-sm sm:text-base font-bold">
                                                 {res.dateDebut ? new Date(res.dateDebut).toLocaleDateString('fr-FR') : 'N/A'}
                                                 →
                                                 {res.dateFin ? new Date(res.dateFin).toLocaleDateString('fr-FR') : 'N/A'}
@@ -439,8 +439,8 @@ function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: 
                                     </div>
 
                                     {/* Flèche d'action */}
-                                    <div className="mt-3 flex justify-end">
-                                        <ChevronRight size={16} className="text-blue-400 group-hover:translate-x-1 transition-transform" />
+                                    <div className="mt-4 flex justify-end">
+                                        <ChevronRight size={20} className="text-blue-400 group-hover:translate-x-2 transition-transform" />
                                     </div>
                                 </motion.button>
                             );
@@ -449,18 +449,22 @@ function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: 
                 </div>
 
                 {/* ============================================ */}
-                {/* FOOTER */}
+                {/* FOOTER - FIXE (non scrollable) */}
                 {/* ============================================ */}
-                <div className="p-3 border-t border-gray-200 bg-white">
+                <div className="p-4 border-t-2 border-gray-200 bg-white flex-shrink-0">
                     <div className="flex items-center justify-between">
-                        <p className="text-[7px] text-gray-400">
+                        <p className="text-sm sm:text-base text-gray-500 font-bold">
                             {reservations.length} réservation(s) active(s)
                         </p>
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[7px] text-gray-400">En cours</span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            <span className="text-[7px] text-gray-400">À venir</span>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="text-xs sm:text-sm text-gray-500 font-bold">En cours</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                                <span className="text-xs sm:text-sm text-gray-500 font-bold">À venir</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -469,8 +473,9 @@ function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: 
     );
 }
 
+
 // ============================================
-// MODALE - DÉTAIL ET MODIFICATION D'UNE RÉSERVATION
+// MODALE - DÉTAIL ET MODIFICATION D'UNE RÉSERVATION - TEXTES AGRANDIS
 // ============================================
 function ReservationDetailModal({ reservationData, panneau, onClose, user }: any) {
     const [isEditing, setIsEditing] = useState(false);
@@ -482,7 +487,6 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
     const [modificationMessage, setModificationMessage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-
     const [cameraError, setCameraError] = useState<string | null>(null);
 
     // Dans ReservationDetailModal, ajoutez ces états :
@@ -490,8 +494,6 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
-
-
 
     if (!reservationData || !panneau) return null;
 
@@ -524,28 +526,14 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
         }
     };
 
-
-
-
-
-
-    // ============================================
-    // CAPTURE PHOTO AVEC WEBCAM
-    // ============================================
-
-    // Fonction pour démarrer la caméra
-    // ============================================
     // START CAMERA - VERSION COMPLÈTE
-    // ============================================
     const startCamera = async () => {
-        // ✅ Vérifier si le navigateur supporte getUserMedia
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             setCameraError("❌ Votre navigateur ne supporte pas l'accès à la caméra. Veuillez utiliser un navigateur moderne.");
             return;
         }
 
         try {
-            // ✅ Vérifier si la caméra est déjà active
             if (videoRef.current?.srcObject) {
                 const stream = videoRef.current.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
@@ -555,7 +543,6 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
             setCameraError(null);
             setUploading(true);
 
-            // ✅ Liste des contraintes de caméra (fallback)
             const constraints = [
                 {
                     video: {
@@ -578,13 +565,12 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                         height: { ideal: 480 }
                     }
                 },
-                { video: true } // ✅ Fallback final
+                { video: true }
             ];
 
             let stream = null;
             let lastError = null;
 
-            // ✅ Essayer chaque contrainte jusqu'à trouver une qui fonctionne
             for (const constraint of constraints) {
                 try {
                     stream = await navigator.mediaDevices.getUserMedia(constraint);
@@ -609,7 +595,6 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
         } catch (err: any) {
             console.error("❌ Erreur caméra:", err);
 
-            // ✅ Gestion des erreurs
             if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
                 setCameraError("❌ Accès à la caméra refusé.\n\nVeuillez autoriser l'accès à la caméra dans les paramètres de votre navigateur et réessayer.");
             } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
@@ -698,7 +683,6 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
 
     // Sauvegarder les modifications
     const handleSave = async () => {
-        // Récupérer l'utilisateur depuis localStorage si nécessaire
         let currentUser = user;
         if (!currentUser) {
             const storedUser = localStorage.getItem('user') || localStorage.getItem('current_user');
@@ -745,13 +729,12 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                 return;
             }
 
-            // ✅ Si une nouvelle photo a été uploadée, forcer le statut à "Occupé"
             const finalStatut = newPhotoUrl ? "Occupé" : (newStatut || reservationsToUpdate[reservationIndex].statut);
 
             const updatedReservation = {
                 ...reservationsToUpdate[reservationIndex],
                 photoCampagneUrl: newPhotoUrl || reservationsToUpdate[reservationIndex].photoCampagneUrl,
-                statut: finalStatut, // ✅ Statut forcé à "Occupé" si photo changée
+                statut: finalStatut,
                 dateModification: new Date().toISOString(),
                 modifiedBy: {
                     nom: currentUser.nomComplet || currentUser.nom || currentUser.email,
@@ -774,7 +757,6 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
             setTimeout(() => {
                 setModificationMessage(null);
                 setIsEditing(false);
-                // Recharger les données
                 window.location.reload();
             }, 1500);
 
@@ -785,6 +767,7 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
             setSaving(false);
         }
     };
+
     const formatEcheance = () => {
         if (daysLeft === 0) return "Expire aujourd'hui";
         if (daysLeft === 1) return "Expire demain";
@@ -797,7 +780,7 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[2100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
+            className="fixed inset-0 z-[2100] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 30 }}
@@ -805,105 +788,105 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                 exit={{ scale: 0.9, opacity: 0, y: 30 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-2xl bg-white"
+                className="relative w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl bg-white"
             >
                 {/* ============================================ */}
-                {/* HEADER - BLEU ROI PROFOND */}
+                {/* HEADER - BLEU ROI PROFOND - AGRANDI */}
                 {/* ============================================ */}
-                <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 p-5 border-b border-white/10">
+                <div className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 p-6 border-b border-white/15">
                     <div className="flex justify-between items-start">
                         <div>
-                            <div className="flex items-center gap-2">
-                                <h2 className="text-xl font-black text-white">
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tighter">
                                     {panneau.idPan || panneau.id}
                                 </h2>
                                 {isCurrent && (
-                                    <span className="text-[8px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold animate-pulse border border-emerald-500/30">
+                                    <span className="text-xs sm:text-sm px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-bold animate-pulse border-2 border-emerald-500/30">
                                         EN COURS
                                     </span>
                                 )}
                             </div>
-                            <p className="text-xs text-blue-200 mt-1">
+                            <p className="text-sm sm:text-base text-blue-200 mt-1.5 font-bold">
                                 Face {faceIndex + 1} • {reservationData.faceSens || 'Sens non défini'}
                             </p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 bg-white/10 hover:bg-red-500/80 rounded-xl transition-all text-white"
+                            className="p-2.5 bg-white/15 hover:bg-red-500/80 rounded-xl transition-all text-white"
                         >
-                            <X size={18} />
+                            <X size={22} />
                         </button>
                     </div>
                 </div>
 
                 {/* ============================================ */}
-                {/* CONTENU - FOND BLANC */}
+                {/* CONTENU - FOND BLANC - TEXTES AGRANDIS */}
                 {/* ============================================ */}
-                <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto bg-gray-50 custom-scrollbar">
+                <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto bg-gray-50 custom-scrollbar">
                     {/* Message de confirmation/erreur */}
                     {modificationMessage && (
-                        <div className={`p-3 rounded-xl text-center text-xs font-medium ${modificationMessage.includes('succès')
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-red-50 text-red-700 border border-red-200'
+                        <div className={`p-4 rounded-xl text-center text-sm sm:text-base font-bold ${modificationMessage.includes('succès')
+                                ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-200'
+                                : 'bg-red-50 text-red-700 border-2 border-red-200'
                             }`}>
                             {modificationMessage}
                         </div>
                     )}
 
                     {/* Société locatrice */}
-                    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Société locatrice</label>
-                        <p className="text-gray-800 font-medium mt-1">{res.societeLocatrice || 'Non spécifiée'}</p>
+                    <div className="bg-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                        <label className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold">Société locatrice</label>
+                        <p className="text-gray-800 font-black text-base sm:text-lg mt-1.5">{res.societeLocatrice || 'Non spécifiée'}</p>
                     </div>
 
                     {/* Agent commercial */}
-                    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Agent commercial</label>
-                        <p className="text-gray-800 font-medium mt-1">{res.agentNom || 'Non spécifié'}</p>
+                    <div className="bg-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                        <label className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold">Agent commercial</label>
+                        <p className="text-gray-800 font-black text-base sm:text-lg mt-1.5">{res.agentNom || 'Non spécifié'}</p>
                     </div>
 
                     {/* Période */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                            <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Date début</label>
-                            <p className="text-gray-800 text-sm mt-1 font-medium">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                            <label className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold">Date début</label>
+                            <p className="text-gray-800 text-base sm:text-lg mt-1.5 font-black">
                                 {res.dateDebut ? new Date(res.dateDebut).toLocaleDateString('fr-FR') : 'N/A'}
                             </p>
                         </div>
-                        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                            <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Date fin</label>
-                            <p className="text-gray-800 text-sm mt-1 font-medium">
+                        <div className="bg-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                            <label className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold">Date fin</label>
+                            <p className="text-gray-800 text-base sm:text-lg mt-1.5 font-black">
                                 {res.dateFin ? new Date(res.dateFin).toLocaleDateString('fr-FR') : 'N/A'}
                             </p>
                         </div>
                     </div>
 
                     {/* Échéance */}
-                    <div className={`rounded-xl p-4 border shadow-sm ${daysLeft <= 3
+                    <div className={`rounded-xl p-5 border-2 shadow-sm ${daysLeft <= 3
                             ? 'bg-orange-50 border-orange-200'
                             : 'bg-white border-gray-200'
                         }`}>
-                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Échéance</label>
-                        <p className={`font-bold text-sm mt-1 ${daysLeft <= 3 ? 'text-orange-600' : 'text-gray-800'
+                        <label className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold">Échéance</label>
+                        <p className={`font-black text-base sm:text-lg mt-1.5 ${daysLeft <= 3 ? 'text-orange-600' : 'text-gray-800'
                             }`}>
                             {formatEcheance()}
                         </p>
                     </div>
 
                     {/* Statut - Éditable */}
-                    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Statut</label>
+                    <div className="bg-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                        <label className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold">Statut</label>
                         {isEditing ? (
                             <select
                                 value={newStatut || res.statut}
                                 onChange={(e) => setNewStatut(e.target.value)}
-                                className="w-full mt-1 p-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full mt-1.5 p-3 bg-gray-50 rounded-lg border-2 border-gray-200 text-gray-800 text-base sm:text-lg font-bold outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 <option value="Occupé">Occupé</option>
                                 <option value="Libre">Libre</option>
                             </select>
                         ) : (
-                            <p className={`text-sm font-medium mt-1 ${res.statut === 'Occupé' ? 'text-blue-600' : 'text-emerald-600'
+                            <p className={`text-base sm:text-lg font-black mt-1.5 ${res.statut === 'Occupé' ? 'text-blue-600' : 'text-emerald-600'
                                 }`}>
                                 {res.statut || 'N/A'}
                             </p>
@@ -911,62 +894,62 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                     </div>
 
                     {/* Photo - Éditable */}
-                    <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                        <label className="text-[9px] text-gray-400 uppercase tracking-wider font-bold">Preuve d'affichage</label>
-                        <div className="mt-2">
+                    <div className="bg-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                        <label className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold">Preuve d'affichage</label>
+                        <div className="mt-3">
                             {(localPreview || newPhotoUrl || res.photoCampagneUrl) && !res.photoCampagneUrl?.includes('dispromalt') ? (
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                     <img
                                         src={localPreview || newPhotoUrl || res.photoCampagneUrl}
                                         alt="Preuve d'affichage"
-                                        className="w-full h-40 object-cover rounded-lg border border-gray-200 shadow-sm"
+                                        className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 shadow-sm"
                                     />
                                     {isEditing && (
-                                        <div className="flex gap-2 flex-wrap">
+                                        <div className="flex gap-3 flex-wrap">
                                             <button
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 text-xs font-bold hover:bg-blue-100 transition-all"
+                                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-50 border-2 border-blue-200 text-blue-600 text-sm font-bold hover:bg-blue-100 transition-all"
                                             >
-                                                <Camera size={14} />
+                                                <Camera size={18} />
                                                 Choisir une photo
                                             </button>
                                             <button
                                                 onClick={startCamera}
-                                                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-600 text-xs font-bold hover:bg-emerald-100 transition-all"
+                                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-emerald-50 border-2 border-emerald-200 text-emerald-600 text-sm font-bold hover:bg-emerald-100 transition-all"
                                             >
-                                                <Camera size={14} />
+                                                <Camera size={18} />
                                                 Prendre une photo
                                             </button>
                                         </div>
                                     )}
                                     {newPhotoUrl && (
-                                        <div className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                                            <CheckCircle size={12} className="text-emerald-500" />
-                                            <span className="text-[8px] text-emerald-600 font-bold">
+                                        <div className="flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-emerald-50 border-2 border-emerald-200">
+                                            <CheckCircle size={16} className="text-emerald-500" />
+                                            <span className="text-xs sm:text-sm text-emerald-600 font-bold">
                                                 Statut → Occupé
                                             </span>
                                         </div>
                                     )}
                                 </div>
                             ) : (
-                                <div className="space-y-3">
-                                    <div className="flex gap-2">
+                                <div className="space-y-4">
+                                    <div className="flex gap-3">
                                         <button
                                             onClick={() => fileInputRef.current?.click()}
-                                            className="flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 transition-all bg-gray-50"
+                                            className="flex-1 flex flex-col items-center justify-center gap-2 py-6 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-400 transition-all bg-gray-50"
                                         >
-                                            <Camera size={24} className="text-gray-400" />
-                                            <span className="text-xs text-gray-400 font-medium">Choisir une photo</span>
+                                            <Camera size={28} className="text-gray-400" />
+                                            <span className="text-sm text-gray-500 font-bold">Choisir une photo</span>
                                         </button>
                                         <button
                                             onClick={startCamera}
-                                            className="flex-1 flex flex-col items-center justify-center gap-2 py-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-400 transition-all bg-gray-50"
+                                            className="flex-1 flex flex-col items-center justify-center gap-2 py-6 rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-400 transition-all bg-gray-50"
                                         >
-                                            <Camera size={24} className="text-emerald-400" />
-                                            <span className="text-xs text-emerald-500 font-medium">Prendre une photo</span>
+                                            <Camera size={28} className="text-emerald-400" />
+                                            <span className="text-sm text-emerald-500 font-bold">Prendre une photo</span>
                                         </button>
                                     </div>
-                                    <p className="text-[7px] text-blue-500 text-center font-medium">
+                                    <p className="text-xs sm:text-sm text-blue-500 text-center font-bold">
                                         📸 Le statut passera automatiquement à "Occupé"
                                     </p>
                                 </div>
@@ -981,9 +964,9 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                             />
 
                             {uploading && (
-                                <div className="flex items-center justify-center gap-2 mt-2">
-                                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                    <span className="text-xs text-blue-500 font-medium">Téléchargement...</span>
+                                <div className="flex items-center justify-center gap-3 mt-3">
+                                    <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                    <span className="text-sm text-blue-500 font-bold">Téléchargement...</span>
                                 </div>
                             )}
                         </div>
@@ -991,11 +974,11 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
 
                     {/* Dernière modification */}
                     {res.modifiedBy && (
-                        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-                            <div className="flex items-center gap-2">
-                                <CheckCircle size={12} className="text-blue-400" />
-                                <span className="text-[8px] text-gray-500">
-                                    Dernière modification par <span className="font-medium text-gray-700">{res.modifiedBy.nom}</span> le {new Date(res.modifiedBy.date).toLocaleDateString('fr-FR')}
+                        <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
+                            <div className="flex items-center gap-2.5">
+                                <CheckCircle size={16} className="text-blue-400" />
+                                <span className="text-xs sm:text-sm text-gray-500 font-bold">
+                                    Dernière modification par <span className="font-black text-gray-700">{res.modifiedBy.nom}</span> le {new Date(res.modifiedBy.date).toLocaleDateString('fr-FR')}
                                 </span>
                             </div>
                         </div>
@@ -1003,9 +986,9 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                 </div>
 
                 {/* ============================================ */}
-                {/* FOOTER AVEC BOUTONS */}
+                {/* FOOTER AVEC BOUTONS - AGRANDI */}
                 {/* ============================================ */}
-                <div className="p-4 border-t border-gray-200 bg-white flex gap-3">
+                <div className="p-5 border-t-2 border-gray-200 bg-white flex gap-4">
                     {!isEditing ? (
                         <>
                             <button
@@ -1013,14 +996,14 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                                     setIsEditing(true);
                                     setNewStatut(res.statut);
                                 }}
-                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 text-sm font-bold hover:bg-blue-100 transition-all"
+                                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-blue-50 border-2 border-blue-200 text-blue-600 text-sm sm:text-base font-bold hover:bg-blue-100 transition-all"
                             >
-                                <Edit3 size={16} />
+                                <Edit3 size={20} />
                                 Modifier
                             </button>
                             <button
                                 onClick={onClose}
-                                className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 text-sm font-bold hover:bg-gray-200 transition-all"
+                                className="flex-1 py-3.5 rounded-xl bg-gray-100 text-gray-600 text-sm sm:text-base font-bold hover:bg-gray-200 transition-all"
                             >
                                 Fermer
                             </button>
@@ -1030,12 +1013,12 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                             <button
                                 onClick={handleSave}
                                 disabled={saving || uploading}
-                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm font-bold hover:bg-emerald-100 transition-all disabled:opacity-50"
+                                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-emerald-50 border-2 border-emerald-200 text-emerald-600 text-sm sm:text-base font-bold hover:bg-emerald-100 transition-all disabled:opacity-50"
                             >
                                 {saving ? (
-                                    <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                    <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                    <Save size={16} />
+                                    <Save size={20} />
                                 )}
                                 Enregistrer
                             </button>
@@ -1047,7 +1030,7 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                                     setLocalPreview(null);
                                     setModificationMessage(null);
                                 }}
-                                className="flex-1 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-bold hover:bg-red-100 transition-all"
+                                className="flex-1 py-3.5 rounded-xl bg-red-50 border-2 border-red-200 text-red-600 text-sm sm:text-base font-bold hover:bg-red-100 transition-all"
                             >
                                 Annuler
                             </button>
@@ -1056,7 +1039,7 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                 </div>
 
                 {/* ============================================ */}
-                {/* MODAL CAMÉRA */}
+                {/* MODAL CAMÉRA - AGRANDIE */}
                 {/* ============================================ */}
                 <AnimatePresence>
                     {showCamera && (
@@ -1081,17 +1064,17 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                                     />
                                     <canvas ref={canvasRef} className="hidden" />
 
-                                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                                    <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black/80 to-transparent">
                                         <div className="flex justify-center gap-4">
                                             <button
                                                 onClick={capturePhoto}
-                                                className="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 border-4 border-white transition-all active:scale-90 flex items-center justify-center"
+                                                className="w-20 h-20 rounded-full bg-white/20 hover:bg-white/30 border-4 border-white transition-all active:scale-90 flex items-center justify-center"
                                             >
-                                                <div className="w-12 h-12 rounded-full bg-white" />
+                                                <div className="w-14 h-14 rounded-full bg-white" />
                                             </button>
                                             <button
                                                 onClick={stopCamera}
-                                                className="px-6 py-3 rounded-xl bg-red-500/80 text-white font-bold text-sm hover:bg-red-600 transition-all"
+                                                className="px-8 py-3.5 rounded-xl bg-red-500/80 text-white font-bold text-sm sm:text-base hover:bg-red-600 transition-all"
                                             >
                                                 Annuler
                                             </button>
@@ -1100,9 +1083,9 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
 
                                     <button
                                         onClick={stopCamera}
-                                        className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
+                                        className="absolute top-4 right-4 p-2.5 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all"
                                     >
-                                        <X size={24} />
+                                        <X size={28} />
                                     </button>
                                 </div>
                             </motion.div>
@@ -1117,15 +1100,18 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
 // Styles globaux
 const styles = `
   .custom-scrollbar::-webkit-scrollbar {
-    width: 3px;
+    width: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
+    border-radius: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.4);
-    border-radius: 3px;
+    background: rgba(212, 175, 55, 0.5);
+    border-radius: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(212, 175, 55, 0.7);
   }
 `;
 

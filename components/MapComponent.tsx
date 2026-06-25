@@ -28,8 +28,7 @@ type MapTheme = 'light' | 'dark' | 'satellite';
 interface MapComponentProps {
   panneaux: any[];
   onMarkerClick: (panneau: any) => void;
-  userLocation?: { lat: number; lng: number } | null; // ← AJOUTEZ CETTE LIGNE
-
+  userLocation?: { lat: number; lng: number } | null;
 }
 
 // ============================================
@@ -51,15 +50,15 @@ const tileConfig = {
 };
 
 // ============================================
-// LOGIQUE DE STATUT DES FACES - CORRIGÉE
+// LOGIQUE DE STATUT DES FACES - CORRIGÉE AVEC DATE FIN INCLUSE
 // ============================================
-const getFaceStatus = (face: any): { status: string; label: string } => {
+const getFaceStatus = (face: any): { status: string; label: string; activeReservation: any } => {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
   const reservations = face.reservations || [];
 
-  // Chercher la réservation ACTIVE (aujourd'hui entre début et fin EXCLUSIVE)
+  // Chercher la réservation ACTIVE (aujourd'hui entre début et fin INCLUSIVE)
   const activeRes = reservations.find((res: any) => {
     if (!res.dateDebut || !res.dateFin) return false;
     
@@ -68,23 +67,20 @@ const getFaceStatus = (face: any): { status: string; label: string } => {
     debut.setHours(0, 0, 0, 0);
     fin.setHours(0, 0, 0, 0);
     
-    // ✅ CORRECTION: now >= debut ET now < fin (strictement inférieur)
-    // Si now >= fin, la réservation est terminée
-    return now >= debut && now < fin;
+    // ✅ CORRECTION: now >= debut ET now <= fin (date fin incluse)
+    return now >= debut && now <= fin;
   });
 
   if (activeRes) {
     const statut = activeRes.statut?.toLowerCase();
-    if (statut === 'occupé') return { status: 'occupe', label: 'Occupé' };
-    if (statut === 'réservé') return { status: 'reserve', label: 'Réservé' };
-    return { status: 'occupe', label: 'Occupé' };
+    if (statut === 'occupé') return { status: 'occupe', label: 'Occupé', activeReservation: activeRes };
+    if (statut === 'réservé') return { status: 'reserve', label: 'Réservé', activeReservation: activeRes };
+    return { status: 'occupe', label: 'Occupé', activeReservation: activeRes };
   }
 
   // Aucune réservation active → Libre
-  return { status: 'libre', label: 'Libre' };
+  return { status: 'libre', label: 'Libre', activeReservation: null };
 };
-
-
 
 // ============================================
 // LOGIQUE DE STATUT DU PANNEAU
@@ -345,8 +341,6 @@ const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanne
     </div>
   );
 };
-
-
 
 // ============================================
 // COMPOSANT DE CONTRÔLE DE LA CARTE
@@ -680,7 +674,6 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
       )}
 
       {/* CARTE */}
-      {/* CARTE */}
       <MapContainer
         key={theme}
         center={userLocation ? [userLocation.lat, userLocation.lng] : center}
@@ -698,6 +691,19 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         <MapController theme={theme} onMapReady={setMapInstance} />
 
         {/* CERCLE DE PRÉCISION GPS */}
+        {userLocation && (
+          <Circle
+            center={[userLocation.lat, userLocation.lng]}
+            radius={30}
+            pathOptions={{
+              color: '#10B981',
+              fillColor: '#10B981',
+              fillOpacity: 0.2,
+              weight: 2,
+            }}
+          />
+        )}
+
         {/* MARQUEUR DE LA POSITION UTILISATEUR */}
         {userLocation && typeof window !== 'undefined' && L && (
           <Marker
@@ -705,27 +711,27 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
             icon={L.divIcon({
               className: 'user-marker',
               html: `
-        <div style="position: relative;">
-          <div style="
-            width: 20px;
-            height: 20px;
-            background: #10B981;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.9);
-            animation: pulse-blue 1.5s infinite;
-          "></div>
-          <div style="
-            position: absolute;
-            top: 7px;
-            left: 7px;
-            width: 6px;
-            height: 6px;
-            background: white;
-            border-radius: 50%;
-          "></div>
-        </div>
-      `,
+                <div style="position: relative;">
+                  <div style="
+                    width: 20px;
+                    height: 20px;
+                    background: #10B981;
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 0 15px rgba(16, 185, 129, 0.9);
+                    animation: pulse-blue 1.5s infinite;
+                  "></div>
+                  <div style="
+                    position: absolute;
+                    top: 7px;
+                    left: 7px;
+                    width: 6px;
+                    height: 6px;
+                    background: white;
+                    border-radius: 50%;
+                  "></div>
+                </div>
+              `,
               iconSize: [20, 20],
               popupAnchor: [0, -10],
             })}
@@ -738,6 +744,7 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
             </Tooltip>
           </Marker>
         )}
+
         {filteredPanneaux.map((panneau: any, index: number) => {
           let lat = panneau.coords?.[0] || panneau.gps_raw?.lat;
           let lng = panneau.coords?.[1] || panneau.gps_raw?.lng;
@@ -798,7 +805,6 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         })}
       </MapContainer>
 
-
       {/* LÉGENDE */}
       <div className="absolute bottom-4 left-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-2">
         <div className="flex gap-3 text-[8px] font-black uppercase tracking-wider">
@@ -826,6 +832,17 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         @keyframes pulse {
           0%, 100% { transform: scale(1); opacity: 0.3; }
           50% { transform: scale(1.4); opacity: 0.1; }
+        }
+        
+        @keyframes pulse-blue {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: scale(1.3);
+            opacity: 0.7;
+          }
         }
         
         .custom-marker {
@@ -891,37 +908,24 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         .leaflet-control-attribution a {
           color: rgba(255, 255, 255, 0.7) !important;
         }
-
-
-       
-@keyframes pulse-blue {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.3);
-    opacity: 0.7;
-  }
-}
-
-.user-marker {
-  background: transparent !important;
-  border: none !important;
-  z-index: 1000 !important;
-}
-
-.user-tooltip {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border: 1px solid #10B981 !important;
-  border-radius: 8px !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-  font-size: 10px !important;
-}
-
-.user-tooltip::before {
-  border-top-color: #10B981 !important;
-}
+        
+        .user-marker {
+          background: transparent !important;
+          border: none !important;
+          z-index: 1000 !important;
+        }
+        
+        .user-tooltip {
+          background: rgba(255, 255, 255, 0.95) !important;
+          border: 1px solid #10B981 !important;
+          border-radius: 8px !important;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+          font-size: 10px !important;
+        }
+        
+        .user-tooltip::before {
+          border-top-color: #10B981 !important;
+        }
       `}</style>
     </div>
   );
