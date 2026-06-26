@@ -4,7 +4,6 @@ import { MapPin, X, Camera, Loader2, Save, Building2, Layers, } from 'lucide-rea
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 
-import { getAuth } from 'firebase/auth'; // Importez ceci
 // Assurez-vous que le chemin est correct selon votre structure
 import { useAuth } from "@/context/AuthContext";
 import { LogOut } from "lucide-react"; // Vérifiez que vous avez bien installé lucide-react
@@ -14,6 +13,7 @@ import { useRouter } from 'next/navigation';
 const config = require('../../../config/db');
 
 import { motion } from 'framer-motion';
+
 
 
 
@@ -36,25 +36,23 @@ const db = getFirestore(app);
 
 
 
-
 export default function PageEnregistrement({
     isOpen,
     onClose,
     // handleLogout,
-    setIsLoginOpen
+    setIsLoginOpen = () => { }  // ✅ Valeur par défaut
 }: {
     isOpen: boolean,
     onClose: () => void,
     handleLogout: () => void,
-    setIsLoginOpen: (val: boolean) => void
+    setIsLoginOpen?: (val: boolean) => void  // ✅ Rendre optionnel
 }) {
 
 
 
-
-    const { logout } = useAuth(); // On récupère 'logout' ici
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
+
 
     // Ajoutez ce useEffect pour debug
     useEffect(() => {
@@ -62,22 +60,52 @@ export default function PageEnregistrement({
     }, [user]);
 
 
-    const goToMap = () => {
-        if (user) {
-            // Encoder les données utilisateur dans l'URL
-            const userEncoded = encodeURIComponent(JSON.stringify({
-                uid: user.uid,
-                email: user.email,
-                nomComplet: user.nomComplet || user.nom,
-                nom: user.nom,
-                role: user.role || "superviseurs"
-            }));
-            router.push(`/dashboard/components/carte?user=${userEncoded}`);
-        } else {
-            // Si pas d'utilisateur, rediriger vers la connexion
+   const goToMap = () => {
+    // ✅ Utiliser localUser au lieu de user
+    if (localUser) {
+        // Encoder les données utilisateur dans l'URL
+        const userEncoded = encodeURIComponent(JSON.stringify({
+            uid: localUser.uid,
+            email: localUser.email,
+            nomComplet: localUser.nomComplet || localUser.nom,
+            nom: localUser.nom,
+            role: localUser.role || localUser.fonction || "superviseurs"
+        }));
+        router.push(`/dashboard/components/carte?user=${userEncoded}`);
+    } else {
+        // Si pas d'utilisateur, rediriger vers la connexion
+        if (typeof setIsLoginOpen === 'function') {
             setIsLoginOpen(true);
+        } else {
+            router.push('/dashboard/components/');
         }
-    };
+    }
+};
+
+    const [localUser, setLocalUser] = useState<any>(null);
+
+    // Lire les données du localStorage au montage
+    useEffect(() => {
+        const storedData = localStorage.getItem('geomarketing_user_data');
+        if (storedData) {
+            try {
+                const parsed = JSON.parse(storedData);
+                setLocalUser(parsed);
+                console.log('📥 Utilisateur chargé depuis localStorage:', parsed);
+            } catch (e) {
+                console.error('Erreur de parsing localStorage:', e);
+            }
+        }
+
+
+    }, []);
+    useEffect(() => {
+        console.log("👤 Utilisateur connecté:", user);
+        console.log("📧 Email:", user?.email);
+        console.log("📛 Nom:", user?.displayName || user?.nom || user?.nomComplet);
+        console.log("🎭 Rôle:", user?.role || user?.fonction);
+    }, [user]);
+
 
     // --- TU DOIS DÉCLARER CETTE FONCTION ICI ---
     const handleLogout = () => {
@@ -93,18 +121,17 @@ export default function PageEnregistrement({
     const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
     const [coords, setCoords] = useState<{ lat: string, lng: string } | null>(null);
     const [listeSocietes, setListeSocietes] = useState<string[]>([]);
-
+    const [missingFields, setMissingFields] = useState<string[]>([]);
     // Dans votre composant :
-    const auth = getAuth();
 
 
 
 
-    const currentUser = auth.currentUser; // Récupération de l'utilisateur connecté
 
     const [listeAgents, setListeAgents] = useState<{ nom: string, email: string }[]>([]);
 
     const [formData, setFormData] = useState({
+        idPan: '', // <-- NOUVEAU CHAMP AJOUTÉ
         adresse: '',
         dimension: '',
         type: '', // Initialisé vide pour forcer le choix
@@ -254,6 +281,34 @@ export default function PageEnregistrement({
         }
     }, [geo, isAdresseComplete, setFormData]);
 
+    // Fonction de validation de l'ID Panneau
+    const validateIdPan = (idPan: string) => {
+        // 1. Supprimer les espaces au début et à la fin
+        const trimmed = idPan.trim();
+
+        // 2. Vérifier que l'ID n'est pas vide
+        if (!trimmed) {
+            return { valid: false, error: "L'ID du panneau est obligatoire" };
+        }
+
+        // 3. Vérifier qu'il n'y a pas d'espaces à la fin (déjà fait par trim)
+        if (trimmed !== idPan) {
+            return { valid: false, error: "L'ID ne doit pas contenir d'espaces à la fin" };
+        }
+
+        // 4. Vérifier qu'il n'y a pas d'espaces multiples
+        if (/\s{2,}/.test(trimmed)) {
+            return { valid: false, error: "L'ID ne doit pas contenir d'espaces multiples" };
+        }
+
+        // 5. Vérifier que l'ID est en majuscules
+        if (trimmed !== trimmed.toUpperCase()) {
+            return { valid: false, error: "L'ID doit être en MAJUSCULES" };
+        }
+
+        return { valid: true, error: null };
+    };
+
     // À ajouter après les autres useState
     const [dimensions, setDimensions] = useState({
         hauteur: '',
@@ -324,30 +379,16 @@ export default function PageEnregistrement({
             setUploadingIndex(null);
         }
     };
-    // 1. Transforme "A" en 1, "B" en 2, "AA" en 27, etc.
-    const alphabetToNumber = (s: string): number => {
-        let n = 0;
-        for (let i = 0; i < s.length; i++) {
-            n = n * 26 + (s.charCodeAt(i) - 64);
-        }
-        return n;
-    };
+
 
     // 2. Ta fonction originale
-    const getAlphabetId = (n: number): string => {
-        let s = "";
-        while (n > 0) {
-            let m = (n - 1) % 26;
-            s = String.fromCharCode(65 + m) + s;
-            n = Math.floor((n - m) / 26);
-        }
-        return s || "A";
-    };
+
     const logoUrl = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 
     const resetForm = () => {
         // Réinitialiser tous les états
         setFormData({
+            idPan: '', // ✅ AJOUTÉ
             adresse: '',
             dimension: '',
             type: '',
@@ -386,28 +427,44 @@ export default function PageEnregistrement({
     // À ajouter après les useState
     const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
 
-    // Fonction de validation à ajouter avant enregistrerPanneau
     const validateForm = () => {
         const errors: { [key: string]: string } = {};
+        const missing: string[] = [];
+
+        // ✅ Validation ID Panneau
+        if (!formData.idPan || formData.idPan.trim() === '') {
+            errors.idPan = "L'ID du panneau est obligatoire";
+            missing.push("ID Panneau");
+        } else {
+            const idValidation = validateIdPan(formData.idPan);
+            if (!idValidation.valid) {
+                errors.idPan = idValidation.error || '';
+                missing.push("ID Panneau (format)");
+            }
+        }
 
         // Validation GPS
         if (!coords || !coords.lat || !coords.lng) {
             errors.gps = "La position GPS est obligatoire";
+            missing.push("Position GPS");
         }
 
         // Validation adresse complète
         if (!geo.pays || !geo.province || !geo.villeOuDistrict || !geo.communeOuZone || !geo.avenue || !geo.numero) {
             errors.adresse = "Tous les champs d'adresse sont obligatoires";
+            missing.push("Adresse complète");
         }
 
         // Validation dimension
-        if (!formData.dimension.trim()) {
+        if (!dimensions.hauteur || !dimensions.largeur || !dimensions.unite) {
             errors.dimension = "La dimension est obligatoire";
+            missing.push("Dimensions");
         }
 
         // Validation type
         if (!formData.type) {
             errors.type = "Le type de panneau est obligatoire";
+            missing.push("Type de panneau");
         }
 
         // Validation des faces
@@ -416,42 +473,80 @@ export default function PageEnregistrement({
 
             if (!face.sens.trim()) {
                 errors[`face_${i}_sens`] = `Face ${i + 1}: Le sens est obligatoire`;
+                missing.push(`Face ${i + 1} - Sens`);
             }
 
             if (face.statut !== 'Libre') {
                 if (!face.clientNom?.trim()) {
                     errors[`face_${i}_client`] = `Face ${i + 1}: Le client est obligatoire`;
+                    missing.push(`Face ${i + 1} - Client`);
                 }
                 if (!face.agentNom) {
                     errors[`face_${i}_agent`] = `Face ${i + 1}: L'agent commercial est obligatoire`;
+                    missing.push(`Face ${i + 1} - Agent`);
                 }
                 if (!face.dateDebut) {
                     errors[`face_${i}_dateDebut`] = `Face ${i + 1}: La date de début est obligatoire`;
+                    missing.push(`Face ${i + 1} - Date début`);
                 }
                 if (!face.dateFin) {
                     errors[`face_${i}_dateFin`] = `Face ${i + 1}: La date de fin est obligatoire`;
+                    missing.push(`Face ${i + 1} - Date fin`);
                 }
                 if (face.dateDebut && face.dateFin && new Date(face.dateDebut) >= new Date(face.dateFin)) {
                     errors[`face_${i}_dates`] = `Face ${i + 1}: La date de début doit être antérieure à la date de fin`;
+                    missing.push(`Face ${i + 1} - Dates invalides`);
                 }
             }
         }
 
         setValidationErrors(errors);
-        return Object.keys(errors).length === 0;
+        setMissingFields(missing);
+        return {
+            isValid: Object.keys(errors).length === 0,
+            missingFields: missing
+        };
     };
 
+
     const enregistrerPanneau = async () => {
-        if (validateForm()) {
-            alert("Veuillez remplir tous les champs obligatoires");
+        // 1. Validation du formulaire
+        const { isValid, missingFields } = validateForm();
+
+        if (!isValid) {
+            // Afficher un message avec les champs manquants
+            const missingList = missingFields.join(', ');
+            alert(`❌ Veuillez remplir tous les champs obligatoires :\n\n${missingList}`);
             return;
         }
-        // 1. Validations renforcées
+
+        // 2. Validations renforcées
         if (!coords || !coords.lat || !coords.lng) {
             return alert("ERREUR : La position GPS n'a pas été capturée avec précision.");
         }
 
         if (!formData.adresse.trim()) return alert("ERREUR : L'adresse est obligatoire.");
+
+        // ✅ 3. Vérifier la redondance de l'ID Panneau
+        try {
+            const idPanUpper = formData.idPan.trim().toUpperCase();
+
+            // Requête pour vérifier si l'ID existe déjà
+            const q = query(
+                collection(db, "panneaux"),
+                where("idPan", "==", idPanUpper)
+            );
+            const snapshot = await getDocs(q);
+
+            if (!snapshot.empty) {
+                alert(`❌ ERREUR : L'ID panneau "${idPanUpper}" existe déjà dans la base de données.`);
+                return;
+            }
+        } catch (error) {
+            console.error("Erreur lors de la vérification de redondance:", error);
+            alert("❌ Erreur lors de la vérification de l'ID. Veuillez réessayer.");
+            return;
+        }
 
         setLoading(true);
         try {
@@ -463,24 +558,12 @@ export default function PageEnregistrement({
                 }
             }
 
-            const snapshot = await getDocs(collection(db, "panneaux"));
-
             const dimensionFormatee = dimensions.hauteur && dimensions.largeur && dimensions.unite
                 ? `${dimensions.hauteur} x ${dimensions.largeur} ${dimensions.unite}`
                 : formData.dimension || '';
 
-
-            let maxNumber = 0;
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                if (data.idPan) {
-                    const currentNum = alphabetToNumber(data.idPan);
-                    if (currentNum > maxNumber) maxNumber = currentNum;
-                }
-            });
-
-            const nextId = getAlphabetId(maxNumber + 1);
-            // ----------------------------------------
+            // ✅ Utiliser l'ID saisi par l'utilisateur au lieu de le générer automatiquement
+            const idPanFinal = formData.idPan.trim().toUpperCase();
 
             const now = new Date();
             const isoNow = now.toISOString();
@@ -493,7 +576,6 @@ export default function PageEnregistrement({
                 throw new Error("Coordonnées GPS invalides.");
             }
 
-            // 3. Construction des faces selon ta structure exacte
             // 3. Construction des faces selon ta structure exacte
             const formattedFaces = formData.faces.map((f, i) => {
                 const isOccupied = f.statut !== "Libre";
@@ -519,32 +601,30 @@ export default function PageEnregistrement({
 
             // 4. Envoi à Firestore avec l'organisation demandée
             await addDoc(collection(db, "panneaux"), {
-                idPan: nextId,
+                idPan: idPanFinal, // ✅ Utilisation de l'ID saisi
                 adresse: formData.adresse.trim().toUpperCase(),
-                coords: new GeoPoint(latitude, longitude), // GeoPoint natif
-                gps_raw: { lat: latitude, lng: longitude }, // Pour lecture rapide
+                coords: new GeoPoint(latitude, longitude),
+                gps_raw: { lat: latitude, lng: longitude },
                 dimension: dimensionFormatee,
                 nbFaces: formData.nbFaces,
                 type: formData.type,
-                faces: formattedFaces, // Contient sens, historique, reservations
+                faces: formattedFaces,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
             });
 
-            alert(`SUCCÈS : Panneau ${nextId} enregistré.`);
+            alert(`✅ SUCCÈS : Panneau ${idPanFinal} enregistré.`);
             resetForm();
 
             if (onClose) onClose();
 
         } catch (e: any) {
             console.error("Erreur d'enregistrement:", e);
-            alert(`Erreur : ${e.message || "Problème de connexion base de données"}`);
+            alert(`❌ Erreur : ${e.message || "Problème de connexion base de données"}`);
         } finally {
             setLoading(false);
         }
     };
-
-
 
     // ============================================
     // FONCTION FETCH DONNÉES - RENDUE RÉUTILISABLE
@@ -624,28 +704,51 @@ export default function PageEnregistrement({
                             <MapPin size={14} className="text-emerald-400" />
                             <span className="hidden xs:inline text-[7px] sm:text-[8px] font-bold text-emerald-400 uppercase">Carte</span>
                         </button>
-
-                        {user ? (
-                            <div className="flex items-center gap-2">
-                                <div className="text-right hidden sm:block">
-                                    <p className="text-[8px] sm:text-[9px] font-bold text-white truncate max-w-[80px] sm:max-w-[120px]">
-                                        {user.nomComplet || user.nom || user.email?.split('@')[0] || "Agent"}
-                                    </p>
-                                    <p className="text-[6px] text-amber-400 font-bold uppercase">{user.role || "Commercial"}</p>
+                        {localUser ? (
+                            <div className="flex items-center gap-1.5 sm:gap-3">
+                                {/* Avatar - visible sur tous les appareils */}
+                                <div className="w-6 h-6 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-bold text-[8px] sm:text-sm md:text-base shadow-lg shadow-amber-500/20 border border-white/20 flex-shrink-0">
+                                    {localUser.nom?.charAt(0) || localUser.nomComplet?.charAt(0) || localUser.email?.charAt(0) || "U"}
                                 </div>
+
+                                {/* Infos - UNIQUEMENT sur tablette et desktop */}
+                                <div className="hidden sm:block text-right">
+                                    <p className="text-[9px] sm:text-[10px] md:text-[11px] font-bold text-white truncate max-w-[100px] sm:max-w-[120px] md:max-w-[150px]">
+                                        {localUser.nomComplet || localUser.nom || localUser.email?.split('@')[0] || "Utilisateur"}
+                                    </p>
+                                    <p className="text-[6px] sm:text-[6px] md:text-[7px] text-amber-300 font-bold uppercase tracking-wider">
+                                        {localUser.role || localUser.fonction || "Commercial"}
+                                    </p>
+                                </div>
+
+                                {/* Bouton déconnexion - icône sur mobile, icône + texte sur tablette et desktop */}
                                 <button
                                     onClick={handleLogout}
-                                    className="p-1.5 sm:p-2 rounded-lg bg-white/10 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 transition-all"
+                                    className="p-1.5 sm:px-3 sm:py-1.5 md:px-4 md:py-2 rounded-lg bg-white/10 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 transition-all flex items-center gap-1 sm:gap-2"
                                 >
                                     <LogOut size={14} className="text-red-400" />
+                                    <span className="hidden sm:inline text-[7px] sm:text-[8px] md:text-[9px] font-bold text-red-400 uppercase">
+                                        Quitter
+                                    </span>
                                 </button>
                             </div>
                         ) : (
                             <button
-                                onClick={() => setIsLoginOpen(true)}
-                                className="px-3 sm:px-4 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[8px] sm:text-[9px] font-bold uppercase hover:bg-amber-500 hover:text-black transition-all"
+                                onClick={() => {
+                                    if (typeof setIsLoginOpen === 'function') {
+                                        setIsLoginOpen(true);
+                                    } else {
+                                        router.push('/dashboard');
+                                    }
+                                }}
+                                className="px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-black transition-all flex items-center gap-1 sm:gap-2"
                             >
-                                🔐 Connexion
+                                <span className="text-[10px] sm:text-[9px] md:text-[10px] font-bold">
+                                    🔐
+                                </span>
+                                <span className="hidden sm:inline text-[8px] sm:text-[9px] md:text-[10px] font-bold uppercase whitespace-nowrap">
+                                    Connexion
+                                </span>
                             </button>
                         )}
                     </div>
@@ -712,6 +815,66 @@ export default function PageEnregistrement({
                                 </motion.div>
                             )}
                         </button>
+                    </div>
+                    {/* ============================================ */}
+                    {/* SECTION ID PAN (NOUVEAU) */}
+                    {/* ============================================ */}
+                    <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-4">
+                        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+                            <span className="text-blue-600 font-bold text-sm">#</span>
+                            <h3 className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Identifiant du panneau</h3>
+                            <span className="text-[6px] text-red-500 font-bold ml-auto">* OBLIGATOIRE</span>
+                        </div>
+
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Ex: P001, P-1ERE-RUE, P001A"
+                                className={`w-full px-4 py-3 bg-gray-50 rounded-lg border-2 text-gray-800 text-sm font-mono font-bold uppercase outline-none transition-all focus:ring-2 ${validationErrors.idPan
+                                    ? 'border-red-400 focus:ring-red-200 bg-red-50'
+                                    : 'border-gray-200 focus:ring-blue-200 focus:border-blue-400'
+                                    }`}
+                                value={formData.idPan || ''}
+                                onChange={(e) => {
+                                    const rawValue = e.target.value;
+                                    // Appliquer la transformation immédiate : 
+                                    // - Supprimer les espaces à la fin
+                                    // - Convertir en majuscules
+                                    const transformed = rawValue.trimEnd().toUpperCase();
+
+                                    setFormData({ ...formData, idPan: transformed });
+
+                                    // Validation en temps réel
+                                    const result = validateIdPan(transformed);
+                                    setValidationErrors(prev => ({
+                                        ...prev,
+                                        idPan: result.valid ? '' : result.error || ''
+                                    }));
+                                }}
+                                onBlur={(e) => {
+                                    // Nettoyer les espaces à la fin au moment de quitter le champ
+                                    const trimmed = e.target.value.trimEnd().toUpperCase();
+                                    setFormData({ ...formData, idPan: trimmed });
+                                }}
+                            />
+
+                            {validationErrors.idPan && (
+                                <p className="mt-1 text-[8px] text-red-500 font-medium flex items-center gap-1">
+                                    <span>⚠️</span> {validationErrors.idPan}
+                                </p>
+                            )}
+
+                            <div className="mt-1 flex items-center gap-4 text-[6px] text-gray-400">
+                                <span className="flex items-center gap-1">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${formData.idPan && !validationErrors.idPan ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                                    {formData.idPan && !validationErrors.idPan ? '✓ Valide' : 'Attend saisie'}
+                                </span>
+                                <span>•</span>
+                                <span>MAJUSCULES automatiques</span>
+                                <span>•</span>
+                                <span>Pas d'espaces à la fin</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* ============================================ */}
@@ -1182,13 +1345,38 @@ export default function PageEnregistrement({
                         </div>
                     </div>
 
+
+
+
+                    {/* ============================================ */}
+                    {/* MESSAGE CHAMPS MANQUANTS */}
+                    {/* ============================================ */}
+                    {missingFields.length > 0 && !loading && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <p className="text-[8px] sm:text-[9px] text-amber-700 font-medium flex items-center gap-2">
+                                <span>⚠️</span>
+                                <span>Champs obligatoires manquants :</span>
+                            </p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                                {missingFields.map((field, index) => (
+                                    <span key={index} className="text-[7px] sm:text-[8px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                                        {field}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* ============================================ */}
                     {/* BOUTON DE SOUMISSION */}
                     {/* ============================================ */}
                     <button
                         onClick={enregistrerPanneau}
                         disabled={loading || uploadingIndex !== null}
-                        className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                        className={`w-full py-3 font-bold rounded-xl transition-all flex items-center justify-center gap-3 ${loading || uploadingIndex !== null
+                            ? 'bg-gray-400 cursor-not-allowed opacity-70'
+                            : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]'
+                            }`}
                     >
                         {loading ? (
                             <Loader2 size={20} className="animate-spin" />
