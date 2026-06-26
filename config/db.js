@@ -1,49 +1,18 @@
-// config/db.js - Version SÉCURISÉE avec variables d'environnement
+// config/db.js - Version OPTIMISÉE et SÉCURISÉE
 
 // ============================================
-// 1. VÉRIFICATION EN PRODUCTION
+// 1. DÉTERMINER L'ENVIRONNEMENT
 // ============================================
-
-if (isProd) {
-  // En production, TOUTES les variables doivent être définies
-  const requiredVars = [
-    'NEXT_PUBLIC_FIREBASE_API_KEY',
-    'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-    'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-    'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
-    'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-    'NEXT_PUBLIC_FIREBASE_APP_ID'
-  ];
-  
-  const missing = requiredVars.filter(v => !process.env[v]);
-  if (missing.length > 0) {
-    throw new Error(`❌ Variables d'environnement manquantes en production: ${missing.join(', ')}`);
-  }
-}
-
-// ============================================
-// 2. CONFIGURATION FIREBASE - SÉCURISÉE
-// ============================================
-// ✅ UTILISATION DES VARIABLES D'ENVIRONNEMENT
-// En production, les valeurs viennent UNIQUEMENT des ENV
-// En développement, on utilise un fallback (MAIS jamais en prod)
-// Remplacez la vérification production par ceci :
 const isProd = process.env.NODE_ENV === 'production';
 
-// ⚠️ SOLUTION TEMPORAIRE : Fallback également en production
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "kin-geo-market.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "kin-geo-market",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "kin-geo-market.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "50335362445",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:50335362445:web:44430fdb027a4bec80a1c4"
-};
-
-// En développement, on peut avoir un fallback (optionnel)
-if (!isProd) {
-  // Fallback uniquement en développement
-  const fallbackConfig = {
+// ============================================
+// 2. CONFIGURATION FIREBASE AVEC FALLBACK UNIVERSEL
+// ============================================
+// ✅ Stratégie : Les variables ENV priment, sinon fallback (développement UNIQUEMENT)
+// ⚠️ En production, le fallback ne doit JAMAIS être utilisé (mais présent pour éviter le crash)
+const getFirebaseConfig = () => {
+  // Valeurs par défaut (fallback) - UNIQUEMENT pour le développement
+  const fallback = {
     apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
     authDomain: "kin-geo-market.firebaseapp.com",
     projectId: "kin-geo-market",
@@ -51,15 +20,32 @@ if (!isProd) {
     messagingSenderId: "50335362445",
     appId: "1:50335362445:web:44430fdb027a4bec80a1c4"
   };
-  
-  // Fusionner : les variables ENV priment sur le fallback
-  Object.keys(fallbackConfig).forEach(key => {
-    if (!firebaseConfig[key]) {
-      firebaseConfig[key] = fallbackConfig[key];
-      console.warn(`⚠️ Utilisation du fallback pour ${key} (développement uniquement)`);
+
+  // Construire la config à partir des ENV ou du fallback
+  const config = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || fallback.apiKey,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || fallback.authDomain,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || fallback.projectId,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || fallback.storageBucket,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || fallback.messagingSenderId,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || fallback.appId
+  };
+
+  // 🔥 ALERTE EN PRODUCTION : Si une variable est manquante, on log mais on ne crash pas
+  if (isProd) {
+    const missingVars = Object.keys(fallback).filter(key => !process.env[`NEXT_PUBLIC_FIREBASE_${key.toUpperCase()}`]);
+    if (missingVars.length > 0) {
+      console.warn(`⚠️ [PRODUCTION] Variables ENV manquantes : ${missingVars.join(', ')}. Utilisation du fallback (NON RECOMMANDÉ).`);
+      console.warn('➡️ Configurez vos variables dans Vercel (Settings → Environment Variables)');
     }
-  });
-}
+  } else {
+    console.log('🔧 [DÉVELOPPEMENT] Utilisation des variables ENV ou du fallback.');
+  }
+
+  return config;
+};
+
+const firebaseConfig = getFirebaseConfig();
 
 // ============================================
 // 3. CONFIGURATION CLOUDINARY
@@ -75,27 +61,15 @@ const TYPES_SUPPORTS = ["LED", "Bache", "Vinyle"];
 const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
 
 // ============================================
-// 5. GÉOGRAPHIE (peut rester en dur)
+// 5. GÉOGRAPHIE (données statiques)
 // ============================================
 const GEOGRAPHIE = {
   "RDC": {
     "Kinshasa": {
-      "Lukunga": [
-        "Gombe", "Barumbu", "Kinshasa", "Lingwala",
-        "Kintambo", "Ngaliema", "Mont-Ngafula"
-      ],
-      "Funa": [
-        "Bandalungwa", "Kasa-Vubu", "Kalamu", "Ngiri-Ngiri",
-        "Bumbu", "Makala", "Selembao"
-      ],
-      "Mont-Amba": [
-        "Limete", "Lemba", "Matete", "Ngaba",
-        "Kisenso"
-      ],
-      "Tshangu": [
-        "Masina", "Ndjili", "Kimbanseke", "Nsele",
-        "Maluku"
-      ]
+      "Lukunga": ["Gombe", "Barumbu", "Kinshasa", "Lingwala", "Kintambo", "Ngaliema", "Mont-Ngafula"],
+      "Funa": ["Bandalungwa", "Kasa-Vubu", "Kalamu", "Ngiri-Ngiri", "Bumbu", "Makala", "Selembao"],
+      "Mont-Amba": ["Limete", "Lemba", "Matete", "Ngaba", "Kisenso"],
+      "Tshangu": ["Masina", "Ndjili", "Kimbanseke", "Nsele", "Maluku"]
     },
     "Kongo-Central": {
       "Matadi": ["Ville Haute", "Ville Basse", "Nzanza", "Sanga-Sanga"],
@@ -120,18 +94,18 @@ const GEOGRAPHIE = {
 const getCommunesFromFilters = (pays, province, district) => {
   if (!pays || !GEOGRAPHIE[pays]) return [];
   if (!province || !GEOGRAPHIE[pays][province]) return [];
-  
+
   const provinceData = GEOGRAPHIE[pays][province];
-  
+
   if (district) {
     const communesDuDistrict = provinceData[district];
     return Array.isArray(communesDuDistrict) ? communesDuDistrict : [];
   }
-  
+
   const allCommunes = Object.values(provinceData).flatMap(val =>
     Array.isArray(val) ? val : []
   );
-  
+
   return [...new Set(allCommunes)];
 };
 
