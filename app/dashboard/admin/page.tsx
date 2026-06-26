@@ -51,7 +51,19 @@ const SUPER_ADMIN_EMAIL = 'omeongaandre2@gmail.com';
 // ============================================
 export default function AdminDashboard() {
     // ✅ Récupération de l'utilisateur depuis le contexte
+
+
+
+    // ✅ Récupération de l'utilisateur depuis le contexte
     const { user: authUser, loading: authLoading } = useAuth();
+
+    // ✅ État pour les données utilisateur locales
+    const [userData, setUserData] = useState<any>(null);
+    const [displayName, setDisplayName] = useState('Admin');
+    const [userEmail, setUserEmail] = useState('Email non disponible');
+    const [userInitial, setUserInitial] = useState('A');
+    const userPhotoURL = authUser?.photoURL || null;
+
 
     const [activeModule, setActiveModule] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -65,6 +77,44 @@ export default function AdminDashboard() {
         societes: 0,
         reservations: { enCours: 0, futures: 0, passees: 0 }
     });
+useEffect(() => {
+        const loadUserData = async () => {
+            // 1. D'abord, essayer de récupérer depuis le localStorage
+            const localData = localStorage.getItem('geomarketing_user_data');
+            
+            if (localData) {
+                try {
+                    const parsedData = JSON.parse(localData);
+                    console.log('📥 Données utilisateur récupérées du localStorage:', parsedData);
+                    
+                    // Mettre à jour les états
+                    setUserData(parsedData);
+                    
+                    const nom = parsedData.nom || parsedData.nomComplet || parsedData.email?.split('@')[0] || 'Admin';
+                    setDisplayName(nom);
+                    setUserEmail(parsedData.email || 'Email non disponible');
+                    setUserInitial(nom.charAt(0).toUpperCase() || 'A');
+                    
+                    return; // Sortir si les données locales sont trouvées
+                } catch (error) {
+                    console.error('❌ Erreur lors du parsing des données locales:', error);
+                }
+            }
+            
+            // 2. Si pas de données locales, utiliser authUser du contexte
+            if (authUser) {
+                console.log('📥 Utilisation des données du contexte auth:', authUser);
+                
+                const nom = authUser.nomComplet || authUser.nom || authUser.email?.split('@')[0] || 'Admin';
+                setDisplayName(nom);
+                setUserEmail(authUser.email || 'Email non disponible');
+                setUserInitial(nom.charAt(0).toUpperCase() || 'A');
+                setUserData(authUser);
+            }
+        };
+        
+        loadUserData();
+    }, [authUser]); // Se déclenche quand authUser change
 
     // ============================================
     // 1. CHARGEMENT DES DONNÉES
@@ -214,10 +264,6 @@ export default function AdminDashboard() {
     // 4. INFOS UTILISATEUR
     // ============================================
     // ✅ Utilisation directe de authUser du contexte
-    const displayName = authUser?.nomComplet || authUser?.nom || authUser?.email?.split('@')[0] || 'Admin';
-    const userEmail = authUser?.email || 'Email non disponible';
-    const userInitial = authUser?.nomComplet?.charAt(0) || authUser?.email?.charAt(0) || 'A';
-    const userPhotoURL = authUser?.photoURL || null;
 
     // ============================================
     // 5. RENDU - CHARGEMENT
@@ -287,15 +333,15 @@ export default function AdminDashboard() {
                                 )}
                             </div>
 
-                            {/* Nom et Email */}
-                            <div className="hidden sm:block">
-                                <p className="text-[10px] xs:text-[9px] font-bold text-white truncate max-w-[60px] md:max-w-[120px]">
-                                    {displayName}
+                            {/* Nom et Email - CORRIGÉ : Affiché partout, largeurs ajustées */}
+                            <div className="flex flex-col justify-center min-w-0">
+                                <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-white truncate max-w-[80px] xs:max-w-[100px] md:max-w-[150px]">
+                                    {displayName || "Utilisateur"}
                                 </p>
-                                <p className="text-[6px] xs:text-[7px] text-blue-200 truncate max-w-[60px] md:max-w-[120px]">
+                                <p className="text-[7px] xs:text-[8px] sm:text-[10px] text-blue-200 truncate max-w-[80px] xs:max-w-[100px] md:max-w-[150px]">
                                     {userEmail}
                                 </p>
-                                <p className="text-[5px] xs:text-[6px] text-amber-400 font-bold uppercase">
+                                <p className="text-[5px] xs:text-[6px] sm:text-[7px] text-amber-400 font-bold uppercase tracking-wider">
                                     Administrateur
                                 </p>
                             </div>
@@ -303,7 +349,7 @@ export default function AdminDashboard() {
                             {/* Déconnexion */}
                             <button
                                 onClick={handleLogout}
-                                className="p-1 xs:p-1.5 sm:p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all hover:scale-105"
+                                className="p-1 xs:p-1.5 sm:p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all hover:scale-105 flex-shrink-0"
                             >
                                 <LogOut size={14} className="xs:w-[15px] xs:h-[15px] sm:w-4 sm:h-4" />
                             </button>
@@ -1538,11 +1584,11 @@ function UtilisateursModule({ societes, currentUser: initialUser }: any) {
         nom: '',
         postNom: '',
         prenom: '',
-        fonction: '',
+        fonction: 'agent',
         role: 'commercial',
         email: '',
         telephone: '+243',
-        password: '123456789'
+        password: '123'
     });
 
 
@@ -1842,7 +1888,7 @@ function UtilisateursModule({ societes, currentUser: initialUser }: any) {
                 nom: '',
                 postNom: '',
                 prenom: '',
-                fonction: '',
+                fonction: 'agent',
                 role: 'commercial',
                 email: '',
                 telephone: '+243',

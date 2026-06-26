@@ -90,6 +90,21 @@ export default function FullscreenMap() {
     }
   }, []);
 
+  // Dans votre page map (carte/page.tsx)
+useEffect(() => {
+  // Récupérer les données sauvegardées
+  const mapData = localStorage.getItem('map_panneaux_data');
+  const filterType = localStorage.getItem('map_filter_type') || 'all';
+  
+  if (mapData) {
+    const allPanneaux = JSON.parse(mapData);
+    console.log(`🗺️ Carte - ${filterType} panneaux:`, allPanneaux);
+    // Afficher tous les panneaux sur la carte
+    setPanneaux(allPanneaux);
+  }
+}, []);
+
+
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "panneaux"), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

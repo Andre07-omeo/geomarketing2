@@ -1,30 +1,79 @@
-// config/db.js - Version avec exports directs
+// config/db.js - Version SÉCURISÉE avec variables d'environnement
 
 // ============================================
-// 1. CONFIGURATION FIREBASE
+// 1. VÉRIFICATION EN PRODUCTION
 // ============================================
+const isProd = process.env.NODE_ENV === 'production';
+
+if (isProd) {
+  // En production, TOUTES les variables doivent être définies
+  const requiredVars = [
+    'NEXT_PUBLIC_FIREBASE_API_KEY',
+    'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+    'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+    'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+    'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+    'NEXT_PUBLIC_FIREBASE_APP_ID'
+  ];
+  
+  const missing = requiredVars.filter(v => !process.env[v]);
+  if (missing.length > 0) {
+    throw new Error(`❌ Variables d'environnement manquantes en production: ${missing.join(', ')}`);
+  }
+}
+
+// ============================================
+// 2. CONFIGURATION FIREBASE - SÉCURISÉE
+// ============================================
+// ✅ UTILISATION DES VARIABLES D'ENVIRONNEMENT
+// En production, les valeurs viennent UNIQUEMENT des ENV
+// En développement, on utilise un fallback (MAIS jamais en prod)
 const firebaseConfig = {
-  apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
-  authDomain: "kin-geo-market.firebaseapp.com",
-  projectId: "kin-geo-market",
-  storageBucket: "kin-geo-market.firebasestorage.app",
-  messagingSenderId: "50335362445",
-  appId: "1:50335362445:web:44430fdb027a4bec80a1c4"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// ============================================
-// 2. CONFIGURATION CLOUDINARY
-// ============================================
-const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dn7wnikzp/image/upload";
-const UPLOAD_PRESET = "panneaux";
+// En développement, on peut avoir un fallback (optionnel)
+if (!isProd) {
+  // Fallback uniquement en développement
+  const fallbackConfig = {
+    apiKey: "AIzaSyDWqh9fFs2Me5pBY5V6riPfLX6QUHvOqmw",
+    authDomain: "kin-geo-market.firebaseapp.com",
+    projectId: "kin-geo-market",
+    storageBucket: "kin-geo-market.firebasestorage.app",
+    messagingSenderId: "50335362445",
+    appId: "1:50335362445:web:44430fdb027a4bec80a1c4"
+  };
+  
+  // Fusionner : les variables ENV priment sur le fallback
+  Object.keys(fallbackConfig).forEach(key => {
+    if (!firebaseConfig[key]) {
+      firebaseConfig[key] = fallbackConfig[key];
+      console.warn(`⚠️ Utilisation du fallback pour ${key} (développement uniquement)`);
+    }
+  });
+}
 
 // ============================================
-// 3. CONSTANTES DE L'APPLICATION
+// 3. CONFIGURATION CLOUDINARY
 // ============================================
-const LOGO_DISPROMALT = "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
+const CLOUDINARY_URL = process.env.NEXT_PUBLIC_CLOUDINARY_URL || "https://api.cloudinary.com/v1_1/dn7wnikzp/image/upload";
+const UPLOAD_PRESET = process.env.NEXT_PUBLIC_UPLOAD_PRESET || "panneaux";
+
+// ============================================
+// 4. LOGO ET CONSTANTES
+// ============================================
+const LOGO_DISPROMALT = process.env.NEXT_PUBLIC_LOGO_URL || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
 const TYPES_SUPPORTS = ["LED", "Bache", "Vinyle"];
 const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
 
+// ============================================
+// 5. GÉOGRAPHIE (peut rester en dur)
+// ============================================
 const GEOGRAPHIE = {
   "RDC": {
     "Kinshasa": {
@@ -63,7 +112,7 @@ const GEOGRAPHIE = {
 };
 
 // ============================================
-// 4. FONCTIONS UTILITAIRES
+// 6. FONCTIONS UTILITAIRES
 // ============================================
 const getCommunesFromFilters = (pays, province, district) => {
   if (!pays || !GEOGRAPHIE[pays]) return [];
@@ -84,22 +133,15 @@ const getCommunesFromFilters = (pays, province, district) => {
 };
 
 // ============================================
-// 5. EXPORTATION DIRECTE
+// 7. EXPORTATION
 // ============================================
 module.exports = {
-  // Firebase
   firebaseConfig,
-  
-  // Cloudinary
   CLOUDINARY_URL,
   UPLOAD_PRESET,
-  
-  // Constantes
   LOGO_DISPROMALT,
   TYPES_SUPPORTS,
   STATUTS_POSSIBLES,
   GEOGRAPHIE,
-  
-  // Fonctions
   getCommunesFromFilters
 };

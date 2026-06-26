@@ -10,6 +10,11 @@ import {
   Search, MapPin, Filter, PlusCircle, CheckCircle2,
   Menu, X, Home, Zap, Globe, Loader2, Clock, UserCheck, FileText, Send
 } from 'lucide-react';
+import {
+  // ... vos autres imports
+  Plus,           // ✅ Pour le bouton flottant
+  ChevronRight,   // ✅ Pour la flèche
+} from 'lucide-react';
 
 import Footer from '@/components1/Footer';
 import Link from 'next/link';
@@ -20,6 +25,7 @@ import { AlertTriangle } from 'lucide-react';
 // IMPORTS À AJOUTER EN HAUT DU FICHIER
 // ============================================
 import { where, addDoc } from 'firebase/firestore';
+
 
 
 import {
@@ -42,9 +48,20 @@ import { getDoc } from "firebase/firestore";
 
 // ✅ Version require avec chemin correct
 const config = require('../../../config/db');
+import {
+  // ... vos autres imports
+  BookOpen,  // ✅ AJOUTER CETTE LIGNE
+} from 'lucide-react';
 
-
-
+import {
+  // ... vos autres imports
+  // ✅ Pour Rapports
+  ChevronDown,     // ✅ Pour le dropdown Export
+  // ✅ Pour PDF
+  FileSpreadsheet, // ✅ Pour Excel
+  Printer,         // ✅ Pour Export mobile
+  RefreshCw,       // ✅ Pour Rafraîchir
+} from 'lucide-react';
 // Toutes ces variables fonctionneront maintenant :
 const firebaseConfig = config.firebaseConfig;
 const GEOGRAPHIE = config.GEOGRAPHIE;
@@ -70,6 +87,10 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
   const [selectedFaceDetails, setSelectedFaceDetails] = useState<any>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [isFloatingMenuOpen, setIsFloatingMenuOpen] = useState(false);
+
+
 
   const faces = panneau?.faces || [];
 
@@ -137,6 +158,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
     const cancelBtn = modal.querySelector('#cancel-download');
 
     const closeModal = () => modal.remove();
+
 
     confirmBtn?.addEventListener('click', async () => {
       closeModal();
@@ -455,8 +477,6 @@ export default function UltimateSupervisor() {
   const ADMIN_RESPONSABLE = 'admincommerciaux@dispromalt.cd';
 
 
-  const router = useRouter();
-  const { user, logout } = useAuth();
 
   // --- ÉTATS DES DONNÉES ---
   const [loading, setLoading] = useState(true);
@@ -476,7 +496,14 @@ export default function UltimateSupervisor() {
 
 
 
-  // Ajoutez ces états après les autres déclarations d'états (vers la ligne ~200)
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
+  // ✅ ÉTATS POUR LES DONNÉES UTILISATEUR
+  const [userData, setUserData] = useState<any>(null);
+  const [displayName, setDisplayName] = useState('Agent');
+  const [userEmail, setUserEmail] = useState('');
+  const [userInitial, setUserInitial] = useState('A');
 
 
 
@@ -527,11 +554,37 @@ export default function UltimateSupervisor() {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [selectedRdvForAction, setSelectedRdvForAction] = useState<RdvData | null>(null);
 
+  // ============================================
+  // ÉTATS EXISTANTS
+  // ============================================
+  const [filters, setFilters] = useState({
+    pays: '',
+    province: '',
+    district: '',
+    commune: '',
+    type: '',
+    statut: ''
+  });
+
+  // ✅ AJOUTER CE CI
 
 
 
+  useEffect(() => {
+    if (user) {
+      // Empêcher le retour arrière
+      const preventBack = () => {
+        window.history.pushState(null, '', window.location.href);
+      };
 
+      window.history.pushState(null, '', window.location.href);
+      window.addEventListener('popstate', preventBack);
 
+      return () => {
+        window.removeEventListener('popstate', preventBack);
+      };
+    }
+  }, [user]);
 
   // 2. Place le code ici (il s'exécute une seule fois au chargement)
   useEffect(() => {
@@ -753,6 +806,74 @@ export default function UltimateSupervisor() {
       alert("❌ Erreur lors de la validation");
     }
   };
+  useEffect(() => {
+    const loadUserData = async () => {
+      console.log('🔍 Chargement des données utilisateur...');
+
+      // 1. D'abord, essayer de récupérer depuis le localStorage
+      const localData = localStorage.getItem('geomarketing_user_data');
+
+      if (localData) {
+        try {
+          const parsedData = JSON.parse(localData);
+          console.log('📥 Données utilisateur récupérées du localStorage:', parsedData);
+
+          setUserData(parsedData);
+
+          // Extraire les informations d'affichage
+          const nom = parsedData.nom ||
+            parsedData.nomComplet ||
+            parsedData.displayName ||
+            parsedData.email?.split('@')[0] ||
+            'Agent';
+          setDisplayName(nom);
+          setUserEmail(parsedData.email || '');
+          setUserInitial(nom.charAt(0).toUpperCase() || 'A');
+
+          console.log('✅ Données utilisateur chargées depuis localStorage');
+          return; // Sortir si les données locales sont trouvées
+        } catch (error) {
+          console.error('❌ Erreur lors du parsing des données locales:', error);
+        }
+      }
+
+      // 2. Si pas de données locales, utiliser l'utilisateur du contexte
+      if (user) {
+        console.log('📥 Utilisation des données du contexte auth:', user);
+
+        const nom = user.nomComplet ||
+          user.nom ||
+          user.displayName ||
+          user.email?.split('@')[0] ||
+          'Agent';
+
+        setDisplayName(nom);
+        setUserEmail(user.email || '');
+        setUserInitial(nom.charAt(0).toUpperCase() || 'A');
+        setUserData(user);
+
+        // Sauvegarder dans localStorage pour la prochaine fois
+        try {
+          const userToSave = {
+            ...user,
+            nom: user.nom || user.nomComplet || user.displayName || 'Agent',
+            nomComplet: user.nomComplet || user.nom || user.displayName || 'Agent',
+            lastSync: new Date().toISOString()
+          };
+          localStorage.setItem('geomarketing_user_data', JSON.stringify(userToSave));
+          console.log('💾 Données utilisateur sauvegardées dans localStorage');
+        } catch (error) {
+          console.error('❌ Erreur sauvegarde localStorage:', error);
+        }
+      } else {
+        console.warn('⚠️ Aucune donnée utilisateur trouvée');
+        // Rediriger vers login si pas d'utilisateur
+        router.push('/auth/login');
+      }
+    };
+
+    loadUserData();
+  }, [user, router]);
 
   // Fonction pour rejeter un RDV (admin)
   const rejeterRdv = async (rdv: RdvData, commentaire: string) => {
@@ -1087,16 +1208,6 @@ export default function UltimateSupervisor() {
 
 
   // --- ÉTATS FILTRES ---
-  const [filters, setFilters] = useState({
-    type: '',
-    statut: '',
-    format: '',
-    pays: '',
-    province: '',
-    commune: '',
-    district: '', // <--- AJOUTE CETTE LIGNE
-
-  });
 
   // --- HOOKS D'ANIMATION ---
   const { scrollYProgress, scrollY } = useScroll();
@@ -1138,21 +1249,57 @@ export default function UltimateSupervisor() {
 
   const handleLogout = () => {
     if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-      // Nettoyer le localStorage et sessionStorage
+      // 1. Nettoyer le localStorage et sessionStorage
       localStorage.clear();
       sessionStorage.clear();
 
-      // D'abord, effacer l'historique
+      // 2. Effacer l'historique du navigateur pour empêcher le retour
       window.history.pushState(null, "", window.location.href);
       window.onpopstate = function () {
         window.history.pushState(null, "", window.location.href);
       };
 
-      // Puis déconnecter et rediriger
+      // 3. Déconnecter et rediriger
       logout();
       router.push('/');
     }
   };
+  useEffect(() => {
+    // Exposer les outils de debug dans la console
+    if (typeof window !== 'undefined') {
+      // @ts-ignore
+      window.__debug = {
+        getUserData: () => {
+          const data = localStorage.getItem('geomarketing_user_data');
+          if (data) {
+            const parsed = JSON.parse(data);
+            console.log('👤 Données utilisateur:', parsed);
+            return parsed;
+          }
+          console.log('❌ Aucune donnée dans localStorage');
+          return null;
+        },
+        getUser: () => {
+          console.log('👤 Utilisateur actuel:', user);
+          return user;
+        },
+        refreshUser: () => {
+          // Forcer le rechargement des données
+          const data = localStorage.getItem('geomarketing_user_data');
+          if (data) {
+            const parsed = JSON.parse(data);
+            setUserData(parsed);
+            const nom = parsed.nom || parsed.nomComplet || 'Agent';
+            setDisplayName(nom);
+            setUserEmail(parsed.email || '');
+            setUserInitial(nom.charAt(0).toUpperCase());
+            console.log('✅ Données rafraîchies');
+          }
+        }
+      };
+      console.log('🛠️ Debug disponible - Tapez window.__debug.getUserData()');
+    }
+  }, [user]);
 
   // Ajoutez ce useEffect dans votre composant, juste après la déclaration des states
   useEffect(() => {
@@ -1179,7 +1326,8 @@ export default function UltimateSupervisor() {
   const [monthRange, setMonthRange] = useState(1);
   // Gestion de l'onglet actif (Performance ou Gestion)
   const [activeTab, setActiveTab] = useState<'stats' | 'reservations' | 'rdv'>('stats');
-
+  // Dans votre composant
+  const [isFloatingMenuOpen, setIsFloatingMenuOpen] = useState(false);
 
   // Filtres pour la partie Gestion
   const [timeFilter, setTimeFilter] = useState<'avant' | 'present' | 'futur'>('present');
@@ -1246,6 +1394,7 @@ export default function UltimateSupervisor() {
     });
   };
 
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const handlePhotoUpdate = async (e: React.ChangeEvent<HTMLInputElement>, resId: string) => {
     const file = e.target.files?.[0];
@@ -1257,35 +1406,6 @@ export default function UltimateSupervisor() {
     } catch (error) {
       console.error("Erreur lors de la mise à jour :", error);
     }
-  };
-
-
-
-  // 1. Déclare l'état tout en haut de ton composant
-
-  // --- LOGIQUE DE FILTRAGE ---
-  const getCommunes = () => {
-    const { pays, province, district } = filters;
-
-    // 1. Vérification par étapes pour éviter "Cannot read property of undefined"
-    if (!pays || !GEOGRAPHIE[pays]) return [];
-    if (!province || !GEOGRAPHIE[pays][province]) return [];
-
-    const provinceData = GEOGRAPHIE[pays][province];
-
-    // 2. Si un district est sélectionné
-    if (district) {
-      const communesDuDistrict = provinceData[district];
-      // On vérifie que c'est bien un tableau avant de le renvoyer
-      return Array.isArray(communesDuDistrict) ? communesDuDistrict : [];
-    }
-
-    // 3. Si aucun district (on aplatit tout), on s'assure de ne récupérer que des tableaux
-    const allCommunes = Object.values(provinceData).flatMap(val =>
-      Array.isArray(val) ? val : []
-    );
-
-    return [...new Set(allCommunes)];
   };
 
 
@@ -1346,6 +1466,19 @@ export default function UltimateSupervisor() {
     // Ta logique d'édition ici
     setPanneauToEdit(panneau);
   };
+
+  const stats = {
+    total: 0,
+    libres: 0,
+    occupees: 0,
+    reservees: 0,
+    maintenance: 0
+  };
+  // Accès :
+  stats.libres
+  stats.occupees
+  stats.reservees
+  stats.maintenance
 
 
   // --- RENDU : LOADING PREMIUM ---
@@ -1434,327 +1567,549 @@ export default function UltimateSupervisor() {
       </div>
 
       {/* NAVIGATION FIXE */}
-      <nav className="fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 py-2 sm:py-3 backdrop-blur-3xl transition-all duration-500">
-        <div className="max-w-[1800px] mx-auto">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className={`
-        relative group overflow-visible
-        flex items-center justify-between 
-        h-14 sm:h-16 md:h-[4.2rem] lg:h-[4.5rem]
-        px-3 sm:px-5 md:px-6 lg:px-8
-        rounded-xl sm:rounded-2xl md:rounded-3xl lg:rounded-[2rem]
-        transition-all duration-500
-        bg-gradient-to-r from-blue-50/95 via-white/95 to-blue-50/95 backdrop-blur-2xl 
-        border border-blue-200/50 shadow-xl shadow-blue-500/10
-        hover:border-blue-400/60
-        hover:shadow-2xl hover:shadow-blue-400/20
-      `}
+      <nav className="fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 lg:px-6 py-1.5 xs:py-2 sm:py-2.5 md:py-3 backdrop-blur-3xl transition-all duration-500 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-2xl border-b border-white/10">
+        <div className="w-full max-w-[2000px] mx-auto">
+          <div
+            className="
+    relative group overflow-visible
+    flex items-center justify-between 
+    w-full
+    min-h-[48px] xs:min-h-[52px] sm:min-h-[56px] md:min-h-[60px] lg:min-h-[64px]
+    px-2 xs:px-3 sm:px-4 md:px-5 lg:px-6
+    rounded-lg xs:rounded-xl sm:rounded-2xl
+    transition-all duration-500
+    bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700
+    border border-white/10 shadow-xl shadow-blue-500/20
+    hover:border-white/20
+    hover:shadow-2xl hover:shadow-blue-500/30
+  "
           >
             {/* Effets visuels */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            <div className="absolute bottom-0 left-4 right-4 h-[1.5px] bg-gradient-to-r from-transparent via-blue-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+            <div className="absolute bottom-0 left-4 right-4 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-center" />
 
-            {/* ========== LOGO ========== */}
-            <div
-              onClick={() => window.location.reload()}
-              className="relative flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 md:gap-3 cursor-pointer group/logo flex-shrink-0"
-            >
-              <div className="absolute -inset-1 rounded-xl border-2 border-blue-400/0 group-hover/logo:border-blue-400/20 transition-all duration-500" />
+            {/* ============================================================ */}
+            {/* ========== PARTIE GAUCHE - LOGO ========== */}
+            {/* ============================================================ */}
+            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0 min-w-0">
+              <div
+                onClick={() => window.location.reload()}
+                className="relative flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5 cursor-pointer group/logo flex-shrink-0"
+              >
+                <div className="absolute -inset-1 rounded-xl border-2 border-white/0 group-hover/logo:border-white/20 transition-all duration-500" />
 
-              <div className="relative">
-                <div className="absolute inset-0 bg-white rounded-lg shadow-sm" />
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-lg" />
-                <img
-                  src="/icon-192x192.png"
-                  className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-lg object-cover border border-blue-400/30 group-hover/logo:border-blue-400/60 transition-all duration-300 shadow-sm"
-                  alt="Logo"
-                />
-                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full animate-pulse shadow-sm" />
-              </div>
+                <div className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 flex-shrink-0">
+                  <div className="absolute inset-0 bg-white/10 rounded-lg shadow-sm" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-lg" />
+                  <img
+                    src="/icon-192x192.png"
+                    className="relative w-full h-full object-contain p-0.5 xs:p-1 rounded-lg object-cover border border-white/30 group-hover/logo:border-white/60 transition-all duration-300 shadow-sm"
+                    alt="Logo"
+                  />
+                  <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-sm" />
+                </div>
 
-              <div className="flex flex-col leading-tight">
-                <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase tracking-tighter">
-                  <span className="text-gray-800 group-hover/logo:text-blue-600 transition-all">G</span>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-600">D</span>
-                  <span className="text-gray-800 group-hover/logo:text-blue-600 transition-all">P</span>
-                </span>
-                <span className="text-[3px] xs:text-[4px] sm:text-[5px] md:text-[6px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-blue-600/70 whitespace-nowrap">
-                  GESTION DIGITALE
-                </span>
+                <div className="flex flex-col leading-tight min-w-0">
+                  <span className="text-[11px] xs:text-sm sm:text-base md:text-lg lg:text-xl font-black italic uppercase tracking-tighter whitespace-nowrap">
+                    <span className="text-white group-hover/logo:text-amber-300 transition-all">G</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-400">D</span>
+                    <span className="text-white group-hover/logo:text-amber-300 transition-all">P</span>
+                  </span>
+                  <span className="hidden 2xs:inline text-[4px] xs:text-[5px] sm:text-[6px] md:text-[7px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-blue-200/70 whitespace-nowrap">
+                    GESTION DIGITALE
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* ========== BOUTONS DE NAVIGATION ========== */}
-            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5">
-              {/* Accueil - Bleu */}
+            {/* ============================================================ */}
+            {/* ========== PARTIE CENTRALE - BOUTONS DE NAVIGATION + STATS ========== */}
+            {/* ============================================================ */}
+            <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5 flex-1 justify-center px-1 xs:px-2 sm:px-3 overflow-x-auto scrollbar-hide">
+
+              {/* --- BOUTON ACCUEIL --- */}
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => window.location.reload()}
-                className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 active:bg-blue-100"
+                onClick={() => window.location.href = '/dashboard/superviseurs/rapport'}
+                className="group flex items-center justify-center p-1.5 xs:p-2 sm:px-2.5 sm:py-2 rounded-lg xs:rounded-xl transition-all duration-300 bg-white/5 hover:bg-white/15 text-white shadow-sm hover:shadow-md hover:shadow-white/10 border border-white/5 hover:border-white/20 active:bg-white/20 min-w-[32px] xs:min-w-[36px] sm:min-w-[40px] whitespace-nowrap"
                 aria-label="Accueil"
               >
-                <Home size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all" />
-                <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+                <Home size={14} className="xs:w-[15px] xs:h-[15px] sm:w-[16px] sm:h-[16px] text-white/70 group-hover:text-white transition-all" />
+                <span className="hidden sm:inline ml-1 text-[9px] xs:text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-white/70 group-hover:text-white transition-colors">
                   Accueil
                 </span>
               </motion.button>
 
-              {/* Carte - Bleu */}
+              {/* --- BOUTON CATALOGUE --- */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.href = '/dashboard/superviseurs'}
+                className="group flex items-center justify-center p-1.5 xs:p-2 sm:px-2.5 sm:py-2 rounded-lg xs:rounded-xl transition-all duration-300 bg-white/5 hover:bg-white/15 text-white shadow-sm hover:shadow-md hover:shadow-white/10 border border-white/5 hover:border-white/20 active:bg-white/20 min-w-[32px] xs:min-w-[36px] sm:min-w-[40px] whitespace-nowrap"
+                aria-label="Catalogue"
+              >
+                <BookOpen size={14} className="xs:w-[15px] xs:h-[15px] sm:w-[16px] sm:h-[16px] text-white/70 group-hover:text-white transition-all group-hover:rotate-[-10deg]" />
+                <span className="hidden sm:inline ml-1 text-[9px] xs:text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-white/70 group-hover:text-white transition-colors">
+                  Catalogue
+                </span>
+              </motion.button>
+
+              {/* --- BOUTON CARTE --- */}
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={ouvrirLaCarte}
-                className="group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 active:bg-blue-100"
+                className="group flex items-center justify-center p-1.5 xs:p-2 sm:px-2.5 sm:py-2 rounded-lg xs:rounded-xl transition-all duration-300 bg-white/5 hover:bg-white/15 text-white shadow-sm hover:shadow-md hover:shadow-white/10 border border-white/5 hover:border-white/20 active:bg-white/20 min-w-[32px] xs:min-w-[36px] sm:min-w-[40px] whitespace-nowrap"
                 aria-label="Carte"
               >
-                <MapPin size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all group-hover:rotate-6" />
-                <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
+                <MapPin size={14} className="xs:w-[15px] xs:h-[15px] sm:w-[16px] sm:h-[16px] text-white/70 group-hover:text-white transition-all group-hover:rotate-6" />
+                <span className="hidden sm:inline ml-1 text-[9px] xs:text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-white/70 group-hover:text-white transition-colors">
                   Carte
                 </span>
               </motion.button>
 
-              {/* Rapport - Bleu avec badge */}
-              <Link href="/dashboard/superviseurs/rapport">
-                <motion.div
-                  whileTap={{ scale: 0.95 }}
-                  className="relative group flex items-center justify-center p-2 xs:p-2.5 sm:px-3 sm:py-2.5 rounded-xl transition-all duration-300 bg-blue-50/80 text-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-400/20 border border-blue-200/50 hover:border-blue-400 cursor-pointer active:bg-blue-100"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-                  <FilePieChart size={16} className="xs:w-[17px] xs:h-[17px] sm:w-[18px] sm:h-[18px] text-blue-500 group-hover:text-blue-700 transition-all group-hover:rotate-6" />
-                  <span className="hidden sm:inline ml-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide group-hover:text-blue-700 transition-colors">
-                    Rapports
+              {/* --- SÉPARATEUR --- */}
+              <div className="hidden sm:block w-px h-6 md:h-7 bg-white/10 mx-0.5 xs:mx-1" />
+
+              {/* ============================================================ */}
+              {/* STATISTIQUES - VERSION ULTRA RESPONSIVE */}
+              {/* ============================================================ */}
+              <div className="flex items-center gap-1 xs:gap-2 sm:gap-3 md:gap-4 min-w-0">
+
+                {/* === UNITÉS FILTRÉES === */}
+                <div className="flex items-center gap-0.5 xs:gap-1 bg-white/5 px-1.5 xs:px-2 sm:px-2.5 md:px-3 py-0.5 xs:py-1 rounded-lg border border-white/10 hover:border-amber-400/30 transition-all duration-300">
+                  <span className="text-[9px] xs:text-[10px] sm:text-[11px] md:text-[12px] font-black text-amber-400">
+                    {filtered.length}
                   </span>
-                  <span className="relative hidden sm:block ml-1.5 text-[6px] bg-blue-500/20 text-blue-600 px-1 py-0.5 rounded-full font-black">
-                    LIVE
+                  <span className="hidden 2xs:inline text-[6px] xs:text-[7px] sm:text-[8px] text-white/50 font-bold uppercase tracking-wider">
+                    Unités
                   </span>
-                </motion.div>
-              </Link>
+                  <span className="2xs:hidden text-[6px] text-white/50 font-bold">U</span>
+                  <span className="hidden sm:inline text-[6px] xs:text-[7px] text-white/30 font-bold uppercase tracking-wider ml-0.5">
+                    Filtrées
+                  </span>
+                </div>
+
+                {/* === SÉPARATEUR === */}
+                <span className="text-white/20 text-[10px] xs:text-[12px] hidden xs:inline">|</span>
+
+                {/* === FACES FILTRÉES === */}
+                <div className="flex items-center gap-0.5 xs:gap-1 bg-white/5 px-1.5 xs:px-2 sm:px-2.5 md:px-3 py-0.5 xs:py-1 rounded-lg border border-white/10 hover:border-blue-400/30 transition-all duration-300">
+                  <span className="text-[9px] xs:text-[10px] sm:text-[11px] md:text-[12px] font-black text-blue-400">
+                    {totalFaces}
+                  </span>
+                  <span className="hidden 2xs:inline text-[6px] xs:text-[7px] sm:text-[8px] text-white/50 font-bold uppercase tracking-wider">
+                    Faces
+                  </span>
+                  <span className="2xs:hidden text-[6px] text-white/50 font-bold">F</span>
+                  <span className="hidden sm:inline text-[6px] xs:text-[7px] text-white/30 font-bold uppercase tracking-wider ml-0.5">
+                    Filtrées
+                  </span>
+                </div>
+
+                {/* === SÉPARATEUR - Caché sur mobile === */}
+                <span className="hidden lg:inline text-white/20 text-[10px] xs:text-[12px]">|</span>
+
+                {/* === DÉTAIL DES STATUTS - Caché sur petit écran === */}
+
+              </div>
+              {/* ===== FIN STATISTIQUES ===== */}
+
             </div>
 
-            {/* ========== USER SECTION ========== */}
-            <div className="flex items-center gap-1 xs:gap-2 shrink-0 pl-1 xs:pl-2 sm:pl-3 lg:pl-4 border-l border-blue-200">
-              {user ? (
-                <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2">
-                  {/* Infos utilisateur */}
-                  <div className="hidden sm:block text-right">
-                    <p className="text-[10px] sm:text-[11px] font-black text-gray-700 uppercase tracking-tight truncate max-w-[100px]">
-                      {user.nom || user.nomComplet?.split(' ')[0] || 'Agent'}
-                    </p>
-                    <p className="text-[6px] sm:text-[7px] font-bold text-blue-500 uppercase tracking-wider">
-                      {user.role || "Utilisateur"}
-                    </p>
-                  </div>
 
-                  {/* Bouton déconnexion - Rouge (conserve la distinction) */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleLogout();
-                    }}
-                    className="group flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 text-red-500 px-2 xs:px-2.5 sm:px-3 py-1.5 xs:py-2 rounded-full transition-all border border-red-200 active:scale-95 shadow-sm hover:shadow-md"
-                    title="Déconnexion"
-                  >
-                    <img
-                      src={logoUrl}
-                      className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border border-blue-400 object-cover bg-white shadow-sm"
-                      alt="Profil"
-                      onError={(e) => { (e.target as HTMLImageElement).src = "/default-avatar.png" }}
-                    />
-                    <LogOut size={12} className="xs:w-[13px] xs:h-[13px] sm:w-[14px] sm:h-[14px] flex-shrink-0 group-hover:scale-110 transition-transform" />
-                    <span className="hidden xs:inline text-[8px] sm:text-[9px] font-bold uppercase">Déconnexion</span>
-                  </button>
+
+            <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 flex-shrink-0 pl-1 xs:pl-2 border-l border-white/10">
+
+              {/* === BLOC PROFIL UTILISATEUR + QUITTER - UNIFIÉ === */}
+              <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 px-1 xs:px-1.5 sm:px-2 md:px-2.5 py-0.5 xs:py-1 sm:py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-300 border border-white/5 hover:border-white/15">
+
+                {/* --- AVATAR --- */}
+                <div className="relative w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-white/20">
+                  {logo ? (
+                    <img src={logo} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <span className="text-[8px] xs:text-[9px] sm:text-[10px] md:text-xs font-bold text-white">
+                      {userInitial}
+                    </span>
+                  )}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-emerald-500 rounded-full border border-white/50 animate-pulse" />
                 </div>
-              ) : (
-                // Bouton Connexion - Bleu
+
+                {/* --- INFOS UTILISATEUR --- */}
+                <div className="hidden xs:block min-w-0">
+                  <p className="text-[8px] xs:text-[9px] sm:text-[10px] md:text-xs font-bold text-white truncate max-w-[50px] xs:max-w-[70px] sm:max-w-[90px] md:max-w-[110px]">
+                    {displayName}
+                  </p>
+                  <p className="text-[6px] xs:text-[7px] sm:text-[8px] text-blue-200/80 truncate max-w-[50px] xs:max-w-[70px] sm:max-w-[90px] md:max-w-[110px]">
+                    {userEmail}
+                  </p>
+                </div>
+
+                {/* --- SÉPARATEUR --- */}
+                <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/10 hidden xs:block" />
+
+                {/* --- BOUTON QUITTER --- */}
                 <button
-                  onClick={() => setIsLoginOpen(true)}
-                  className="group relative overflow-hidden px-3 xs:px-4 sm:px-5 py-1.5 xs:py-2 sm:py-2.5 rounded-xl font-black uppercase text-[8px] xs:text-[9px] sm:text-[10px] transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
+                  onClick={() => {
+                    if (confirm("🔐 Voulez-vous vraiment vous déconnecter ?")) {
+                      if (logout) logout();
+                      localStorage.clear();
+                      sessionStorage.clear();
+                      window.history.pushState(null, "", window.location.href);
+                      window.onpopstate = function () {
+                        window.history.pushState(null, "", window.location.href);
+                      };
+                      window.location.replace('/');
+                    }
+                  }}
+                  className="flex items-center gap-0.5 xs:gap-1 px-1 xs:px-1.5 sm:px-2 py-0.5 xs:py-1 rounded-lg bg-red-500/15 hover:bg-red-500/25 transition-all duration-300 border border-red-500/20 hover:border-red-500/40 hover:scale-105 active:scale-95 group"
+                  aria-label="Déconnexion"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                  <span className="relative z-10 flex items-center gap-1">
-                    <span>🔐</span>
-                    <span className="hidden xs:inline">Connexion</span>
+                  <LogOut size={12} className="xs:w-[13px] xs:h-[13px] sm:w-[14px] sm:h-[14px] text-red-400 group-hover:rotate-12 transition-transform" />
+                  <span className="hidden xs:inline text-[7px] xs:text-[8px] sm:text-[9px] font-bold text-white/80 group-hover:text-white transition-colors">
+                    Quitter
                   </span>
                 </button>
-              )}
+
+              </div>
+              {/* === FIN BLOC PROFIL + QUITTER === */}
+
             </div>
-          </motion.div>
+          </div>
+
+          {/* Barre de progression animée */}
+          <div className="h-0.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 relative overflow-hidden mt-0.5 xs:mt-1">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shimmer" />
+          </div>
         </div>
       </nav>
+
+
+
 
       {/* MAIN CONTENT */}
       <main className="relative z-20 max-w-[1800px] mx-auto px-6 pt-44 pb-40">
         <header className="mb-20 relative">
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
 
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-10">
 
-              {/* GAUCHE : TITRE ET STATS */}
-              <div className="flex items-start gap-6 flex-1">
-                <div className="w-[3px] h-24 bg-gradient-to-b from-red-600 to-transparent shadow-[0_0_15px_#ef4444] rounded-full mt-2" />
-                <div className="space-y-4">
-                  <h1 className="text-4xl lg:text-6xl font-[1000] text-white tracking-tighter uppercase italic leading-[0.9]">
-                    GESTION <br />
-                    <span className="text-[#d4af37]">DIGITALE</span> <br />
-                    <span className="text-red-600 text-3xl lg:text-5xl not-italic tracking-[0.2em] font-black">PANNEAUX</span>
-                  </h1>
+          {/* Bouton d'ouverture des filtres */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className="fixed bottom-6 left-6 z-[100] flex items-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 shadow-2xl shadow-blue-500/40 text-white hover:shadow-blue-500/60 transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-white/20"
+            aria-label="Filtres"
+          >
+            <Filter size={18} className="xs:w-[20px] xs:h-[20px]" />
+            <span className="text-[10px] xs:text-[11px] sm:text-[12px] font-bold uppercase">Filtres</span>
+            {filters.statut || filters.pays || filters.province || filters.commune || filters.type ? (
+              <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+            ) : null}
+          </motion.button>
 
-                  <div className="flex items-center gap-4 bg-black/40 backdrop-blur-2xl px-6 py-4 rounded-3xl border border-white/10 w-fit">
-                    <Globe size={16} className="text-[#d4af37]" />
-                    <div className="flex flex-col">
-                      <span className="text-lg font-black text-white italic">
-                        {filtered.length} <span className="text-[9px] text-red-500 not-italic ml-1 uppercase">Unités Filtrées</span>
-                      </span>
-                      <span className="text-lg font-black text-white italic">
-                        {totalFaces} <span className="text-[9px] text-red-500 not-italic ml-1 uppercase">Faces Filtrées</span>
-                      </span>
+          <AnimatePresence>
+            {filtersOpen && (
+              <>
+                {/* Overlay pour fermer en cliquant ailleurs */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="fixed inset-0 z-[99] bg-black/30 backdrop-blur-sm"
+                  onClick={() => setFiltersOpen(false)}
+                />
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="fixed bottom-20 left-4 z-[100] w-full max-w-[340px] xs:max-w-[380px] sm:max-w-[420px]"
+                >
+                  <div className="bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-blue-200/50 overflow-hidden">
+
+                    {/* En-tête */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-700">
+                      <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                        <Filter size={16} />
+                        Filtres avancés
+                      </h3>
+                      <button
+                        onClick={() => setFiltersOpen(false)}
+                        className="p-1 rounded-lg hover:bg-white/20 transition text-white"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* Contenu des filtres */}
+                    <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
+
+                      {/* Barre de Recherche */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" size={14} />
+                        <input
+                          type="text"
+                          placeholder="Rechercher..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full bg-blue-50/50 border border-blue-200 rounded-xl py-2 pl-9 pr-3 text-[11px] font-medium text-gray-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all placeholder:text-gray-400"
+                        />
+                      </div>
+
+                      {/* Grille des sélecteurs */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* PAYS */}
+                        <div>
+                          <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Pays</label>
+                          <select
+                            value={filters.pays}
+                            onChange={(e) => setFilters({ ...filters, pays: e.target.value, province: '', district: '', commune: '' })}
+                            className="w-full mt-0.5 bg-blue-50/50 border border-blue-200 rounded-lg p-1.5 text-[10px] font-medium text-gray-700 outline-none focus:border-blue-500"
+                          >
+                            <option value="">Tous</option>
+                            {Object.keys(GEOGRAPHIE).map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                        </div>
+
+                        {/* PROVINCE */}
+                        <div>
+                          <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Province</label>
+                          <select
+                            disabled={!filters.pays}
+                            value={filters.province}
+                            onChange={(e) => setFilters({ ...filters, province: e.target.value, district: '', commune: '' })}
+                            className="w-full mt-0.5 bg-blue-50/50 border border-blue-200 rounded-lg p-1.5 text-[10px] font-medium text-gray-700 outline-none focus:border-blue-500 disabled:opacity-40"
+                          >
+                            <option value="">Toutes</option>
+                            {filters.pays && Object.keys(GEOGRAPHIE[filters.pays]).map(pr => (
+                              <option key={pr} value={pr}>{pr}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* DISTRICT */}
+                        <div>
+                          <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">District</label>
+                          <select
+                            disabled={!filters.province}
+                            value={filters.district}
+                            onChange={(e) => setFilters({ ...filters, district: e.target.value, commune: '' })}
+                            className="w-full mt-0.5 bg-blue-50/50 border border-blue-200 rounded-lg p-1.5 text-[10px] font-medium text-gray-700 outline-none focus:border-blue-500 disabled:opacity-40"
+                          >
+                            <option value="">Tous</option>
+                            {filters.pays && filters.province && GEOGRAPHIE[filters.pays][filters.province] &&
+                              Object.keys(GEOGRAPHIE[filters.pays][filters.province]).map(d => (
+                                <option key={d} value={d}>{d}</option>
+                              ))}
+                          </select>
+                        </div>
+
+                        {/* COMMUNE */}
+                        <div>
+                          <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Commune</label>
+                          <select
+                            disabled={!filters.district}
+                            value={filters.commune}
+                            onChange={(e) => setFilters({ ...filters, commune: e.target.value })}
+                            className="w-full mt-0.5 bg-blue-50/50 border border-blue-200 rounded-lg p-1.5 text-[10px] font-medium text-gray-700 outline-none focus:border-blue-500 disabled:opacity-40"
+                          >
+                            <option value="">Toutes</option>
+                            {filters.pays && filters.province && filters.district &&
+                              GEOGRAPHIE[filters.pays]?.[filters.province]?.[filters.district]?.map((c: string) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* TYPE DE PANNEAU */}
+                      <div>
+                        <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Type de panneau</label>
+                        <select
+                          value={filters.type}
+                          onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+                          className="w-full mt-0.5 bg-blue-50/50 border border-blue-200 rounded-lg p-1.5 text-[10px] font-medium text-gray-700 outline-none focus:border-blue-500"
+                        >
+                          <option value="">Tous</option>
+                          {Array.from(new Set(panneauxData.map(p => p.type))).filter(Boolean).map(t => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* STATUT */}
+                      <div>
+                        <label className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Statut</label>
+                        <div className="grid grid-cols-4 gap-1 mt-1">
+                          {['Libre', 'Occupé', 'Maintenance', 'Réservé'].map(s => {
+                            const colorClass = s === 'Libre' ? 'bg-emerald-500' :
+                              s === 'Occupé' ? 'bg-blue-500' :
+                                s === 'Maintenance' ? 'bg-red-500' :
+                                  'bg-amber-500';
+                            const isActive = filters.statut === s;
+
+                            return (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => setFilters({ ...filters, statut: isActive ? '' : s })}
+                                className={`py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${isActive
+                                  ? `${colorClass} text-white shadow-md shadow-${s === 'Libre' ? 'emerald' : s === 'Occupé' ? 'blue' : s === 'Maintenance' ? 'red' : 'amber'}-500/30`
+                                  : 'bg-blue-50/50 text-gray-500 hover:bg-blue-100'
+                                  }`}
+                              >
+                                {s === 'Maintenance' ? 'Maint.' : s}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Boutons d'action */}
+                      <div className="flex gap-2 pt-2 border-t border-blue-100">
+                        <button
+                          onClick={() => {
+                            setFilters({ pays: '', province: '', district: '', commune: '', type: '', statut: '' });
+                            setSearchTerm('');
+                            setFiltersOpen(false);
+                          }}
+                          className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-[10px] font-bold text-gray-600 uppercase transition"
+                        >
+                          Réinitialiser
+                        </button>
+                        <button
+                          onClick={() => setFiltersOpen(false)}
+                          className="flex-1 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 rounded-lg text-[10px] font-bold text-white uppercase transition shadow-md shadow-blue-500/20"
+                        >
+                          Appliquer
+                        </button>
+                      </div>
+
+                      {/* Nombre de résultats */}
+                      <div className="text-center text-[8px] text-gray-400 pt-1 border-t border-blue-100">
+                        {panneauxData.length} panneaux disponibles
+                      </div>
+
                     </div>
                   </div>
-                </div>
-              </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
 
-              {/* CONTENEUR : Mode "Phone" forcé (étroit) même sur PC */}
-              <div className="w-full lg:w-[320px] space-y-2 bg-white/5 p-3 rounded-[1.5rem] border border-white/5 backdrop-blur-xl shadow-2xl mx-auto">
+          {/* ============================================================ */}
+          {/* ========== BOUTON FLOTTANT PRINCIPAL (En bas à droite) ========== */}
+          {/* ============================================================ */}
 
-                {/* Barre de Recherche : Version Mini */}
-                <div className="relative group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#d4af37]" size={14} />
-                  <input
-                    type="text"
-                    placeholder="RECHERCHER..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl py-2 pl-9 pr-3 text-[9px] font-black uppercase outline-none focus:border-[#d4af37] text-white transition-all"
-                  />
-                </div>
-
-                {/* Grille des Sélecteurs : 3 colonnes partout pour un gain de place vertical */}
-                <div className="grid grid-cols-3 gap-1.5">
-                  {/* 1. PAYS */}
-                  <select
-                    value={filters.pays}
-                    onChange={(e) => setFilters({ ...filters, pays: e.target.value, province: '', district: '', commune: '' })}
-                    className="bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none"
-                  >
-                    <option value="">Pays</option>
-                    {Object.keys(GEOGRAPHIE).map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-
-                  {/* 2. PROVINCE */}
-                  <select
-                    disabled={!filters.pays}
-                    value={filters.province}
-                    onChange={(e) => setFilters({ ...filters, province: e.target.value, district: '', commune: '' })}
-                    className="bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none disabled:opacity-20"
-                  >
-                    <option value="">Prov.</option>
-                    {filters.pays && Object.keys(GEOGRAPHIE[filters.pays]).map(pr => (
-                      <option key={pr} value={pr}>{pr}</option>
-                    ))}
-                  </select>
-
-                  {/* 3. DISTRICT */}
-                  <select
-                    disabled={!filters.province}
-                    value={filters.district}
-                    onChange={(e) => setFilters({ ...filters, district: e.target.value, commune: '' })}
-                    className="bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none disabled:opacity-20"
-                  >
-                    <option value="">Dist.</option>
-                    {filters.pays && filters.province && GEOGRAPHIE[filters.pays][filters.province] &&
-                      Object.keys(GEOGRAPHIE[filters.pays][filters.province]).map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                  </select>
-
-                  {/* 4. COMMUNE (Prend 2 colonnes pour rester lisible) */}
-                  <select
-                    disabled={!filters.district}
-                    value={filters.commune}
-                    onChange={(e) => setFilters({ ...filters, commune: e.target.value })}
-                    className="col-span-2 bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none disabled:opacity-20"
-                  >
-                    <option value="">Commune</option>
-                    {Array.isArray(getCommunes()) && getCommunes().map((c, index) => (
-                      <option key={`${c}-${index}`} value={c}>{c}</option>
-                    ))}
-                  </select>
-
-                  {/* 5. TYPE (Prend 1 colonne) */}
-                  <select
-                    value={filters.type}
-                    onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                    className="col-span-1 bg-black/60 border border-white/10 rounded-lg p-1.5 text-[8px] font-black text-white uppercase outline-none"
-                  >
-                    <option value="">Type</option>
-                    {Array.from(new Set(panneauxData.map(p => p.type))).filter(Boolean).map(t => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Boutons de Statut : Version Mini-Pills */}
-                <div className="grid grid-cols-4 gap-1 pt-1">
-                  {['Libre', 'Occupé', 'Maint.', 'Rés.'].map(s => {
-                    // Mapping des noms courts vers les noms complets pour le filtrage
-                    const statusMap: { [key: string]: string } = {
-                      'Libre': 'Libre',
-                      'Occupé': 'Occupé',
-                      'Maintenance': 'Maintenance',
-                      'Réservé': 'Réservé'
-                    };
-                    const fullStatus = statusMap[s];
-
-                    const colorClass =
-                      s === 'Libre' ? 'bg-green-600' :
-                        s === 'Occupé' ? 'bg-blue-600' :
-                          s === 'Maintenance' ? 'bg-red-600' :
-                            'bg-orange-600';
-
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setFilters({ ...filters, statut: filters.statut === fullStatus ? '' : fullStatus })}
-                        className={`py-1.5 rounded-md text-[7px] font-black uppercase border transition-all ${filters.statut === fullStatus
-                          ? `${colorClass} text-white border-white`
-                          : 'bg-black/40 border-white/5 text-white/60'
-                          }`}
-                      >
-                        {s}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* BOUTONS D'OUVERTURE DANS LE HEADER */}
-          <div className="flex gap-3 px-6 pb-4 mt-8">
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-[#d4af37]/20 hover:border-[#d4af37]/50 transition-all duration-300 group"
+          {/* Bouton flottant principal */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsFloatingMenuOpen(!isFloatingMenuOpen)}
+            className="fixed bottom-6 right-6 z-[100] flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-blue-600 to-indigo-700 shadow-2xl shadow-blue-500/40 text-white hover:shadow-blue-500/60 transition-all duration-300 hover:scale-105 active:scale-95 border-2 border-white/20 group"
+            aria-label="Menu actions"
+          >
+            <motion.div
+              animate={{ rotate: isFloatingMenuOpen ? 45 : 0 }}
+              transition={{ duration: 0.3 }}
             >
-              <FilePieChart size={18} className="text-[#d4af37] group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-bold uppercase text-white/90">Proformas ({reservationsEnAttente.length})</span>
-            </button>
+              <Plus size={24} className="sm:w-[28px] sm:h-[28px] group-hover:rotate-90 transition-transform duration-300" />
+            </motion.div>
 
-            <button
-              onClick={() => setIsStatsOpen(true)}
-              className="flex-1 bg-black/50 backdrop-blur-sm border border-white/20 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-500/20 hover:border-blue-500/50 transition-all duration-300 group"
-            >
-              <LayoutDashboard size={18} className="text-blue-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-bold uppercase text-white/90">Ma Performance</span>
-            </button>
-          </div>
+            {/* Indicateur de notification */}
+            {reservationsEnAttente.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[8px] font-bold text-white flex items-center justify-center border-2 border-white animate-pulse">
+                {reservationsEnAttente.length}
+              </span>
+            )}
+          </motion.button>
+
+          {/* ========== OVERLAY POUR FERMER LE MENU PRINCIPAL ========== */}
+          <AnimatePresence>
+            {isFloatingMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-[99] bg-black/30 backdrop-blur-sm"
+                onClick={() => setIsFloatingMenuOpen(false)}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* ========== MENU FLOTTANT AVEC DEUX OPTIONS ========== */}
+          <AnimatePresence>
+            {isFloatingMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="fixed bottom-28 right-6 z-[100] flex flex-col gap-3"
+              >
+
+                {/* Option 1 : Proformas */}
+                <motion.button
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setIsCartOpen(true);
+                    setIsFloatingMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-amber-200/50 hover:border-amber-400/70 transition-all duration-300 group min-w-[180px] sm:min-w-[200px]"
+                >
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/20 border border-amber-200/30 group-hover:scale-110 transition-transform">
+                    <FilePieChart size={18} className="text-amber-600" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-[11px] sm:text-[12px] font-bold text-gray-800 group-hover:text-amber-600 transition-colors">
+                      Proformas
+                    </p>
+                    <p className="text-[8px] sm:text-[9px] text-gray-400 font-medium">
+                      {reservationsEnAttente.length} réservation(s) en attente
+                    </p>
+                  </div>
+                  {reservationsEnAttente.length > 0 && (
+                    <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                  )}
+                  <ChevronRight size={14} className="text-gray-300 group-hover:text-amber-500 transition-colors" />
+                </motion.button>
+
+                {/* Option 2 : Ma Performance */}
+                <motion.button
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setIsStatsOpen(true);
+                    setIsFloatingMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-blue-200/50 hover:border-blue-400/70 transition-all duration-300 group min-w-[180px] sm:min-w-[200px]"
+                >
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-200/30 group-hover:scale-110 transition-transform">
+                    <LayoutDashboard size={18} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-[11px] sm:text-[12px] font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+                      Ma Performance
+                    </p>
+                    <p className="text-[8px] sm:text-[9px] text-gray-400 font-medium">
+                      Voir mes statistiques
+                    </p>
+                  </div>
+                  <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
+                </motion.button>
+
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <AnimatePresence>
             {isCartOpen && (
@@ -3063,8 +3418,38 @@ export default function UltimateSupervisor() {
 
 import { MinusCircle, Calendar, Activity, ShieldCheck, } from 'lucide-react';
 
-const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected, ouvrirLaCarte }: any) => {
+export const FaceDetailModal = ({
+  isOpen,
+  onClose,
+  panneau,
+  face,
+  onSelect,
+  isSelected,
+  ouvrirLaCarte
+}: any) => {
   if (!isOpen || !face) return null;
+
+  // ✅ Vérifier s'il y a une réservation active pour afficher sa photo
+  const getActiveReservation = () => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const reservations = face.reservations || [];
+    const active = reservations.find((res: any) => {
+      if (!res.dateDebut || !res.dateFin) return false;
+      const debut = new Date(res.dateDebut);
+      const fin = new Date(res.dateFin);
+      debut.setHours(0, 0, 0, 0);
+      fin.setHours(0, 0, 0, 0);
+      return now >= debut && now <= fin;
+    });
+
+    return active || null;
+  };
+
+  // ✅ Récupérer la photo de la réservation active ou la photo par défaut
+  const activeReservation = getActiveReservation();
+  const photoToShow = activeReservation?.photoCampagneUrl || face.photoCampagneUrl || logo;
 
   const isLibre = face.statut?.toLowerCase() === 'libre';
   const selectionKey = `${panneau.id}_${face.id}`;
@@ -3096,7 +3481,9 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
   };
 
   return (
+    
     <AnimatePresence>
+      
       {isOpen && (
         <div
           className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-blue-900/70 backdrop-blur-md"
@@ -3145,8 +3532,9 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
 
               {/* --- SECTION PHOTO COMPACTE --- */}
               <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
+                {/* ✅ Afficher la photo de la réservation active ou la photo par défaut */}
                 <img
-                  src={face.photoCampagneUrl || logo}
+                  src={photoToShow}
                   className="w-full h-full object-cover"
                   alt="Visual"
                 />
@@ -3159,9 +3547,13 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                 <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
                   <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${isLibre
                     ? 'bg-emerald-500/20 border-emerald-500/50'
-                    : 'bg-rose-500/20 border-rose-500/50'}`}>
-                    <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                    <span className="text-[6px] sm:text-[7px] font-black text-white uppercase">{isLibre ? 'Dispo' : 'Occ'}</span>
+                    : activeReservation
+                      ? 'bg-amber-500/20 border-amber-500/50'
+                      : 'bg-rose-500/20 border-rose-500/50'}`}>
+                    <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : activeReservation ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                    <span className="text-[6px] sm:text-[7px] font-black text-white uppercase">
+                      {isLibre ? 'Dispo' : activeReservation ? 'Réservé' : 'Occ'}
+                    </span>
                   </div>
                 </div>
 
@@ -3174,6 +3566,11 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                     <span className="bg-blue-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
                       {face.sens}
                     </span>
+                    {activeReservation && (
+                      <span className="bg-amber-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
+                        {activeReservation.societeLocatrice?.substring(0, 10)}...
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3191,6 +3588,16 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                     <span className="inline-block mt-1 text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-100 px-1.5 py-0.5 rounded-full">
                       ✓ Sélectionné
                     </span>
+                  )}
+                  {activeReservation && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <span className="inline-block text-amber-600 text-[6px] sm:text-[7px] font-black bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
+                        📅 {activeReservation.dateDebut} → {activeReservation.dateFin}
+                      </span>
+                      <span className="inline-block text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">
+                        👤 {activeReservation.societeLocatrice}
+                      </span>
+                    </div>
                   )}
                 </div>
 
@@ -3350,44 +3757,78 @@ const FaceDetailModal = ({ isOpen, onClose, panneau, face, onSelect, isSelected,
                   <div className="h-12 sm:h-14" />
                 </div>
 
-                {/* Actions fixes en bas */}
+                {/* ✅ Actions fixes en bas - Version corrigée avec ouverture de EditPanneauModal */}
                 <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0 mt-auto">
-                  <div className="flex gap-2">
-                    <button
-                      //onClick={() => { ouvrirLaCarte(); onClose(); }}
-                      className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-blue-100 hover:bg-blue-200 rounded-lg text-blue-700 transition-all active:scale-95 border border-blue-200"
-                    >
-                      <MapPin size={14} className="sm:w-4 sm:h-4" />
-                    </button>
+  <div className="flex gap-2">
 
-                    <button
-                      disabled={!isLibre && !isSelected}
-                      onClick={() => onSelect(selectionKey)}
-                      className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
-                      ${isSelected
-                          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30'
-                          : isLibre
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-500/30 hover:shadow-blue-500/50'
-                            : 'bg-blue-100 text-blue-400 cursor-not-allowed'}`}
-                    >
-                      {isSelected ? (
-                        <><MinusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RETIRER</span><span className="xs:hidden">RETIRER</span></>
-                      ) : isLibre ? (
-                        <><PlusCircle size={10} className="sm:w-3 sm:h-3" /> <span className="hidden xs:inline">RÉSERVER</span><span className="xs:hidden">RÉSERV</span></>
-                      ) : (
-                        <span className="hidden xs:inline">INDISPONIBLE</span>
-                      )}
-                    </button>
-                  </div>
-                </div>
+    {/* Bouton Carte */}
+    <button
+      onClick={() => {
+        if (ouvrirLaCarte) ouvrirLaCarte();
+        onClose();
+      }}
+      className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 rounded-lg text-emerald-700 transition-all active:scale-95 border border-emerald-200"
+    >
+      <MapPin size={14} className="sm:w-4 sm:h-4" />
+    </button>
+
+    {/* ✅ BOUTON RÉSERVER / RETIRER */}
+    <button
+      className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
+        ${isSelected
+          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30 hover:shadow-red-500/50'
+          : isLibre
+            ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02]'
+            : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]'
+        }`}
+      onClick={() => {
+        // Si déjà sélectionné, on retire
+        if (isSelected) {
+          onSelect(selectionKey);
+          return;
+        }
+        
+        // ✅ Fermer le modal de détail
+        onClose();
+        
+        // ✅ Appeler la fonction onEdit du panneau
+        if (panneau && panneau.onEdit) {
+          panneau.onEdit(panneau);
+        } else {
+          // Fallback: stocker dans localStorage
+          localStorage.setItem('panneau_to_edit', JSON.stringify(panneau));
+          window.location.href = '/dashboard/superviseurs?edit=true';
+        }
+      }}
+    >
+      {isSelected ? (
+        <>
+          <MinusCircle size={10} className="sm:w-3 sm:h-3" />
+          <span className="hidden xs:inline">RETIRER</span>
+          <span className="xs:hidden">RETIRER</span>
+        </>
+      ) : (
+        <>
+          <PlusCircle size={10} className="sm:w-3 sm:h-3" />
+          <span className="hidden xs:inline">RÉSERVER</span>
+          <span className="xs:hidden">RÉSERV</span>
+        </>
+      )}
+    </button>
+  </div>
+</div>
+
+
               </div>
             </div>
           </motion.div>
         </div>
       )}
     </AnimatePresence>
+
   );
 };
+
 
 
 interface CartModalProps {

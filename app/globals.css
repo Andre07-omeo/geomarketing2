@@ -547,3 +547,22 @@ body {
         scrollbar-width: none;
     }
 }
+
+/* Animation pour le menu flottant */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.floating-btn {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Effet de glow */
+.glow-effect {
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+}
+
+.glow-effect:hover {
+  box-shadow: 0 0 50px rgba(59, 130, 246, 0.5);
+}
