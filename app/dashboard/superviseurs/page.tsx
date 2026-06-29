@@ -27,7 +27,6 @@ import { AlertTriangle } from 'lucide-react';
 import { where, addDoc } from 'firebase/firestore';
 
 
-
 import {
   Settings,
 } from 'lucide-react';
@@ -82,8 +81,7 @@ const logo = config.LOGO_DISPROMALT;
 
 
 
-const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any) => {
-
+const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user }: any) => {
   const [selectedFaceDetails, setSelectedFaceDetails] = useState<any>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
@@ -286,7 +284,16 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
     <>
       <AnimatePresence>
         {selectedFaceDetails && (
-          <FaceDetailModal isOpen={true} onClose={() => setSelectedFaceDetails(null)} panneau={panneau} face={selectedFaceDetails} />
+          <FaceDetailModal
+            isOpen={true}
+            onClose={() => setSelectedFaceDetails(null)}
+            panneau={panneau}
+            face={selectedFaceDetails}
+            onSelect={onSelect}
+            isSelected={selectedIds.includes(`${panneau.id}_${selectedFaceDetails?.id}`)}
+            //ouvrirLaCarte={ouvrirLaCarte}
+            user={user} // ✅ AJOUTER CETTE PROP
+          />
         )}
       </AnimatePresence>
 
@@ -392,6 +399,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit }: any
           </motion.div>
         );
       })}
+
     </>
   );
 }
@@ -3291,6 +3299,8 @@ export default function UltimateSupervisor() {
                 onEdit={handleEditPanneau}  // ← VÉRIFIE QUE CETTE LIGNE EXISTE
 
                 ouvrirLaCarte={ouvrirLaCarte}
+                user={user} // ⬅️ AJOUTER CETTE PROP
+
               />
             ))}
           </AnimatePresence>
@@ -3414,10 +3424,9 @@ export default function UltimateSupervisor() {
 
 
 
-
+// Ajoutez cette ligne avec les autres imports en haut du fichier
 
 import { MinusCircle, Calendar, Activity, ShieldCheck, } from 'lucide-react';
-
 export const FaceDetailModal = ({
   isOpen,
   onClose,
@@ -3425,9 +3434,12 @@ export const FaceDetailModal = ({
   face,
   onSelect,
   isSelected,
-  ouvrirLaCarte
+  ouvrirLaCarte,
 }: any) => {
+  const { user } = useAuth();
+
   if (!isOpen || !face) return null;
+  console.log("🔵 FaceDetailModal - user depuis useAuth:", user);
 
   // ✅ Vérifier s'il y a une réservation active pour afficher sa photo
   const getActiveReservation = () => {
@@ -3450,11 +3462,13 @@ export const FaceDetailModal = ({
   // ✅ Récupérer la photo de la réservation active ou la photo par défaut
   const activeReservation = getActiveReservation();
   const photoToShow = activeReservation?.photoCampagneUrl || face.photoCampagneUrl || logo;
-
   const isLibre = face.statut?.toLowerCase() === 'libre';
   const selectionKey = `${panneau.id}_${face.id}`;
   const [startY, setStartY] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [panneauToEdit, setPanneauToEdit] = useState(null);
 
   const reservations = (face.reservations || [])
     .sort((a: any, b: any) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
@@ -3480,355 +3494,492 @@ export const FaceDetailModal = ({
     setIsSwiping(false);
   };
 
+  const handleOpenEditModal = () => {
+    console.log("🔵 Ouverture du modal d'édition - panneau:", panneau);
+    console.log("🔵 User:", user);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+  };
+
+  // ============================================
+  // ✅ FONCTION POUR DÉTERMINER LE STATUT AVEC LES DONNÉES DE LA BD
+  // ============================================
+  const getReservationDisplayStatus = (res: any) => {
+    const now = new Date();
+    const utcNow = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0, 0, 0, 0
+      )
+    );
+
+    // Si la réservation est validée comptablement ou payée
+    if (res.validationComptable === true || res.statutPaiement === 'payé' || res.statutPaiement === 'validé') {
+      return {
+        label: '✅ Validé',
+        color: 'text-purple-600 bg-purple-50 border-purple-200',
+        showDays: false,
+        isExpired: false,
+        isTerminated: false,
+        daysText: ''
+      };
+    }
+
+    // ✅ UTILISER LES DONNÉES DE LA BD POUR L'EXPIRATION
+    const joursAvantExpiration = res.joursAvantExpiration ?? 0;
+    const expirationDate = res.expirationDate;
+    const expirationDateFormatted = res.expirationDateFormatted || 'N/A';
+
+    // Vérifier si la réservation est expirée (joursAvantExpiration = 0)
+    if (joursAvantExpiration === 0 && res.statutPaiement !== 'payé') {
+      return {
+        label: '⚠️ Expiré',
+        color: 'text-red-600 bg-red-50 border-red-200',
+        showDays: false,
+        isExpired: true,
+        isTerminated: true,
+        daysText: `Expirée le ${expirationDateFormatted}`,
+        expirationDate: expirationDateFormatted
+      };
+    }
+
+    // Vérifier la période de location du panneau (dateDebut / dateFin)
+    const debut = new Date(res.dateDebut);
+    const fin = new Date(res.dateFin);
+    debut.setUTCHours(0, 0, 0, 0);
+    fin.setUTCHours(0, 0, 0, 0);
+
+    // Si la date de fin est passée
+    if (fin < utcNow) {
+      return {
+        label: '📌 Terminé',
+        color: 'text-gray-400 bg-gray-50 border-gray-200',
+        showDays: false,
+        isExpired: false,
+        isTerminated: true,
+        daysText: 'Période terminée'
+      };
+    }
+
+    // Si la réservation est en cours (entre début et fin)
+    if (utcNow >= debut && utcNow <= fin) {
+      const daysRemaining = Math.ceil((fin.getTime() - utcNow.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        label: '✅ En cours',
+        color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+        showDays: true,
+        isExpired: false,
+        isTerminated: false,
+        daysText: `${daysRemaining} jour${daysRemaining > 1 ? 's' : ''} restant${daysRemaining > 1 ? 's' : ''}`,
+        expirationDate: expirationDateFormatted,
+        joursAvantExpiration: joursAvantExpiration
+      };
+    }
+
+    // Si la réservation n'a pas encore commencé
+    if (utcNow < debut) {
+      return {
+        label: '⏳ À venir',
+        color: 'text-blue-600 bg-blue-50 border-blue-200',
+        showDays: joursAvantExpiration > 0,
+        isExpired: false,
+        isTerminated: false,
+        daysText: joursAvantExpiration > 0 ? `${joursAvantExpiration} jour${joursAvantExpiration > 1 ? 's' : ''} avant début` : '',
+        expirationDate: expirationDateFormatted,
+        joursAvantExpiration: joursAvantExpiration
+      };
+    }
+
+    // Par défaut
+    return {
+      label: '📌 En attente',
+      color: 'text-amber-600 bg-amber-50 border-amber-200',
+      showDays: joursAvantExpiration > 0,
+      isExpired: false,
+      isTerminated: false,
+      daysText: joursAvantExpiration > 0 ? `${joursAvantExpiration} jour${joursAvantExpiration > 1 ? 's' : ''} avant expiration` : '',
+      expirationDate: expirationDateFormatted,
+      joursAvantExpiration: joursAvantExpiration
+    };
+  };
+
   return (
-    
-    <AnimatePresence>
-      
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-blue-900/70 backdrop-blur-md"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: "100%" }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            className="relative w-full max-w-5xl mx-auto bg-white/95 backdrop-blur-xl border-t sm:border border-blue-200/50 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/20"
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <div
+            className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-blue-900/70 backdrop-blur-md"
+            onClick={onClose}
           >
-            {/* Effet de glow bleu élégant */}
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
-
-            {/* === INDICATEUR DE SWIPE (mobile) === */}
-            <div className="sm:hidden flex justify-center pt-2 pb-1">
-              <div className="w-10 h-1 bg-blue-300/50 rounded-full" />
-            </div>
-
-            {/* === BOUTONS DE FERMETURE === */}
-            <button
-              onClick={onClose}
-              className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-white/80 backdrop-blur-xl hover:bg-red-500 hover:text-white rounded-full transition-all duration-300 border border-blue-200/50 active:scale-95 text-blue-900"
+            <motion.div
+              initial={{ opacity: 0, y: "100%" }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              className="relative w-full max-w-5xl mx-auto bg-white/95 backdrop-blur-xl border-t sm:border border-blue-200/50 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/20"
             >
-              <X size={14} className="sm:w-4 sm:h-4" />
-            </button>
+              {/* Effet de glow bleu élégant */}
+              <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
+              <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
 
-            {/* Bouton Fermer mobile */}
-            <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
+              {/* === INDICATEUR DE SWIPE (mobile) === */}
+              <div className="sm:hidden flex justify-center pt-2 pb-1">
+                <div className="w-10 h-1 bg-blue-300/50 rounded-full" />
+              </div>
+
+              {/* === BOUTONS DE FERMETURE === */}
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-blue-600 backdrop-blur-xl rounded-full border border-blue-400/30 text-white text-[9px] font-black uppercase tracking-wider active:scale-95 shadow-lg shadow-blue-600/20"
+                className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-white/80 backdrop-blur-xl hover:bg-red-500 hover:text-white rounded-full transition-all duration-300 border border-blue-200/50 active:scale-95 text-blue-900"
               >
-                ✕ Fermer
+                <X size={14} className="sm:w-4 sm:h-4" />
               </button>
-            </div>
 
-            {/* Layout : photo compacte + contenu */}
-            <div className="flex flex-col md:flex-row max-h-[90vh] sm:max-h-[85vh]">
-
-              {/* --- SECTION PHOTO COMPACTE --- */}
-              <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
-                {/* ✅ Afficher la photo de la réservation active ou la photo par défaut */}
-                <img
-                  src={photoToShow}
-                  className="w-full h-full object-cover"
-                  alt="Visual"
-                />
-
-                {/* Overlay élégant */}
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/20 to-blue-900/30" />
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 via-transparent to-transparent" />
-
-                {/* Badge Status compact */}
-                <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
-                  <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${isLibre
-                    ? 'bg-emerald-500/20 border-emerald-500/50'
-                    : activeReservation
-                      ? 'bg-amber-500/20 border-amber-500/50'
-                      : 'bg-rose-500/20 border-rose-500/50'}`}>
-                    <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : activeReservation ? 'bg-amber-500' : 'bg-rose-500'}`} />
-                    <span className="text-[6px] sm:text-[7px] font-black text-white uppercase">
-                      {isLibre ? 'Dispo' : activeReservation ? 'Réservé' : 'Occ'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Infos compactes sur l'image */}
-                <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white italic leading-tight">
-                    {panneau.idPan}
-                  </h2>
-                  <div className="flex gap-1 mt-0.5">
-                    <span className="bg-blue-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
-                      {face.sens}
-                    </span>
-                    {activeReservation && (
-                      <span className="bg-amber-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
-                        {activeReservation.societeLocatrice?.substring(0, 10)}...
-                      </span>
-                    )}
-                  </div>
-                </div>
+              {/* Bouton Fermer mobile */}
+              <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 bg-blue-600 backdrop-blur-xl rounded-full border border-blue-400/30 text-white text-[9px] font-black uppercase tracking-wider active:scale-95 shadow-lg shadow-blue-600/20"
+                >
+                  ✕ Fermer
+                </button>
               </div>
 
-              {/* --- SECTION CONTENU --- */}
-              <div className="flex-1 flex flex-col bg-gradient-to-b from-blue-50/80 to-white overflow-hidden">
+              {/* Layout : photo compacte + contenu */}
+              <div className="flex flex-col md:flex-row max-h-[90vh] sm:max-h-[85vh]">
 
-                {/* Header compact */}
-                <div className="p-2 sm:p-3 md:p-4 border-b border-blue-200/50 bg-white/50">
-                  <p className="text-blue-700 text-[7px] sm:text-[8px] font-black uppercase tracking-wider flex items-center gap-1">
-                    <MapPin size={10} className="sm:w-3 sm:h-3" />
-                    📍 {panneau.adresse?.substring(0, 50)}{panneau.adresse?.length > 50 ? '...' : ''}
-                  </p>
-                  {isSelected && (
-                    <span className="inline-block mt-1 text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-100 px-1.5 py-0.5 rounded-full">
-                      ✓ Sélectionné
-                    </span>
-                  )}
-                  {activeReservation && (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      <span className="inline-block text-amber-600 text-[6px] sm:text-[7px] font-black bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
-                        📅 {activeReservation.dateDebut} → {activeReservation.dateFin}
-                      </span>
-                      <span className="inline-block text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">
-                        👤 {activeReservation.societeLocatrice}
+                {/* --- SECTION PHOTO COMPACTE --- */}
+                <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
+                  <img
+                    src={photoToShow}
+                    className="w-full h-full object-cover"
+                    alt="Visual"
+                  />
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/20 to-blue-900/30" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 via-transparent to-transparent" />
+
+                  {/* Badge Status compact */}
+                  <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+                    <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${isLibre
+                      ? 'bg-emerald-500/20 border-emerald-500/50'
+                      : activeReservation
+                        ? 'bg-amber-500/20 border-amber-500/50'
+                        : 'bg-rose-500/20 border-rose-500/50'}`}>
+                      <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : activeReservation ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                      <span className="text-[6px] sm:text-[7px] font-black text-white uppercase">
+                        {isLibre ? 'Dispo' : activeReservation ? 'Réservé' : 'Occ'}
                       </span>
                     </div>
-                  )}
-                </div>
-
-                {/* ZONE SCROLLABLE OPTIMISÉE */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar bg-white/30">
-
-                  {/* Métriques compactes - 3 cartes en ligne */}
-                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                    {[
-                      { icon: <Zap size={10} className="sm:w-3 sm:h-3" />, label: "Visibilité", val: face.visibilite || 90 },
-                      { icon: <Activity size={10} className="sm:w-3 sm:h-3" />, label: "Trafic", val: face.mobimetrie || 85 },
-                      { icon: <ShieldCheck size={10} className="sm:w-3 sm:h-3" />, label: "Score", val: 98 },
-                    ].map((m, i) => (
-                      <div key={i} className="bg-blue-50/80 border border-blue-200/60 rounded-xl p-2 sm:p-3 text-center hover:border-blue-400/80 transition-all">
-                        <div className="flex justify-center text-blue-600 mb-0.5">{m.icon}</div>
-                        <p className="text-sm sm:text-base md:text-lg font-black text-blue-900">{m.val}%</p>
-                        <p className="text-[6px] sm:text-[7px] font-bold text-blue-400 uppercase">{m.label}</p>
-                      </div>
-                    ))}
                   </div>
 
-                  {/* Timeline compacte */}
-                  <section className="space-y-3 sm:space-y-4">
-                    <div className="flex items-center gap-2 sm:gap-2.5">
-                      <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-blue-600" />
-                      <h4 className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-wider">Chronologie</h4>
-                      <span className="text-[8px] sm:text-[9px] text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
-                        {reservations.length} campagne{reservations.length !== 1 ? 's' : ''}
+                  {/* Infos compactes sur l'image */}
+                  <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white italic leading-tight">
+                      {panneau.idPan}
+                    </h2>
+                    <div className="flex gap-1 mt-0.5">
+                      <span className="bg-blue-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
+                        {face.sens}
                       </span>
-                    </div>
-
-                    <div className="relative border-l-2 border-blue-200 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
-                      {reservations.length > 0 ? (
-                        reservations.map((res: any, i: number) => {
-                          const now = new Date();
-                          now.setHours(0, 0, 0, 0);
-                          const debut = new Date(res.dateDebut);
-                          const fin = new Date(res.dateFin);
-                          const joursRestants = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                          const isNearEnd = joursRestants <= 3 && joursRestants >= 0;
-                          const isExpired = now > fin;
-                          const isActive = now >= debut && now <= fin;
-
-                          let statusLabel = "En attente";
-                          let statusColor = "text-blue-600 bg-blue-50 border-blue-200";
-
-                          if (isExpired) {
-                            statusLabel = "Terminée";
-                            statusColor = "text-gray-400 bg-gray-50 border-gray-200";
-                          } else if (isNearEnd) {
-                            statusLabel = "Expire bientôt";
-                            statusColor = "text-orange-600 bg-orange-50 border-orange-200";
-                          } else if (isActive) {
-                            statusLabel = "En cours";
-                            statusColor = "text-emerald-600 bg-emerald-50 border-emerald-200";
-                          }
-
-                          return (
-                            <div key={i} className="relative group">
-                              {/* Point sur la timeline */}
-                              <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-white flex items-center justify-center
-                              ${isNearEnd ? 'border-orange-500 shadow-orange-500/50' :
-                                  isActive ? 'border-emerald-500 shadow-emerald-500/50' :
-                                    'border-blue-300'}`}>
-                                <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full 
-                                ${isNearEnd ? 'bg-orange-500 animate-pulse' :
-                                    isActive ? 'bg-emerald-500 animate-pulse' :
-                                      'bg-blue-400'}`} />
-                              </div>
-
-                              {/* Carte de réservation */}
-                              <div className={`bg-white border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg hover:border-blue-400/60
-                              ${isNearEnd ? 'border-orange-300 shadow-orange-100' :
-                                  isActive ? 'border-emerald-300' :
-                                    'border-blue-200/60'}`}>
-
-                                {/* En-tête de la carte */}
-                                <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-tight truncate">
-                                      {res.societeLocatrice}
-                                    </p>
-                                    {isNearEnd && (
-                                      <p className="text-orange-500 text-[8px] sm:text-[9px] font-black uppercase flex items-center gap-1 mt-1">
-                                        <span className="animate-pulse">⚠️</span>
-                                        Fin dans {joursRestants} jour{joursRestants > 1 ? 's' : ''}
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  {/* Badge de statut */}
-                                  <span className={`shrink-0 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded-md border ${statusColor}`}>
-                                    {statusLabel}
-                                  </span>
-                                </div>
-
-                                {/* Dates */}
-                                <div className="flex justify-between items-center gap-2 pt-2 border-t border-blue-100">
-                                  <div className="flex gap-3 sm:gap-4">
-                                    <div className="flex flex-col">
-                                      <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Début</span>
-                                      <span className="text-[9px] sm:text-[10px] md:text-[11px] text-blue-900 font-bold">
-                                        {new Date(res.dateDebut).toLocaleDateString('fr-FR')}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-end pb-1">
-                                      <span className="text-blue-300 text-[10px]">→</span>
-                                    </div>
-                                    <div className="flex flex-col">
-                                      <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Fin</span>
-                                      <span className={`text-[9px] sm:text-[10px] md:text-[11px] font-bold ${isNearEnd ? 'text-orange-500' : 'text-blue-900'}`}>
-                                        {new Date(res.dateFin).toLocaleDateString('fr-FR')}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {/* Badges supplémentaires */}
-                                  <div className="flex gap-1">
-                                    {res.validationComptable === true && (
-                                      <div className="p-1 bg-blue-100 text-blue-600 rounded-md border border-blue-200" title="Validé comptablement">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
-                                      </div>
-                                    )}
-                                    {res.facturee === "oui" && (
-                                      <div className="p-1 bg-amber-100 text-amber-600 rounded-md border border-amber-200" title="Facturée">
-                                        <span className="text-[9px] font-black">€</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        /* Message opportunité */
-                        <div className="relative">
-                          <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-blue-500 bg-white flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                          </div>
-
-                          <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-blue-100/50 transition-all cursor-pointer">
-                            <div className="inline-flex p-2 bg-blue-100 rounded-full text-blue-600">
-                              <PlusCircle size={16} className="sm:w-5 sm:h-5" />
-                            </div>
-                            <h3 className="text-blue-700 text-[11px] sm:text-[12px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
-                            <p className="text-blue-500/80 text-[9px] sm:text-[10px] leading-relaxed max-w-[250px] mx-auto">
-                              Cette face n'attend que votre visibilité.<br />
-                              <span className="text-blue-900 font-bold italic">Réservez-la dès maintenant.</span>
-                            </p>
-                          </div>
-                        </div>
+                      {activeReservation && (
+                        <span className="bg-amber-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
+                          {activeReservation.societeLocatrice?.substring(0, 10)}...
+                        </span>
                       )}
                     </div>
-                  </section>
-                  {/* Espace pour boutons fixes */}
-                  <div className="h-12 sm:h-14" />
+                  </div>
                 </div>
 
-                {/* ✅ Actions fixes en bas - Version corrigée avec ouverture de EditPanneauModal */}
-                <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0 mt-auto">
-  <div className="flex gap-2">
+                {/* --- SECTION CONTENU --- */}
+                <div className="flex-1 flex flex-col bg-gradient-to-b from-blue-50/80 to-white overflow-hidden">
 
-    {/* Bouton Carte */}
-    <button
-      onClick={() => {
-        if (ouvrirLaCarte) ouvrirLaCarte();
-        onClose();
-      }}
-      className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 rounded-lg text-emerald-700 transition-all active:scale-95 border border-emerald-200"
-    >
-      <MapPin size={14} className="sm:w-4 sm:h-4" />
-    </button>
+                  {/* Header compact */}
+                  <div className="p-2 sm:p-3 md:p-4 border-b border-blue-200/50 bg-white/50">
+                    <p className="text-blue-700 text-[7px] sm:text-[8px] font-black uppercase tracking-wider flex items-center gap-1">
+                      <MapPin size={10} className="sm:w-3 sm:h-3" />
+                      📍 {panneau.adresse?.substring(0, 50)}{panneau.adresse?.length > 50 ? '...' : ''}
+                    </p>
+                    {isSelected && (
+                      <span className="inline-block mt-1 text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-100 px-1.5 py-0.5 rounded-full">
+                        ✓ Sélectionné
+                      </span>
+                    )}
+                    {activeReservation && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        <span className="inline-block text-amber-600 text-[6px] sm:text-[7px] font-black bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
+                          📅 {activeReservation.dateDebut} → {activeReservation.dateFin}
+                        </span>
+                        <span className="inline-block text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">
+                          👤 {activeReservation.societeLocatrice}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-    {/* ✅ BOUTON RÉSERVER / RETIRER */}
-    <button
-      className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
-        ${isSelected
-          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30 hover:shadow-red-500/50'
-          : isLibre
-            ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02]'
-            : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]'
-        }`}
-      onClick={() => {
-        // Si déjà sélectionné, on retire
-        if (isSelected) {
-          onSelect(selectionKey);
-          return;
-        }
-        
-        // ✅ Fermer le modal de détail
-        onClose();
-        
-        // ✅ Appeler la fonction onEdit du panneau
-        if (panneau && panneau.onEdit) {
-          panneau.onEdit(panneau);
-        } else {
-          // Fallback: stocker dans localStorage
-          localStorage.setItem('panneau_to_edit', JSON.stringify(panneau));
-          window.location.href = '/dashboard/superviseurs?edit=true';
-        }
-      }}
-    >
-      {isSelected ? (
-        <>
-          <MinusCircle size={10} className="sm:w-3 sm:h-3" />
-          <span className="hidden xs:inline">RETIRER</span>
-          <span className="xs:hidden">RETIRER</span>
-        </>
-      ) : (
-        <>
-          <PlusCircle size={10} className="sm:w-3 sm:h-3" />
-          <span className="hidden xs:inline">RÉSERVER</span>
-          <span className="xs:hidden">RÉSERV</span>
-        </>
-      )}
-    </button>
-  </div>
-</div>
+                  {/* ZONE SCROLLABLE OPTIMISÉE */}
+                  <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar bg-white/30">
 
+                    {/* Métriques compactes - 3 cartes en ligne */}
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                      {[
+                        { icon: <Zap size={10} className="sm:w-3 sm:h-3" />, label: "Visibilité", val: face.visibilite || 90 },
+                        { icon: <Activity size={10} className="sm:w-3 sm:h-3" />, label: "Trafic", val: face.mobimetrie || 85 },
+                        { icon: <ShieldCheck size={10} className="sm:w-3 sm:h-3" />, label: "Score", val: 98 },
+                      ].map((m, i) => (
+                        <div key={i} className="bg-blue-50/80 border border-blue-200/60 rounded-xl p-2 sm:p-3 text-center hover:border-blue-400/80 transition-all">
+                          <div className="flex justify-center text-blue-600 mb-0.5">{m.icon}</div>
+                          <p className="text-sm sm:text-base md:text-lg font-black text-blue-900">{m.val}%</p>
+                          <p className="text-[6px] sm:text-[7px] font-bold text-blue-400 uppercase">{m.label}</p>
+                        </div>
+                      ))}
+                    </div>
 
+                    {/* Timeline compacte */}
+                    <section className="space-y-3 sm:space-y-4">
+                      <div className="flex items-center gap-2 sm:gap-2.5">
+                        <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-blue-600" />
+                        <h4 className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-wider">Chronologie</h4>
+                        <span className="text-[8px] sm:text-[9px] text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
+                          {reservations.length} campagne{reservations.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+
+                      <div className="relative border-l-2 border-blue-200 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
+                        {reservations.length > 0 ? (
+                          reservations.map((res: any, i: number) => {
+                            // ✅ Utiliser la fonction avec les données de la BD
+                            const displayStatus = getReservationDisplayStatus(res);
+
+                            return (
+                              <div key={i} className="relative group">
+                                {/* Point sur la timeline */}
+                                <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-white flex items-center justify-center
+                                  ${displayStatus.isExpired ? 'border-red-500 shadow-red-500/50' :
+                                    displayStatus.isTerminated ? 'border-gray-400' :
+                                    displayStatus.label === '✅ En cours' ? 'border-emerald-500 shadow-emerald-500/50' :
+                                    'border-blue-300'}`}>
+                                  <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full 
+                                    ${displayStatus.isExpired ? 'bg-red-500' :
+                                      displayStatus.isTerminated ? 'bg-gray-400' :
+                                      displayStatus.label === '✅ En cours' ? 'bg-emerald-500 animate-pulse' :
+                                      'bg-blue-400'}`} />
+                                </div>
+
+                                {/* Carte de réservation */}
+                                <div className={`bg-white border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg hover:border-blue-400/60
+                                  ${displayStatus.isExpired ? 'border-red-300 shadow-red-100' :
+                                    displayStatus.isTerminated ? 'border-gray-200' :
+                                    displayStatus.label === '✅ En cours' ? 'border-emerald-300' :
+                                    'border-blue-200/60'}`}>
+
+                                  {/* En-tête de la carte */}
+                                  <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-tight truncate">
+                                        {res.societeLocatrice}
+                                      </p>
+                                      
+                                      {/* ✅ AFFICHAGE DES JOURS RESTANTS DEPUIS LA BD */}
+                                      {displayStatus.showDays && res.joursAvantExpiration > 0 && (
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <span className="text-[8px] sm:text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                                            📅 {res.joursAvantExpiration} jour{res.joursAvantExpiration > 1 ? 's' : ''} avant expiration
+                                          </span>
+                                          {res.expirationDateFormatted && (
+                                            <span className="text-[6px] sm:text-[7px] text-gray-400 font-medium">
+                                              Expire: {res.expirationDateFormatted}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                      
+                                      {/* ✅ AFFICHAGE POUR EXPIRÉ (depuis la BD) */}
+                                      {displayStatus.isExpired && (
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <span className="text-[8px] sm:text-[9px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                                            🚨 Délai dépassé
+                                          </span>
+                                          {res.expirationDateFormatted && (
+                                            <span className="text-[6px] sm:text-[7px] text-red-400 font-medium">
+                                              Expirée le {res.expirationDateFormatted}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                      
+                                      {/* ✅ AFFICHAGE POUR TERMINÉ */}
+                                      {displayStatus.isTerminated && !displayStatus.isExpired && (
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <span className="text-[8px] sm:text-[9px] font-black text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                                            📌 Période terminée
+                                          </span>
+                                        </div>
+                                      )}
+
+                                      {/* ✅ AFFICHAGE SI VALIDÉ OU PAYÉ */}
+                                      {(res.validationComptable === true || res.statutPaiement === 'payé') && (
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <span className="text-[8px] sm:text-[9px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                                            ✅ {res.validationComptable ? 'Validé' : 'Payé'}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Badge de statut */}
+                                    <span className={`shrink-0 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded-md border ${displayStatus.color}`}>
+                                      {displayStatus.label}
+                                    </span>
+                                  </div>
+
+                                  {/* Dates de la réservation */}
+                                  <div className="flex justify-between items-center gap-2 pt-2 border-t border-blue-100">
+                                    <div className="flex gap-3 sm:gap-4">
+                                      <div className="flex flex-col">
+                                        <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Début</span>
+                                        <span className="text-[9px] sm:text-[10px] md:text-[11px] text-blue-900 font-bold">
+                                          {new Date(res.dateDebut).toLocaleDateString('fr-FR')}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-end pb-1">
+                                        <span className="text-blue-300 text-[10px]">→</span>
+                                      </div>
+                                      <div className="flex flex-col">
+                                        <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Fin</span>
+                                        <span className={`text-[9px] sm:text-[10px] md:text-[11px] font-bold 
+                                          ${displayStatus.isExpired ? 'text-red-500' :
+                                            displayStatus.isTerminated ? 'text-gray-400' :
+                                            'text-blue-900'}`}>
+                                          {new Date(res.dateFin).toLocaleDateString('fr-FR')}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Badges supplémentaires */}
+                                    <div className="flex gap-1">
+                                      {res.validationComptable === true && (
+                                        <div className="p-1 bg-blue-100 text-blue-600 rounded-md border border-blue-200" title="Validé comptablement">
+                                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                                        </div>
+                                      )}
+                                      {res.facturee === "oui" && (
+                                        <div className="p-1 bg-amber-100 text-amber-600 rounded-md border border-amber-200" title="Facturée">
+                                          <span className="text-[9px] font-black">€</span>
+                                        </div>
+                                      )}
+                                      {res.statutPaiement === "payé" && (
+                                        <div className="p-1 bg-emerald-100 text-emerald-600 rounded-md border border-emerald-200" title="Payée">
+                                          <span className="text-[9px] font-black">✓</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          /* Message opportunité */
+                          <div className="relative">
+                            <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-blue-500 bg-white flex items-center justify-center">
+                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                            </div>
+
+                            <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-blue-100/50 transition-all cursor-pointer">
+                              <div className="inline-flex p-2 bg-blue-100 rounded-full text-blue-600">
+                                <PlusCircle size={16} className="sm:w-5 sm:h-5" />
+                              </div>
+                              <h3 className="text-blue-700 text-[11px] sm:text-[12px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
+                              <p className="text-blue-500/80 text-[9px] sm:text-[10px] leading-relaxed max-w-[250px] mx-auto">
+                                Cette face n'attend que votre visibilité.<br />
+                                <span className="text-blue-900 font-bold italic">Réservez-la dès maintenant.</span>
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                    {/* Espace pour boutons fixes */}
+                    <div className="h-12 sm:h-14" />
+                  </div>
+
+                  {/* ✅ Actions fixes en bas */}
+                  <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0 mt-auto">
+                    <div className="flex gap-2">
+
+                      {/* Bouton Carte */}
+                      <button
+                        onClick={() => {
+                          if (ouvrirLaCarte) ouvrirLaCarte();
+                          onClose();
+                        }}
+                        className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 rounded-lg text-emerald-700 transition-all active:scale-95 border border-emerald-200"
+                      >
+                        <MapPin size={14} className="sm:w-4 sm:h-4" />
+                      </button>
+
+                      {/* ✅ BOUTON RÉSERVER / RETIRER */}
+                      <button
+                        className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
+                        ${isSelected
+                          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30 hover:shadow-red-500/50'
+                          : isLibre
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02]'
+                            : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]'
+                        }`}
+                        onClick={() => {
+                          if (isSelected) {
+                            onSelect(selectionKey);
+                            return;
+                          }
+                          onClose();
+                          setTimeout(() => {
+                            handleOpenEditModal();
+                          }, 300);
+                        }}
+                      >
+                        {isSelected ? (
+                          <>
+                            <MinusCircle size={10} className="sm:w-3 sm:h-3" />
+                            <span className="hidden xs:inline">RETIRER</span>
+                            <span className="xs:hidden">RETIRER</span>
+                          </>
+                        ) : (
+                          <>
+                            <PlusCircle size={10} className="sm:w-3 sm:h-3" />
+                            <span className="hidden xs:inline">RÉSERVER</span>
+                            <span className="xs:hidden">RÉSERV</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
               </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      <EditPanneauModal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        panneau={panneau}
+      />
+    </>
   );
 };
-
 
 
 interface CartModalProps {
@@ -3866,8 +4017,10 @@ const STATUTS_POSSIBLES = ["Libre", "Réservé"];
 
 export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
-
-
+  // ============================================
+  // 1. TOUS LES HOOKS (useState, useRef, useContext)
+  // ============================================
+  const [localUser, setLocalUser] = useState<any>(null);
   const [conflitMessages, setConflitMessages] = useState<Record<number, string | null>>({});
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>(null);
@@ -3876,16 +4029,18 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useAuth();
 
+  // ============================================
+  // 2. TOUS LES useEffect
+  // ============================================
 
-
-
-
+  // Charger les données du panneau
   useEffect(() => {
     if (panneau) {
       setFormData({ ...panneau });
     }
   }, [panneau]);
 
+  // Charger la liste des sociétés
   useEffect(() => {
     const fetchSocietes = async () => {
       try {
@@ -3899,8 +4054,21 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     fetchSocietes();
   }, []);
 
+  // Charger l'utilisateur depuis localStorage
+  useEffect(() => {
+    try {
+      const rawData = localStorage.getItem('geomarketing_user_data');
+      if (rawData) {
+        const parsedData = JSON.parse(rawData);
+        console.log('👤 EditPanneauModal - Utilisateur depuis localStorage:', parsedData);
+        setLocalUser(parsedData);
+      }
+    } catch (error) {
+      console.error('❌ EditPanneauModal - Erreur:', error);
+    }
+  }, []);
 
-
+  // Vérifier les conflits de dates
   useEffect(() => {
     if (!formData?.faces) return;
 
@@ -3912,7 +4080,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
             [idx]: "⚠️ Complétez : Société, Date début et Date fin pour ce statut"
           }));
         } else {
-          // Vérifier aussi les dates
           const d1 = new Date(face.dateDebut);
           const d2 = new Date(face.dateFin);
           if (d1 >= d2) {
@@ -3928,41 +4095,360 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     });
   }, [formData?.faces]);
 
-
+  // ============================================
+  // 3. RETURN CONDITIONNEL (après tous les hooks)
+  // ============================================
   if (!isOpen || !formData) return null;
 
+  // ============================================
+  // 4. FONCTIONS DE GESTION DE DATE
+  // ============================================
 
+  const getCurrentUTCDate = () => {
+    const now = new Date();
+    const utcNow = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        now.getUTCHours(),
+        now.getUTCMinutes(),
+        now.getUTCSeconds()
+      )
+    );
+
+    const joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    
+    return {
+      date: utcNow.toISOString().split('T')[0],
+      time: utcNow.toISOString().split('T')[1].split('.')[0],
+      dayOfWeek: joursSemaine[utcNow.getUTCDay()],
+      dayNumber: utcNow.getUTCDay(),
+      timestamp: utcNow.getTime(),
+      isoString: utcNow.toISOString(),
+      fullDate: utcNow.toLocaleDateString('fr-FR', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        timeZone: 'UTC'
+      })
+    };
+  };
+
+  const isWorkingDay = (dayNumber: number): boolean => {
+    return dayNumber >= 1 && dayNumber <= 5;
+  };
+
+  const addWorkingDays = (date: Date, days: number): Date => {
+    const result = new Date(date);
+    let addedDays = 0;
+    
+    while (addedDays < days) {
+      result.setUTCDate(result.getUTCDate() + 1);
+      if (isWorkingDay(result.getUTCDay())) {
+        addedDays++;
+      }
+    }
+    
+    return result;
+  };
+
+  const calculateExpirationDays = (dateFin: string, dateDebut?: string): number => {
+    const now = new Date();
+    const utcNow = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0, 0, 0, 0
+      )
+    );
+    
+    const startDate = dateDebut ? new Date(dateDebut) : utcNow;
+    const endDate = new Date(dateFin);
+    
+    startDate.setUTCHours(0, 0, 0, 0);
+    endDate.setUTCHours(0, 0, 0, 0);
+    
+    if (endDate < startDate) return 0;
+    
+    let count = 0;
+    let current = new Date(startDate);
+    
+    while (current <= endDate) {
+      if (isWorkingDay(current.getUTCDay())) count++;
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+    
+    return count;
+  };
+
+  const calculateExpirationDate = (createdAt: string) => {
+    const DELAI_EXPIRATION_JOURS = 10;
+    
+    const creationDate = new Date(createdAt);
+    creationDate.setUTCHours(0, 0, 0, 0);
+    
+    const expirationDate = addWorkingDays(creationDate, DELAI_EXPIRATION_JOURS);
+    expirationDate.setUTCHours(23, 59, 59, 999);
+    
+    const joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    
+    return {
+      date: expirationDate.toISOString().split('T')[0],
+      dateFormatted: expirationDate.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'UTC'
+      }),
+      dayOfWeek: joursSemaine[expirationDate.getUTCDay()],
+      isWorkingDay: isWorkingDay(expirationDate.getUTCDay()),
+      timestamp: expirationDate.getTime(),
+      isoString: expirationDate.toISOString(),
+      joursRestants: calculateWorkingDaysRemaining(expirationDate)
+    };
+  };
+
+  const calculateWorkingDaysRemaining = (expirationDate: Date): number => {
+    const now = new Date();
+    const utcNow = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0, 0, 0, 0
+      )
+    );
+    
+    const expDate = new Date(expirationDate);
+    expDate.setUTCHours(0, 0, 0, 0);
+    
+    if (expDate < utcNow) return 0;
+    
+    let count = 0;
+    let current = new Date(utcNow);
+    
+    while (current <= expDate) {
+      if (isWorkingDay(current.getUTCDay())) count++;
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+    
+    return count;
+  };
+
+  const formatDateForDisplay = (dateString: string): string => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC'
+    });
+  };
+
+  // ============================================
+  // 5. FONCTION DE CONFIRMATION
+  // ============================================
+
+  const showReservationConfirmationModal = (
+    reservation: any,
+    faceLabel: string,
+    user: any
+  ): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const currentUTC = getCurrentUTCDate();
+      const isoNow = new Date().toISOString();
+      
+      const dateDebutFormatted = formatDateForDisplay(reservation.dateDebut);
+      const dateFinFormatted = formatDateForDisplay(reservation.dateFin);
+      const joursReservation = calculateExpirationDays(reservation.dateFin, reservation.dateDebut);
+      
+      const expirationInfo = calculateExpirationDate(isoNow);
+      const joursRestants = expirationInfo.joursRestants;
+      const dateExpirationFormatted = expirationInfo.dateFormatted;
+      const heureExpiration = '23:59:59';
+      const estOuvrable = isWorkingDay(currentUTC.dayNumber);
+      
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(10px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        animation: fadeIn 0.3s ease;
+      `;
+      
+      modal.innerHTML = `
+        <div style="
+          background: white;
+          border-radius: 24px;
+          max-width: 550px;
+          width: 100%;
+          max-height: 90vh;
+          overflow-y: auto;
+          padding: 32px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          animation: slideUp 0.3s ease;
+          position: relative;
+        ">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #f0f0f0;">
+            <div>
+              <div style="font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.1em;">📋 Confirmation</div>
+              <div style="font-size: 20px; font-weight: 800; color: #1e293b; margin-top: 4px;">Nouvelle Réservation</div>
+            </div>
+            <div style="background: ${joursRestants === 0 ? '#ef4444' : '#10b981'}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;">
+              ${joursRestants === 0 ? '⚠️ EXPIRATION' : `${joursRestants}j restants`}
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+            <div style="background: #f8fafc; padding: 12px; border-radius: 12px;">
+              <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Face</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1e293b; margin-top: 2px;">${faceLabel}</div>
+            </div>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 12px;">
+              <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Client</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1e293b; margin-top: 2px;">${reservation.societeLocatrice || 'N/A'}</div>
+            </div>
+          </div>
+
+          <div style="background: #eff6ff; padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #bfdbfe;">
+            <div style="font-size: 12px; font-weight: 700; color: #1e40af; margin-bottom: 8px;">📅 Période de Réservation (Location du panneau)</div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 10px; color: #64748b;">Début</div>
+                <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${dateDebutFormatted}</div>
+              </div>
+              <div style="color: #94a3b8; font-size: 18px;">→</div>
+              <div>
+                <div style="font-size: 10px; color: #64748b;">Fin</div>
+                <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${dateFinFormatted}</div>
+              </div>
+            </div>
+            <div style="margin-top: 8px; font-size: 11px; color: #64748b;">${joursReservation} jour(s) ouvrable(s)</div>
+          </div>
+
+          <div style="background: ${joursRestants === 0 ? '#fef2f2' : '#f0fdf4'}; padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid ${joursRestants === 0 ? '#fecaca' : '#bbf7d0'};">
+            <div style="font-size: 12px; font-weight: 700; color: ${joursRestants === 0 ? '#dc2626' : '#16a34a'}; margin-bottom: 8px;">
+              ⏱️ ${joursRestants === 0 ? '⚠️ EXPIRATION IMMÉDIATE' : 'Délai d\'Expiration (10 jours ouvrables)'}
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${dateExpirationFormatted}</div>
+                <div style="font-size: 11px; color: #64748b;">Heure : ${heureExpiration} (UTC)</div>
+                <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${joursRestants === 0 ? '🚨 Délai dépassé' : `${joursRestants} jour(s) restant(s) pour payer`}</div>
+              </div>
+              <div style="background: ${joursRestants === 0 ? '#ef4444' : '#22c55e'}; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 700;">
+                ${joursRestants === 0 ? '🔥 Expiré' : `${joursRestants}j restants`}
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
+            <div>
+              <div style="font-size: 10px; color: #94a3b8; font-weight: 600;">Jour actuel</div>
+              <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${currentUTC.dayOfWeek}</div>
+              <div style="font-size: 11px; color: #64748b;">${currentUTC.date}</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: #94a3b8; font-weight: 600;">Heure UTC</div>
+              <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${currentUTC.time}</div>
+              <div style="font-size: 11px; color: ${estOuvrable ? '#16a34a' : '#ef4444'};">${estOuvrable ? '✅ Jour ouvrable' : '❌ Week-end'}</div>
+            </div>
+          </div>
+
+          <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 20px;">
+            <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Agent responsable</div>
+            <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${user?.nom || user?.nomComplet || user?.prenom || 'Agent'}</div>
+            <div style="font-size: 11px; color: #64748b;">${user?.email || 'Email non disponible'}</div>
+            <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">ID: ${user?.id || user?.uid || 'N/A'}</div>
+          </div>
+
+          <div style="background: #fef3c7; padding: 12px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #fcd34d;">
+            <div style="font-size: 11px; color: #92400e; font-weight: 600;">
+              ⚠️ Cette réservation doit être payée dans les 10 jours ouvrables. Passé ce délai, elle sera automatiquement annulée.
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 8px;">
+            <button id="confirm-cancel" style="flex: 1; padding: 12px; background: #f1f5f9; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; color: #64748b; cursor: pointer; transition: all 0.2s;">Annuler</button>
+            <button id="confirm-ok" style="flex: 2; padding: 12px; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; border-radius: 12px; font-size: 14px; font-weight: 700; color: white; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">✅ Confirmer la réservation</button>
+          </div>
+        </div>
+
+        <style>
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes slideUp { from { opacity: 0; transform: translateY(30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        </style>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      const cancelBtn = modal.querySelector('#confirm-cancel');
+      const confirmBtn = modal.querySelector('#confirm-ok');
+      
+      const closeModal = (result: boolean) => {
+        modal.style.transition = 'all 0.3s ease';
+        modal.style.opacity = '0';
+        modal.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          modal.remove();
+          resolve(result);
+        }, 300);
+      };
+      
+      cancelBtn?.addEventListener('click', () => closeModal(false));
+      confirmBtn?.addEventListener('click', () => closeModal(true));
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(false); });
+      
+      const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeModal(false); };
+      document.addEventListener('keydown', handleEsc);
+      
+      const cleanup = () => document.removeEventListener('keydown', handleEsc);
+      
+      const newCloseModal = (result: boolean) => { cleanup(); closeModal(result); };
+      cancelBtn?.addEventListener('click', () => newCloseModal(false));
+      confirmBtn?.addEventListener('click', () => newCloseModal(true));
+    });
+  };
+
+  // ============================================
+  // 6. FONCTIONS DE LOGIQUE
+  // ============================================
 
   const canEditFace = (face: any) => {
     return true;
   };
 
   const getReservationWarning = (face: any) => {
-    // Si la face est verrouillée par un autre, on retourne le message
     if ((face.statut === "Occupé" || face.statut === "Réservé") && !canEditFace(face)) {
       return `Face réservée par un autre agent. Veuillez contacter le responsable pour négocier.`;
     }
     return null;
   };
 
-
-  // 3. CONDITION DE SORTIE (Après les hooks)
-
-  // 4. LES FONCTIONS DE LOGIQUE
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Utilisation correcte du setter
-
-    // Prévisualisation locale immédiate
     const localPreviewUrl = URL.createObjectURL(file);
     const previewFaces = [...formData.faces];
     previewFaces[index].photoCampagneUrl = localPreviewUrl;
     setFormData({ ...formData, faces: previewFaces });
 
-    // Utilisation correcte du setter
     setUploadingIndex(index);
     const data = new FormData();
     data.append("file", file);
@@ -3985,28 +4471,19 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     }
   };
 
-
-
-
-
-
   const updateFace = (index: number, field: string, value: any) => {
     const newFaces = [...formData.faces];
     newFaces[index] = { ...newFaces[index], [field]: value };
     setFormData({ ...formData, faces: newFaces });
 
-    // Vérification des dates en temps réel
     if (field === 'dateDebut' || field === 'dateFin') {
       const dateDebut = field === 'dateDebut' ? value : newFaces[index].dateDebut;
       const dateFin = field === 'dateFin' ? value : newFaces[index].dateFin;
       const reservationsExistantes = newFaces[index].reservations || [];
-
-      // Passer l'ID de réservation si on édite une existante
       const currentResId = newFaces[index].currentReservationId;
       checkDateConflict(index, dateDebut, dateFin, reservationsExistantes, currentResId);
     }
 
-    // Si on change le statut vers Occupé ou Réservé, vérifier les champs obligatoires
     if (field === 'statut' && (value === 'Occupé' || value === 'Réservé')) {
       const face = newFaces[index];
       if (!face.clientNom || !face.dateDebut || !face.dateFin) {
@@ -4018,16 +4495,13 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     }
   };
 
-
-
   const checkDateConflict = (
     idx: number,
     dateDebut: string,
     dateFin: string,
     reservations: any[],
-    currentReservationId?: string // Pour identifier la réservation en cours d'édition
+    currentReservationId?: string
   ) => {
-    // 1. Vérification des champs obligatoires
     if (!dateDebut || !dateFin) {
       setConflitMessages(prev => ({
         ...prev,
@@ -4039,7 +4513,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     const d1 = new Date(dateDebut);
     const d2 = new Date(dateFin);
 
-    // 2. Vérifier que les dates sont valides
     if (isNaN(d1.getTime()) || isNaN(d2.getTime())) {
       setConflitMessages(prev => ({
         ...prev,
@@ -4048,7 +4521,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       return false;
     }
 
-    // 3. Vérification CRITIQUE : date début MUST BE < date fin
     if (d1 >= d2) {
       setConflitMessages(prev => ({
         ...prev,
@@ -4057,7 +4529,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       return false;
     }
 
-    // 4. Vérification que la date début n'est pas dans le passé (optionnel)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (d1 < today) {
@@ -4068,52 +4539,38 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       return false;
     }
 
-    // 5. Vérification des chevauchements avec les réservations existantes
-    // Une réservation ne peut PAS inclure ou chevaucher une autre réservation
     const hasOverlap = reservations.some((res) => {
-      // Ignorer la réservation en cours d'édition
       if (currentReservationId && res.id === currentReservationId) return false;
-
       if (!res.dateDebut || !res.dateFin) return false;
 
       const r1 = new Date(res.dateDebut);
       const r2 = new Date(res.dateFin);
-
-      const overlap = (d1 <= r2 && d2 >= r1);
-
-      return overlap;
+      return (d1 <= r2 && d2 >= r1);
     });
 
     if (hasOverlap) {
       setConflitMessages(prev => ({
         ...prev,
-        [idx]: `⚠️ CONFLIT : Cette période chevauche une réservation existante. Les périodes ne peuvent pas se chevaucher, même partiellement.`
+        [idx]: `⚠️ CONFLIT : Cette période chevauche une réservation existante.`
       }));
       return false;
     }
 
-    // 6. Plus de conflit
     setConflitMessages(prev => ({ ...prev, [idx]: null }));
     return true;
   };
 
-
-
-
   const isButtonDisabled = isSaving || uploadingIndex !== null;
 
-
-
   // ============================================
-  // FONCTION DE CRÉATION AUTOMATIQUE DE SOCIÉTÉ
+  // 7. CRÉATION AUTOMATIQUE DE SOCIÉTÉ
   // ============================================
+
   const createSocieteIfNotExists = async (nomSociete: string) => {
     if (!nomSociete || nomSociete.trim() === '') return null;
 
-    // Nettoyer le nom
     const nomPropre = nomSociete.trim().toUpperCase();
 
-    // Vérifier si la société existe déjà
     const q = query(
       collection(db, "societes"),
       where("nomSociete", "==", nomPropre)
@@ -4121,7 +4578,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
-      // Créer la société
       try {
         const email = `${nomPropre.toLowerCase().replace(/\s/g, '')}@visiteur.com`;
         const password = Math.floor(100000 + Math.random() * 900000).toString();
@@ -4141,7 +4597,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         });
 
         console.log(`✅ Société "${nomPropre}" créée avec succès`);
-        // Rafraîchir la liste
         await fetchSocietes();
         return true;
       } catch (error) {
@@ -4149,13 +4604,9 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         return false;
       }
     }
-    return true; // La société existe déjà
+    return true;
   };
 
-
-  // ============================================
-  // FONCTION FETCH SOCIÉTÉS
-  // ============================================
   const fetchSocietes = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, "societes"));
@@ -4166,25 +4617,36 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     }
   };
 
-
-
-
-
+  // ============================================
+  // 8. SAUVEGARDE
+  // ============================================
 
   const handleSave = async () => {
-    // === 1. VALIDATION COMPLÈTE DE TOUTES LES FACES ===
+    if (!localUser) {
+      console.error('❌ Aucun utilisateur trouvé');
+      alert('⚠️ Veuillez vous reconnecter pour effectuer cette action.');
+      return;
+    }
+
+    console.log('👤 Sauvegarde avec utilisateur:', {
+      id: localUser.id,
+      email: localUser.email,
+      nom: localUser.nom || localUser.nomComplet
+    });
+
+    const currentUTC = getCurrentUTCDate();
+    console.log('📅 Date UTC actuelle:', currentUTC);
+
+    // Validation complète
     const validationErrors: string[] = [];
 
     for (let idx = 0; idx < formData.faces.length; idx++) {
       const face = formData.faces[idx];
       const statut = face.statut;
 
-      // Cas 1: Statut Libre - Pas de validation supplémentaire
       if (statut === 'Libre') continue;
 
-      // Cas 2: Statut Occupé ou Réservé - Validation stricte
       if (statut === 'Occupé' || statut === 'Réservé') {
-        // Vérifier que tous les champs sont remplis
         if (!face.clientNom || face.clientNom.trim() === '') {
           validationErrors.push(`Face ${idx + 1}: Le nom du client est obligatoire`);
         }
@@ -4195,7 +4657,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           validationErrors.push(`Face ${idx + 1}: La date de fin est obligatoire`);
         }
 
-        // Vérifier l'ordre des dates si elles existent
         if (face.dateDebut && face.dateFin) {
           const d1 = new Date(face.dateDebut);
           const d2 = new Date(face.dateFin);
@@ -4206,13 +4667,37 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       }
     }
 
-    // Afficher les erreurs de validation
     if (validationErrors.length > 0) {
       alert(`❌ Erreurs de validation :\n\n${validationErrors.join('\n')}`);
       return;
     }
 
-    // === 2. VÉRIFICATION DES CONFLITS AVEC LES RÉSERVATIONS EXISTANTES ===
+    // Confirmation pour chaque face
+    for (let i = 0; i < formData.faces.length; i++) {
+      const face = formData.faces[i];
+      if (face.statut !== 'Libre' && face.clientNom) {
+        const reservationData = {
+          dateDebut: face.dateDebut,
+          dateFin: face.dateFin,
+          societeLocatrice: face.clientNom
+        };
+        
+        const faceLabel = `${formData.idPan} - Face ${i + 1}`;
+        
+        const confirmed = await showReservationConfirmationModal(
+          reservationData,
+          faceLabel,
+          localUser || user
+        );
+        
+        if (!confirmed) {
+          alert('❌ Réservation annulée par l\'utilisateur.');
+          return;
+        }
+      }
+    }
+
+    // Vérification des conflits
     const conflictErrors: string[] = [];
 
     for (let idx = 0; idx < formData.faces.length; idx++) {
@@ -4228,15 +4713,10 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       const d2 = new Date(dateFin);
       const reservationsExistantes = face.reservations || [];
 
-      // Vérifier les chevauchements (exclure la réservation en cours d'édition)
       const conflict = reservationsExistantes.find((res: any) => {
-        // Si c'est une nouvelle réservation, on vérifie tout
         if (!res.dateDebut || !res.dateFin) return false;
-
         const r1 = new Date(res.dateDebut);
         const r2 = new Date(res.dateFin);
-
-        // Chevauchement strict
         return (d1 <= r2 && d2 >= r1);
       });
 
@@ -4252,36 +4732,9 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       return;
     }
 
-    // === 3. Vérification des messages de conflit existants ===
     const hasGlobalConflict = Object.values(conflitMessages).some(msg => msg !== null);
     if (hasGlobalConflict) {
       alert("Impossible de sauvegarder : Veuillez résoudre les conflits de dates avant d'enregistrer.");
-      return;
-    }
-
-    // === 4. SUITE DE LA SAUVEGARDE ===
-    setIsSaving(true)
-    // On ne valide que les faces où l'utilisateur a commencé à saisir quelque chose
-    const isInvalid = formData.faces.some((f: any) => {
-      // Une face doit être validée UNIQUEMENT si elle est occupée 
-      // ET qu'elle n'est pas déjà enregistrée (pour ne pas bloquer les anciennes)
-      const aCommenceSaisie = f.dateDebut || f.dateFin || f.clientNom;
-      const estOccupée = f.statut !== "Libre";
-
-      if (estOccupée && aCommenceSaisie) {
-        // Si on a commencé, alors TOUT doit être rempli
-        return !f.dateDebut || !f.dateFin || !f.clientNom;
-      }
-      return false;
-    });
-
-    if (isInvalid) {
-      alert("Veuillez remplir les dates et le nom du client pour la face que vous modifiez.");
-      return;
-    }
-
-    if (isInvalid) {
-      alert("Veuillez remplir les dates et le nom du client pour toutes les faces occupées.");
       return;
     }
 
@@ -4301,12 +4754,10 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         }
       }
 
-      // ✅ Créer les sociétés manquantes
       for (const nomSociete of societesACreer) {
         await createSocieteIfNotExists(nomSociete);
       }
 
-      // ✅ Rafraîchir la liste des sociétés
       await fetchSocietes();
 
       const docRef = doc(db, "panneaux", panneau?.id || formData?.id);
@@ -4316,8 +4767,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         if (!panneauDoc.exists()) throw new Error("Panneau introuvable");
 
         const isoNow = new Date().toISOString();
+        const expirationInfo = calculateExpirationDate(isoNow);
 
-        // --- GESTION DES SOCIÉTÉS ET VÉRIFICATION DES CONFLITS ---
         for (const [idx, f] of formData.faces.entries()) {
           if (f.statut === "Libre") continue;
 
@@ -4328,7 +4779,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           const conflict = reservationsExistantes.find((res: any) => {
             const r1 = new Date(res.dateDebut).getTime();
             const r2 = new Date(res.dateFin).getTime();
-            return d1 <= r2 && d2 >= r1 && res.agentEmail !== currentUser?.email;
+            return d1 <= r2 && d2 >= r1 && res.agentEmail !== localUser?.email;
           });
 
           if (conflict) {
@@ -4340,7 +4791,6 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
             return;
           }
 
-          // Enregistrement de la société si nouvelle
           const nomClientSaisi = f.clientNom?.trim();
           if (nomClientSaisi) {
             const existeDeja = listeSocietes.some(s =>
@@ -4352,13 +4802,12 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
               transaction.set(societeRef, {
                 nom: nomClientSaisi,
                 createdAt: serverTimestamp(),
-                ajoutePar: currentUser?.email || "Système"
+                ajoutePar: localUser?.email || "Système"
               });
               listeSocietes.push(nomClientSaisi);
             }
           }
         }
-
 
         const dataToUpdate = {
           faces: formData.faces.map((f: any, i: number) => {
@@ -4371,54 +4820,97 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
             const isOccupied = f.statut !== "Libre";
 
-            // 3. Logique de création de la nouvelle réservation
             let nouvellesReservations = f.reservations || [];
 
             if (isOccupied && aEteModifiee) {
               const finalPhotoUrl = (f.photoCampagneUrl && !f.photoCampagneUrl.startsWith('blob:'))
                 ? f.photoCampagneUrl : (f.photoCampagneUrl || LOGO_DISPROMALT);
 
+              const joursRestants = calculateExpirationDays(f.dateFin, f.dateDebut);
+              const statutReservation = joursRestants === 0 ? 'Expiré' : (f.statut || 'Occupé');
+
+              console.log(`📊 Réservation face ${i+1}:`, {
+                dateDebut: f.dateDebut,
+                dateFin: f.dateFin,
+                joursRestants,
+                statut: statutReservation,
+                jourActuel: currentUTC.dayOfWeek,
+                estOuvrable: isWorkingDay(currentUTC.dayNumber)
+              });
+
               const newRes = {
-                agentEmail: user?.email || "agent@dispromalt.cd",
-                agentNom: user?.nomComplet || "Agent",
+                // === INFORMATIONS AGENT ===
+                agentId: localUser?.id || localUser?.uid || "unknown",
+                agentEmail: localUser?.email || "agent@dispromalt.cd",
+                agentNom: localUser?.nom || localUser?.nomComplet || localUser?.prenom || "Agent",
+                
+                // === DATES DE RÉSERVATION (location du panneau) ===
                 dateDebut: f.dateDebut || "",
                 dateFin: f.dateFin || "",
-                validationComptable: false,
-                facturee: "non",
-                statutPaiement: "en attente",
-                modePaiement: "globale",
+                
+                // === DATE DE CRÉATION ===
                 createdAt: isoNow,
                 dateModification: isoNow,
-                photoCampagneUrl: finalPhotoUrl || "",
+                
+                // === DATE D'EXPIRATION (10 jours ouvrables après création) ===
+                expirationDate: expirationInfo.date,
+                expirationDateFormatted: expirationInfo.dateFormatted,
+                expirationDayOfWeek: expirationInfo.dayOfWeek,
+                expirationIsWorkingDay: expirationInfo.isWorkingDay,
+                delaiExpirationJours: 10,
+                joursAvantExpiration: expirationInfo.joursRestants,
+                
+                // === STATUT DE LA RÉSERVATION ===
+                statut: statutReservation,
+                statutPaiement: "en attente",
+                validationComptable: false,
+                facturee: "non",
+                modePaiement: "globale",
+                
+                // === INFORMATIONS DE LA RÉSERVATION ===
                 societeLocatrice: f.clientNom || "Inconnu",
-                statut: f.statut || "Occupé"
+                photoCampagneUrl: finalPhotoUrl || "",
+                
+                // === MÉTADONNÉES ===
+                createdBy: localUser?.id || localUser?.uid || "system",
+                createdByEmail: localUser?.email || "system",
+                dayOfWeek: currentUTC.dayOfWeek,
+                isWorkingDay: isWorkingDay(currentUTC.dayNumber)
               };
 
-              // ON AJOUTE la nouvelle réservation seulement si elle est nouvelle
+              console.log('✅ Nouvelle réservation créée:', {
+                agentId: newRes.agentId,
+                agentNom: newRes.agentNom,
+                statut: newRes.statut,
+                joursRestants: newRes.joursAvantExpiration,
+                isExpired: newRes.joursAvantExpiration === 0
+              });
+
               nouvellesReservations = [...nouvellesReservations, newRes];
             }
 
             return {
               sens: f.sens || faceOriginale?.sens || `Face ${i + 1}`,
-              // On rend le tableau mis à jour (avec la nouvelle res) ou l'ancien (si pas de modif)
               reservations: nouvellesReservations,
               historique: f.historique || []
             };
           }),
           updatedAt: serverTimestamp()
         };
+
         transaction.update(docRef, dataToUpdate);
       });
 
-      alert("Mise à jour réussie !");
+      alert("✅ Mise à jour réussie !");
       onClose();
     } catch (error: any) {
-      console.error("Erreur détaillée:", error);
+      console.error("❌ Erreur détaillée:", error);
       alert("Erreur: " + error.message);
     } finally {
       setIsSaving(false);
     }
   };
+
 
 
   // Surveiller les changements de statut pour valider les champs

@@ -45,7 +45,7 @@ import { getAuth } from 'firebase/auth';
 // ============================================
 const config = require('../../../../config/db');
 
-import { FaceDetailModal,EditPanneauModal} from '@/app/dashboard/superviseurs/page';
+import { FaceDetailModal, EditPanneauModal } from '@/app/dashboard/superviseurs/page';
 
 // Extraction des variables
 const firebaseConfig = config.firebaseConfig;
@@ -233,12 +233,15 @@ const RapportPanneaux: React.FC = () => {
   const { user, logout } = useAuth();
 
   // ✅ États pour les infos utilisateur
-  const [displayName, setDisplayName] = useState<string>('Agent');
+  const [displayName, setDisplayName] = useState<string>('agent');
   const [userEmail, setUserEmail] = useState<string>('');
   const [userInitial, setUserInitial] = useState<string>('A');
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
 
 
+
+  console.log("📌✅✅✅✅✅ RapportPanneaux - user:", userEmail); // ✅ Doit afficher l'utilisateur
+  console.log("👤 User ID (Firestore):", user?.uid);
 
 
   // États des données
@@ -286,36 +289,35 @@ const RapportPanneaux: React.FC = () => {
   }, []);
 
 
-const closeEditPanneau = () => {
-  setPanneauToEdit(null);
-};
-
-// ============================================
-// DANS LE COMPOSANT RapportPanneaux
-// ============================================
-
-// ✅ État pour le panneau à éditer
-const [panneauToEdit, setPanneauToEdit] = useState<any>(null);
+  const closeEditPanneau = () => {
+    setPanneauToEdit(null);
+  };
 
   // ============================================
-// DANS LE COMPOSANT RapportPanneaux
-// ============================================
+  // DANS LE COMPOSANT RapportPanneaux
+  // ============================================
 
-// ✅ Fonction pour ouvrir l'édition du panneau
-const openEditPanneau = (panneau: any) => {
-  console.log('📝 Ouverture de l\'édition pour:', panneau?.idPan);
-  
-  if (!panneau) {
-    alert('⚠️ Aucun panneau sélectionné');
-    return;
-  }
-  
-  // Stocker le panneau dans localStorage
-  localStorage.setItem('panneau_to_edit', JSON.stringify(panneau));
-  
-  // Rediriger vers la page superviseurs avec le paramètre edit
-  router.push('/dashboard/superviseurs?edit=true');
-};
+  // ✅ État pour le panneau à éditer
+  const [panneauToEdit, setPanneauToEdit] = useState<any>(null);
+
+  // ============================================
+  // DANS LE COMPOSANT RapportPanneaux
+  // ============================================
+
+  // ✅ Fonction pour ouvrir l'édition du panneau
+  const openEditPanneau = (panneau: any) => {
+
+    if (!panneau) {
+      alert('⚠️ Aucun panneau sélectionné');
+      return;
+    }
+
+    // Stocker le panneau dans localStorage
+    localStorage.setItem('panneau_to_edit', JSON.stringify(panneau));
+
+    // Rediriger vers la page superviseurs avec le paramètre edit
+    router.push('/dashboard/superviseurs?edit=true');
+  };
   // ============================================
   // DANS LE COMPOSANT PRINCIPAL RapportPanneaux
   // ============================================
@@ -327,17 +329,16 @@ const openEditPanneau = (panneau: any) => {
 
   // ✅ GARDEZ CETTE FONCTION (dans le composant principal)
   const openFaceDetails = (panneau: any, face: any) => {
-    console.log('🔍 openFaceDetails appelé:', { panneau: panneau?.idPan, face: face?.id });
 
     if (!face) {
-      console.warn('⚠️ Aucune face fournie');
       return;
     }
 
     setSelectedPanneau(panneau);
     setSelectedFace(face);
     setIsFaceModalOpen(true);
-    console.log('✅ Modal ouvert');
+
+
   };
   // ✅ Fonction pour fermer le modal
   const closeFaceModal = () => {
@@ -346,61 +347,40 @@ const openEditPanneau = (panneau: any) => {
     setSelectedPanneau(null);
   };
 
+  const [localUser, setLocalUser] = useState<any>(null);
 
-
-
-
-
-  // ============================================
-  // CHARGEMENT DES DONNÉES UTILISATEUR - AJOUTER CE useEffect
-  // ============================================
+  // ✅ AJOUTER CET USEFFECT POUR CHARGER LES DONNÉES LOCALES
   useEffect(() => {
-    const loadUserData = () => {
-      // 1. Essayer de récupérer depuis localStorage
-      const localData = localStorage.getItem('geomarketing_user_data');
+    // Charger les données utilisateur depuis localStorage
+    const loadLocalUserData = () => {
+      try {
+        const rawData = localStorage.getItem('geomarketing_user_data');
+        console.log('📦 Chargement des données locales dans RapportPanneaux:', rawData);
 
-      if (localData) {
-        try {
-          const parsed = JSON.parse(localData);
-          console.log('📥 Données utilisateur chargées:', parsed);
+        if (rawData) {
+          const parsedData = JSON.parse(rawData);
 
-          const nom = parsed.nom ||
-            parsed.nomComplet ||
-            parsed.displayName ||
-            parsed.email?.split('@')[0] ||
-            'Agent';
+          setLocalUser(parsedData);
 
+          // Mettre à jour les infos d'affichage
+          const nom = parsedData.nom ||
+            parsedData.nomComplet ||
+            parsedData.prenom ||
+            parsedData.email?.split('@')[0] ||
+            'agent';
           setDisplayName(nom);
-          setUserEmail(parsed.email || '');
+          setUserEmail(parsedData.email || '');
           setUserInitial(nom.charAt(0).toUpperCase() || 'A');
-          setUserPhoto(parsed.photoURL || parsed.photo || null);
-          return;
-        } catch (e) {
-          console.error('Erreur parsing localStorage:', e);
+          setUserPhoto(parsedData.logoUrl || parsedData.photoURL || null);
+        } else {
+          console.warn('⚠️ Aucune donnée locale trouvée');
         }
-      }
-
-      // 2. Fallback sur user du contexte
-      if (user) {
-        const nom = user.nomComplet ||
-          user.nom ||
-          user.displayName ||
-          user.email?.split('@')[0] ||
-          'Agent';
-
-        setDisplayName(nom);
-        setUserEmail(user.email || '');
-        setUserInitial(nom.charAt(0).toUpperCase() || 'A');
-        setUserPhoto(user.photoURL || user.photo || null);
-
-        // Sauvegarder pour la prochaine fois
-        try {
-          localStorage.setItem('geomarketing_user_data', JSON.stringify(user));
-        } catch (e) { }
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des données locales:', error);
       }
     };
 
-    loadUserData();
+    loadLocalUserData();
   }, [user]);
 
   // ============================================
@@ -515,9 +495,6 @@ const openEditPanneau = (panneau: any) => {
     router.push('/dashboard/superviseurs/carte');
   };
 
-  // ============================================
-  // FONCTIONS POUR LES RÉSERVATIONS - CORRIGÉES
-  // ============================================
 
   // ============================================
   // FONCTIONS POUR LES RÉSERVATIONS - CORRIGÉES
@@ -593,15 +570,6 @@ const openEditPanneau = (panneau: any) => {
   };
 
 
-
-
-
-  // ============================================
-  // LOGIQUE DE FILTRAGE - CORRIGÉE
-  // ============================================
-  // ============================================
-  // LOGIQUE DE FILTRAGE - CORRIGÉE
-  // ============================================
   // ============================================
   // LOGIQUE DE FILTRAGE - CORRIGÉE
   // ============================================
@@ -752,9 +720,25 @@ const openEditPanneau = (panneau: any) => {
     };
   }, [filteredPanneaux]);
 
-  // ============================================
-  // EXPORT FUNCTIONS
-  // ============================================
+// États pour la réservation
+const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+const [faceModalDefaultTab, setFaceModalDefaultTab] = useState<'details' | 'reservation'>('details');
+
+  // ✅ Fonction pour ouvrir le modal de réservation (à placer dans le composant parent)
+const openReservationModal = (panneau: Panneau, face: Face) => {
+  // Ouvrir le modal de réservation avec le panneau et la face sélectionnés
+  setSelectedPanneau(panneau);
+  setSelectedFace(face);
+  setIsReservationModalOpen(true);
+};
+
+// ✅ Fonction pour fermer le modal de réservation
+const closeReservationModal = () => {
+  setIsReservationModalOpen(false);
+  setSelectedPanneau(null);
+  setSelectedFace(null);
+};
+
   // ============================================
   // EXPORT PDF - VERSION PREMIUM
   // ============================================
@@ -1024,9 +1008,7 @@ const openEditPanneau = (panneau: any) => {
 
 
 
-  // ============================================
-  // EXPORT EXCEL - VERSION AVANCÉE
-  // ============================================
+
   // ============================================
   // EXPORT EXCEL - VERSION AVANCÉE
   // ============================================
@@ -1330,132 +1312,185 @@ const openEditPanneau = (panneau: any) => {
     }
   };
 
+// ============================================
+// RENDU DU TABLEAU - VERSION CORRIGÉE
+// ============================================
+const renderTableauPanneaux = (): React.ReactNode => {
+  // État local pour gérer l'expansion des panneaux
+  const [expandedPanneaux, setExpandedPanneaux] = useState<Set<string>>(new Set());
 
-  // ============================================
-  // RENDU DU TABLEAU - VERSION CORRIGÉE
-  // ============================================
-  const renderTableauPanneaux = (): React.ReactNode => {
-    // État local pour gérer l'expansion des panneaux
-    const [expandedPanneaux, setExpandedPanneaux] = useState<Set<string>>(new Set());
-
-    const togglePanneau = (panneauId: string) => {
-      const newExpanded = new Set(expandedPanneaux);
-      if (newExpanded.has(panneauId)) {
-        newExpanded.delete(panneauId);
-      } else {
-        newExpanded.add(panneauId);
-      }
-      setExpandedPanneaux(newExpanded);
-    };
-
-
-    const openOnMap = (panneau: Panneau) => {
-      const coords = panneau?.coords || panneau?.gps_raw;
-      if (coords && coords.lat && coords.lng) {
-        localStorage.setItem('map_single_panneau', JSON.stringify({
-          id: panneau.id,
-          idPan: panneau.idPan,
-          adresse: panneau.adresse || 'Adresse non définie',
-          lat: coords.lat,
-          lng: coords.lng,
-          type: panneau.type || 'Standard'
-        }));
-        window.location.href = '/dashboard/superviseurs/carte';
-      } else {
-        alert('⚠️ Ce panneau n\'a pas de coordonnées GPS enregistrées.');
-      }
-    };
-
-    if (loading) {
-      return (
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement des données...</p>
-        </div>
-      );
+  const togglePanneau = (panneauId: string) => {
+    const newExpanded = new Set(expandedPanneaux);
+    if (newExpanded.has(panneauId)) {
+      newExpanded.delete(panneauId);
+    } else {
+      newExpanded.add(panneauId);
     }
+    setExpandedPanneaux(newExpanded);
+  };
 
-    if (error) {
-      return (
-        <div className="bg-white rounded-xl shadow-lg border border-red-200 p-8 text-center">
-          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600">{error}</p>
-          <button
-            onClick={loadData}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            Réessayer
-          </button>
-        </div>
-      );
+  
+
+  // ✅ Fonction pour extraire et calculer le produit des dimensions avec unité
+  const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
+    if (!dimension) return { value: 0, unit: '' };
+
+    // Extraire l'unité complète de la dimension originale
+    const unitMatch = dimension.match(/[a-zA-Z²]+$/);
+    const originalUnit = unitMatch ? unitMatch[0] : '';
+
+    // Extrait les nombres
+    const numbers = dimension.match(/[\d.]+/g)?.map(Number).filter(num => num > 0) || [];
+
+    if (numbers.length === 0) return { value: 0, unit: originalUnit };
+
+    // Calcule le produit
+    const product = numbers.reduce((acc, val) => acc * val, 1);
+    const roundedProduct = Math.round(product * 100) / 100;
+
+    return { value: roundedProduct, unit: originalUnit || 'm²' };
+  };
+
+  // ✅ Fonction pour formater l'adresse (affiche la commune si pas assez de place)
+  const formatAddress = (address: string | undefined, maxLength?: number): string => {
+    if (!address) return 'N/A';
+    
+    // Si pas de limite ou adresse courte, retourner l'adresse complète
+    if (!maxLength || address.length <= maxLength) return address;
+    
+    // Essayer d'extraire la commune (dernière partie après la virgule)
+    const parts = address.split(',').map(p => p.trim());
+    if (parts.length > 1) {
+      // Retourner les 2 derniers éléments (souvent quartier et commune)
+      const lastParts = parts.slice(-2).join(', ');
+      if (lastParts.length <= maxLength) return lastParts;
+      // Sinon retourner juste la dernière partie
+      return parts[parts.length - 1] || address;
     }
+    
+    // Si pas de virgule, tronquer avec "..." 
+    return address.substring(0, maxLength) + '...';
+  };
 
-    // ✅ Fonction pour ouvrir EditPanneauModal
-const openEditPanneau = (panneau: any) => {
-  console.log('📝 Ouverture de EditPanneauModal pour:', panneau?.idPan);
-  if (!panneau) {
-    alert('⚠️ Aucun panneau sélectionné');
-    return;
-  }
-  setPanneauToEdit(panneau);
-};
-
-// ✅ Fonction pour fermer EditPanneauModal
-const closeEditPanneau = () => {
-  setPanneauToEdit(null);
-};
-
-    if (filteredPanneaux.length === 0) {
-      return (
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
-          <div className="text-6xl mb-4">📭</div>
-          <h3 className="text-lg font-semibold text-gray-600">Aucun panneau trouvé</h3>
-          <p className="text-sm text-gray-400 mt-1">Ajustez vos filtres pour voir plus de résultats</p>
-        </div>
-      );
+  const openOnMap = (panneau: Panneau) => {
+    const coords = panneau?.coords || panneau?.gps_raw;
+    if (coords && coords.lat && coords.lng) {
+      localStorage.setItem('map_single_panneau', JSON.stringify({
+        id: panneau.id,
+        idPan: panneau.idPan,
+        adresse: panneau.adresse || 'Adresse non définie',
+        lat: coords.lat,
+        lng: coords.lng,
+        type: panneau.type || 'Standard'
+      }));
+      window.location.href = '/dashboard/superviseurs/carte';
+    } else {
+      alert('⚠️ Ce panneau n\'a pas de coordonnées GPS enregistrées.');
     }
+  };
 
+  // ✅ Fonction pour ouvrir le modal de réservation
+  const openReservationModal = (panneau: Panneau, face: Face) => {
+    // Implémentez votre logique d'ouverture du modal de réservation
+    console.log('Réservation pour:', panneau.idPan, 'Face:', face.id);
+    // setSelectedPanneauForReservation(panneau);
+    // setSelectedFaceForReservation(face);
+    // setIsReservationModalOpen(true);
+  };
+
+  if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <div
-          ref={tableContainerRef}
-          className="overflow-auto"
-          style={{ maxHeight: 'calc(100vh - 400px)' }}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Chargement des données...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg border border-red-200 p-8 text-center">
+        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <p className="text-red-600">{error}</p>
+        <button
+          onClick={loadData}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
         >
-          <table className="w-full border-collapse min-w-[1100px]">
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+
+  // ✅ Fonction pour ouvrir EditPanneauModal
+  const openEditPanneau = (panneau: any) => {
+    if (!panneau) {
+      alert('⚠️ Aucun panneau sélectionné');
+      return;
+    }
+    setPanneauToEdit(panneau);
+  };
+
+  // ✅ Fonction pour fermer EditPanneauModal
+  const closeEditPanneau = () => {
+    setPanneauToEdit(null);
+  };
+
+  if (filteredPanneaux.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
+        <div className="text-6xl mb-4">📭</div>
+        <h3 className="text-lg font-semibold text-gray-600">Aucun panneau trouvé</h3>
+        <p className="text-sm text-gray-400 mt-1">Ajustez vos filtres pour voir plus de résultats</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      <div
+        ref={tableContainerRef}
+        className="overflow-auto"
+        style={{ maxHeight: 'calc(100vh - 400px)' }}
+      >
+        <div className="w-full overflow-x-auto">
+          <table className="w-full border-collapse min-w-[1200px]">
             <thead className="sticky top-0 z-20">
-              <tr className="bg-gradient-to-r from-blue-600 to-indigo-700">
-                <th className="px-2 py-2.5 text-left text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[70px] sticky left-0 z-30 bg-gradient-to-r from-blue-600 to-indigo-700">
+              <tr className="bg-gradient-to-r from-blue-900 to-indigo-900">
+                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[100px] sticky left-0 z-30 bg-gradient-to-r from-blue-900 to-indigo-900">
                   IdPan / Adresse
                 </th>
-                <th className="px-2 py-2.5 text-left text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[60px]">
+                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
                   Type
                 </th>
-                <th className="px-2 py-2.5 text-left text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[60px]">
+                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
                   Dimension
                 </th>
-                <th className="px-2 py-2.5 text-center text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[55px]">
+                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                  Total Dim
+                </th>
+                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[70px]">
                   Nb Faces
                 </th>
-                <th className="px-2 py-2.5 text-center text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[100px]">
+                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[130px]">
                   Actions
                 </th>
-                <th className="px-2 py-2.5 text-left text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[50px]">
+                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px]">
                   Face
                 </th>
-                <th className="px-2 py-2.5 text-left text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[70px]">
+                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[70px]">
                   Sens
                 </th>
-                <th className="px-2 py-2.5 text-left text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[100px]">
+                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[110px]">
                   Société Locatrice
                 </th>
-                <th className="px-2 py-2.5 text-left text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[130px]">
+                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[140px]">
                   Date début - fin
                 </th>
-                <th className="px-2 py-2.5 text-center text-[10px] font-black text-white uppercase tracking-wider border-r border-blue-500/30 w-[70px]">
+                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
                   Nb Rés. Fut.
                 </th>
-                <th className="px-2 py-2.5 text-center text-[10px] font-black text-white uppercase tracking-wider w-[80px]">
+                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider min-w-[90px]">
                   Statut
                 </th>
               </tr>
@@ -1465,32 +1500,37 @@ const closeEditPanneau = () => {
               {filteredPanneaux.map((panneau: Panneau) => {
                 const faces = panneau.faces || [];
                 const isExpanded = expandedPanneaux.has(panneau.id);
+                const dimensionResult = calculateDimensionSum(panneau.dimension);
 
                 if (faces.length === 0) {
                   return (
                     <tr key={`${panneau.id}-empty`} className="hover:bg-blue-50/50 transition-colors border-b border-gray-200">
-                      <td className="px-2 py-2.5 text-[12px] font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white">
+                      <td className="px-3 py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[100px]">
                         <div>
-                          <div className="text-blue-700">{panneau.idPan || 'N/A'}</div>
-                          <div className="text-[9px] font-medium text-gray-600 mt-0.5 truncate max-w-[150px]">{panneau.adresse || 'N/A'}</div>
+                          <div className="text-blue-700 text-xs md:text-sm">{panneau.idPan || 'N/A'}</div>
+                          <div className="text-xs md:text-sm font-medium text-gray-600 mt-1 break-words max-w-[200px]">
+                            {formatAddress(panneau.adresse, 30)}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-2 py-2.5 text-[10px] font-semibold text-gray-700 border-r border-gray-200">{panneau.type || 'N/A'}</td>
-                      <td className="px-2 py-2.5 text-[10px] font-semibold text-gray-700 border-r border-gray-200">{panneau.dimension || 'N/A'}</td>
-                      <td className="px-2 py-2.5 text-center text-[12px] font-black text-blue-600 border-r border-gray-200">0</td>
-                      {/* Boutons de carte et réservation */}
-                      <td className="px-2 py-2.5 text-center border-r border-gray-200" colSpan={2}>
+                      <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.type || 'N/A'}</td>
+                      <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.dimension || 'N/A'}</td>
+                      <td className="px-3 py-3 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                        {dimensionResult.value > 0 ? `${dimensionResult.value} ${dimensionResult.unit}` : '-'}
+                      </td>
+                      <td className="px-3 py-3 text-center text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">0</td>
+                      <td className="px-3 py-3 text-center border-r border-gray-200">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => openOnMap(panneau)}
-                            className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[8px] font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
+                            className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
                           >
-                            <MapPin size={10} />
-                            <span className="hidden xs:inline">Carte</span>
+                            <MapPin size={12} />
+                            <span className="hidden sm:inline">Carte</span>
                           </button>
                         </div>
                       </td>
-                      <td className="px-2 py-2.5 text-[9px] text-gray-400 border-r border-gray-200 text-center" colSpan={5}>Aucune face</td>
+                      <td className="px-3 py-3 text-xs text-gray-400 border-r border-gray-200 text-center" colSpan={5}>Aucune face</td>
                     </tr>
                   );
                 }
@@ -1502,42 +1542,44 @@ const closeEditPanneau = () => {
                       className="hover:bg-blue-50/50 transition-colors border-b border-gray-200 cursor-pointer"
                       onClick={() => togglePanneau(panneau.id)}
                     >
-                      <td className="px-2 py-2.5 text-[12px] font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white">
-                        <div className="flex items-center gap-1">
-                          <span className="truncate text-blue-700">{panneau.idPan || 'N/A'}</span>
-                          <span className="text-[8px] text-gray-400">
+                      <td className="px-3 py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[100px]">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-blue-700 text-xs md:text-sm">{panneau.idPan || 'N/A'}</span>
+                          <span className="text-[10px] text-gray-400">
                             {isExpanded ? '▼' : '▶'}
                           </span>
                         </div>
-                        <div className="text-[9px] font-medium text-gray-600 mt-0.5 truncate max-w-[150px]">{panneau.adresse || 'N/A'}</div>
+                        <div className="text-xs md:text-sm font-medium text-gray-600 mt-1 break-words max-w-[200px]">
+                          {formatAddress(panneau.adresse, 30)}
+                        </div>
                       </td>
-                      <td className="px-2 py-2.5 text-[10px] font-semibold text-gray-700 border-r border-gray-200">
+                      <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
                         {panneau.type || 'N/A'}
                       </td>
-                      <td className="px-2 py-2.5 text-[10px] font-semibold text-gray-700 border-r border-gray-200">
+                      <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
                         {panneau.dimension || 'N/A'}
                       </td>
-                      <td className="px-2 py-2.5 text-center text-[12px] font-black text-blue-600 border-r border-gray-200">
+                      <td className="px-3 py-3 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                        {dimensionResult.value > 0 ? `${dimensionResult.value} ${dimensionResult.unit}` : '-'}
+                      </td>
+                      <td className="px-3 py-3 text-center text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">
                         {faces.length}
                       </td>
-                      <td className="px-2 py-2.5 text-center border-r border-gray-200">
+                      <td className="px-3 py-3 text-center border-r border-gray-200">
                         <div className="flex items-center justify-center gap-1 flex-wrap">
                           {/* Bouton Détails */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               if (faces.length > 0) {
-                                // ✅ Utilise la fonction du composant principal (pas celle de renderTableauPanneaux)
                                 openFaceDetails(panneau, faces[0]);
-                              } else {
-                                console.warn('⚠️ Aucune face disponible');
                               }
                             }}
-                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[8px] font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
+                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] md:text-xs font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
                             title="Voir les détails du panneau"
                           >
-                            <Eye size={10} />
-                            <span className="hidden xs:inline">Détails</span>
+                            <Eye size={12} />
+                            <span className="hidden sm:inline">Détails</span>
                           </button>
                           {/* Bouton Carte */}
                           <button
@@ -1545,16 +1587,16 @@ const closeEditPanneau = () => {
                               e.stopPropagation();
                               openOnMap(panneau);
                             }}
-                            className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[8px] font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
+                            className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
                             title="Voir sur la carte"
                           >
-                            <MapPin size={10} />
-                            <span className="hidden xs:inline">Carte</span>
+                            <MapPin size={12} />
+                            <span className="hidden sm:inline">Carte</span>
                           </button>
                         </div>
                       </td>
-                      <td className="px-2 py-2.5 text-center text-[9px] text-gray-400 border-r border-gray-200" colSpan={5}>
-                        <span className="text-[8px] text-blue-400 font-medium">Cliquez sur la ligne pour voir les faces</span>
+                      <td className="px-3 py-3 text-center text-xs text-gray-400 border-r border-gray-200" colSpan={5}>
+                        <span className="text-[10px] text-blue-400 font-medium">Cliquez sur la ligne pour voir les faces</span>
                       </td>
                     </tr>
 
@@ -1588,45 +1630,82 @@ const closeEditPanneau = () => {
                           key={`${panneau.id}-face-${idx}`}
                           className="hover:bg-blue-50/30 transition-colors border-b border-gray-100 bg-blue-50/20"
                         >
-                          <td className="px-2 py-1.5 text-[9px] text-gray-400 border-r border-gray-200 sticky left-0 z-10 bg-blue-50/20">
-                            <span className="ml-4 text-[8px] text-blue-400">└──</span>
+                          {/* Colonne IdPan/Adresse - alignée avec la ligne parent */}
+                          <td className="px-3 py-2 text-[10px] text-gray-400 border-r border-gray-200 sticky left-0 z-10 bg-blue-50/20 min-w-[100px]">
+                            <span className="ml-4 text-[10px] text-blue-400">└── Face #{idx + 1}</span>
                           </td>
-                          <td className="px-2 py-1.5 text-[9px] text-gray-400 border-r border-gray-200" colSpan={3}>
-                            <span className="text-[8px] text-gray-400 font-medium">Face #{idx + 1}</span>
+                          
+                          {/* Colonne Type - vide mais alignée */}
+                          <td className="px-3 py-2 border-r border-gray-200"></td>
+                          
+                          {/* Colonne Dimension - vide mais alignée */}
+                          <td className="px-3 py-2 border-r border-gray-200"></td>
+                          
+                          {/* Colonne Total Dim - vide mais alignée */}
+                          <td className="px-3 py-2 border-r border-gray-200"></td>
+                          
+                          {/* Colonne Nb Faces - vide mais alignée */}
+                          <td className="px-3 py-2 border-r border-gray-200"></td>
+                          
+                          {/* Colonne Actions - Boutons pour chaque face */}
+                          <td className="px-3 py-2 text-center border-r border-gray-200">
+                            <div className="flex items-center justify-center gap-1 flex-wrap">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openFaceDetails(panneau, face);
+                                }}
+                                className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
+                              >
+                                <Eye size={10} />
+                                Voir
+                              </button>
+                              <button
+  onClick={(e) => {
+    e.stopPropagation();
+    openFaceDetails(panneau, face, );
+  }}
+  className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-[10px] font-bold hover:bg-amber-200 transition flex items-center gap-0.5"
+  title="Réserver cette face"
+>
+  <Calendar size={10} />
+  <span className="hidden sm:inline">Réserver</span>
+</button>
+                            </div>
                           </td>
-                          <td className="px-2 py-1.5 text-center border-r border-gray-200">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openFaceDetails(panneau, face);
-                              }}
-                              className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[7px] font-bold hover:bg-blue-200 transition flex items-center gap-0.5 mx-auto"
-                            >
-                              <Eye size={8} />
-                              Voir
-                            </button>
-                          </td>
-                          <td className="px-2 py-1.5 text-[10px] font-bold text-indigo-600 border-r border-gray-200">
+                          
+                          {/* Colonne Face */}
+                          <td className="px-3 py-2 text-xs md:text-sm font-bold text-indigo-600 border-r border-gray-200">
                             {faceId}
                           </td>
-                          <td className="px-2 py-1.5 text-[9px] font-semibold text-gray-700 border-r border-gray-200">
+                          
+                          {/* Colonne Sens */}
+                          <td className="px-3 py-2 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
                             {face.sens || 'N/A'}
                           </td>
-                          <td className="px-2 py-1.5 text-[9px] font-semibold text-gray-700 border-r border-gray-200">
+                          
+                          {/* Colonne Société Locatrice */}
+                          <td className="px-3 py-2 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
                             {activeReservation?.societeLocatrice || 'S/N'}
                           </td>
-                          <td className="px-2 py-1.5 text-[9px] font-medium text-gray-600 border-r border-gray-200">
+                          
+                          {/* Colonne Date début - fin */}
+                          <td className="px-3 py-2 text-xs md:text-sm font-medium text-gray-600 border-r border-gray-200">
                             {activeReservation?.dateDebut && activeReservation?.dateFin ? (
-                              <span className="text-gray-700">{activeReservation.dateDebut} – {activeReservation.dateFin}</span>
+                              <span className="text-gray-700 text-[10px] md:text-xs">{activeReservation.dateDebut} – {activeReservation.dateFin}</span>
                             ) : (
                               <span className="text-gray-300">-</span>
                             )}
                           </td>
-                          <td className="px-2 py-1.5 text-center text-[10px] font-bold text-amber-600 border-r border-gray-200">
+                          
+                          {/* Colonne Nb Rés. Fut. */}
+                          <td className="px-3 py-2 text-center text-xs md:text-sm font-bold text-amber-600 border-r border-gray-200">
                             {futureReservations.length || 0}
                           </td>
-                          <td className="px-2 py-1.5 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold border ${getStatusColor(status)} flex items-center gap-1 justify-center whitespace-nowrap`}>
+                          
+                          {/* Colonne Statut */}
+                          <td className="px-3 py-2 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold border ${getStatusColor(status)} flex items-center gap-1 justify-center whitespace-nowrap`}>
                               <span className={`w-1 h-1 rounded-full ${getStatusDot(status)}`} />
                               {status}
                             </span>
@@ -1640,76 +1719,78 @@ const closeEditPanneau = () => {
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* Pied de tableau */}
-        <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-500">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <span className="font-semibold text-gray-600">📊 {filteredPanneaux.length} panneau(x)</span>
-            <span className="hidden xs:inline text-gray-300">•</span>
-            <span className="font-semibold text-gray-600">🎯 {stats.totalFaces} face(s)</span>
-            <span className="hidden xs:inline text-gray-300">•</span>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1 font-medium text-gray-600">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                {stats.totalLibres} libres
-              </span>
-              <span className="flex items-center gap-1 font-medium text-gray-600">
-                <span className="w-2 h-2 rounded-full bg-blue-500" />
-                {stats.totalOccupes} occupées
-              </span>
-              <span className="flex items-center gap-1 font-medium text-gray-600">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                {stats.totalReserves} réservées
-              </span>
-            </div>
-          </div>
-          <div className="text-[9px] text-gray-400 flex items-center gap-2">
-            <RefreshCw
-              className="w-3 h-3 cursor-pointer hover:text-blue-500 transition"
-              onClick={loadData}
-            />
-            {lastUpdate && (
-              <span className="hidden sm:inline font-medium text-gray-400">
-                Mis à jour: {lastUpdate.toLocaleTimeString()}
-              </span>
-            )}
-            <span className="text-[7px] sm:hidden text-gray-400">
-              ← Glissez →
+      {/* Pied de tableau */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-500">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          <span className="font-semibold text-gray-600">📊 {filteredPanneaux.length} panneau(x)</span>
+          <span className="hidden xs:inline text-gray-300">•</span>
+          <span className="font-semibold text-gray-600">🎯 {stats.totalFaces} face(s)</span>
+          <span className="hidden xs:inline text-gray-300">•</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1 font-medium text-gray-600">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              {stats.totalLibres} libres
+            </span>
+            <span className="flex items-center gap-1 font-medium text-gray-600">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              {stats.totalOccupes} occupées
+            </span>
+            <span className="flex items-center gap-1 font-medium text-gray-600">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              {stats.totalReserves} réservées
             </span>
           </div>
         </div>
-        <AnimatePresence>
-      {isFaceModalOpen && selectedFace && selectedPanneau && (
-        <FaceDetailModal
-          isOpen={isFaceModalOpen}
-          onClose={closeFaceModal}
-          panneau={{
-            ...selectedPanneau,
-            onEdit: openEditPanneau  // ✅ Passer la fonction
-          }}
-          face={selectedFace}
-          onSelect={(selectionKey: string) => {
-            console.log('Face sélectionnée:', selectionKey);
-          }}
-          isSelected={false}
-          ouvrirLaCarte={ouvrirLaCarte}
+        <div className="text-[9px] text-gray-400 flex items-center gap-2">
+          <RefreshCw
+            className="w-3 h-3 cursor-pointer hover:text-blue-500 transition"
+            onClick={loadData}
+          />
+          {lastUpdate && (
+            <span className="hidden sm:inline font-medium text-gray-400">
+              Mis à jour: {lastUpdate.toLocaleTimeString()}
+            </span>
+          )}
+          <span className="text-[7px] sm:hidden text-gray-400">
+            ← Glissez →
+          </span>
+        </div>
+      </div>
+      
+      <AnimatePresence>
+        {isFaceModalOpen && selectedFace && selectedPanneau && (
+          <FaceDetailModal
+            isOpen={isFaceModalOpen}
+            onClose={closeFaceModal}
+            panneau={{
+              ...selectedPanneau,
+              onEdit: openEditPanneau
+            }}
+            face={selectedFace}
+            onSelect={(selectionKey: string) => {
+              console.log('Face sélectionnée:', selectionKey);
+            }}
+            isSelected={false}
+            ouvrirLaCarte={ouvrirLaCarte}
+            user={user}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ✅ RENDU DE EDITPANNEAUMODAL */}
+      {panneauToEdit && (
+        <EditPanneauModal
+          isOpen={true}
+          onClose={closeEditPanneau}
+          panneau={panneauToEdit}
+          user={user}
         />
       )}
-    </AnimatePresence>
-
-    {/* ✅ RENDU DE EDITPANNEAUMODAL */}
-    {panneauToEdit && (
-      <EditPanneauModal
-        isOpen={true}
-        onClose={closeEditPanneau}
-        panneau={panneauToEdit}
-        user={user}
-      />
-    )}
-      </div>
-    );
-  };
-
+    </div>
+  );
+};
 
 
   // ============================================
@@ -2282,39 +2363,37 @@ const closeEditPanneau = () => {
           </p>
         </div>
         {/* Modal des détails de la face */}
-{/* ✅ MODAL D'ÉDITION DU PANNEAU */}
-    {panneauToEdit && (
-      <EditPanneauModal
-        isOpen={true}
-        onClose={closeEditPanneau}
-        panneau={panneauToEdit}
-        user={user}
-      />
-    )}
+        {/* ✅ MODAL D'ÉDITION DU PANNEAU */}
+        {panneauToEdit && (
+          <EditPanneauModal
+            isOpen={true}
+            onClose={closeEditPanneau}
+            panneau={panneauToEdit}
+            user={localUser}
+          />
+        )}
 
-    {/* ✅ MODAL DES DÉTAILS DE LA FACE */}
-    <AnimatePresence>
-      {isFaceModalOpen && selectedFace && selectedPanneau && (
-        <FaceDetailModal
-          isOpen={isFaceModalOpen}
-          onClose={closeFaceModal}
-          panneau={{
-            ...selectedPanneau,
-            onEdit: openEditPanneau  // ✅ Passer la fonction au modal
-          }}
-          face={selectedFace}
-          onSelect={(selectionKey: string) => {
-            console.log('Face sélectionnée:', selectionKey);
-          }}
-          isSelected={false}
-          ouvrirLaCarte={ouvrirLaCarte}
-        />
-      )}
-    </AnimatePresence>
+        {/* ✅ MODAL DES DÉTAILS DE LA FACE */}
+        <AnimatePresence>
+          {isFaceModalOpen && selectedFace && selectedPanneau && (
+            <FaceDetailModal
+              isOpen={isFaceModalOpen}
+              onClose={closeFaceModal}
+              panneau={{
+                ...selectedPanneau,
+                onEdit: openEditPanneau  // ✅ Passer la fonction au modal
+              }}
+              face={selectedFace}
+              onSelect={(selectionKey: string) => {
+                console.log('Face sélectionnée:', selectionKey);
+              }}
+              isSelected={false}
+              ouvrirLaCarte={ouvrirLaCarte}
+            //user={localUser}
+            />
+          )}
+        </AnimatePresence>
       </div>
-
-
-      
     </div>
   );
 };

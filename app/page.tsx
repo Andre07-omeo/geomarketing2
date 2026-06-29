@@ -95,6 +95,8 @@ class LocalStorageManager {
     try {
       const dataToStore: UserData = {
         ...userData,
+        id: userData.id || userData.uid, // ✅ ID du document Firestore
+        uid: userData.uid,
         sessionToken: sessionToken || this.generateSessionToken(),
         lastSync: new Date().toISOString(),
         isLocallyStored: true,
@@ -358,6 +360,7 @@ export default function LoginPage() {
   const [isConnected, setIsConnected] = useState(true);
   const [attempts, setAttempts] = useState(0);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
 
   // Vérifier la connexion réseau
   useEffect(() => {
@@ -439,145 +442,160 @@ export default function LoginPage() {
     return () => unsubscribe();
   }, []);
 
-// ============================================
-// HANDLE LOGIN - VERSION AVEC NOM DANS LA NOTIFICATION
-// ============================================
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError(null);
-  setLoading(true);
+  // ============================================
+  // HANDLE LOGIN - VERSION AVEC NOM DANS LA NOTIFICATION
+  // ============================================
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
 
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanPassword = password.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
 
-  if (!cleanEmail || !cleanPassword) {
-    setError("Veuillez remplir tous les champs.");
-    setLoading(false);
-    return;
-  }
+    if (!cleanEmail || !cleanPassword) {
+      setError("Veuillez remplir tous les champs.");
+      setLoading(false);
+      return;
+    }
 
-  if (attempts >= 5) {
-    setError("Trop de tentatives. Veuillez réessayer dans 5 minutes.");
-    setLoading(false);
-    return;
-  }
+    if (attempts >= 5) {
+      setError("Trop de tentatives. Veuillez réessayer dans 5 minutes.");
+      setLoading(false);
+      return;
+    }
 
-  try {
-    let userData: any = null;
-    let userId: string = "";
-
-    // 🔍 LOG DÉBUT DE LA CONNEXION
-    console.log('🔐 Tentative de connexion pour:', cleanEmail);
-
-    // ÉTAPE 1 : Connexion Firebase Auth
     try {
-      console.log('📡 Tentative de connexion avec Firebase Auth...');
-      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      userId = userCredential.user.uid;
-      console.log('✅ Firebase Auth réussi - UID:', userId);
-      
-      const docSnap = await getDoc(doc(db, "societes", userId));
-      if (docSnap.exists()) {
-        userData = docSnap.data();
-        console.log('✅ Données récupérées depuis Firestore (collection societes)');
-      } else {
-        console.warn('⚠️ Document Firestore non trouvé pour l\'UID:', userId);
-      }
-    } catch (authError: any) {
-      console.warn('⚠️ Firebase Auth a échoué, tentative de recherche manuelle...', authError.message);
-      
-      // ÉTAPE 2 : Recherche manuelle
-      const q = query(
-        collection(db, "societes"),
-        where("email", "==", cleanEmail),
-        limit(1)
-      );
+      let userData: any = null;
+      let userId: string = "";
 
-      const querySnapshot = await getDocs(q);
+      // 🔍 LOG DÉBUT DE LA CONNEXION
+      console.log('🔐 Tentative de connexion pour:', cleanEmail);
 
-      if (!querySnapshot.empty) {
-        const resDoc = querySnapshot.docs[0];
-        const data = resDoc.data();
+      // ÉTAPE 1 : Connexion Firebase Auth
+      try {
+        console.log('📡 Tentative de connexion avec Firebase Auth...');
+        const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+        userId = userCredential.user.uid;
+        console.log('✅ Firebase Auth réussi - UID:', userId);
 
-        if (data.password === cleanPassword) {
-          userId = resDoc.id;
-          userData = data;
-          console.log('✅ Recherche manuelle réussie - Utilisateur trouvé dans societes');
+        const docSnap = await getDoc(doc(db, "societes", userId));
+        if (docSnap.exists()) {
+          userData = docSnap.data();
+          console.log('✅ Données récupérées depuis Firestore (collection societes)');
         } else {
-          console.warn('❌ Mot de passe incorrect (recherche manuelle)');
-          throw new Error("Mot de passe incorrect.");
+          console.warn('⚠️ Document Firestore non trouvé pour l\'UID:', userId);
         }
-      } else {
-        console.warn('❌ Utilisateur introuvable (recherche manuelle)');
-        throw new Error("Utilisateur introuvable.");
+      } catch (authError: any) {
+        console.warn('⚠️ Firebase Auth a échoué, tentative de recherche manuelle...', authError.message);
+
+        // ÉTAPE 2 : Recherche manuelle
+        const q = query(
+          collection(db, "societes"),
+          where("email", "==", cleanEmail),
+          limit(1)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const resDoc = querySnapshot.docs[0];
+          const data = resDoc.data();
+
+          if (data.password === cleanPassword) {
+            userId = resDoc.id;
+            userData = data;
+            console.log('✅ Recherche manuelle réussie - Utilisateur trouvé dans societes');
+          } else {
+            console.warn('❌ Mot de passe incorrect (recherche manuelle)');
+            throw new Error("Mot de passe incorrect.");
+          }
+        } else {
+          console.warn('❌ Utilisateur introuvable (recherche manuelle)');
+          throw new Error("Utilisateur introuvable.");
+        }
       }
-    }
 
-    if (!userData) {
-      console.error('❌ Aucune donnée utilisateur trouvée');
-      throw new Error("Identifiants incorrects.");
-    }
+      if (!userData) {
+        console.error('❌ Aucune donnée utilisateur trouvée');
+        throw new Error("Identifiants incorrects.");
+      }
 
-    console.log('📋 Données utilisateur brutes:', userData);
+      console.log('📋 Données utilisateur brutes:', userData);
 
-    if (userData.actif !== true) {
-      console.warn('⚠️ Compte inactif pour:', cleanEmail);
-      if (auth.currentUser) await signOut(auth);
-      throw new Error("Compte non activé. Contactez l'administrateur.");
-    }
+      if (userData.actif !== true) {
+        console.warn('⚠️ Compte inactif pour:', cleanEmail);
+        if (auth.currentUser) await signOut(auth);
+        throw new Error("Compte non activé. Contactez l'administrateur.");
+      }
 
-    // 📦 Sauvegarde locale des données utilisateur avec token
-    console.log('💾 Sauvegarde des données en local...');
-    const userDataToSave = {
-      ...userData,
-      uid: userId,
-      email: cleanEmail,
-      lastLogin: new Date().toISOString()
-    };
-    
-    const saved = LocalStorageManager.saveUserData(userDataToSave);
-    console.log('✅ Sauvegarde locale:', saved ? 'Réussie' : 'Échouée');
+      // 📦 Sauvegarde locale des données utilisateur avec token
+      console.log('💾 Sauvegarde des données en local...');
+      const userDataToSave = {
+        ...userData,
+        uid: userId,
+        id: userId,           // ✅ ID du document Firestore
+        nom: userData.nom || userData.name || userData.prenom || 'Utilisateur',
+        role: userData.role || 'visiteur',
+        email: cleanEmail,
+        lastLogin: new Date().toISOString()
+      };
 
-    // 🔍 VÉRIFICATION IMMÉDIATE - Lire ce qui vient d'être sauvegardé
-    const verifySaved = LocalStorageManager.getUserData();
-    console.log('🔍 Vérification après sauvegarde:', verifySaved);
+      const saved = LocalStorageManager.saveUserData(userDataToSave);
+      console.log('✅ Sauvegarde locale:', saved ? 'Réussie' : 'Échouée');
 
-    // Vérifier le localStorage directement
-    const rawStorage = localStorage.getItem('geomarketing_user_data');
-    console.log('📦 Raw localStorage:', rawStorage);
 
-    // ÉTAPE 3 : Routes
-    const routes: Record<string, string> = {
-      visiteur: '/dashboard/visiteurs',
-      admin: '/dashboard/admin',
-      superviseurs: '/dashboard/components',
-      commercial: '/dashboard/superviseurs/rapport',
-      comptable: '/dashboard/Comptable',
-      client: '/dashboard/visiteurs'
-    };
+      // 🔍 VÉRIFICATION IMMÉDIATE - Lire ce qui vient d'être sauvegardé
+      const verifySaved = LocalStorageManager.getUserData();
+      console.log('🔍 Vérification après sauvegarde:', verifySaved);
 
-    const targetRoute = routes[userData.role?.toLowerCase()];
-    console.log('🎯 Route cible:', targetRoute);
-    console.log('🎭 Rôle utilisateur:', userData.role);
 
-    if (targetRoute) {
-      // Mise à jour du statut en ligne
-      console.log('🔄 Mise à jour du statut en ligne...');
-      await updateDoc(doc(db, "societes", userId), {
-        isOnline: true,
-        lastLogin: serverTimestamp()
-      });
-      console.log('✅ Statut en ligne mis à jour');
 
-     
-      // Récupérer le nom de l'utilisateur (avec fallback)
-      const userName = userData.nom || userData.name || userData.prenom || 'Utilisateur';
-      const userRole = userData.role || 'visiteur';
-      const userEmail = userData.email || cleanEmail;
 
-      // Créer la notification
-      const notification = document.createElement('div');
-      notification.style.cssText = `
+
+
+      // Après la sauvegarde, vérifiez que l'ID est bien présent
+      //const verifySaved = LocalStorageManager.getUserData();
+      console.log('🔍 Vérification après sauvegarde - ID:', verifySaved?.id);
+      console.log('🔍 Vérification après sauvegarde - uid:', verifySaved?.uid);
+      console.log('🔍 Vérification après sauvegarde - email:', verifySaved?.email);
+
+      // Vérifier le localStorage directement
+      const rawStorage = localStorage.getItem('geomarketing_user_data');
+      console.log('📦 Raw localStorage:', rawStorage);
+
+      // ÉTAPE 3 : Routes
+      const routes: Record<string, string> = {
+        visiteur: '/dashboard/visiteurs',
+        admin: '/dashboard/admin',
+        superviseurs: '/dashboard/components',
+        commercial: '/dashboard/superviseurs/rapport',
+        comptable: '/dashboard/Comptable',
+        client: '/dashboard/visiteurs'
+      };
+
+      const targetRoute = routes[userData.role?.toLowerCase()];
+      console.log('🎯 Route cible:', targetRoute);
+      console.log('🎭 Rôle utilisateur:', userData.role);
+
+      if (targetRoute) {
+        // Mise à jour du statut en ligne
+        console.log('🔄 Mise à jour du statut en ligne...');
+        await updateDoc(doc(db, "societes", userId), {
+          isOnline: true,
+          lastLogin: serverTimestamp()
+        });
+        console.log('✅ Statut en ligne mis à jour');
+
+
+        // Récupérer le nom de l'utilisateur (avec fallback)
+        const userName = userData.nom || userData.name || userData.prenom || 'Utilisateur';
+        const userRole = userData.role || 'visiteur';
+        const userEmail = userData.email || cleanEmail;
+
+        // Créer la notification
+        const notification = document.createElement('div');
+        notification.style.cssText = `
         position: fixed;
         bottom: 20px;
         right: 20px;
@@ -594,8 +612,8 @@ const handleLogin = async (e: React.FormEvent) => {
         backdrop-filter: blur(10px);
       `;
 
-      // Contenu de la notification avec le nom
-      notification.innerHTML = `
+        // Contenu de la notification avec le nom
+        notification.innerHTML = `
         <div style="display: flex; align-items: center; gap: 12px;">
           <div style="
             width: 40px;
@@ -638,11 +656,11 @@ const handleLogin = async (e: React.FormEvent) => {
         </div>
       `;
 
-      document.body.appendChild(notification);
+        document.body.appendChild(notification);
 
-      // Ajouter l'animation de la barre de progression
-      const style = document.createElement('style');
-      style.textContent = `
+        // Ajouter l'animation de la barre de progression
+        const style = document.createElement('style');
+        style.textContent = `
         @keyframes slideIn {
           from {
             transform: translateX(100%) scale(0.8);
@@ -658,52 +676,52 @@ const handleLogin = async (e: React.FormEvent) => {
           to { width: 0%; }
         }
       `;
-      document.head.appendChild(style);
+        document.head.appendChild(style);
 
-      // Supprimer la notification après 4 secondes
-      setTimeout(() => {
-        notification.style.transition = 'all 0.5s ease-out';
-        notification.style.transform = 'translateX(120%) scale(0.8)';
-        notification.style.opacity = '0';
+        // Supprimer la notification après 4 secondes
         setTimeout(() => {
-          notification.remove();
-          style.remove();
-        }, 500);
-      }, 4000);
+          notification.style.transition = 'all 0.5s ease-out';
+          notification.style.transform = 'translateX(120%) scale(0.8)';
+          notification.style.opacity = '0';
+          setTimeout(() => {
+            notification.remove();
+            style.remove();
+          }, 500);
+        }, 4000);
 
-      setAttempts(0);
-      
-      // ⏰ Petite pause pour voir les logs avant la redirection
-      console.log('⏳ Redirection dans 1 seconde...');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      console.log('🚀 Redirection vers:', targetRoute);
-      router.push(targetRoute);
-    } else {
-      console.error('❌ Rôle non reconnu:', userData.role);
-      throw new Error(`Rôle "${userData.role}" non reconnu.`);
+        setAttempts(0);
+
+        // ⏰ Petite pause pour voir les logs avant la redirection
+        console.log('⏳ Redirection dans 1 seconde...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        console.log('🚀 Redirection vers:', targetRoute);
+        router.push(targetRoute);
+      } else {
+        console.error('❌ Rôle non reconnu:', userData.role);
+        throw new Error(`Rôle "${userData.role}" non reconnu.`);
+      }
+
+    } catch (err: any) {
+      console.error("❌ Erreur de connexion:", err);
+
+      setAttempts(prev => prev + 1);
+
+      let errorMessage = "Erreur de connexion.";
+
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        errorMessage = "Email ou mot de passe incorrect.";
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = "Trop de tentatives. Réessayez plus tard.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
-
-  } catch (err: any) {
-    console.error("❌ Erreur de connexion:", err);
-
-    setAttempts(prev => prev + 1);
-
-    let errorMessage = "Erreur de connexion.";
-
-    if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-      errorMessage = "Email ou mot de passe incorrect.";
-    } else if (err.code === 'auth/too-many-requests') {
-      errorMessage = "Trop de tentatives. Réessayez plus tard.";
-    } else if (err.message) {
-      errorMessage = err.message;
-    }
-
-    setError(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
   if (isCheckingAuth) {
@@ -807,6 +825,8 @@ const handleLogin = async (e: React.FormEvent) => {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+
 
               {/* ===== EMAIL ===== */}
               <div>
@@ -918,6 +938,7 @@ const handleLogin = async (e: React.FormEvent) => {
             </div>
           </div>
         </motion.div>
+
       </div>
     </div>
   );
