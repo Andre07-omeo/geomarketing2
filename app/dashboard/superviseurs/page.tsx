@@ -207,10 +207,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user,
 
   // Nettoyer l'écouteur d'événements lorsque le modal est fermé
   const originalClose = closeModal;
-  const newCloseModal = () => {
-    document.removeEventListener('keydown', handleEsc);
-    originalClose();
-  };
+  
 
   // Remplacer la fonction closeModal
   const closeModalWithCleanup = () => {

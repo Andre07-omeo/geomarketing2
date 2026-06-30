@@ -15,13 +15,15 @@ import {
   LogOut,           // ✅ AJOUTER
   User,   // ✅ AJOUTER
   BookOpen,  // ✅ AJOUTER POUR LE BOUTON CATALOGUE
+  X,              // ✅ AJOUTER X
+  ChevronRight,   // ✅ AJOUTER ChevronRight
+  Trash2,         // ✅ AJOUTER Trash2
+  LayoutDashboard,  // ✅ AJOUTER CETTE LIGNE
+
+  Loader2,
 
 } from 'lucide-react';
-import {
-  // ... vos autres imports
-  Loader2,  // ✅ AJOUTER CETTE LIGNE
-  // ...
-} from 'lucide-react';
+
 import { useAuth } from "@/context/AuthContext";
 import { cleanupExpiredReservations, initAutoCleanup, stopAutoCleanup } from '@/utils/reservationCleanup';
 
@@ -97,10 +99,17 @@ interface Reservation {
   statut: string;
   statutPaiement: string;
   validationComptable: boolean;
-  // ✅ Ajouter ces propriétés optionnelles
-  faceId?: string;    // ID de la face concernée
-  face?: string;      // Alternative pour l'ID de la face
-  id?: string;        // ID de la réservation
+  // ✅ Ajouter ces propriétés pour le panier
+  faceId?: string;          // ID de la face concernée
+  face?: string;            // Alternative pour l'ID de la face
+  id?: string;              // ID de la réservation
+  resUniqueId?: string;     // ID unique pour la réservation
+  dureeMois?: number;       // Durée en mois
+  faceLabel?: string;       // Label de la face
+  panneauId?: string;       // ID du panneau
+  panneauIdPan?: string;    // ID Pan du panneau
+  panneauAdresse?: string;  // Adresse du panneau
+  panneauType?: string;     // Type du panneau
 }
 
 interface Panneau {
@@ -251,7 +260,6 @@ const RapportPanneaux: React.FC = () => {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   // États UI
-  const [activeTab, setActiveTab] = useState<string>('panneaux');
   const [filtersExpanded, setFiltersExpanded] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -279,6 +287,44 @@ const RapportPanneaux: React.FC = () => {
   // ✅ Correction useRef
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [currentDate, setCurrentDate] = useState<string>('');
+
+
+
+  // États pour le menu flottant
+  const [isFloatingMenuOpen, setIsFloatingMenuOpen] = useState<boolean>(false);
+  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [isStatsOpen, setIsStatsOpen] = useState<boolean>(false);
+  const [selectedForPrint, setSelectedForPrint] = useState<Record<string, boolean>>({});
+  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [globalPaymentMode, setGlobalPaymentMode] = useState<'total' | 'tranche'>('total');
+  const [globalTranchesCount, setGlobalTranchesCount] = useState<number>(2);
+  const [activeTab, setActiveTab] = useState<'stats' | 'reservations' | 'rdv'>('stats');
+
+  // États pour les réservations de l'utilisateur
+  const [userReservations, setUserReservations] = useState<Reservation[]>([]);
+  const [timeFilter, setTimeFilter] = useState<'avant' | 'present' | 'futur'>('present');
+  const [monthCount, setMonthCount] = useState<number>(1);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Détection mobile
   useEffect(() => {
@@ -535,6 +581,215 @@ const RapportPanneaux: React.FC = () => {
     localStorage.setItem('current_user', JSON.stringify(userData));
     router.push('/dashboard/superviseurs/carte');
   };
+
+
+
+
+
+
+
+
+  const getUserReservations = useCallback((): Reservation[] => {
+    const allReservations: Reservation[] = [];
+
+    // Parcourir tous les panneaux
+    panneaux.forEach((panneau: Panneau) => {
+      const faces = panneau.faces || [];
+      faces.forEach((face: Face) => {
+        const faceReservations = (face as any).reservations || [];
+        if (Array.isArray(faceReservations)) {
+          faceReservations.forEach((res: Reservation, index: number) => {
+            // Filtrer par email de l'utilisateur
+            if (res.agentEmail === userEmail || res.agentEmail === user?.email) {
+              // Calculer la durée en mois si non définie
+              let dureeMois = res.dureeMois || 1;
+              if (!res.dureeMois && res.dateDebut && res.dateFin) {
+                const start = new Date(res.dateDebut);
+                const end = new Date(res.dateFin);
+                const diffTime = Math.abs(end.getTime() - start.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                dureeMois = diffDays <= 30 ? 1 : Math.floor(diffDays / 30);
+              }
+
+              allReservations.push({
+                ...res,
+                faceId: face.id,
+                face: face.id,
+                faceLabel: face.id || `Face ${index + 1}`,
+                panneauId: panneau.id,
+                panneauIdPan: panneau.idPan,
+                panneauAdresse: panneau.adresse,
+                panneauType: panneau.type,
+                resUniqueId: res.id || res.faceId || `${panneau.id}-${face.id}-${index}`,
+                dureeMois: dureeMois
+              });
+            }
+          });
+        }
+      });
+    });
+
+    return allReservations;
+  }, [panneaux, userEmail, user]);
+
+
+
+  // ============================================
+  // FONCTIONS DE FILTRAGE POUR LES RÉSERVATIONS
+  // ============================================
+
+  const getFilteredUserReservations = useCallback(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const reservations = getUserReservations();
+
+    return reservations.filter((res: Reservation) => {
+      if (!res.dateDebut) return false;
+
+      const dateDebut = new Date(res.dateDebut);
+      dateDebut.setHours(0, 0, 0, 0);
+      const dateFin = res.dateFin ? new Date(res.dateFin) : null;
+      if (dateFin) dateFin.setHours(0, 0, 0, 0);
+
+      // Filtrer par période
+      if (timeFilter === 'present') {
+        // Réservations en cours (dateDebut <= aujourd'hui <= dateFin)
+        if (!dateFin) return false;
+        return dateDebut <= today && dateFin >= today;
+      } else if (timeFilter === 'futur') {
+        // Réservations futures (dateDebut > aujourd'hui)
+        const diffMonths = (dateDebut.getFullYear() - today.getFullYear()) * 12 +
+          (dateDebut.getMonth() - today.getMonth());
+        return dateDebut > today && diffMonths <= monthCount;
+      } else if (timeFilter === 'avant') {
+        // Réservations passées (dateFin < aujourd'hui)
+        if (!dateFin) return false;
+        const diffMonths = (today.getFullYear() - dateFin.getFullYear()) * 12 +
+          (today.getMonth() - dateFin.getMonth());
+        return dateFin < today && diffMonths <= monthCount;
+      }
+
+      return true;
+    });
+  }, [getUserReservations, timeFilter, monthCount]);
+
+  // ============================================
+  // STATISTIQUES DE PERFORMANCE DE L'UTILISATEUR
+  // ============================================
+
+  const statsEfficacite = useCallback(() => {
+    const userRes = getUserReservations();
+    const totalAgent = userRes.length;
+    const totalGlobal = panneaux.reduce((acc, p) => {
+      const faces = p.faces || [];
+      return acc + faces.reduce((sum, f) => {
+        const res = (f as any).reservations || [];
+        return sum + (Array.isArray(res) ? res.length : 0);
+      }, 0);
+    }, 0);
+
+    const performance = totalGlobal > 0 ? Math.round((totalAgent / totalGlobal) * 100) : 0;
+
+    return { totalAgent, totalGlobal, performance };
+  }, [getUserReservations, panneaux]);
+
+  // ============================================
+  // METTRE À JOUR LES RÉSERVATIONS DE L'UTILISATEUR
+  // ============================================
+
+  useEffect(() => {
+    if (userEmail || user?.email) {
+      setUserReservations(getUserReservations());
+    }
+  }, [panneaux, userEmail, user, getUserReservations]);
+
+  // ============================================
+  // RÉCUPÉRER LES RÉSERVATIONS EN ATTENTE POUR LE PANIER
+  // ============================================
+
+  const reservationsEnAttente = useMemo(() => {
+    const allRes = getUserReservations();
+    return allRes.filter((res: Reservation) =>
+      res.validationComptable === false ||
+      res.statut === 'en_attente' ||
+      res.statut === 'Réservé'
+    );
+  }, [getUserReservations]);
+
+  // ============================================
+  // CALCUL DU TOTAL DE LA FACTURE
+  // ============================================
+
+  const totalFactureAmount = useMemo(() => {
+    let total = 0;
+    Object.keys(selectedForPrint).forEach((key) => {
+      if (selectedForPrint[key]) {
+        const unitPrice = prices[key] || 0;
+        // Trouver la réservation correspondante
+        const res = reservationsEnAttente.find(r => r.resUniqueId === key);
+        if (res) {
+          total += unitPrice * (res.dureeMois || 1);
+        }
+      }
+    });
+    return total;
+  }, [selectedForPrint, prices, reservationsEnAttente]);
+
+  // ============================================
+  // PROCESSUS DES OPÉRATIONS DU PANIER
+  // ============================================
+
+  const processOperations = async (action: string, reservation?: any, index?: number) => {
+    if (action === 'delete' && reservation) {
+      // Logique de suppression
+      const confirmDelete = confirm(`Supprimer la réservation de ${reservation.societeLocatrice} ?`);
+      if (confirmDelete) {
+        // Ici, vous pouvez ajouter la logique de suppression
+        console.log('Suppression de la réservation:', reservation);
+        // Recharger les données
+        loadData();
+      }
+    } else if (action === 'selection') {
+      // Logique de facturation
+      const selectedReservations = reservationsEnAttente.filter(
+        (res: any) => selectedForPrint[res.resUniqueId]
+      );
+
+      if (selectedReservations.length === 0) {
+        alert('Veuillez sélectionner au moins une réservation');
+        return;
+      }
+
+      // Ici, vous pouvez ajouter la logique de facturation
+      console.log('Facturation des réservations:', selectedReservations);
+      alert(`✅ ${selectedReservations.length} réservation(s) facturée(s) avec succès !`);
+
+      // Réinitialiser la sélection
+      setSelectedForPrint({});
+    }
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   // ============================================
@@ -1368,7 +1623,24 @@ const RapportPanneaux: React.FC = () => {
       setExpandedPanneaux(newExpanded);
     };
 
+    // ✅ Fonction pour calculer le nombre de mois entre deux dates (base 30 jours)
+    const calculateMonths = (dateDebut: string | undefined, dateFin: string | undefined): number => {
+      if (!dateDebut || !dateFin) return 0;
 
+      const start = new Date(dateDebut);
+      const end = new Date(dateFin);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // Si le nombre de jours est inférieur ou égal à 30, retourner 1 mois
+      if (diffDays <= 30) return 1;
+
+      // Sinon, arrondir à l'inférieur (floor) pour avoir le nombre de mois complets
+      return Math.floor(diffDays / 30);
+    };
 
     // ✅ Fonction pour extraire et calculer le produit des dimensions avec unité
     const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
@@ -1518,6 +1790,9 @@ const RapportPanneaux: React.FC = () => {
                     Date début - fin
                   </th>
                   <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                    Nb Mois
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
                     Nb Rés. Fut.
                   </th>
                   <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider min-w-[90px]">
@@ -1560,7 +1835,7 @@ const RapportPanneaux: React.FC = () => {
                             </button>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-xs text-gray-400 border-r border-gray-200 text-center" colSpan={5}>Aucune face</td>
+                        <td className="px-3 py-3 text-xs text-gray-400 border-r border-gray-200 text-center" colSpan={6}>Aucune face</td>
                       </tr>
                     );
                   }
@@ -1625,7 +1900,7 @@ const RapportPanneaux: React.FC = () => {
                             </button>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-center text-xs text-gray-400 border-r border-gray-200" colSpan={5}>
+                        <td className="px-3 py-3 text-center text-xs text-gray-400 border-r border-gray-200" colSpan={6}>
                           <span className="text-[10px] text-blue-400 font-medium">Cliquez sur la ligne pour voir les faces</span>
                         </td>
                       </tr>
@@ -1636,6 +1911,12 @@ const RapportPanneaux: React.FC = () => {
                         const futureReservations = getReservationsFutures(face);
                         const status = getFaceStatus(face);
                         const faceId = face.id || `F${idx + 1}`;
+
+                        // Calcul du nombre de mois
+                        const nbMois = calculateMonths(
+                          activeReservation?.dateDebut,
+                          activeReservation?.dateFin
+                        );
 
                         const getStatusColor = (statut: string): string => {
                           switch (statut) {
@@ -1693,8 +1974,6 @@ const RapportPanneaux: React.FC = () => {
                                 <button
                                   onClick={(e) => {
                                     openReservationModal(panneau, face);
-                                    // e.stopPropagation();
-                                    //openFaceDetails(panneau, face,);
                                   }}
                                   className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-[10px] font-bold hover:bg-amber-200 transition flex items-center gap-0.5"
                                   title="Réserver cette face"
@@ -1727,6 +2006,11 @@ const RapportPanneaux: React.FC = () => {
                               ) : (
                                 <span className="text-gray-300">-</span>
                               )}
+                            </td>
+
+                            {/* Colonne Nb Mois */}
+                            <td className="px-3 py-2 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                              {nbMois > 0 ? `${nbMois} mois` : '-'}
                             </td>
 
                             {/* Colonne Nb Rés. Fut. */}
@@ -1822,7 +2106,6 @@ const RapportPanneaux: React.FC = () => {
       </div>
     );
   };
-
 
   // ============================================
   // RENDU PRINCIPAL
@@ -2377,6 +2660,577 @@ const RapportPanneaux: React.FC = () => {
         {/* TABLEAU PRINCIPAL */}
         {/* ============================================================ */}
         {renderTableauPanneaux()}
+
+        {/* ============================================================ */}
+        {/* BOUTON FLOTTANT */}
+        {/* ============================================================ */}
+        <div className="fixed bottom-6 right-6 z-[100]">
+          <button
+            onClick={() => setIsFloatingMenuOpen(!isFloatingMenuOpen)}
+            className="relative group"
+          >
+            {/* Badge de notification */}
+            {reservationsEnAttente.length > 0 && (
+              <span className="absolute -top-1 -right-1 z-10 w-5 h-5 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center animate-pulse border-2 border-white">
+                {reservationsEnAttente.length}
+              </span>
+            )}
+
+            {/* Bouton principal avec animation */}
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 ${isFloatingMenuOpen
+                ? 'bg-gradient-to-r from-red-500 to-red-600 rotate-90'
+                : 'bg-gradient-to-r from-blue-500 to-blue-700'
+                }`}
+            >
+              {isFloatingMenuOpen ? (
+                <X className="w-7 h-7 text-white" />
+              ) : (
+                <FileText className="w-7 h-7 text-white" />
+              )}
+            </motion.div>
+          </button>
+
+          {/* MENU FLOTTANT */}
+          <AnimatePresence>
+            {isFloatingMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="absolute bottom-16 right-0 flex flex-col gap-3"
+              >
+                {/* Option 1 : Proformas */}
+                <motion.button
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setIsCartOpen(true);
+                    setIsFloatingMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-amber-200/50 hover:border-amber-400/70 transition-all duration-300 group min-w-[180px] sm:min-w-[200px]"
+                >
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/20 border border-amber-200/30 group-hover:scale-110 transition-transform">
+                    <FileText className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-amber-600" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-[11px] sm:text-[12px] font-bold text-gray-800 group-hover:text-amber-600 transition-colors">
+                      Proformas
+                    </p>
+                    <p className="text-[8px] sm:text-[9px] text-gray-400 font-medium">
+                      {reservationsEnAttente.length} réservation(s) en attente
+                    </p>
+                  </div>
+                  {reservationsEnAttente.length > 0 && (
+                    <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                  )}
+                  <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-300 group-hover:text-amber-500 transition-colors" />
+                </motion.button>
+
+                {/* Option 2 : Ma Performance */}
+                <motion.button
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setIsStatsOpen(true);
+                    setIsFloatingMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-blue-200/50 hover:border-blue-400/70 transition-all duration-300 group min-w-[180px] sm:min-w-[200px]"
+                >
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-200/30 group-hover:scale-110 transition-transform">
+                    <LayoutDashboard className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-blue-600" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-[11px] sm:text-[12px] font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+                      Ma Performance
+                    </p>
+                    <p className="text-[8px] sm:text-[9px] text-gray-400 font-medium">
+                      Voir mes statistiques
+                    </p>
+                  </div>
+                  <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-300 group-hover:text-blue-500 transition-colors" />
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+{/* ============================================================ */}
+{/* PANIER DES PROFORMAS - VERSION BLEUE ROI PROFOND */}
+{/* ============================================================ */}
+<AnimatePresence>
+  {isCartOpen && (
+    <>
+      {/* OVERLAY */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setIsCartOpen(false)}
+        className="fixed inset-0 z-[100]"
+      >
+        <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]" />
+      </motion.div>
+
+      {/* PANEL LATÉRAL */}
+      <motion.div
+        initial={{ x: "100%", opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: "100%", opacity: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="fixed right-0 top-0 h-full w-full max-w-[480px] bg-white/95 backdrop-blur-xl border-l border-white/20 z-[101] flex flex-col shadow-2xl shadow-black/10"
+      >
+        {/* HEADER - BLEU ROI PROFOND */}
+        <div className="relative p-5 sm:p-6 border-b border-white/10 bg-gradient-to-r from-[#00539B] to-[#003A6B] backdrop-blur-sm flex-shrink-0">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-400/10 rounded-full blur-2xl" />
+          
+          <div className="flex justify-between items-center relative z-10">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-1 h-6 bg-gradient-to-b from-blue-400 to-blue-300 rounded-full" />
+                <p className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em]">Facturation</p>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white">
+                Mes <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-blue-200">Réservations</span>
+              </h2>
+              <p className="text-xs text-blue-200 font-bold mt-1">
+                {reservationsEnAttente.length} réservation(s) en attente de paiement
+              </p>
+            </div>
+            <button
+              onClick={() => setIsCartOpen(false)}
+              className="group p-2.5 bg-white/20 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-white backdrop-blur-sm border border-white/20 hover:border-red-500"
+            >
+              <X className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" />
+            </button>
+          </div>
+        </div>
+
+        {/* CONTENU - TAILLES DE TEXTE AGRANDIES */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar bg-gray-50/50">
+          {reservationsEnAttente.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full py-12">
+              <div className="text-center">
+                <div className="w-20 h-20 mx-auto bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 border-2 border-[#00539B]/20">
+                  <FileText className="w-10 h-10 text-[#00539B]/40" />
+                </div>
+                <p className="text-gray-700 text-xl font-black uppercase tracking-wider">Panier vide</p>
+                <p className="text-gray-400 text-sm mt-2 max-w-[250px] mx-auto font-medium">
+                  Vous n'avez aucune réservation en attente de facturation
+                </p>
+              </div>
+            </div>
+          ) : (
+            reservationsEnAttente.map((res: any, index: number) => {
+              const key = res.resUniqueId || `res-${index}`;
+              const unitPrice = prices[key] || 0;
+              const isSelected = selectedForPrint[key] || false;
+              const dureeMois = res.dureeMois || 1;
+
+              return (
+                <motion.div
+                  key={key}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className={`group relative p-4 rounded-xl border-2 transition-all duration-300 backdrop-blur-sm ${
+                    isSelected
+                      ? 'bg-blue-50/80 border-[#00539B] shadow-lg shadow-[#00539B]/20'
+                      : 'bg-white/80 border-gray-200/60 hover:border-[#00539B]/40 hover:shadow-md hover:shadow-[#00539B]/10'
+                  }`}
+                >
+                  {/* HEADER */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-[#00539B] animate-pulse' : 'bg-gray-300'}`} />
+                      <span className="text-xs font-black text-[#00539B] uppercase tracking-wider">
+                        Réservation #{index + 1}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                        isSelected
+                          ? 'bg-[#00539B] border-[#00539B]'
+                          : 'border-gray-300 hover:border-[#00539B]'
+                      }`}
+                    >
+                      {isSelected && (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* INFOS - TEXTES PLUS GRANDS */}
+                  <div className="mb-3">
+                    <p className="text-gray-800 text-base font-black uppercase truncate">{res.societeLocatrice}</p>
+                    <p className="text-sm text-gray-600 font-bold mt-1">
+                      Face: <span className="text-[#00539B]">{res.faceLabel || 'N/A'}</span> 
+                      <span className="text-gray-300 mx-2">•</span>
+                      Panneau: <span className="text-[#00539B]">{res.panneauIdPan || 'N/A'}</span>
+                    </p>
+                    <p className="text-xs text-gray-500 font-medium mt-1">
+                      📅 {res.dateDebut} → {res.dateFin || 'En cours'}
+                    </p>
+                    <p className="text-xs text-gray-500 font-medium">
+                      ⏱️ Durée: <span className="font-bold text-[#00539B]">{dureeMois} mois</span>
+                    </p>
+                  </div>
+
+                  {/* PRIX - DESIGN AMÉLIORÉ */}
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-2.5 border border-gray-200/60">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold block">Prix unitaire</label>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <input
+                          type="number"
+                          value={unitPrice === 0 ? "" : unitPrice}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setPrices(prev => ({ ...prev, [key]: val === "" ? 0 : Number(val) }));
+                          }}
+                          placeholder="0"
+                          className="w-full bg-transparent text-base text-gray-800 font-bold outline-none"
+                        />
+                        <span className="text-sm text-[#00539B] font-black">$</span>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50/80 to-blue-100/40 backdrop-blur-sm rounded-xl p-2.5 text-right border border-[#00539B]/20">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold block">Total</label>
+                      <span className="text-[#00539B] text-lg font-black">
+                        {(unitPrice * dureeMois).toLocaleString()} $
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* BOUTON SUPPRIMER - TEXTE PLUS GRAND */}
+                  <div className="flex justify-end pt-2 border-t border-gray-200/50">
+                    <button
+                      onClick={() => processOperations('delete', res, index)}
+                      className="px-4 py-1.5 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-600 rounded-xl font-black text-xs uppercase hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center gap-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Supprimer
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </div>
+
+        {/* FOOTER - AVEC GESTION DES TRANCHES - BLEU ROI */}
+        {reservationsEnAttente.length > 0 && (
+          <div className="p-4 sm:p-5 border-t border-gray-200/50 bg-white/90 backdrop-blur-sm flex-shrink-0 space-y-4">
+            {/* SECTION MODE DE PAIEMENT GLOBAL - TRANCHES */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-[#00539B]/20 shadow-sm">
+              <h3 className="text-sm font-black text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-[#00539B]" />
+                Mode de paiement
+              </h3>
+
+              <div className="flex gap-2 mb-3">
+                {['total', 'tranche'].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setGlobalPaymentMode(mode as 'total' | 'tranche')}
+                    className={`flex-1 py-2.5 text-sm font-black uppercase rounded-xl transition-all ${
+                      globalPaymentMode === mode
+                        ? 'bg-[#00539B] text-white shadow-lg shadow-[#00539B]/30'
+                        : 'bg-white/50 text-gray-500 hover:text-gray-700 border-2 border-gray-200/50'
+                    }`}
+                  >
+                    {mode === 'total' ? '💰 Comptant' : '📅 Tranches'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Configuration des tranches */}
+              {globalPaymentMode === 'tranche' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border-2 border-[#00539B]/20"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700 font-black uppercase">Nombre de tranches</span>
+                    <input
+                      type="number"
+                      min="2"
+                      max="12"
+                      value={globalTranchesCount}
+                      onChange={(e) => setGlobalTranchesCount(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
+                      className="w-20 bg-white/80 border-2 border-gray-200 rounded-xl px-3 py-2 text-center text-gray-800 text-base font-black outline-none focus:border-[#00539B] focus:ring-2 focus:ring-[#00539B]/20"
+                    />
+                  </div>
+                  <div className="mt-3 pt-3 border-t-2 border-gray-200/50">
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span className="font-bold">Total facture:</span>
+                      <span className="text-[#00539B] font-black text-base">{totalFactureAmount.toLocaleString()} $</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600 mt-1">
+                      <span className="font-bold">Montant par tranche:</span>
+                      <span className="text-[#00539B] font-black text-base">
+                        {(totalFactureAmount / globalTranchesCount).toLocaleString()} $
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600 mt-1">
+                      <span className="font-bold">Nombre de tranches:</span>
+                      <span className="text-[#00539B] font-black text-base">{globalTranchesCount}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {globalPaymentMode === 'total' && totalFactureAmount > 0 && (
+                <div className="flex justify-between items-center pt-3 border-t-2 border-gray-200/50 mt-2">
+                  <span className="text-sm text-gray-700 font-black uppercase">Total à payer:</span>
+                  <span className="text-[#00539B] font-black text-xl">{totalFactureAmount.toLocaleString()} $</span>
+                </div>
+              )}
+            </div>
+
+            {/* BOUTON PRINCIPAL - BLEU ROI */}
+            <button
+              disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
+              onClick={() => processOperations('selection')}
+              className="w-full bg-[#00539B] disabled:opacity-40 text-white py-3.5 rounded-xl font-black text-base uppercase flex justify-between px-5 items-center hover:bg-[#003A6B] hover:shadow-xl hover:shadow-[#00539B]/30 transition-all active:scale-[0.98]"
+            >
+              <span>📄 Facturer la sélection</span>
+              <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
+                {Object.values(selectedForPrint).filter(v => v).length} face(s)
+              </span>
+            </button>
+
+            {/* BOUTON FERMER */}
+            <button
+              onClick={() => setIsCartOpen(false)}
+              className="w-full py-3 bg-white/80 border-2 border-gray-200/60 text-gray-600 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all rounded-xl font-black uppercase text-sm tracking-[0.15em] active:scale-95"
+            >
+              Fermer le panier
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </>
+  )}
+</AnimatePresence>
+
+
+
+
+        <AnimatePresence>
+          {isStatsOpen && (
+            <>
+              {/* OVERLAY */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsStatsOpen(false)}
+                className="fixed inset-0 z-[100]"
+              >
+                <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]" />
+              </motion.div>
+
+              {/* PANEL LATÉRAL */}
+              <motion.div
+                initial={{ x: "100%", opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-white/90 backdrop-blur-xl border-l border-white/20 z-[101] flex flex-col shadow-2xl shadow-black/5"
+              >
+                {/* HEADER */}
+                <div className="relative p-4 sm:p-5 border-b border-white/10 bg-white/40 backdrop-blur-sm flex-shrink-0">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full" />
+                        <p className="text-[8px] font-black text-blue-600 uppercase tracking-[0.3em]">Performance</p>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-black text-gray-800">
+                        Panel <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Agent</span>
+                      </h2>
+                      <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold mt-1">Performance & Suivi</p>
+                    </div>
+                    <button
+                      onClick={() => setIsStatsOpen(false)}
+                      className="group p-2 bg-white/50 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-gray-600 backdrop-blur-sm border border-white/20"
+                    >
+                      <X className="w-4 h-4 sm:w-[18px] sm:h-[18px] group-hover:rotate-90 transition-transform duration-300" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* CONTENU */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-transparent">
+                  {/* CERCLE DE PERFORMANCE */}
+                  <div className="flex flex-col items-center py-2">
+                    <div className="relative w-32 h-32 flex items-center justify-center">
+                      <svg className="w-full h-full -rotate-90">
+                        <circle cx="64" cy="64" r="56" fill="none" stroke="currentColor" strokeWidth="6" className="text-gray-200" />
+                        <circle
+                          cx="64" cy="64" r="56"
+                          fill="none"
+                          stroke="url(#gradientStats)"
+                          strokeWidth="6"
+                          strokeDasharray="352"
+                          strokeDashoffset={352 - (352 * statsEfficacite().performance) / 100}
+                          className="transition-all duration-1000"
+                        />
+                      </svg>
+                      <svg width="0" height="0">
+                        <defs>
+                          <linearGradient id="gradientStats" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#3b82f6" />
+                            <stop offset="100%" stopColor="#8b5cf6" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-black text-gray-800">{statsEfficacite().performance}%</span>
+                        <span className="text-[7px] text-gray-400 uppercase font-bold tracking-tighter">Efficacité</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* STATS RAPIDES */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white/40 backdrop-blur-sm rounded-xl p-3 border border-white/30 hover:border-blue-400/40 transition-all">
+                      <p className="text-xl font-black text-gray-800">{statsEfficacite().totalAgent}</p>
+                      <p className="text-[7px] uppercase text-gray-400 font-bold tracking-wider">Mes Réservations</p>
+                    </div>
+                    <div className="bg-white/40 backdrop-blur-sm rounded-xl p-3 border border-white/30 hover:border-blue-400/40 transition-all">
+                      <p className="text-xl font-black text-gray-800">{statsEfficacite().totalGlobal}</p>
+                      <p className="text-[7px] uppercase text-gray-400 font-bold tracking-wider">Total Réservations</p>
+                    </div>
+                  </div>
+
+                  {/* FILTRES */}
+                  <div className="space-y-3">
+                    <div className="flex bg-white/30 p-1 rounded-lg border border-white/20 gap-1">
+                      {['avant', 'present', 'futur'].map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setTimeFilter(t as any)}
+                          className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${timeFilter === t
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                            : 'text-gray-400 hover:text-gray-700'
+                            }`}
+                        >
+                          {t === 'avant' ? 'Passé' : t === 'present' ? 'Présent' : 'Futur'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {timeFilter !== 'present' && (
+                      <div className="flex items-center justify-between bg-white/30 px-2.5 py-1.5 rounded-lg border border-white/20">
+                        <span className="text-[7px] text-gray-400 font-black uppercase">Mois :</span>
+                        <input
+                          type="number"
+                          value={monthCount}
+                          onChange={(e) => setMonthCount(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-8 bg-transparent text-right font-black text-blue-600 outline-none text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* LISTE DES RÉSERVATIONS */}
+                  <div className="space-y-2">
+                    {getFilteredUserReservations().length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="w-12 h-12 mx-auto bg-white/30 rounded-full flex items-center justify-center mb-2 border border-white/20">
+                          <Calendar className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <p className="text-gray-500 text-xs font-bold uppercase">Aucune réservation</p>
+                        <p className="text-gray-400/60 text-[7px] mt-1">Aucune réservation trouvée pour cette période</p>
+                      </div>
+                    ) : (
+                      getFilteredUserReservations().map((res: any, idx: number) => (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className="flex items-center gap-2.5 p-2.5 bg-white/40 backdrop-blur-sm border border-white/30 rounded-xl hover:border-blue-400/50 hover:shadow-md hover:shadow-blue-100/20 transition-all group"
+                        >
+                          <div className="w-9 h-9 shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-white/30 flex items-center justify-center">
+                            <Building2 className="w-4 h-4 text-gray-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[7px] font-black text-blue-600 truncate uppercase">
+                              {res.societeLocatrice || 'S/N'}
+                            </p>
+                            <p className="text-[9px] text-gray-800 font-bold truncate uppercase leading-tight">
+                              Face: {res.faceLabel || res.faceId || 'N/A'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[6px] text-gray-400 font-bold">{res.dateDebut}</span>
+                              <span className="text-[4px] text-gray-300">→</span>
+                              <span className="text-[6px] text-gray-400 font-bold">{res.dateFin || 'En cours'}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-[6px] font-black uppercase px-1.5 py-0.5 rounded-full ${res.statut === 'Occupé' || res.statut === 'validé'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-amber-100 text-amber-700'
+                              }`}>
+                              {res.statut || 'Réservé'}
+                            </span>
+                          </div>
+                        </motion.div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* FOOTER */}
+                <div className="p-3 border-t border-white/20 bg-white/30 backdrop-blur-sm flex-shrink-0">
+                  <button
+                    onClick={() => setIsStatsOpen(false)}
+                    className="w-full py-2 bg-white/40 border border-white/20 text-gray-600 hover:bg-red-500 hover:text-white transition-all rounded-lg font-black uppercase text-[8px] tracking-[0.15em] active:scale-95"
+                  >
+                    Fermer le panel
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         {/* ============================================================ */}
         {/* FOOTER */}
