@@ -66,10 +66,27 @@ const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
 const GEOGRAPHIE = {
   "RDC": {
     "Kinshasa": {
-      "Lukunga": ["Gombe", "Barumbu", "Kinshasa", "Lingwala", "Kintambo", "Ngaliema", "Mont-Ngafula"],
-      "Funa": ["Bandalungwa", "Kasa-Vubu", "Kalamu", "Ngiri-Ngiri", "Bumbu", "Makala", "Selembao"],
-      "Mont-Amba": ["Limete", "Lemba", "Matete", "Ngaba", "Kisenso"],
-      "Tshangu": ["Masina", "Ndjili", "Kimbanseke", "Nsele", "Maluku"]
+      "Lukunga": ["Tronçon Aerodrome", "Tronçon Bokasa", "Tronçon Kabambare", "Tronçon Blvd 30 juin( gare centrale - socimat)",
+        "Tronçon Colonel Mondjiba -Nguma-Ecuries-OZONE-Route Matadi",
+         "Tronçon Avenue Huilerie - Blvd du 30 JUIN /REGIDESO",
+         "Tronçon av Prince de Liège/REF: AVENUE LYCEE MGR,SHAUMBA"],
+      
+      "Funa": ["Tronçon av de l' Université / KIMWENZA",
+        "Tronçon av Victoire - SAIO-Bongolo",
+        "Tronçon Assossa - Av Huileries",
+        "Tronçon Blvd Sendwe", "Av, Kasa-vubu",
+        "Tronçon Av 24 Novembre(prison centrale--Blvd 30 juin)",
+         ],
+
+      "Mont-Amba": ["Tronçon Blvd Lumumba",
+        "Tronçon Poids Lourds",
+        "Tronçon By Pass - Rond point Ngaba-Mt Ngafula",
+        "Commune de Matete",
+        "Commune de Lemba",
+        "Tronçon Lemba Foire"],
+      "Tshangu": ["Tronçon Aéroport de ndjili - Centre FECOFA",
+         "Tronçon Aéroport de ndjili - LIMETE",
+          "Commune de ndjili-Masina"]
     },
     "Kongo-Central": {
       "Matadi": ["Ville Haute", "Ville Basse", "Nzanza", "Sanga-Sanga"],

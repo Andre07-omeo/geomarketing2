@@ -155,8 +155,7 @@ export default function PageEnregistrement({
         province: "",
         villeOuDistrict: "",
         communeOuZone: "",
-        avenue: "",
-        numero: ""
+        
     });
 
 
@@ -264,19 +263,19 @@ export default function PageEnregistrement({
     const [listeCommerciaux, setListeCommerciaux] = useState<{ nom: string, email: string }[]>([]);
 
     // Calcul si tout est rempli pour verrouiller l'interface
-    const isAdresseComplete = geo.pays && geo.province && geo.villeOuDistrict && geo.communeOuZone && geo.avenue && geo.numero;
+    const isAdresseComplete = geo.pays && geo.province && geo.villeOuDistrict && geo.communeOuZone;
 
     // Mise à jour de l'adresse formatée dans formData
     useEffect(() => {
-        const { pays, province, villeOuDistrict, communeOuZone, avenue, numero } = geo;
+        const { pays, province, villeOuDistrict, communeOuZone, } = geo;
         // On ne garde que les éléments définis pour construire la chaîne
-        const chaine = [pays, province, villeOuDistrict, communeOuZone, avenue, numero]
+        const chaine = [pays, province, villeOuDistrict, communeOuZone]
             .filter(val => val && val.trim() !== "")
             .join(" / ");
 
         setFormData(prev => ({ ...prev, adresse: chaine }));
         if (isAdresseComplete) {
-            const adresseFormattee = `${geo.pays} / ${geo.province} / ${geo.villeOuDistrict} / ${geo.communeOuZone} / ${geo.avenue} / ${geo.numero}`;
+            const adresseFormattee = `${geo.pays} / ${geo.province} / ${geo.villeOuDistrict} / ${geo.communeOuZone}`;
             setFormData((prev: any) => ({ ...prev, adresse: adresseFormattee, geographie: geo }));
         }
     }, [geo, isAdresseComplete, setFormData]);
@@ -410,8 +409,7 @@ export default function PageEnregistrement({
             province: "",
             villeOuDistrict: "",
             communeOuZone: "",
-            avenue: "",
-            numero: ""
+            
         });
         setDimensions({
             hauteur: '',
@@ -450,7 +448,7 @@ export default function PageEnregistrement({
         }
 
         // Validation adresse complète
-        if (!geo.pays || !geo.province || !geo.villeOuDistrict || !geo.communeOuZone || !geo.avenue || !geo.numero) {
+        if (!geo.pays || !geo.province || !geo.villeOuDistrict || !geo.communeOuZone) {
             errors.adresse = "Tous les champs d'adresse sont obligatoires";
             missing.push("Adresse complète");
         }
@@ -888,20 +886,7 @@ export default function PageEnregistrement({
 
                         {!isAdresseComplete ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                <input
-                                    type="text"
-                                    placeholder="Avenue / Rue"
-                                    className="col-span-2 sm:col-span-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={geo.avenue || ""}
-                                    onChange={e => setGeo({ ...geo, avenue: e.target.value })}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Numéro"
-                                    className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={geo.numero || ""}
-                                    onChange={e => setGeo({ ...geo, numero: e.target.value })}
-                                />
+                                
                                 <select
                                     className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
                                     value={geo.pays}
@@ -936,7 +921,7 @@ export default function PageEnregistrement({
                                         value={geo.communeOuZone}
                                         onChange={e => setGeo({ ...geo, communeOuZone: e.target.value })}
                                     >
-                                        <option value="">Commune / Zone</option>
+                                        <option value="">Tronçon / Commune</option>
                                         {((GEOGRAPHIE[geo.pays as keyof typeof GEOGRAPHIE] as any)?.[geo.province]?.[geo.villeOuDistrict] as string[] || []).map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 )}
@@ -949,7 +934,7 @@ export default function PageEnregistrement({
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => setGeo({ pays: "", province: "", villeOuDistrict: "", communeOuZone: "", avenue: "", numero: "" })}
+                                    onClick={() => setGeo({ pays: "", province: "", villeOuDistrict: "", communeOuZone: ""})}
                                     className="text-[10px] text-red-500 hover:text-red-700 font-medium underline"
                                 >
                                     Modifier

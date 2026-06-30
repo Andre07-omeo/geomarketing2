@@ -52,15 +52,6 @@ import {
   BookOpen,  // ✅ AJOUTER CETTE LIGNE
 } from 'lucide-react';
 
-import {
-  // ... vos autres imports
-  // ✅ Pour Rapports
-  ChevronDown,     // ✅ Pour le dropdown Export
-  // ✅ Pour PDF
-  FileSpreadsheet, // ✅ Pour Excel
-  Printer,         // ✅ Pour Export mobile
-  RefreshCw,       // ✅ Pour Rafraîchir
-} from 'lucide-react';
 // Toutes ces variables fonctionneront maintenant :
 const firebaseConfig = config.firebaseConfig;
 const GEOGRAPHIE = config.GEOGRAPHIE;
@@ -81,14 +72,13 @@ const logo = config.LOGO_DISPROMALT;
 
 
 
-const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user }: any) => {
+const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user, ouvrirLaCarte,  onReserver,  // ✅ AJOUTER CETTE PROP
+ }: any) => {
   const [selectedFaceDetails, setSelectedFaceDetails] = useState<any>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [isFloatingMenuOpen, setIsFloatingMenuOpen] = useState(false);
-
-
 
   const faces = panneau?.faces || [];
 
@@ -102,154 +92,190 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user 
   };
 
   const downloadImage = async (url: string) => {
-    // Créer une boîte de dialogue personnalisée
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
-    modal.innerHTML = `
-        <div class="bg-white rounded-2xl max-w-sm w-full mx-4 shadow-2xl overflow-hidden">
-            <!-- HEADER - BLEU ROI PROFOND -->
-            <div class="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 px-6 py-4 border-b border-white/10">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
-                        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-white">Télécharger l'image</h3>
-                        <p class="text-[8px] text-blue-200 uppercase tracking-wider">Enregistrement sur l'appareil</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CORPS -->
-            <div class="p-6">
-                <div class="text-center mb-6">
-                    <div class="w-20 h-20 mx-auto bg-blue-50 rounded-full flex items-center justify-center mb-4 border border-blue-200">
-                        <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                    </div>
-                    <p class="text-sm text-gray-600 font-medium">Voulez-vous enregistrer cette image sur votre appareil ?</p>
-                    <p class="text-[8px] text-gray-400 mt-1">Format: JPG • Qualité: Haute</p>
-                </div>
-
-                <!-- BOUTONS -->
-                <div class="flex gap-3">
-                    <button id="cancel-download" class="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-[9px] font-bold uppercase tracking-wider hover:bg-gray-200 transition">
-                        Annuler
-                    </button>
-                    <button id="confirm-download" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white text-[9px] font-bold uppercase tracking-wider hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition flex items-center justify-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Télécharger
-                    </button>
-                </div>
-            </div>
+  // Créer une boîte de dialogue personnalisée
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl max-w-sm w-full mx-4 shadow-2xl overflow-hidden">
+      <!-- HEADER - BLEU ROI PROFOND -->
+      <div class="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 px-6 py-4 border-b border-white/10">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white">Télécharger l'image</h3>
+            <p class="text-[8px] text-blue-200 uppercase tracking-wider">Enregistrement sur l'appareil</p>
+          </div>
         </div>
+      </div>
+
+      <!-- CORPS -->
+      <div class="p-6">
+        <div class="text-center mb-6">
+          <div class="w-20 h-20 mx-auto bg-blue-50 rounded-full flex items-center justify-center mb-4 border border-blue-200">
+            <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </div>
+          <p class="text-sm text-gray-600 font-medium">Voulez-vous enregistrer cette image sur votre appareil ?</p>
+          <p class="text-[8px] text-gray-400 mt-1">Format: JPG • Qualité: Haute</p>
+        </div>
+
+        <!-- BOUTONS -->
+        <div class="flex gap-3">
+          <button id="cancel-download" class="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-600 text-[9px] font-bold uppercase tracking-wider hover:bg-gray-200 transition">
+            Annuler
+          </button>
+          <button id="confirm-download" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white text-[9px] font-bold uppercase tracking-wider hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Télécharger
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Gérer la confirmation
+  const confirmBtn = modal.querySelector('#confirm-download');
+  const cancelBtn = modal.querySelector('#cancel-download');
+
+  const closeModal = () => modal.remove();
+
+  confirmBtn?.addEventListener('click', async () => {
+    closeModal();
+
+    // Afficher un toast de chargement
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-white rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-blue-200 flex items-center gap-2';
+    toast.innerHTML = `
+      <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <span class="text-gray-700 font-medium">Téléchargement en cours...</span>
     `;
-    document.body.appendChild(modal);
+    document.body.appendChild(toast);
 
-    // Gérer la confirmation
-    const confirmBtn = modal.querySelector('#confirm-download');
-    const cancelBtn = modal.querySelector('#cancel-download');
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `campagne_${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
 
-    const closeModal = () => modal.remove();
-
-
-    confirmBtn?.addEventListener('click', async () => {
-      closeModal();
-
-      // Afficher un toast de chargement
-      const toast = document.createElement('div');
-      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-white rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-blue-200 flex items-center gap-2';
       toast.innerHTML = `
-            <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <span class="text-gray-700 font-medium">Téléchargement en cours...</span>
-        `;
-      document.body.appendChild(toast);
+        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <span class="text-emerald-700 font-medium">✅ Téléchargement terminé !</span>
+      `;
+      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-emerald-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-emerald-200 flex items-center gap-2';
+      setTimeout(() => toast.remove(), 2000);
 
-      try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `campagne_${Date.now()}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      toast.innerHTML = `
+        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        <span class="text-red-700 font-medium">❌ Erreur lors du téléchargement</span>
+      `;
+      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-red-200 flex items-center gap-2';
+      setTimeout(() => toast.remove(), 3000);
+    }
+  });
 
-        toast.innerHTML = `
-                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                <span class="text-emerald-700 font-medium">✅ Téléchargement terminé !</span>
-            `;
-        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-emerald-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-emerald-200 flex items-center gap-2';
-        setTimeout(() => toast.remove(), 2000);
+  cancelBtn?.addEventListener('click', closeModal);
 
-      } catch (err) {
-        toast.innerHTML = `
-                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                <span class="text-red-700 font-medium">❌ Erreur lors du téléchargement</span>
-            `;
-        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-red-200 flex items-center gap-2';
-        setTimeout(() => toast.remove(), 3000);
-      }
-    });
+  // Fermer en cliquant à l'extérieur
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
 
-    cancelBtn?.addEventListener('click', closeModal);
+  // Fermer avec la touche Echap
+  const handleEsc = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') closeModal();
+  };
+  document.addEventListener('keydown', handleEsc);
 
-    // Fermer en cliquant à l'extérieur
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeModal();
-    });
+  // Nettoyer l'écouteur d'événements lorsque le modal est fermé
+  const originalClose = closeModal;
+  const newCloseModal = () => {
+    document.removeEventListener('keydown', handleEsc);
+    originalClose();
+  };
 
-    // Fermer avec la touche Echap
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeModal();
-    };
-    document.addEventListener('keydown', handleEsc);
+  // Remplacer la fonction closeModal
+  const closeModalWithCleanup = () => {
+    document.removeEventListener('keydown', handleEsc);
+    modal.remove();
+  };
 
-    // Nettoyer l'écouteur d'événements lorsque le modal est fermé
-    const originalClose = closeModal;
-    const newCloseModal = () => {
-      document.removeEventListener('keydown', handleEsc);
-      originalClose();
-    };
+  // Mettre à jour les références
+  const closeModalFinal = closeModalWithCleanup;
+  modal.querySelector('#cancel-download')?.addEventListener('click', closeModalFinal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModalFinal();
+  });
+};
 
-    // Remplacer la fonction closeModal
-    const closeModalWithCleanup = () => {
-      document.removeEventListener('keydown', handleEsc);
-      modal.remove();
-    };
+  // ✅ LOGIQUE MÉTIER CORRIGÉE
+  const isValidReservation = (res: any) => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-    // Mettre à jour les références
-    const closeModalFinal = closeModalWithCleanup;
-    modal.querySelector('#cancel-download')?.addEventListener('click', closeModalFinal);
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeModalFinal();
-    });
+    // 1️⃣ Vérifier si la réservation est en cours (date du jour entre dateDebut et dateFin)
+    const debut = new Date(res.dateDebut);
+    const fin = new Date(res.dateFin);
+    debut.setHours(0, 0, 0, 0);
+    fin.setHours(0, 0, 0, 0);
+
+    const isCurrentlyActive = now >= debut && now <= fin;
+
+    // 2️⃣ Vérifier si la réservation est payée ou validée comptablement
+    const isPaidOrValidated =
+      res.statutPaiement === 'payé' ||
+      res.statutPaiement === 'validé' ||
+      res.validationComptable === true;
+
+    // 3️⃣ Vérifier si le délai de paiement est expiré
+    const joursAvantExpiration = res.joursAvantExpiration ?? 0;
+    const isPaymentDeadlineExpired = joursAvantExpiration === 0;
+
+    // 4️⃣ RÈGLES D'AFFICHAGE :
+    // ✅ Si la réservation est en cours → on l'affiche
+    if (isCurrentlyActive) {
+      return true;
+    }
+
+    // ✅ Si le délai de paiement est expiré MAIS que le paiement a été effectué → on l'affiche
+    if (isPaymentDeadlineExpired && isPaidOrValidated) {
+      return true;
+    }
+
+    // ✅ Si le délai de paiement n'est pas expiré → on l'affiche (même si non payée)
+    if (!isPaymentDeadlineExpired) {
+      return true;
+    }
+
+    // ❌ Sinon → on n'affiche pas
+    return false;
   };
 
   const getActiveData = (face: any) => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    // ✅ CORRECTION: Une réservation est active si now >= debut ET now <= fin (inclusif)
+    // ✅ Trouver la réservation valide selon les règles métier
     const currentRes = face.reservations?.find((res: any) => {
-      const debut = new Date(res.dateDebut);
-      const fin = new Date(res.dateFin);
-      debut.setHours(0, 0, 0, 0);
-      fin.setHours(0, 0, 0, 0);
-
-      // Si aujourd'hui est entre début et fin INCLUSIVEMENT → active
-      return now >= debut && now <= fin;
+      return isValidReservation(res);
     });
 
     if (currentRes) {
@@ -257,18 +283,41 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user 
       fin.setHours(0, 0, 0, 0);
       const daysLeft = Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
+      // Vérifier le statut de paiement
+      const isPaidOrValidated =
+        currentRes.statutPaiement === 'payé' ||
+        currentRes.statutPaiement === 'validé' ||
+        currentRes.validationComptable === true;
+
+      // Vérifier le délai d'expiration
+      const joursAvantExpiration = currentRes.joursAvantExpiration ?? 0;
+      const isPaymentDeadlineExpired = joursAvantExpiration === 0;
+
+      // Déterminer le label approprié
+      let label = currentRes.statut || "Occupé";
+
+      if (isPaidOrValidated) {
+        label = currentRes.validationComptable ? '✅ Validé' : '✅ Payé';
+      } else if (isPaymentDeadlineExpired) {
+        // Ce cas ne devrait pas arriver car on ne l'affiche pas
+        label = '⚠️ Délai dépassé';
+      }
+
       return {
         hasReservation: true,
-        label: currentRes.statut || "Occupé",
+        label: label,
         photo: currentRes.photoCampagneUrl || face.photoCampagneUrl || LOGO_DISPROMALT,
         client: currentRes.societeLocatrice,
         agent: currentRes.agentNom || "Non spécifié",
         dates: `${new Date(currentRes.dateDebut).toLocaleDateString()} - ${new Date(currentRes.dateFin).toLocaleDateString()}`,
-        daysLeft: daysLeft >= 0 ? daysLeft : 0
+        daysLeft: daysLeft >= 0 ? daysLeft : 0,
+        isPaidOrValidated: isPaidOrValidated,
+        isPaymentDeadlineExpired: isPaymentDeadlineExpired,
+        joursAvantExpiration: joursAvantExpiration
       };
     }
 
-    // Aucune réservation active → Libre
+    // Aucune réservation valide → Libre
     return {
       hasReservation: false,
       label: "Libre",
@@ -276,7 +325,10 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user 
       client: null,
       agent: null,
       dates: null,
-      daysLeft: null
+      daysLeft: null,
+      isPaidOrValidated: false,
+      isPaymentDeadlineExpired: false,
+      joursAvantExpiration: 0
     };
   };
 
@@ -291,8 +343,8 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user 
             face={selectedFaceDetails}
             onSelect={onSelect}
             isSelected={selectedIds.includes(`${panneau.id}_${selectedFaceDetails?.id}`)}
-            //ouvrirLaCarte={ouvrirLaCarte}
-            user={user} // ✅ AJOUTER CETTE PROP
+            ouvrirLaCarte={ouvrirLaCarte}
+            user={user}
           />
         )}
       </AnimatePresence>
@@ -312,7 +364,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user 
             key={fIdx}
             className="relative w-full h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[450px] rounded-2xl sm:rounded-[2rem] overflow-hidden shadow-lg sm:shadow-2xl border border-white/10 group"
           >
-            {/* IMAGE - Sans l'ombre en bas */}
+            {/* IMAGE */}
             <div className="absolute inset-0 overflow-hidden">
               <img
                 src={data.photo}
@@ -341,20 +393,20 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user 
               />
             </div>
 
-            {/* BADGE STATUT - Responsive */}
+            {/* BADGE STATUT */}
             <div className="absolute top-2 right-2 xs:top-3 xs:right-3 sm:top-4 sm:right-4">
               <span className={`px-2 py-0.5 xs:px-3 xs:py-1 sm:px-4 sm:py-1.5 rounded-full text-[7px] xs:text-[8px] sm:text-[9px] font-black uppercase tracking-wider border backdrop-blur-md ${getStatusStyles(data.label)}`}>
                 {data.label}
               </span>
             </div>
 
-            {/* INFOS - Responsives et sans superposition excessive */}
+            {/* INFOS */}
             <div className="absolute bottom-0 left-0 right-0 p-3 xs:p-4 sm:p-5 md:p-6 text-white bg-gradient-to-t from-black/80 via-black/50 to-transparent">
               <div className="mb-2 xs:mb-3 sm:mb-4">
                 <h3 className="text-base xs:text-lg sm:text-xl md:text-2xl font-black italic uppercase">
                   Face : {displayId}
                 </h3>
-                <p className="text-[8px] xs:text-[9px] sm:text-[10px] text-black/90 font-bold uppercase truncate max-w-[90%]">
+                <p className="text-[8px] xs:text-[9px] sm:text-[10px] text-white/90 font-bold uppercase truncate max-w-[90%]">
                   {panneau.adresse}
                 </p>
               </div>
@@ -370,6 +422,11 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user 
                   <p className="text-[6px] xs:text-[7px] sm:text-[8px] uppercase text-white/50 font-bold truncate">
                     Période: <span className="text-white">{data.dates}</span>
                   </p>
+                  {!data.isPaidOrValidated && data.joursAvantExpiration > 0 && (
+                    <p className="text-[6px] xs:text-[7px] sm:text-[8px] uppercase text-amber-400 font-bold truncate">
+                      ⏳ {data.joursAvantExpiration} jour{data.joursAvantExpiration > 1 ? 's' : ''} pour payer
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -377,7 +434,6 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user 
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    // ✅ Passer la face complète avec toutes ses données
                     setSelectedFaceDetails(face);
                   }}
                   className="relative z-20 flex-1 py-1.5 xs:py-2 sm:py-2.5 md:py-3 bg-white/10 backdrop-blur-md rounded-lg xs:rounded-xl text-[8px] xs:text-[9px] sm:text-[10px] font-black uppercase hover:bg-white hover:text-black transition-all active:scale-95"
@@ -402,8 +458,7 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user 
 
     </>
   );
-}
-
+};
 
 
 
@@ -1255,23 +1310,10 @@ export default function UltimateSupervisor() {
     router.push('/dashboard/superviseurs/carte');
   };
 
-  const handleLogout = () => {
-    if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-      // 1. Nettoyer le localStorage et sessionStorage
-      localStorage.clear();
-      sessionStorage.clear();
+  
 
-      // 2. Effacer l'historique du navigateur pour empêcher le retour
-      window.history.pushState(null, "", window.location.href);
-      window.onpopstate = function () {
-        window.history.pushState(null, "", window.location.href);
-      };
 
-      // 3. Déconnecter et rediriger
-      logout();
-      router.push('/');
-    }
-  };
+   
   useEffect(() => {
     // Exposer les outils de debug dans la console
     if (typeof window !== 'undefined') {
@@ -1341,6 +1383,19 @@ export default function UltimateSupervisor() {
   const [timeFilter, setTimeFilter] = useState<'avant' | 'present' | 'futur'>('present');
   const [monthCount, setMonthCount] = useState(1);
   const [statusFilter, setStatusFilter] = useState<'tous' | 'en_cours' | 'en_attente' | 'expire'>('tous');
+
+  // Ajouter ces états après les autres états
+  const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+  const [panneauForReservation, setPanneauForReservation] = useState<any>(null);
+  const [faceForReservation, setFaceForReservation] = useState<any>(null);
+
+  // Ajouter cette fonction
+  const handleReservation = (panneau: any, face: any) => {
+    setPanneauForReservation(panneau);
+    setFaceForReservation(face);
+    setIsReservationModalOpen(true);
+  };
+
 
   // 2. Calculer l'efficacité
   const statsEfficacite = () => {
@@ -1574,23 +1629,23 @@ export default function UltimateSupervisor() {
 
       </div>
 
-      {/* NAVIGATION FIXE */}
-      <nav className="fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 lg:px-6 py-1.5 xs:py-2 sm:py-2.5 md:py-3 backdrop-blur-3xl transition-all duration-500 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-2xl border-b border-white/10">
+      {/* NAVIGATION FIXE - Couleur uniforme */}
+      <nav className="fixed top-0 inset-x-0 z-[150] px-2 sm:px-3 md:px-4 lg:px-6 py-1 xs:py-1.5 sm:py-2 md:py-2.5 backdrop-blur-3xl transition-all duration-500 bg-[#0d47a1] shadow-2xl border-b border-white/10">
         <div className="w-full max-w-[2000px] mx-auto">
           <div
             className="
-    relative group overflow-visible
-    flex items-center justify-between 
-    w-full
-    min-h-[48px] xs:min-h-[52px] sm:min-h-[56px] md:min-h-[60px] lg:min-h-[64px]
-    px-2 xs:px-3 sm:px-4 md:px-5 lg:px-6
-    rounded-lg xs:rounded-xl sm:rounded-2xl
-    transition-all duration-500
-    bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700
-    border border-white/10 shadow-xl shadow-blue-500/20
-    hover:border-white/20
-    hover:shadow-2xl hover:shadow-blue-500/30
-  "
+        relative group overflow-visible
+        flex items-center justify-between 
+        w-full
+        min-h-[40px] xs:min-h-[44px] sm:min-h-[48px] md:min-h-[52px] lg:min-h-[56px]
+        px-2 xs:px-3 sm:px-4 md:px-5 lg:px-6
+        rounded-lg xs:rounded-xl sm:rounded-2xl
+        transition-all duration-500
+        bg-[#0d47a1]
+        border border-white/10 shadow-xl shadow-blue-500/20
+        hover:border-white/20
+        hover:shadow-2xl hover:shadow-blue-500/30
+      "
           >
             {/* Effets visuels */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
@@ -1600,35 +1655,28 @@ export default function UltimateSupervisor() {
             {/* ============================================================ */}
             {/* ========== PARTIE GAUCHE - LOGO ========== */}
             {/* ============================================================ */}
-            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0 min-w-0">
-              <div
-                onClick={() => window.location.reload()}
-                className="relative flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5 cursor-pointer group/logo flex-shrink-0"
-              >
-                <div className="absolute -inset-1 rounded-xl border-2 border-white/0 group-hover/logo:border-white/20 transition-all duration-500" />
 
-                <div className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 flex-shrink-0">
-                  <div className="absolute inset-0 bg-white/10 rounded-lg shadow-sm" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-lg" />
-                  <img
-                    src="/icon-192x192.png"
-                    className="relative w-full h-full object-contain p-0.5 xs:p-1 rounded-lg object-cover border border-white/30 group-hover/logo:border-white/60 transition-all duration-300 shadow-sm"
-                    alt="Logo"
-                  />
-                  <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-sm" />
-                </div>
-
-                <div className="flex flex-col leading-tight min-w-0">
-                  <span className="text-[11px] xs:text-sm sm:text-base md:text-lg lg:text-xl font-black italic uppercase tracking-tighter whitespace-nowrap">
-                    <span className="text-white group-hover/logo:text-amber-300 transition-all">G</span>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-400">D</span>
-                    <span className="text-white group-hover/logo:text-amber-300 transition-all">P</span>
-                  </span>
-                  <span className="hidden 2xs:inline text-[4px] xs:text-[5px] sm:text-[6px] md:text-[7px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-blue-200/70 whitespace-nowrap">
-                    GESTION DIGITALE
-                  </span>
-                </div>
+            <div
+              onClick={() => window.location.reload()}
+              className="flex flex-col items-center gap-0 cursor-pointer group/logo flex-shrink-0"
+            >
+              <div className="relative w-12 h-8 xs:w-14 xs:h-9 sm:w-16 sm:h-10 md:w-20 md:h-13 lg:w-24 lg:h-16 flex-shrink-0 overflow-visible">
+                <img
+                  src="/Dispromalt_logo.png"
+                  className="relative w-full h-full object-contain group-hover/logo:scale-105 transition-all duration-300 drop-shadow-md group-hover/logo:drop-shadow-amber-400/30 
+      scale-150 xs:scale-160 sm:scale-170 md:scale-180 lg:scale-200 origin-center"
+                  alt="Dispromalt Logo"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
               </div>
+
+              {/* Texte sous le logo */}
+              <span className="text-[5px] xs:text-[6px] sm:text-[7px] md:text-[8px] lg:text-[9px] font-bold uppercase tracking-[0.12em] text-amber-300/90 whitespace-nowrap drop-shadow-sm text-center leading-none">
+                Gestion Digitale des panneaux
+              </span>
             </div>
 
             {/* ============================================================ */}
@@ -1780,25 +1828,16 @@ export default function UltimateSupervisor() {
                 </button>
 
               </div>
-              {/* === FIN BLOC PROFIL + QUITTER === */}
-
             </div>
-          </div>
-
-          {/* Barre de progression animée */}
-          <div className="h-0.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 relative overflow-hidden mt-0.5 xs:mt-1">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shimmer" />
           </div>
         </div>
       </nav>
 
 
 
-
       {/* MAIN CONTENT */}
       <main className="relative z-20 max-w-[1800px] mx-auto px-6 pt-44 pb-40">
         <header className="mb-20 relative">
-          <div className="absolute -top-10 -left-10 w-40 h-40 bg-red-600/5 blur-[100px] rounded-full pointer-events-none" />
 
 
           {/* Bouton d'ouverture des filtres */}
@@ -3296,11 +3335,10 @@ export default function UltimateSupervisor() {
                       : [...prev, selectionKey]
                   );
                 }}
-                onEdit={handleEditPanneau}  // ← VÉRIFIE QUE CETTE LIGNE EXISTE
-
+                onEdit={handleEditPanneau}
+                onReserver={handleReservation}  // ✅ AJOUTER CETTE LIGNE
                 ouvrirLaCarte={ouvrirLaCarte}
-                user={user} // ⬅️ AJOUTER CETTE PROP
-
+                user={user}
               />
             ))}
           </AnimatePresence>
@@ -3401,6 +3439,19 @@ export default function UltimateSupervisor() {
             </select>
           </div>
         )}
+        {isReservationModalOpen && panneauForReservation && (
+  <EditPanneauModal
+    isOpen={isReservationModalOpen}
+    onClose={() => {
+      setIsReservationModalOpen(false);
+      setPanneauForReservation(null);
+      setFaceForReservation(null);
+    }}
+    panneau={panneauForReservation}
+    face={faceForReservation}
+    user={user}
+  />
+)}
         {filtered.length === 0 && (
           <div className="py-40 text-center">
             <p className="text-zinc-200/50 font-black uppercase tracking-[0.5em] italic">Aucun panneau trouvé</p>
@@ -3435,45 +3486,286 @@ export const FaceDetailModal = ({
   onSelect,
   isSelected,
   ouvrirLaCarte,
+  onEdit, // ✅ Ajouter cette prop
+
 }: any) => {
   const { user } = useAuth();
 
   if (!isOpen || !face) return null;
-  console.log("🔵 FaceDetailModal - user depuis useAuth:", user);
 
-  // ✅ Vérifier s'il y a une réservation active pour afficher sa photo
-  const getActiveReservation = () => {
+
+
+  const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+  const [panneauForReservation, setPanneauForReservation] = useState<any>(null);
+  const [faceForReservation, setFaceForReservation] = useState<any>(null);
+
+  // ============================================
+  // ✅ RÉSERVATION ACTIVE POUR LA PHOTO
+  // ============================================
+
+  const getActiveReservationForPhoto = () => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
     const reservations = face.reservations || [];
-    const active = reservations.find((res: any) => {
+    return reservations.find((res: any) => {
       if (!res.dateDebut || !res.dateFin) return false;
       const debut = new Date(res.dateDebut);
       const fin = new Date(res.dateFin);
       debut.setHours(0, 0, 0, 0);
       fin.setHours(0, 0, 0, 0);
       return now >= debut && now <= fin;
-    });
-
-    return active || null;
+    }) || null;
   };
 
-  // ✅ Récupérer la photo de la réservation active ou la photo par défaut
-  const activeReservation = getActiveReservation();
+  // ✅ Fonction pour ouvrir le modal de réservation
+  const openReservationModal = (panneau: Panneau, face: Face) => {
+    //console.log('🔵 Réservation pour:', panneau.idPan, 'Face:', face.id);
+
+    // Stocker le panneau et la face sélectionnés
+    setPanneauForReservation(panneau);
+    setFaceForReservation(face);
+
+    // Ouvrir le modal d'édition
+    setIsReservationModalOpen(true);
+  };
+
+  // ✅ Réservation active pour la photo
+  const activeReservation = getActiveReservationForPhoto();
   const photoToShow = activeReservation?.photoCampagneUrl || face.photoCampagneUrl || logo;
-  const isLibre = face.statut?.toLowerCase() === 'libre';
+
+  // ✅ Déterminer si la face est libre
+  const isLibre = !activeReservation && (face.reservations || []).length === 0;
+
+  // ============================================
+  // ✅ STATUT DE LA FACE (badge)
+  // ============================================
+
+  const getFaceStatus = () => {
+    // ✅ Si une réservation est active
+    if (activeReservation) {
+      const isPaidOrValidated =
+        activeReservation.statutPaiement === 'payé' ||
+        activeReservation.statutPaiement === 'validé' ||
+        activeReservation.validationComptable === true;
+
+      if (isPaidOrValidated) {
+        return {
+          label: activeReservation.validationComptable ? '✅ Validé' : '✅ Payé',
+          isLibre: false,
+          isActive: true
+        };
+      }
+      return {
+        label: '📌 En cours',
+        isLibre: false,
+        isActive: true
+      };
+    }
+
+    // ✅ Vérifier s'il y a des réservations à venir
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const hasFutureReservation = (face.reservations || []).some((res: any) => {
+      if (!res.dateDebut) return false;
+      const debut = new Date(res.dateDebut);
+      debut.setHours(0, 0, 0, 0);
+      return debut > now;
+    });
+
+    if (hasFutureReservation) {
+      return {
+        label: '⏳ À venir',
+        isLibre: false,
+        isActive: false
+      };
+    }
+
+    // ❌ Aucune réservation → Libre
+    return {
+      label: 'Libre',
+      isLibre: true,
+      isActive: false
+    };
+  };
+
+  const faceStatus = getFaceStatus();
+  const isLibreFinal = faceStatus.isLibre;
+
+  // ============================================
+  // ✅ DÉFINITION DES TYPES
+  // ============================================
+
+  interface ReservationStatus {
+    label: string;
+    color: string;
+    showDays: boolean;
+    isActive: boolean;
+    isCurrent: boolean;
+    daysText: string;
+    statutReservation: string; // "Réservé" ou "Occupé"
+    joursAvantExpiration?: number;
+    expirationDateFormatted?: string;
+    statutPaiement?: string;
+  }
+
+  // ============================================
+  // ✅ STATUT D'UNE RÉSERVATION DANS LA LISTE
+  // ============================================
+
+  const getReservationDisplayStatus = (res: any): ReservationStatus | null => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const debut = new Date(res.dateDebut);
+    const fin = new Date(res.dateFin);
+    debut.setHours(0, 0, 0, 0);
+    fin.setHours(0, 0, 0, 0);
+
+    const isActive = now >= debut && now <= fin;
+    const isFuture = now < debut;
+    const isPaidOrValidated =
+      res.statutPaiement === 'payé' ||
+      res.statutPaiement === 'validé' ||
+      res.validationComptable === true;
+
+    // ✅ Déterminer le statut de la réservation
+    const statutReservation = res.statut || 'Réservé';
+
+    // ✅ Réservation en cours
+    if (isActive) {
+      if (isPaidOrValidated) {
+        return {
+          label: '✅ ' + (res.validationComptable ? 'Validé' : 'Payé'),
+          color: 'text-purple-600 bg-purple-50 border-purple-200',
+          showDays: false,
+          isActive: true,
+          isCurrent: true,
+          daysText: '',
+          statutReservation: statutReservation
+        };
+      }
+      return {
+        label: '📌 En cours',
+        color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+        showDays: true,
+        isActive: true,
+        isCurrent: true,
+        daysText: `${Math.ceil((fin.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))} jours restants`,
+        statutReservation: statutReservation
+      };
+    }
+
+    // ✅ Réservation à venir (future)
+    if (isFuture) {
+      const daysBeforeStart = Math.ceil((debut.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      const joursAvantExpiration = res.joursAvantExpiration ?? 0;
+      const isPaymentDeadlineExpired = joursAvantExpiration === 0;
+
+      // Si délai expiré ET non payé → ne pas afficher
+      if (isPaymentDeadlineExpired && !isPaidOrValidated) {
+        return null;
+      }
+
+      // Si payé/validé mais à venir
+      if (isPaidOrValidated) {
+        return {
+          label: '✅ ' + (res.validationComptable ? 'Validé' : 'Payé'),
+          color: 'text-purple-600 bg-purple-50 border-purple-200',
+          showDays: true,
+          isActive: false,
+          isCurrent: false,
+          daysText: `Début dans ${daysBeforeStart} jour${daysBeforeStart > 1 ? 's' : ''}`,
+          statutReservation: statutReservation,
+          joursAvantExpiration: joursAvantExpiration,
+          expirationDateFormatted: res.expirationDateFormatted
+        };
+      }
+
+      // À venir, délai de paiement valide
+      return {
+        label: '⏳ À venir',
+        color: 'text-blue-600 bg-blue-50 border-blue-200',
+        showDays: true,
+        isActive: false,
+        isCurrent: false,
+        daysText: `Début dans ${daysBeforeStart} jour${daysBeforeStart > 1 ? 's' : ''}`,
+        statutReservation: statutReservation,
+        joursAvantExpiration: joursAvantExpiration,
+        expirationDateFormatted: res.expirationDateFormatted,
+        statutPaiement: res.statutPaiement
+      };
+    }
+
+    // ❌ Passé → ne pas afficher
+    return null;
+  };
+
+  // ============================================
+  // ✅ FILTRER ET TRIER LES RÉSERVATIONS
+  // ============================================
+
+  const displayReservations = (face.reservations || [])
+    .map((res: any) => {
+      const status: ReservationStatus | null = getReservationDisplayStatus(res);
+      return { res, status };
+    })
+    .filter(({ status }: { status: ReservationStatus | null }) => status !== null)
+    .sort((a: { res: any; status: ReservationStatus }, b: { res: any; status: ReservationStatus }) => {
+      if (a.status.isActive && !b.status.isActive) return -1;
+      if (!a.status.isActive && b.status.isActive) return 1;
+      return new Date(a.res.dateDebut).getTime() - new Date(b.res.dateDebut).getTime();
+    });
+
+  // ============================================
+  // COULEURS DES BADGES
+  // ============================================
+
+  const getBadgeColor = () => {
+    if (isLibreFinal) {
+      return 'bg-emerald-500/20 border-emerald-500/50';
+    }
+    if (activeReservation) {
+      const isPaidOrValidated =
+        activeReservation.statutPaiement === 'payé' ||
+        activeReservation.statutPaiement === 'validé' ||
+        activeReservation.validationComptable === true;
+      if (isPaidOrValidated) {
+        return 'bg-purple-500/20 border-purple-500/50';
+      }
+      return 'bg-amber-500/20 border-amber-500/50';
+    }
+    return 'bg-blue-500/20 border-blue-500/50';
+  };
+
+  const getBadgeDotColor = () => {
+    if (isLibreFinal) {
+      return 'bg-emerald-500 animate-pulse';
+    }
+    if (activeReservation) {
+      const isPaidOrValidated =
+        activeReservation.statutPaiement === 'payé' ||
+        activeReservation.statutPaiement === 'validé' ||
+        activeReservation.validationComptable === true;
+      if (isPaidOrValidated) {
+        return 'bg-purple-500';
+      }
+      return 'bg-amber-500';
+    }
+    return 'bg-blue-500';
+  };
+
+  // ============================================
+  // ÉTATS ET GESTIONNAIRES
+  // ============================================
+
   const selectionKey = `${panneau.id}_${face.id}`;
   const [startY, setStartY] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
-
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [panneauToEdit, setPanneauToEdit] = useState(null);
 
-  const reservations = (face.reservations || [])
-    .sort((a: any, b: any) => new Date(a.dateDebut).getTime() - new Date(b.dateDebut).getTime());
-
-  // Gestion du swipe vers le bas pour fermer sur mobile
   const handleTouchStart = (e: React.TouchEvent) => {
     setStartY(e.touches[0].clientY);
     setIsSwiping(true);
@@ -3483,7 +3775,6 @@ export const FaceDetailModal = ({
     if (!isSwiping) return;
     const currentY = e.touches[0].clientY;
     const diff = currentY - startY;
-
     if (diff > 50) {
       onClose();
       setIsSwiping(false);
@@ -3495,8 +3786,6 @@ export const FaceDetailModal = ({
   };
 
   const handleOpenEditModal = () => {
-    console.log("🔵 Ouverture du modal d'édition - panneau:", panneau);
-    console.log("🔵 User:", user);
     setIsEditModalOpen(true);
   };
 
@@ -3505,108 +3794,8 @@ export const FaceDetailModal = ({
   };
 
   // ============================================
-  // ✅ FONCTION POUR DÉTERMINER LE STATUT AVEC LES DONNÉES DE LA BD
+  // RENDU
   // ============================================
-  const getReservationDisplayStatus = (res: any) => {
-    const now = new Date();
-    const utcNow = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        0, 0, 0, 0
-      )
-    );
-
-    // Si la réservation est validée comptablement ou payée
-    if (res.validationComptable === true || res.statutPaiement === 'payé' || res.statutPaiement === 'validé') {
-      return {
-        label: '✅ Validé',
-        color: 'text-purple-600 bg-purple-50 border-purple-200',
-        showDays: false,
-        isExpired: false,
-        isTerminated: false,
-        daysText: ''
-      };
-    }
-
-    // ✅ UTILISER LES DONNÉES DE LA BD POUR L'EXPIRATION
-    const joursAvantExpiration = res.joursAvantExpiration ?? 0;
-    const expirationDate = res.expirationDate;
-    const expirationDateFormatted = res.expirationDateFormatted || 'N/A';
-
-    // Vérifier si la réservation est expirée (joursAvantExpiration = 0)
-    if (joursAvantExpiration === 0 && res.statutPaiement !== 'payé') {
-      return {
-        label: '⚠️ Expiré',
-        color: 'text-red-600 bg-red-50 border-red-200',
-        showDays: false,
-        isExpired: true,
-        isTerminated: true,
-        daysText: `Expirée le ${expirationDateFormatted}`,
-        expirationDate: expirationDateFormatted
-      };
-    }
-
-    // Vérifier la période de location du panneau (dateDebut / dateFin)
-    const debut = new Date(res.dateDebut);
-    const fin = new Date(res.dateFin);
-    debut.setUTCHours(0, 0, 0, 0);
-    fin.setUTCHours(0, 0, 0, 0);
-
-    // Si la date de fin est passée
-    if (fin < utcNow) {
-      return {
-        label: '📌 Terminé',
-        color: 'text-gray-400 bg-gray-50 border-gray-200',
-        showDays: false,
-        isExpired: false,
-        isTerminated: true,
-        daysText: 'Période terminée'
-      };
-    }
-
-    // Si la réservation est en cours (entre début et fin)
-    if (utcNow >= debut && utcNow <= fin) {
-      const daysRemaining = Math.ceil((fin.getTime() - utcNow.getTime()) / (1000 * 60 * 60 * 24));
-      return {
-        label: '✅ En cours',
-        color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
-        showDays: true,
-        isExpired: false,
-        isTerminated: false,
-        daysText: `${daysRemaining} jour${daysRemaining > 1 ? 's' : ''} restant${daysRemaining > 1 ? 's' : ''}`,
-        expirationDate: expirationDateFormatted,
-        joursAvantExpiration: joursAvantExpiration
-      };
-    }
-
-    // Si la réservation n'a pas encore commencé
-    if (utcNow < debut) {
-      return {
-        label: '⏳ À venir',
-        color: 'text-blue-600 bg-blue-50 border-blue-200',
-        showDays: joursAvantExpiration > 0,
-        isExpired: false,
-        isTerminated: false,
-        daysText: joursAvantExpiration > 0 ? `${joursAvantExpiration} jour${joursAvantExpiration > 1 ? 's' : ''} avant début` : '',
-        expirationDate: expirationDateFormatted,
-        joursAvantExpiration: joursAvantExpiration
-      };
-    }
-
-    // Par défaut
-    return {
-      label: '📌 En attente',
-      color: 'text-amber-600 bg-amber-50 border-amber-200',
-      showDays: joursAvantExpiration > 0,
-      isExpired: false,
-      isTerminated: false,
-      daysText: joursAvantExpiration > 0 ? `${joursAvantExpiration} jour${joursAvantExpiration > 1 ? 's' : ''} avant expiration` : '',
-      expirationDate: expirationDateFormatted,
-      joursAvantExpiration: joursAvantExpiration
-    };
-  };
 
   return (
     <>
@@ -3626,25 +3815,25 @@ export const FaceDetailModal = ({
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               className="relative w-full max-w-5xl mx-auto bg-white/95 backdrop-blur-xl border-t sm:border border-blue-200/50 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/20"
+              style={{ maxHeight: '90vh' }}
             >
-              {/* Effet de glow bleu élégant */}
+              {/* Effet de glow */}
               <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
               <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
 
-              {/* === INDICATEUR DE SWIPE (mobile) === */}
+              {/* INDICATEUR DE SWIPE */}
               <div className="sm:hidden flex justify-center pt-2 pb-1">
                 <div className="w-10 h-1 bg-blue-300/50 rounded-full" />
               </div>
 
-              {/* === BOUTONS DE FERMETURE === */}
+              {/* BOUTON FERMETURE */}
               <button
                 onClick={onClose}
                 className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-white/80 backdrop-blur-xl hover:bg-red-500 hover:text-white rounded-full transition-all duration-300 border border-blue-200/50 active:scale-95 text-blue-900"
               >
-                <X size={14} className="sm:w-4 sm:h-4" />
+                <X size={16} className="sm:w-5 sm:h-5" />
               </button>
 
-              {/* Bouton Fermer mobile */}
               <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
                 <button
                   onClick={onClose}
@@ -3654,46 +3843,43 @@ export const FaceDetailModal = ({
                 </button>
               </div>
 
-              {/* Layout : photo compacte + contenu */}
-              <div className="flex flex-col md:flex-row max-h-[90vh] sm:max-h-[85vh]">
+              {/* LAYOUT - HAUTEUR FIXE */}
+              <div className="flex flex-col md:flex-row" style={{ height: '80vh', maxHeight: '80vh' }}>
 
-                {/* --- SECTION PHOTO COMPACTE --- */}
-                <div className="relative w-full md:w-[35%] lg:w-[32%] h-[28vh] sm:h-[32vh] md:h-auto shrink-0">
+                {/* --- SECTION PHOTO --- */}
+                <div className="relative w-full md:w-[35%] lg:w-[32%] h-[30vh] md:h-auto shrink-0">
                   <img
                     src={photoToShow}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain bg-blue-900/10"
                     alt="Visual"
                   />
 
                   <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/20 to-blue-900/30" />
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 via-transparent to-transparent" />
 
-                  {/* Badge Status compact */}
+                  {/* BADGE STATUT */}
                   <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
-                    <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${isLibre
-                      ? 'bg-emerald-500/20 border-emerald-500/50'
-                      : activeReservation
-                        ? 'bg-amber-500/20 border-amber-500/50'
-                        : 'bg-rose-500/20 border-rose-500/50'}`}>
-                      <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isLibre ? 'bg-emerald-500 animate-pulse' : activeReservation ? 'bg-amber-500' : 'bg-rose-500'}`} />
-                      <span className="text-[6px] sm:text-[7px] font-black text-white uppercase">
-                        {isLibre ? 'Dispo' : activeReservation ? 'Réservé' : 'Occ'}
+                    <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${getBadgeColor()}`}>
+                      <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${getBadgeDotColor()}`} />
+                      <span className="text-[8px] sm:text-[10px] font-black text-white uppercase">
+                        {faceStatus.label}
                       </span>
                     </div>
                   </div>
 
-                  {/* Infos compactes sur l'image */}
+                  {/* INFOS SUR L'IMAGE */}
                   <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
-                    <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white italic leading-tight">
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white italic leading-tight">
                       {panneau.idPan}
                     </h2>
-                    <div className="flex gap-1 mt-0.5">
-                      <span className="bg-blue-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
+                    <div className="flex gap-1.5 mt-1 flex-wrap">
+                      <span className="bg-blue-500 text-white text-[11px] sm:text-[14px] md:text-[16px] font-black px-3 py-1 rounded-md">
                         {face.sens}
                       </span>
                       {activeReservation && (
-                        <span className="bg-amber-500 text-white text-[6px] sm:text-[7px] font-black px-1.5 py-0.5 rounded-md">
-                          {activeReservation.societeLocatrice?.substring(0, 10)}...
+                        <span className="bg-amber-500 text-white text-[11px] sm:text-[14px] md:text-[16px] font-black px-3 py-1 rounded-md">
+                          {activeReservation.societeLocatrice?.substring(0, 15)}
+                          {activeReservation.societeLocatrice?.length > 15 ? '...' : ''}
                         </span>
                       )}
                     </div>
@@ -3703,183 +3889,166 @@ export const FaceDetailModal = ({
                 {/* --- SECTION CONTENU --- */}
                 <div className="flex-1 flex flex-col bg-gradient-to-b from-blue-50/80 to-white overflow-hidden">
 
-                  {/* Header compact */}
-                  <div className="p-2 sm:p-3 md:p-4 border-b border-blue-200/50 bg-white/50">
-                    <p className="text-blue-700 text-[7px] sm:text-[8px] font-black uppercase tracking-wider flex items-center gap-1">
-                      <MapPin size={10} className="sm:w-3 sm:h-3" />
-                      📍 {panneau.adresse?.substring(0, 50)}{panneau.adresse?.length > 50 ? '...' : ''}
+                  {/* HEADER - Taille fixe */}
+                  <div className="shrink-0 p-2 sm:p-3 md:p-4 border-b border-blue-200/50 bg-white/50">
+                    <p className="text-blue-700 text-[13px] sm:text-[16px] md:text-[18px] font-black uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+                      <MapPin size={16} className="sm:w-5 sm:h-5" />
+                      📍 {panneau.adresse || 'Adresse non définie'}
                     </p>
+
                     {isSelected && (
-                      <span className="inline-block mt-1 text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-100 px-1.5 py-0.5 rounded-full">
+                      <span className="inline-block mt-1 text-blue-600 text-[9px] sm:text-[11px] font-black bg-blue-100 px-2 py-0.5 rounded-full">
                         ✓ Sélectionné
                       </span>
                     )}
+
                     {activeReservation && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        <span className="inline-block text-amber-600 text-[6px] sm:text-[7px] font-black bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <span className="inline-block text-amber-600 text-[10px] sm:text-[13px] md:text-[15px] font-black bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
                           📅 {activeReservation.dateDebut} → {activeReservation.dateFin}
                         </span>
-                        <span className="inline-block text-blue-600 text-[6px] sm:text-[7px] font-black bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">
+                        <span className="inline-block text-blue-600 text-[10px] sm:text-[13px] md:text-[15px] font-black bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
                           👤 {activeReservation.societeLocatrice}
                         </span>
                       </div>
                     )}
                   </div>
 
-                  {/* ZONE SCROLLABLE OPTIMISÉE */}
+                  {/* ZONE SCROLLABLE */}
                   <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar bg-white/30">
 
-                    {/* Métriques compactes - 3 cartes en ligne */}
-                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                      {[
-                        { icon: <Zap size={10} className="sm:w-3 sm:h-3" />, label: "Visibilité", val: face.visibilite || 90 },
-                        { icon: <Activity size={10} className="sm:w-3 sm:h-3" />, label: "Trafic", val: face.mobimetrie || 85 },
-                        { icon: <ShieldCheck size={10} className="sm:w-3 sm:h-3" />, label: "Score", val: 98 },
-                      ].map((m, i) => (
-                        <div key={i} className="bg-blue-50/80 border border-blue-200/60 rounded-xl p-2 sm:p-3 text-center hover:border-blue-400/80 transition-all">
-                          <div className="flex justify-center text-blue-600 mb-0.5">{m.icon}</div>
-                          <p className="text-sm sm:text-base md:text-lg font-black text-blue-900">{m.val}%</p>
-                          <p className="text-[6px] sm:text-[7px] font-bold text-blue-400 uppercase">{m.label}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Timeline compacte */}
+                    {/* TIMELINE */}
                     <section className="space-y-3 sm:space-y-4">
-                      <div className="flex items-center gap-2 sm:gap-2.5">
-                        <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-blue-600" />
-                        <h4 className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-wider">Chronologie</h4>
-                        <span className="text-[8px] sm:text-[9px] text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
-                          {reservations.length} campagne{reservations.length !== 1 ? 's' : ''}
+                      <div className="flex items-center gap-2 sm:gap-2.5 sticky top-0 bg-white/80 py-1 z-10">
+                        <Calendar size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6 text-blue-600" />
+                        <h4 className="text-blue-900 text-[12px] sm:text-[14px] md:text-[16px] font-black uppercase tracking-wider">Chronologie</h4>
+                        <span className="text-[9px] sm:text-[11px] text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
+                          {displayReservations.length} campagne{displayReservations.length !== 1 ? 's' : ''}
                         </span>
                       </div>
 
                       <div className="relative border-l-2 border-blue-200 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
-                        {reservations.length > 0 ? (
-                          reservations.map((res: any, i: number) => {
-                            // ✅ Utiliser la fonction avec les données de la BD
-                            const displayStatus = getReservationDisplayStatus(res);
-
+                        {displayReservations.length > 0 ? (
+                          displayReservations.map(({ res, status }: any, i: number) => {
                             return (
                               <div key={i} className="relative group">
                                 {/* Point sur la timeline */}
                                 <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-white flex items-center justify-center
-                                  ${displayStatus.isExpired ? 'border-red-500 shadow-red-500/50' :
-                                    displayStatus.isTerminated ? 'border-gray-400' :
-                                    displayStatus.label === '✅ En cours' ? 'border-emerald-500 shadow-emerald-500/50' :
-                                    'border-blue-300'}`}>
+                                  ${status.isCurrent ? 'border-emerald-500 shadow-emerald-500/50' :
+                                    status.label.includes('✅') ? 'border-purple-500 shadow-purple-500/50' :
+                                      'border-blue-300'}`}>
                                   <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full 
-                                    ${displayStatus.isExpired ? 'bg-red-500' :
-                                      displayStatus.isTerminated ? 'bg-gray-400' :
-                                      displayStatus.label === '✅ En cours' ? 'bg-emerald-500 animate-pulse' :
-                                      'bg-blue-400'}`} />
+                                    ${status.isCurrent ? 'bg-emerald-500 animate-pulse' :
+                                      status.label.includes('✅') ? 'bg-purple-500' :
+                                        'bg-blue-400'}`} />
                                 </div>
 
                                 {/* Carte de réservation */}
                                 <div className={`bg-white border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg hover:border-blue-400/60
-                                  ${displayStatus.isExpired ? 'border-red-300 shadow-red-100' :
-                                    displayStatus.isTerminated ? 'border-gray-200' :
-                                    displayStatus.label === '✅ En cours' ? 'border-emerald-300' :
-                                    'border-blue-200/60'}`}>
+                                  ${status.isCurrent ? 'border-2 border-emerald-500 shadow-lg shadow-emerald-500/20' :
+                                    status.label.includes('✅') ? 'border-purple-300' :
+                                      'border-blue-200/60'}`}>
 
-                                  {/* En-tête de la carte */}
+                                  {/* En-tête */}
                                   <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-blue-900 text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-tight truncate">
+                                      <p className="text-blue-900 text-[12px] sm:text-[14px] md:text-[16px] font-black uppercase tracking-tight truncate">
                                         {res.societeLocatrice}
                                       </p>
-                                      
-                                      {/* ✅ AFFICHAGE DES JOURS RESTANTS DEPUIS LA BD */}
-                                      {displayStatus.showDays && res.joursAvantExpiration > 0 && (
+
+                                      {/* ✅ Statut de la réservation (Réservé ou Occupé) */}
+                                      <div className="flex items-center gap-1.5 mt-1">
+                                        <span className={`text-[9px] sm:text-[11px] font-black px-2 py-0.5 rounded-full border
+                                          ${status.statutReservation === 'Occupé'
+                                            ? 'text-red-600 bg-red-50 border-red-200'
+                                            : 'text-amber-600 bg-amber-50 border-amber-200'}`}>
+                                          {status.statutReservation}
+                                        </span>
+                                      </div>
+
+                                      {/* Agent */}
+                                      {res.agentNom && (
                                         <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[8px] sm:text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                                          <span className="text-[8px] sm:text-[10px] text-gray-500 font-medium">
+                                            👤 Agent: <span className="text-gray-700 font-bold">{res.agentNom}</span>
+                                          </span>
+                                        </div>
+                                      )}
+
+                                      {/* Jours restants */}
+                                      {status.showDays && res.joursAvantExpiration > 0 && (
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <span className="text-[9px] sm:text-[11px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
                                             📅 {res.joursAvantExpiration} jour{res.joursAvantExpiration > 1 ? 's' : ''} avant expiration
                                           </span>
                                           {res.expirationDateFormatted && (
-                                            <span className="text-[6px] sm:text-[7px] text-gray-400 font-medium">
+                                            <span className="text-[7px] sm:text-[9px] text-gray-400 font-medium">
                                               Expire: {res.expirationDateFormatted}
                                             </span>
                                           )}
                                         </div>
                                       )}
-                                      
-                                      {/* ✅ AFFICHAGE POUR EXPIRÉ (depuis la BD) */}
-                                      {displayStatus.isExpired && (
+
+                                      {/* Statut paiement */}
+                                      {!res.validationComptable && res.statutPaiement !== 'payé' && res.joursAvantExpiration > 0 && (
                                         <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[8px] sm:text-[9px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
-                                            🚨 Délai dépassé
-                                          </span>
-                                          {res.expirationDateFormatted && (
-                                            <span className="text-[6px] sm:text-[7px] text-red-400 font-medium">
-                                              Expirée le {res.expirationDateFormatted}
-                                            </span>
-                                          )}
-                                        </div>
-                                      )}
-                                      
-                                      {/* ✅ AFFICHAGE POUR TERMINÉ */}
-                                      {displayStatus.isTerminated && !displayStatus.isExpired && (
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[8px] sm:text-[9px] font-black text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
-                                            📌 Période terminée
+                                          <span className="text-[9px] sm:text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                            ⏳ {res.joursAvantExpiration} jour{res.joursAvantExpiration > 1 ? 's' : ''} pour payer
                                           </span>
                                         </div>
                                       )}
 
-                                      {/* ✅ AFFICHAGE SI VALIDÉ OU PAYÉ */}
+                                      {/* Payé/Validé */}
                                       {(res.validationComptable === true || res.statutPaiement === 'payé') && (
                                         <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[8px] sm:text-[9px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                                          <span className="text-[9px] sm:text-[11px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
                                             ✅ {res.validationComptable ? 'Validé' : 'Payé'}
                                           </span>
                                         </div>
                                       )}
                                     </div>
 
-                                    {/* Badge de statut */}
-                                    <span className={`shrink-0 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded-md border ${displayStatus.color}`}>
-                                      {displayStatus.label}
+                                    {/* Badge statut */}
+                                    <span className={`shrink-0 text-[8px] sm:text-[10px] md:text-[11px] font-black uppercase px-2 py-1 rounded-md border ${status.color}`}>
+                                      {status.label}
                                     </span>
                                   </div>
 
-                                  {/* Dates de la réservation */}
+                                  {/* Dates */}
                                   <div className="flex justify-between items-center gap-2 pt-2 border-t border-blue-100">
                                     <div className="flex gap-3 sm:gap-4">
                                       <div className="flex flex-col">
-                                        <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Début</span>
-                                        <span className="text-[9px] sm:text-[10px] md:text-[11px] text-blue-900 font-bold">
+                                        <span className="text-[8px] sm:text-[10px] text-blue-400 uppercase font-black">Début</span>
+                                        <span className="text-[11px] sm:text-[13px] md:text-[15px] text-blue-900 font-bold">
                                           {new Date(res.dateDebut).toLocaleDateString('fr-FR')}
                                         </span>
                                       </div>
                                       <div className="flex items-end pb-1">
-                                        <span className="text-blue-300 text-[10px]">→</span>
+                                        <span className="text-blue-300 text-[10px] sm:text-[12px]">→</span>
                                       </div>
                                       <div className="flex flex-col">
-                                        <span className="text-[7px] sm:text-[8px] text-blue-400 uppercase font-black">Fin</span>
-                                        <span className={`text-[9px] sm:text-[10px] md:text-[11px] font-bold 
-                                          ${displayStatus.isExpired ? 'text-red-500' :
-                                            displayStatus.isTerminated ? 'text-gray-400' :
-                                            'text-blue-900'}`}>
+                                        <span className="text-[8px] sm:text-[10px] text-blue-400 uppercase font-black">Fin</span>
+                                        <span className="text-[11px] sm:text-[13px] md:text-[15px] font-bold text-blue-900">
                                           {new Date(res.dateFin).toLocaleDateString('fr-FR')}
                                         </span>
                                       </div>
                                     </div>
 
-                                    {/* Badges supplémentaires */}
+                                    {/* Badges */}
                                     <div className="flex gap-1">
                                       {res.validationComptable === true && (
                                         <div className="p-1 bg-blue-100 text-blue-600 rounded-md border border-blue-200" title="Validé comptablement">
-                                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
                                         </div>
                                       )}
                                       {res.facturee === "oui" && (
                                         <div className="p-1 bg-amber-100 text-amber-600 rounded-md border border-amber-200" title="Facturée">
-                                          <span className="text-[9px] font-black">€</span>
+                                          <span className="text-[11px] font-black">€</span>
                                         </div>
                                       )}
                                       {res.statutPaiement === "payé" && (
                                         <div className="p-1 bg-emerald-100 text-emerald-600 rounded-md border border-emerald-200" title="Payée">
-                                          <span className="text-[9px] font-black">✓</span>
+                                          <span className="text-[11px] font-black">✓</span>
                                         </div>
                                       )}
                                     </div>
@@ -3889,7 +4058,6 @@ export const FaceDetailModal = ({
                             );
                           })
                         ) : (
-                          /* Message opportunité */
                           <div className="relative">
                             <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-blue-500 bg-white flex items-center justify-center">
                               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
@@ -3897,10 +4065,10 @@ export const FaceDetailModal = ({
 
                             <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-blue-100/50 transition-all cursor-pointer">
                               <div className="inline-flex p-2 bg-blue-100 rounded-full text-blue-600">
-                                <PlusCircle size={16} className="sm:w-5 sm:h-5" />
+                                <PlusCircle size={18} className="sm:w-6 sm:h-6" />
                               </div>
-                              <h3 className="text-blue-700 text-[11px] sm:text-[12px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
-                              <p className="text-blue-500/80 text-[9px] sm:text-[10px] leading-relaxed max-w-[250px] mx-auto">
+                              <h3 className="text-blue-700 text-[13px] sm:text-[15px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
+                              <p className="text-blue-500/80 text-[11px] sm:text-[13px] leading-relaxed max-w-[250px] mx-auto">
                                 Cette face n'attend que votre visibilité.<br />
                                 <span className="text-blue-900 font-bold italic">Réservez-la dès maintenant.</span>
                               </p>
@@ -3909,54 +4077,54 @@ export const FaceDetailModal = ({
                         )}
                       </div>
                     </section>
-                    {/* Espace pour boutons fixes */}
-                    <div className="h-12 sm:h-14" />
+                    <div className="h-4" />
                   </div>
 
-                  {/* ✅ Actions fixes en bas */}
-                  <div className="absolute bottom-0 left-0 right-0 md:static p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0 mt-auto">
+                  {/* ACTIONS FIXES EN BAS */}
+                  <div className="shrink-0 p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0">
                     <div className="flex gap-2">
-
-                      {/* Bouton Carte */}
                       <button
                         onClick={() => {
                           if (ouvrirLaCarte) ouvrirLaCarte();
                           onClose();
                         }}
-                        className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 rounded-lg text-emerald-700 transition-all active:scale-95 border border-emerald-200"
+                        className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 rounded-lg text-emerald-700 transition-all active:scale-95 border border-emerald-200"
                       >
-                        <MapPin size={14} className="sm:w-4 sm:h-4" />
+                        <MapPin size={16} className="sm:w-5 sm:h-5" />
                       </button>
 
-                      {/* ✅ BOUTON RÉSERVER / RETIRER */}
                       <button
-                        className={`flex-1 h-8 sm:h-9 rounded-lg font-black text-[8px] sm:text-[9px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
-                        ${isSelected
-                          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30 hover:shadow-red-500/50'
-                          : isLibre
-                            ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02]'
-                            : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]'
-                        }`}
+                        className={`flex-1 h-9 sm:h-10 rounded-lg font-black text-[10px] sm:text-[12px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
+  ${isSelected
+                            ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30 hover:shadow-red-500/50'
+                            : isLibreFinal
+                              ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02]'
+                              : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]'
+                          }`}
                         onClick={() => {
                           if (isSelected) {
                             onSelect(selectionKey);
                             return;
                           }
+                          // ✅ Fermer le modal et ouvrir EditPanneauModal via onEdit
                           onClose();
                           setTimeout(() => {
-                            handleOpenEditModal();
+                            // Passer le panneau et la face à la fonction onEdit
+                            if (onEdit) {
+                              onEdit(panneau, face); // ✅ Passer la face aussi
+                            }
                           }, 300);
                         }}
                       >
                         {isSelected ? (
                           <>
-                            <MinusCircle size={10} className="sm:w-3 sm:h-3" />
+                            <MinusCircle size={12} className="sm:w-4 sm:h-4" />
                             <span className="hidden xs:inline">RETIRER</span>
                             <span className="xs:hidden">RETIRER</span>
                           </>
                         ) : (
                           <>
-                            <PlusCircle size={10} className="sm:w-3 sm:h-3" />
+                            <PlusCircle size={12} className="sm:w-4 sm:h-4" />
                             <span className="hidden xs:inline">RÉSERVER</span>
                             <span className="xs:hidden">RÉSERV</span>
                           </>
@@ -3971,7 +4139,20 @@ export const FaceDetailModal = ({
           </div>
         )}
       </AnimatePresence>
-      
+      {isReservationModalOpen && panneauForReservation && (
+        <EditPanneauModal
+          isOpen={isReservationModalOpen}
+          onClose={() => {
+            setIsReservationModalOpen(false);
+            setPanneauForReservation(null);
+            setFaceForReservation(null);
+          }}
+          panneau={panneauForReservation}
+          face={faceForReservation}
+          user={user}
+        />
+      )}
+
       <EditPanneauModal
         isOpen={isEditModalOpen}
         onClose={handleCloseEditModal}
@@ -3980,6 +4161,11 @@ export const FaceDetailModal = ({
     </>
   );
 };
+
+
+
+
+
 
 
 interface CartModalProps {
@@ -4118,7 +4304,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     );
 
     const joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-    
+
     return {
       date: utcNow.toISOString().split('T')[0],
       time: utcNow.toISOString().split('T')[1].split('.')[0],
@@ -4126,10 +4312,10 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       dayNumber: utcNow.getUTCDay(),
       timestamp: utcNow.getTime(),
       isoString: utcNow.toISOString(),
-      fullDate: utcNow.toLocaleDateString('fr-FR', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
+      fullDate: utcNow.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
         day: 'numeric',
         timeZone: 'UTC'
       })
@@ -4143,14 +4329,14 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   const addWorkingDays = (date: Date, days: number): Date => {
     const result = new Date(date);
     let addedDays = 0;
-    
+
     while (addedDays < days) {
       result.setUTCDate(result.getUTCDate() + 1);
       if (isWorkingDay(result.getUTCDay())) {
         addedDays++;
       }
     }
-    
+
     return result;
   };
 
@@ -4164,37 +4350,37 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         0, 0, 0, 0
       )
     );
-    
+
     const startDate = dateDebut ? new Date(dateDebut) : utcNow;
     const endDate = new Date(dateFin);
-    
+
     startDate.setUTCHours(0, 0, 0, 0);
     endDate.setUTCHours(0, 0, 0, 0);
-    
+
     if (endDate < startDate) return 0;
-    
+
     let count = 0;
     let current = new Date(startDate);
-    
+
     while (current <= endDate) {
       if (isWorkingDay(current.getUTCDay())) count++;
       current.setUTCDate(current.getUTCDate() + 1);
     }
-    
+
     return count;
   };
 
   const calculateExpirationDate = (createdAt: string) => {
     const DELAI_EXPIRATION_JOURS = 10;
-    
+
     const creationDate = new Date(createdAt);
     creationDate.setUTCHours(0, 0, 0, 0);
-    
+
     const expirationDate = addWorkingDays(creationDate, DELAI_EXPIRATION_JOURS);
     expirationDate.setUTCHours(23, 59, 59, 999);
-    
+
     const joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-    
+
     return {
       date: expirationDate.toISOString().split('T')[0],
       dateFormatted: expirationDate.toLocaleDateString('fr-FR', {
@@ -4222,20 +4408,20 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         0, 0, 0, 0
       )
     );
-    
+
     const expDate = new Date(expirationDate);
     expDate.setUTCHours(0, 0, 0, 0);
-    
+
     if (expDate < utcNow) return 0;
-    
+
     let count = 0;
     let current = new Date(utcNow);
-    
+
     while (current <= expDate) {
       if (isWorkingDay(current.getUTCDay())) count++;
       current.setUTCDate(current.getUTCDate() + 1);
     }
-    
+
     return count;
   };
 
@@ -4263,17 +4449,17 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     return new Promise((resolve) => {
       const currentUTC = getCurrentUTCDate();
       const isoNow = new Date().toISOString();
-      
+
       const dateDebutFormatted = formatDateForDisplay(reservation.dateDebut);
       const dateFinFormatted = formatDateForDisplay(reservation.dateFin);
       const joursReservation = calculateExpirationDays(reservation.dateFin, reservation.dateDebut);
-      
+
       const expirationInfo = calculateExpirationDate(isoNow);
       const joursRestants = expirationInfo.joursRestants;
       const dateExpirationFormatted = expirationInfo.dateFormatted;
       const heureExpiration = '23:59:59';
       const estOuvrable = isWorkingDay(currentUTC.dayNumber);
-      
+
       const modal = document.createElement('div');
       modal.style.cssText = `
         position: fixed;
@@ -4290,7 +4476,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         padding: 20px;
         animation: fadeIn 0.3s ease;
       `;
-      
+
       modal.innerHTML = `
         <div style="
           background: white;
@@ -4394,12 +4580,12 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           @keyframes slideUp { from { opacity: 0; transform: translateY(30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
         </style>
       `;
-      
+
       document.body.appendChild(modal);
-      
+
       const cancelBtn = modal.querySelector('#confirm-cancel');
       const confirmBtn = modal.querySelector('#confirm-ok');
-      
+
       const closeModal = (result: boolean) => {
         modal.style.transition = 'all 0.3s ease';
         modal.style.opacity = '0';
@@ -4409,16 +4595,16 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           resolve(result);
         }, 300);
       };
-      
+
       cancelBtn?.addEventListener('click', () => closeModal(false));
       confirmBtn?.addEventListener('click', () => closeModal(true));
       modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(false); });
-      
+
       const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') closeModal(false); };
       document.addEventListener('keydown', handleEsc);
-      
+
       const cleanup = () => document.removeEventListener('keydown', handleEsc);
-      
+
       const newCloseModal = (result: boolean) => { cleanup(); closeModal(result); };
       cancelBtn?.addEventListener('click', () => newCloseModal(false));
       confirmBtn?.addEventListener('click', () => newCloseModal(true));
@@ -4681,15 +4867,15 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           dateFin: face.dateFin,
           societeLocatrice: face.clientNom
         };
-        
+
         const faceLabel = `${formData.idPan} - Face ${i + 1}`;
-        
+
         const confirmed = await showReservationConfirmationModal(
           reservationData,
           faceLabel,
           localUser || user
         );
-        
+
         if (!confirmed) {
           alert('❌ Réservation annulée par l\'utilisateur.');
           return;
@@ -4829,7 +5015,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
               const joursRestants = calculateExpirationDays(f.dateFin, f.dateDebut);
               const statutReservation = joursRestants === 0 ? 'Expiré' : (f.statut || 'Occupé');
 
-              console.log(`📊 Réservation face ${i+1}:`, {
+              console.log(`📊 Réservation face ${i + 1}:`, {
                 dateDebut: f.dateDebut,
                 dateFin: f.dateFin,
                 joursRestants,
@@ -4843,15 +5029,15 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                 agentId: localUser?.id || localUser?.uid || "unknown",
                 agentEmail: localUser?.email || "agent@dispromalt.cd",
                 agentNom: localUser?.nom || localUser?.nomComplet || localUser?.prenom || "Agent",
-                
+
                 // === DATES DE RÉSERVATION (location du panneau) ===
                 dateDebut: f.dateDebut || "",
                 dateFin: f.dateFin || "",
-                
+
                 // === DATE DE CRÉATION ===
                 createdAt: isoNow,
                 dateModification: isoNow,
-                
+
                 // === DATE D'EXPIRATION (10 jours ouvrables après création) ===
                 expirationDate: expirationInfo.date,
                 expirationDateFormatted: expirationInfo.dateFormatted,
@@ -4859,18 +5045,18 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                 expirationIsWorkingDay: expirationInfo.isWorkingDay,
                 delaiExpirationJours: 10,
                 joursAvantExpiration: expirationInfo.joursRestants,
-                
+
                 // === STATUT DE LA RÉSERVATION ===
                 statut: statutReservation,
                 statutPaiement: "en attente",
                 validationComptable: false,
                 facturee: "non",
                 modePaiement: "globale",
-                
+
                 // === INFORMATIONS DE LA RÉSERVATION ===
                 societeLocatrice: f.clientNom || "Inconnu",
                 photoCampagneUrl: finalPhotoUrl || "",
-                
+
                 // === MÉTADONNÉES ===
                 createdBy: localUser?.id || localUser?.uid || "system",
                 createdByEmail: localUser?.email || "system",

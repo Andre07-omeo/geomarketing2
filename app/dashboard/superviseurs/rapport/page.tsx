@@ -23,7 +23,7 @@ import {
   // ...
 } from 'lucide-react';
 import { useAuth } from "@/context/AuthContext";
-
+import { cleanupExpiredReservations, initAutoCleanup, stopAutoCleanup } from '@/utils/reservationCleanup';
 
 import {
   // ... vos imports existants
@@ -239,10 +239,9 @@ const RapportPanneaux: React.FC = () => {
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
 
 
-
-  console.log("📌✅✅✅✅✅ RapportPanneaux - user:", userEmail); // ✅ Doit afficher l'utilisateur
-  console.log("👤 User ID (Firestore):", user?.uid);
-
+  const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+  const [panneauForReservation, setPanneauForReservation] = useState<any>(null);
+  const [faceForReservation, setFaceForReservation] = useState<any>(null);
 
   // États des données
   const [panneaux, setPanneaux] = useState<Panneau[]>([]);
@@ -348,6 +347,48 @@ const RapportPanneaux: React.FC = () => {
   };
 
   const [localUser, setLocalUser] = useState<any>(null);
+
+
+
+
+
+  const cleanupRefs = useRef<{ timeoutId: NodeJS.Timeout, intervalId: NodeJS.Timeout, handleBeforeUnload: () => void } | null>(null);
+  const [isCleanupRunning, setIsCleanupRunning] = useState(false);
+
+  useEffect(() => {
+    if (panneaux.length > 0 && !isCleanupRunning) {
+      setIsCleanupRunning(true);
+      cleanupRefs.current = initAutoCleanup(panneaux, setPanneaux);
+    }
+
+    return () => {
+      if (cleanupRefs.current) {
+        stopAutoCleanup(cleanupRefs.current);
+        setIsCleanupRunning(false);
+      }
+    };
+  }, [panneaux]);
+
+  // ✅ Nettoyage forcé après le chargement des données
+  useEffect(() => {
+    if (panneaux.length > 0) {
+      const timer = setTimeout(() => {
+        cleanupExpiredReservations(panneaux, setPanneaux);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [panneaux.length]);
+
+
+  // ✅ Nettoyage manuel (optionnel)
+  const handleManualCleanup = async () => {
+    await cleanupExpiredReservations(panneaux, setPanneaux);
+  };
+
+
+
+
 
   // ✅ AJOUTER CET USEFFECT POUR CHARGER LES DONNÉES LOCALES
   useEffect(() => {
@@ -720,24 +761,22 @@ const RapportPanneaux: React.FC = () => {
     };
   }, [filteredPanneaux]);
 
-// États pour la réservation
-const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
-const [faceModalDefaultTab, setFaceModalDefaultTab] = useState<'details' | 'reservation'>('details');
+  // États pour la réservation
+  const [faceModalDefaultTab, setFaceModalDefaultTab] = useState<'details' | 'reservation'>('details');
 
   // ✅ Fonction pour ouvrir le modal de réservation (à placer dans le composant parent)
-const openReservationModal = (panneau: Panneau, face: Face) => {
-  // Ouvrir le modal de réservation avec le panneau et la face sélectionnés
-  setSelectedPanneau(panneau);
-  setSelectedFace(face);
-  setIsReservationModalOpen(true);
-};
+  const openReservationModal = (panneau: Panneau, face: Face) => {
 
-// ✅ Fonction pour fermer le modal de réservation
-const closeReservationModal = () => {
-  setIsReservationModalOpen(false);
-  setSelectedPanneau(null);
-  setSelectedFace(null);
-};
+    // Stocker le panneau et la face sélectionnés
+    setPanneauForReservation(panneau);
+    setFaceForReservation(face);
+
+    // Ouvrir le modal d'édition
+    setIsReservationModalOpen(true);
+  };
+
+  // ✅ Fonction pour fermer le modal de réservation
+
 
   // ============================================
   // EXPORT PDF - VERSION PREMIUM
@@ -1312,485 +1351,477 @@ const closeReservationModal = () => {
     }
   };
 
-// ============================================
-// RENDU DU TABLEAU - VERSION CORRIGÉE
-// ============================================
-const renderTableauPanneaux = (): React.ReactNode => {
-  // État local pour gérer l'expansion des panneaux
-  const [expandedPanneaux, setExpandedPanneaux] = useState<Set<string>>(new Set());
+  // ============================================
+  // RENDU DU TABLEAU - VERSION CORRIGÉE
+  // ============================================
+  const renderTableauPanneaux = (): React.ReactNode => {
+    // État local pour gérer l'expansion des panneaux
+    const [expandedPanneaux, setExpandedPanneaux] = useState<Set<string>>(new Set());
 
-  const togglePanneau = (panneauId: string) => {
-    const newExpanded = new Set(expandedPanneaux);
-    if (newExpanded.has(panneauId)) {
-      newExpanded.delete(panneauId);
-    } else {
-      newExpanded.add(panneauId);
+    const togglePanneau = (panneauId: string) => {
+      const newExpanded = new Set(expandedPanneaux);
+      if (newExpanded.has(panneauId)) {
+        newExpanded.delete(panneauId);
+      } else {
+        newExpanded.add(panneauId);
+      }
+      setExpandedPanneaux(newExpanded);
+    };
+
+
+
+    // ✅ Fonction pour extraire et calculer le produit des dimensions avec unité
+    const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
+      if (!dimension) return { value: 0, unit: '' };
+
+      // Extraire l'unité complète de la dimension originale
+      const unitMatch = dimension.match(/[a-zA-Z²]+$/);
+      const originalUnit = unitMatch ? unitMatch[0] : '';
+
+      // Extrait les nombres
+      const numbers = dimension.match(/[\d.]+/g)?.map(Number).filter(num => num > 0) || [];
+
+      if (numbers.length === 0) return { value: 0, unit: originalUnit };
+
+      // Calcule le produit
+      const product = numbers.reduce((acc, val) => acc * val, 1);
+      const roundedProduct = Math.round(product * 100) / 100;
+
+      return { value: roundedProduct, unit: originalUnit || 'm²' };
+    };
+
+    // ✅ Fonction pour formater l'adresse (affiche la commune si pas assez de place)
+    const formatAddress = (address: string | undefined, maxLength?: number): string => {
+      if (!address) return 'N/A';
+
+      // Si pas de limite ou adresse courte, retourner l'adresse complète
+      if (!maxLength || address.length <= maxLength) return address;
+
+      // Essayer d'extraire la commune (dernière partie après la virgule)
+      const parts = address.split(',').map(p => p.trim());
+      if (parts.length > 1) {
+        // Retourner les 2 derniers éléments (souvent quartier et commune)
+        const lastParts = parts.slice(-2).join(', ');
+        if (lastParts.length <= maxLength) return lastParts;
+        // Sinon retourner juste la dernière partie
+        return parts[parts.length - 1] || address;
+      }
+
+      // Si pas de virgule, tronquer avec "..." 
+      return address.substring(0, maxLength) + '...';
+    };
+
+    const openOnMap = (panneau: Panneau) => {
+      const coords = panneau?.coords || panneau?.gps_raw;
+      if (coords && coords.lat && coords.lng) {
+        localStorage.setItem('map_single_panneau', JSON.stringify({
+          id: panneau.id,
+          idPan: panneau.idPan,
+          adresse: panneau.adresse || 'Adresse non définie',
+          lat: coords.lat,
+          lng: coords.lng,
+          type: panneau.type || 'Standard'
+        }));
+        window.location.href = '/dashboard/superviseurs/carte';
+      } else {
+        alert('⚠️ Ce panneau n\'a pas de coordonnées GPS enregistrées.');
+      }
+    };
+
+    if (loading) {
+      return (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement des données...</p>
+        </div>
+      );
     }
-    setExpandedPanneaux(newExpanded);
-  };
 
-  
-
-  // ✅ Fonction pour extraire et calculer le produit des dimensions avec unité
-  const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
-    if (!dimension) return { value: 0, unit: '' };
-
-    // Extraire l'unité complète de la dimension originale
-    const unitMatch = dimension.match(/[a-zA-Z²]+$/);
-    const originalUnit = unitMatch ? unitMatch[0] : '';
-
-    // Extrait les nombres
-    const numbers = dimension.match(/[\d.]+/g)?.map(Number).filter(num => num > 0) || [];
-
-    if (numbers.length === 0) return { value: 0, unit: originalUnit };
-
-    // Calcule le produit
-    const product = numbers.reduce((acc, val) => acc * val, 1);
-    const roundedProduct = Math.round(product * 100) / 100;
-
-    return { value: roundedProduct, unit: originalUnit || 'm²' };
-  };
-
-  // ✅ Fonction pour formater l'adresse (affiche la commune si pas assez de place)
-  const formatAddress = (address: string | undefined, maxLength?: number): string => {
-    if (!address) return 'N/A';
-    
-    // Si pas de limite ou adresse courte, retourner l'adresse complète
-    if (!maxLength || address.length <= maxLength) return address;
-    
-    // Essayer d'extraire la commune (dernière partie après la virgule)
-    const parts = address.split(',').map(p => p.trim());
-    if (parts.length > 1) {
-      // Retourner les 2 derniers éléments (souvent quartier et commune)
-      const lastParts = parts.slice(-2).join(', ');
-      if (lastParts.length <= maxLength) return lastParts;
-      // Sinon retourner juste la dernière partie
-      return parts[parts.length - 1] || address;
+    if (error) {
+      return (
+        <div className="bg-white rounded-xl shadow-lg border border-red-200 p-8 text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={loadData}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            Réessayer
+          </button>
+        </div>
+      );
     }
-    
-    // Si pas de virgule, tronquer avec "..." 
-    return address.substring(0, maxLength) + '...';
-  };
 
-  const openOnMap = (panneau: Panneau) => {
-    const coords = panneau?.coords || panneau?.gps_raw;
-    if (coords && coords.lat && coords.lng) {
-      localStorage.setItem('map_single_panneau', JSON.stringify({
-        id: panneau.id,
-        idPan: panneau.idPan,
-        adresse: panneau.adresse || 'Adresse non définie',
-        lat: coords.lat,
-        lng: coords.lng,
-        type: panneau.type || 'Standard'
-      }));
-      window.location.href = '/dashboard/superviseurs/carte';
-    } else {
-      alert('⚠️ Ce panneau n\'a pas de coordonnées GPS enregistrées.');
+    // ✅ Fonction pour ouvrir EditPanneauModal
+    const openEditPanneau = (panneau: any) => {
+      if (!panneau) {
+        alert('⚠️ Aucun panneau sélectionné');
+        return;
+      }
+      setPanneauToEdit(panneau);
+    };
+
+    // ✅ Fonction pour fermer EditPanneauModal
+    const closeEditPanneau = () => {
+      setPanneauToEdit(null);
+    };
+
+    if (filteredPanneaux.length === 0) {
+      return (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
+          <div className="text-6xl mb-4">📭</div>
+          <h3 className="text-lg font-semibold text-gray-600">Aucun panneau trouvé</h3>
+          <p className="text-sm text-gray-400 mt-1">Ajustez vos filtres pour voir plus de résultats</p>
+        </div>
+      );
     }
-  };
 
-  // ✅ Fonction pour ouvrir le modal de réservation
-  const openReservationModal = (panneau: Panneau, face: Face) => {
-    // Implémentez votre logique d'ouverture du modal de réservation
-    console.log('Réservation pour:', panneau.idPan, 'Face:', face.id);
-    // setSelectedPanneauForReservation(panneau);
-    // setSelectedFaceForReservation(face);
-    // setIsReservationModalOpen(true);
-  };
-
-  if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Chargement des données...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg border border-red-200 p-8 text-center">
-        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <p className="text-red-600">{error}</p>
-        <button
-          onClick={loadData}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div
+          ref={tableContainerRef}
+          className="overflow-auto"
+          style={{ maxHeight: 'calc(100vh - 400px)' }}
         >
-          Réessayer
-        </button>
-      </div>
-    );
-  }
+          <div className="w-full overflow-x-auto">
+            <table className="w-full border-collapse min-w-[1200px]">
+              <thead className="sticky top-0 z-20">
+                <tr className="bg-[#00539B] from-blue-900 to-indigo-900">
+                  <th className="bg-[#00539B] px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[100px] sticky left-0 z-30">
+                    IdPan / Adresse
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                    Type
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                    Dimension
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                    Total Dim
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[70px]">
+                    Nb Faces
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[130px]">
+                    Actions
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px]">
+                    Face
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[70px]">
+                    Sens
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[110px]">
+                    Société Locatrice
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[140px]">
+                    Date début - fin
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                    Nb Rés. Fut.
+                  </th>
+                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider min-w-[90px]">
+                    Statut
+                  </th>
+                </tr>
+              </thead>
 
-  // ✅ Fonction pour ouvrir EditPanneauModal
-  const openEditPanneau = (panneau: any) => {
-    if (!panneau) {
-      alert('⚠️ Aucun panneau sélectionné');
-      return;
-    }
-    setPanneauToEdit(panneau);
-  };
+              <tbody className="divide-y divide-gray-100">
+                {filteredPanneaux.map((panneau: Panneau) => {
+                  const faces = panneau.faces || [];
+                  const isExpanded = expandedPanneaux.has(panneau.id);
+                  const dimensionResult = calculateDimensionSum(panneau.dimension);
 
-  // ✅ Fonction pour fermer EditPanneauModal
-  const closeEditPanneau = () => {
-    setPanneauToEdit(null);
-  };
+                  if (faces.length === 0) {
+                    return (
+                      <tr key={`${panneau.id}-empty`} className="hover:bg-blue-50/50 transition-colors border-b border-gray-200">
+                        <td className="px-3 py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[100px]">
+                          <div>
+                            <div className="text-blue-700 text-xs md:text-sm">{panneau.idPan || 'N/A'}</div>
+                            <div className="text-xs md:text-sm font-medium text-gray-600 mt-1 break-words max-w-[200px]">
+                              {formatAddress(panneau.adresse, 30)}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.type || 'N/A'}</td>
+                        <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.dimension || 'N/A'}</td>
+                        <td className="px-3 py-3 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                          {dimensionResult.value > 0 ? `${dimensionResult.value} ${dimensionResult.unit}` : '-'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">0</td>
+                        <td className="px-3 py-3 text-center border-r border-gray-200">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => openOnMap(panneau)}
+                              className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
+                            >
+                              <MapPin size={12} />
+                              <span className="hidden sm:inline">Carte</span>
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-xs text-gray-400 border-r border-gray-200 text-center" colSpan={5}>Aucune face</td>
+                      </tr>
+                    );
+                  }
 
-  if (filteredPanneaux.length === 0) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
-        <div className="text-6xl mb-4">📭</div>
-        <h3 className="text-lg font-semibold text-gray-600">Aucun panneau trouvé</h3>
-        <p className="text-sm text-gray-400 mt-1">Ajustez vos filtres pour voir plus de résultats</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-      <div
-        ref={tableContainerRef}
-        className="overflow-auto"
-        style={{ maxHeight: 'calc(100vh - 400px)' }}
-      >
-        <div className="w-full overflow-x-auto">
-          <table className="w-full border-collapse min-w-[1200px]">
-            <thead className="sticky top-0 z-20">
-              <tr className="bg-gradient-to-r from-blue-900 to-indigo-900">
-                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[100px] sticky left-0 z-30 bg-gradient-to-r from-blue-900 to-indigo-900">
-                  IdPan / Adresse
-                </th>
-                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
-                  Type
-                </th>
-                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
-                  Dimension
-                </th>
-                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
-                  Total Dim
-                </th>
-                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[70px]">
-                  Nb Faces
-                </th>
-                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[130px]">
-                  Actions
-                </th>
-                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px]">
-                  Face
-                </th>
-                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[70px]">
-                  Sens
-                </th>
-                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[110px]">
-                  Société Locatrice
-                </th>
-                <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[140px]">
-                  Date début - fin
-                </th>
-                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
-                  Nb Rés. Fut.
-                </th>
-                <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider min-w-[90px]">
-                  Statut
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-100">
-              {filteredPanneaux.map((panneau: Panneau) => {
-                const faces = panneau.faces || [];
-                const isExpanded = expandedPanneaux.has(panneau.id);
-                const dimensionResult = calculateDimensionSum(panneau.dimension);
-
-                if (faces.length === 0) {
                   return (
-                    <tr key={`${panneau.id}-empty`} className="hover:bg-blue-50/50 transition-colors border-b border-gray-200">
-                      <td className="px-3 py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[100px]">
-                        <div>
-                          <div className="text-blue-700 text-xs md:text-sm">{panneau.idPan || 'N/A'}</div>
+                    <React.Fragment key={panneau.id}>
+                      {/* Ligne principale du panneau - Cliquable pour dérouler */}
+                      <tr
+                        className="hover:bg-[#00539B] transition-colors border-b border-gray-200 cursor-pointer"
+                        onClick={() => togglePanneau(panneau.id)}
+                      >
+                        <td className="px-3 py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[100px]">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-blue-700 text-xs md:text-sm">{panneau.idPan || 'N/A'}</span>
+                            <span className="text-[10px] text-gray-400">
+                              {isExpanded ? '▼' : '▶'}
+                            </span>
+                          </div>
                           <div className="text-xs md:text-sm font-medium text-gray-600 mt-1 break-words max-w-[200px]">
                             {formatAddress(panneau.adresse, 30)}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.type || 'N/A'}</td>
-                      <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.dimension || 'N/A'}</td>
-                      <td className="px-3 py-3 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
-                        {dimensionResult.value > 0 ? `${dimensionResult.value} ${dimensionResult.unit}` : '-'}
-                      </td>
-                      <td className="px-3 py-3 text-center text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">0</td>
-                      <td className="px-3 py-3 text-center border-r border-gray-200">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => openOnMap(panneau)}
-                            className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
+                        </td>
+                        <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                          {panneau.type || 'N/A'}
+                        </td>
+                        <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                          {panneau.dimension || 'N/A'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                          {dimensionResult.value > 0 ? `${dimensionResult.value} ${dimensionResult.unit}` : '-'}
+                        </td>
+                        <td className="px-3 py-3 text-center text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">
+                          {faces.length}
+                        </td>
+                        <td className="px-3 py-3 text-center border-r border-gray-200">
+                          <div className="flex items-center justify-center gap-1 flex-wrap">
+                            {/* Bouton Détails */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (faces.length > 0) {
+                                  openFaceDetails(panneau, faces[0]);
+                                }
+                              }}
+                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] md:text-xs font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
+                              title="Voir les détails du panneau"
+                            >
+                              <Eye size={12} />
+                              <span className="hidden sm:inline">Détails</span>
+                            </button>
+                            {/* Bouton Carte */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openOnMap(panneau);
+                              }}
+                              className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
+                              title="Voir sur la carte"
+                            >
+                              <MapPin size={12} />
+                              <span className="hidden sm:inline">Carte</span>
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-center text-xs text-gray-400 border-r border-gray-200" colSpan={5}>
+                          <span className="text-[10px] text-blue-400 font-medium">Cliquez sur la ligne pour voir les faces</span>
+                        </td>
+                      </tr>
+
+                      {/* Lignes des faces - Affichées si le panneau est déroulé */}
+                      {isExpanded && faces.map((face: Face, idx: number) => {
+                        const activeReservation = getReservationActive(face);
+                        const futureReservations = getReservationsFutures(face);
+                        const status = getFaceStatus(face);
+                        const faceId = face.id || `F${idx + 1}`;
+
+                        const getStatusColor = (statut: string): string => {
+                          switch (statut) {
+                            case 'Libre': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+                            case 'Occupé': return 'bg-blue-100 text-blue-700 border-blue-200';
+                            case 'Réservé': return 'bg-amber-100 text-amber-700 border-amber-200';
+                            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+                          }
+                        };
+
+                        const getStatusDot = (statut: string): string => {
+                          switch (statut) {
+                            case 'Libre': return 'bg-emerald-500';
+                            case 'Occupé': return 'bg-blue-500';
+                            case 'Réservé': return 'bg-amber-500';
+                            default: return 'bg-gray-500';
+                          }
+                        };
+
+                        return (
+                          <tr
+                            key={`${panneau.id}-face-${idx}`}
+                            className="hover:bg-[#00539B] transition-colors border-b border-gray-100 bg-blue-50/20"
                           >
-                            <MapPin size={12} />
-                            <span className="hidden sm:inline">Carte</span>
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-gray-400 border-r border-gray-200 text-center" colSpan={5}>Aucune face</td>
-                    </tr>
+                            {/* Colonne IdPan/Adresse - alignée avec la ligne parent */}
+                            <td className="px-3 py-2 text-[10px] text-gray-400 border-r border-gray-200 sticky left-0 z-10 bg-blue-50/20 min-w-[100px]">
+                              <span className="ml-4 text-[10px] text-blue-400">└── Face #{idx + 1}</span>
+                            </td>
+
+                            {/* Colonne Type - vide mais alignée */}
+                            <td className="px-3 py-2 border-r border-gray-200"></td>
+
+                            {/* Colonne Dimension - vide mais alignée */}
+                            <td className="px-3 py-2 border-r border-gray-200"></td>
+
+                            {/* Colonne Total Dim - vide mais alignée */}
+                            <td className="px-3 py-2 border-r border-gray-200"></td>
+
+                            {/* Colonne Nb Faces - vide mais alignée */}
+                            <td className="px-3 py-2 border-r border-gray-200"></td>
+
+                            {/* Colonne Actions - Boutons pour chaque face */}
+                            <td className="px-3 py-2 text-center border-r border-gray-200">
+                              <div className="flex items-center justify-center gap-1 flex-wrap">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openFaceDetails(panneau, face);
+                                  }}
+                                  className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
+                                >
+                                  <Eye size={10} />
+                                  Voir
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    openReservationModal(panneau, face);
+                                    // e.stopPropagation();
+                                    //openFaceDetails(panneau, face,);
+                                  }}
+                                  className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-[10px] font-bold hover:bg-amber-200 transition flex items-center gap-0.5"
+                                  title="Réserver cette face"
+                                >
+                                  <Calendar size={10} />
+                                  <span className="hidden sm:inline">Réserver</span>
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Colonne Face */}
+                            <td className="px-3 py-2 text-xs md:text-sm font-bold text-indigo-600 border-r border-gray-200">
+                              {faceId}
+                            </td>
+
+                            {/* Colonne Sens */}
+                            <td className="px-3 py-2 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                              {face.sens || 'N/A'}
+                            </td>
+
+                            {/* Colonne Société Locatrice */}
+                            <td className="px-3 py-2 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                              {activeReservation?.societeLocatrice || 'S/N'}
+                            </td>
+
+                            {/* Colonne Date début - fin */}
+                            <td className="px-3 py-2 text-xs md:text-sm font-medium text-gray-600 border-r border-gray-200">
+                              {activeReservation?.dateDebut && activeReservation?.dateFin ? (
+                                <span className="text-gray-700 text-[10px] md:text-xs">{activeReservation.dateDebut} – {activeReservation.dateFin}</span>
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
+                            </td>
+
+                            {/* Colonne Nb Rés. Fut. */}
+                            <td className="px-3 py-2 text-center text-xs md:text-sm font-bold text-amber-600 border-r border-gray-200">
+                              {futureReservations.length || 0}
+                            </td>
+
+                            {/* Colonne Statut */}
+                            <td className="px-3 py-2 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold border ${getStatusColor(status)} flex items-center gap-1 justify-center whitespace-nowrap`}>
+                                <span className={`w-1 h-1 rounded-full ${getStatusDot(status)}`} />
+                                {status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
                   );
-                }
-
-                return (
-                  <React.Fragment key={panneau.id}>
-                    {/* Ligne principale du panneau - Cliquable pour dérouler */}
-                    <tr
-                      className="hover:bg-blue-50/50 transition-colors border-b border-gray-200 cursor-pointer"
-                      onClick={() => togglePanneau(panneau.id)}
-                    >
-                      <td className="px-3 py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[100px]">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-blue-700 text-xs md:text-sm">{panneau.idPan || 'N/A'}</span>
-                          <span className="text-[10px] text-gray-400">
-                            {isExpanded ? '▼' : '▶'}
-                          </span>
-                        </div>
-                        <div className="text-xs md:text-sm font-medium text-gray-600 mt-1 break-words max-w-[200px]">
-                          {formatAddress(panneau.adresse, 30)}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                        {panneau.type || 'N/A'}
-                      </td>
-                      <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                        {panneau.dimension || 'N/A'}
-                      </td>
-                      <td className="px-3 py-3 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
-                        {dimensionResult.value > 0 ? `${dimensionResult.value} ${dimensionResult.unit}` : '-'}
-                      </td>
-                      <td className="px-3 py-3 text-center text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">
-                        {faces.length}
-                      </td>
-                      <td className="px-3 py-3 text-center border-r border-gray-200">
-                        <div className="flex items-center justify-center gap-1 flex-wrap">
-                          {/* Bouton Détails */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (faces.length > 0) {
-                                openFaceDetails(panneau, faces[0]);
-                              }
-                            }}
-                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] md:text-xs font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
-                            title="Voir les détails du panneau"
-                          >
-                            <Eye size={12} />
-                            <span className="hidden sm:inline">Détails</span>
-                          </button>
-                          {/* Bouton Carte */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openOnMap(panneau);
-                            }}
-                            className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
-                            title="Voir sur la carte"
-                          >
-                            <MapPin size={12} />
-                            <span className="hidden sm:inline">Carte</span>
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 text-center text-xs text-gray-400 border-r border-gray-200" colSpan={5}>
-                        <span className="text-[10px] text-blue-400 font-medium">Cliquez sur la ligne pour voir les faces</span>
-                      </td>
-                    </tr>
-
-                    {/* Lignes des faces - Affichées si le panneau est déroulé */}
-                    {isExpanded && faces.map((face: Face, idx: number) => {
-                      const activeReservation = getReservationActive(face);
-                      const futureReservations = getReservationsFutures(face);
-                      const status = getFaceStatus(face);
-                      const faceId = face.id || `F${idx + 1}`;
-
-                      const getStatusColor = (statut: string): string => {
-                        switch (statut) {
-                          case 'Libre': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-                          case 'Occupé': return 'bg-blue-100 text-blue-700 border-blue-200';
-                          case 'Réservé': return 'bg-amber-100 text-amber-700 border-amber-200';
-                          default: return 'bg-gray-100 text-gray-700 border-gray-200';
-                        }
-                      };
-
-                      const getStatusDot = (statut: string): string => {
-                        switch (statut) {
-                          case 'Libre': return 'bg-emerald-500';
-                          case 'Occupé': return 'bg-blue-500';
-                          case 'Réservé': return 'bg-amber-500';
-                          default: return 'bg-gray-500';
-                        }
-                      };
-
-                      return (
-                        <tr
-                          key={`${panneau.id}-face-${idx}`}
-                          className="hover:bg-blue-50/30 transition-colors border-b border-gray-100 bg-blue-50/20"
-                        >
-                          {/* Colonne IdPan/Adresse - alignée avec la ligne parent */}
-                          <td className="px-3 py-2 text-[10px] text-gray-400 border-r border-gray-200 sticky left-0 z-10 bg-blue-50/20 min-w-[100px]">
-                            <span className="ml-4 text-[10px] text-blue-400">└── Face #{idx + 1}</span>
-                          </td>
-                          
-                          {/* Colonne Type - vide mais alignée */}
-                          <td className="px-3 py-2 border-r border-gray-200"></td>
-                          
-                          {/* Colonne Dimension - vide mais alignée */}
-                          <td className="px-3 py-2 border-r border-gray-200"></td>
-                          
-                          {/* Colonne Total Dim - vide mais alignée */}
-                          <td className="px-3 py-2 border-r border-gray-200"></td>
-                          
-                          {/* Colonne Nb Faces - vide mais alignée */}
-                          <td className="px-3 py-2 border-r border-gray-200"></td>
-                          
-                          {/* Colonne Actions - Boutons pour chaque face */}
-                          <td className="px-3 py-2 text-center border-r border-gray-200">
-                            <div className="flex items-center justify-center gap-1 flex-wrap">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openFaceDetails(panneau, face);
-                                }}
-                                className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
-                              >
-                                <Eye size={10} />
-                                Voir
-                              </button>
-                              <button
-  onClick={(e) => {
-    e.stopPropagation();
-    openFaceDetails(panneau, face, );
-  }}
-  className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-[10px] font-bold hover:bg-amber-200 transition flex items-center gap-0.5"
-  title="Réserver cette face"
->
-  <Calendar size={10} />
-  <span className="hidden sm:inline">Réserver</span>
-</button>
-                            </div>
-                          </td>
-                          
-                          {/* Colonne Face */}
-                          <td className="px-3 py-2 text-xs md:text-sm font-bold text-indigo-600 border-r border-gray-200">
-                            {faceId}
-                          </td>
-                          
-                          {/* Colonne Sens */}
-                          <td className="px-3 py-2 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                            {face.sens || 'N/A'}
-                          </td>
-                          
-                          {/* Colonne Société Locatrice */}
-                          <td className="px-3 py-2 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                            {activeReservation?.societeLocatrice || 'S/N'}
-                          </td>
-                          
-                          {/* Colonne Date début - fin */}
-                          <td className="px-3 py-2 text-xs md:text-sm font-medium text-gray-600 border-r border-gray-200">
-                            {activeReservation?.dateDebut && activeReservation?.dateFin ? (
-                              <span className="text-gray-700 text-[10px] md:text-xs">{activeReservation.dateDebut} – {activeReservation.dateFin}</span>
-                            ) : (
-                              <span className="text-gray-300">-</span>
-                            )}
-                          </td>
-                          
-                          {/* Colonne Nb Rés. Fut. */}
-                          <td className="px-3 py-2 text-center text-xs md:text-sm font-bold text-amber-600 border-r border-gray-200">
-                            {futureReservations.length || 0}
-                          </td>
-                          
-                          {/* Colonne Statut */}
-                          <td className="px-3 py-2 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold border ${getStatusColor(status)} flex items-center gap-1 justify-center whitespace-nowrap`}>
-                              <span className={`w-1 h-1 rounded-full ${getStatusDot(status)}`} />
-                              {status}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {/* Pied de tableau */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-500">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          <span className="font-semibold text-gray-600">📊 {filteredPanneaux.length} panneau(x)</span>
-          <span className="hidden xs:inline text-gray-300">•</span>
-          <span className="font-semibold text-gray-600">🎯 {stats.totalFaces} face(s)</span>
-          <span className="hidden xs:inline text-gray-300">•</span>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="flex items-center gap-1 font-medium text-gray-600">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              {stats.totalLibres} libres
-            </span>
-            <span className="flex items-center gap-1 font-medium text-gray-600">
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
-              {stats.totalOccupes} occupées
-            </span>
-            <span className="flex items-center gap-1 font-medium text-gray-600">
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-              {stats.totalReserves} réservées
+        {/* Pied de tableau */}
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-500">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <span className="font-semibold text-gray-600">📊 {filteredPanneaux.length} panneau(x)</span>
+            <span className="hidden xs:inline text-gray-300">•</span>
+            <span className="font-semibold text-gray-600">🎯 {stats.totalFaces} face(s)</span>
+            <span className="hidden xs:inline text-gray-300">•</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1 font-medium text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                {stats.totalLibres} libres
+              </span>
+              <span className="flex items-center gap-1 font-medium text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                {stats.totalOccupes} occupées
+              </span>
+              <span className="flex items-center gap-1 font-medium text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                {stats.totalReserves} réservées
+              </span>
+            </div>
+          </div>
+          <div className="text-[9px] text-gray-400 flex items-center gap-2">
+            <RefreshCw
+              className="w-3 h-3 cursor-pointer hover:text-blue-500 transition"
+              onClick={loadData}
+            />
+            {lastUpdate && (
+              <span className="hidden sm:inline font-medium text-gray-400">
+                Mis à jour: {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+            <span className="text-[7px] sm:hidden text-gray-400">
+              ← Glissez →
             </span>
           </div>
         </div>
-        <div className="text-[9px] text-gray-400 flex items-center gap-2">
-          <RefreshCw
-            className="w-3 h-3 cursor-pointer hover:text-blue-500 transition"
-            onClick={loadData}
-          />
-          {lastUpdate && (
-            <span className="hidden sm:inline font-medium text-gray-400">
-              Mis à jour: {lastUpdate.toLocaleTimeString()}
-            </span>
+
+        <AnimatePresence>
+          {isFaceModalOpen && selectedFace && selectedPanneau && (
+            <FaceDetailModal
+              isOpen={isFaceModalOpen}
+              onClose={closeFaceModal}
+              panneau={{
+                ...selectedPanneau,
+                onEdit: openEditPanneau
+              }}
+              face={selectedFace}
+              onSelect={(selectionKey: string) => {
+                console.log('Face sélectionnée:', selectionKey);
+              }}
+              isSelected={false}
+              ouvrirLaCarte={ouvrirLaCarte}
+              user={user}
+            />
           )}
-          <span className="text-[7px] sm:hidden text-gray-400">
-            ← Glissez →
-          </span>
-        </div>
-      </div>
-      
-      <AnimatePresence>
-        {isFaceModalOpen && selectedFace && selectedPanneau && (
-          <FaceDetailModal
-            isOpen={isFaceModalOpen}
-            onClose={closeFaceModal}
-            panneau={{
-              ...selectedPanneau,
-              onEdit: openEditPanneau
-            }}
-            face={selectedFace}
-            onSelect={(selectionKey: string) => {
-              console.log('Face sélectionnée:', selectionKey);
-            }}
-            isSelected={false}
-            ouvrirLaCarte={ouvrirLaCarte}
+        </AnimatePresence>
+
+        {/* ✅ RENDU DE EDITPANNEAUMODAL */}
+        {panneauToEdit && (
+          <EditPanneauModal
+            isOpen={true}
+            onClose={closeEditPanneau}
+            panneau={openReservationModal}
             user={user}
           />
         )}
-      </AnimatePresence>
-
-      {/* ✅ RENDU DE EDITPANNEAUMODAL */}
-      {panneauToEdit && (
-        <EditPanneauModal
-          isOpen={true}
-          onClose={closeEditPanneau}
-          panneau={panneauToEdit}
-          user={user}
-        />
-      )}
-    </div>
-  );
-};
+      </div>
+    );
+  };
 
 
   // ============================================
@@ -1798,77 +1829,74 @@ const renderTableauPanneaux = (): React.ReactNode => {
   // ============================================
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* HEADER - VERSION ULTRA RESPONSIVE */}
-      <header className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-2xl sticky top-0 z-50 border-b border-white/10">
-        <div className="w-full px-2 xs:px-3 sm:px-4 md:px-6 py-1.5 xs:py-2 sm:py-2.5 md:py-3">
-          <div className="flex items-center justify-between gap-1 xs:gap-2 sm:gap-3 md:gap-4">
+      {/* HEADER - VERSION ULTRA RESPONSIVE AVEC LOGO */}
+      <header className="bg-[#00539B] shadow-2xl sticky top-0 z-50 border-b border-white/10">
+        <div className="w-full px-1 xs:px-1.5 sm:px-2 md:px-3 py-0.5 xs:py-1 sm:py-1 md:py-1.5">
+          <div className="flex items-center justify-between gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2">
 
             {/* ==================== PARTIE GAUCHE ==================== */}
-            <div className="flex items-center gap-1 xs:gap-2 sm:gap-3 md:gap-4 min-w-0 flex-1">
+            <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 min-w-0 flex-1">
 
               {/* Bouton Retour - Masqué sur très petit écran */}
               <button
                 onClick={() => window.location.href = '/dashboard'}
-                className="hidden xs:flex p-1.5 xs:p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 text-white flex-shrink-0 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/30 group"
+                className="hidden xs:flex p-1 xs:p-1.5 sm:p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300 text-white flex-shrink-0 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/30 group"
                 aria-label="Retour au tableau de bord"
               >
-                <Home className="w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5 group-hover:rotate-[-10deg] transition-transform" />
+                <Home className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 group-hover:rotate-[-10deg] transition-transform" />
               </button>
 
-              <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0 min-w-0">
-                <div
-                  onClick={() => window.location.reload()}
-                  className="relative flex items-center gap-1 xs:gap-1.5 sm:gap-2 md:gap-2.5 cursor-pointer group/logo flex-shrink-0"
-                >
-                  <div className="absolute -inset-1 rounded-xl border-2 border-white/0 group-hover/logo:border-white/20 transition-all duration-500" />
-
-                  <div className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 flex-shrink-0">
-                    <div className="absolute inset-0 bg-white/10 rounded-lg shadow-sm" />
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-lg" />
-                    <img
-                      src="/icon-192x192.png"
-                      className="relative w-full h-full object-contain p-0.5 xs:p-1 rounded-lg object-cover border border-white/30 group-hover/logo:border-white/60 transition-all duration-300 shadow-sm"
-                      alt="Logo"
-                    />
-                    <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full animate-pulse shadow-sm" />
-                  </div>
-
-                  <div className="flex flex-col leading-tight min-w-0">
-                    <span className="text-[11px] xs:text-sm sm:text-base md:text-lg lg:text-xl font-black italic uppercase tracking-tighter whitespace-nowrap">
-                      <span className="text-white group-hover/logo:text-amber-300 transition-all">G</span>
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-400">D</span>
-                      <span className="text-white group-hover/logo:text-amber-300 transition-all">P</span>
-                    </span>
-                    <span className="hidden 2xs:inline text-[4px] xs:text-[5px] sm:text-[6px] md:text-[7px] font-black uppercase tracking-[0.15em] xs:tracking-[0.2em] text-blue-200/70 whitespace-nowrap">
-                      GESTION DIGITALE
-                    </span>
-                  </div>
+              {/* ============================================================ */}
+              {/* ✅ LOGO AVEC TITRE - Cliquable pour refresh */}
+              {/* ============================================================ */}
+              <div
+                onClick={() => window.location.reload()}
+                className="flex flex-col items-center gap-0 cursor-pointer group/logo flex-shrink-0"
+              >
+                <div className="relative w-12 h-8 xs:w-14 xs:h-9 sm:w-16 sm:h-10 md:w-20 md:h-13 lg:w-24 lg:h-16 flex-shrink-0 overflow-visible">
+                  <img
+                    src="/Dispromalt_logo.png"
+                    className="relative w-full h-full object-contain group-hover/logo:scale-105 transition-all duration-300 drop-shadow-md group-hover/logo:drop-shadow-amber-400/30 
+      scale-150 xs:scale-160 sm:scale-170 md:scale-180 lg:scale-200 origin-center"
+                    alt="Dispromalt Logo"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
                 </div>
+
+                {/* Texte sous le logo */}
+                <span className="text-[5px] xs:text-[6px] sm:text-[7px] md:text-[8px] lg:text-[9px] font-bold uppercase tracking-[0.12em] text-amber-300/90 whitespace-nowrap drop-shadow-sm text-center leading-none">
+                  Gestion Digitale des panneaux
+                </span>
               </div>
 
             </div>
 
             {/* ==================== PARTIE DROITE ==================== */}
-            <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 flex-shrink-0">
+            <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1 md:gap-1.5 flex-shrink-0">
+
               {/* --- SÉPARATEUR --- */}
               <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
+
               {/* ============================================================ */}
-              {/* ✅ BOUTON CATALOGUE */}
+              {/* ✅ BOUTON CATALOGUE - Bleu */}
               {/* ============================================================ */}
               <button
                 onClick={() => window.location.href = '/dashboard/superviseurs'}
-                className="p-1.5 xs:p-2 sm:px-2.5 sm:py-1.5 bg-gradient-to-r from-blue-500/20 to-indigo-600/20 hover:from-blue-500/30 hover:to-indigo-600/30 rounded-lg xs:rounded-xl text-white text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-medium transition-all duration-300 flex items-center justify-center border border-blue-500/30 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px] group"
+                className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 flex items-center justify-center border border-blue-500/30 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/20 hover:scale-105 min-w-[24px] xs:min-w-[28px] sm:min-w-[32px] group"
                 aria-label="Catalogue"
               >
-                <BookOpen className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-blue-400 group-hover:rotate-[-10deg] transition-transform" />
-                <span className="hidden sm:inline ml-1 text-white/90">Catalogue</span>
+                <BookOpen className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-blue-400 group-hover:rotate-[-10deg] transition-transform" />
+                <span className="hidden sm:inline ml-0.5 text-white/90">Catalogue</span>
               </button>
 
               {/* --- SÉPARATEUR --- */}
               <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
 
               {/* ============================================================ */}
-              {/* ✅ BOUTON MAP */}
+              {/* ✅ BOUTON MAP - Vert émeraude */}
               {/* ============================================================ */}
               <button
                 onClick={() => {
@@ -1880,59 +1908,59 @@ const renderTableauPanneaux = (): React.ReactNode => {
                   localStorage.setItem('map_filter_type', 'all');
                   window.location.href = '/dashboard/superviseurs/carte';
                 }}
-                className="p-1.5 xs:p-2 sm:px-2.5 sm:py-1.5 bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 rounded-lg xs:rounded-xl text-white text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-medium transition-all duration-300 flex items-center justify-center border border-emerald-500/30 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px] group"
+                className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 flex items-center justify-center border border-emerald-500/30 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-105 min-w-[24px] xs:min-w-[28px] sm:min-w-[32px] group"
                 aria-label="Voir la carte"
               >
-                <MapPin className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-emerald-400 group-hover:rotate-[-10deg] transition-transform" />
-                <span className="hidden sm:inline ml-1 text-white/90">Carte</span>
+                <MapPin className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 group-hover:rotate-[-10deg] transition-transform" />
+                <span className="hidden sm:inline ml-0.5 text-white/90">Carte</span>
               </button>
 
               {/* --- SÉPARATEUR --- */}
               <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
 
               {/* ============================================================ */}
-              {/* ✅ BOUTON EXPORT - Fusion PDF + Excel */}
+              {/* ✅ BOUTON EXPORT - Violet */}
               {/* ============================================================ */}
 
               {/* Version Desktop : Menu déroulant Export */}
               <div className="hidden sm:flex relative group">
                 <button
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-violet-600/20 hover:from-purple-500/30 hover:to-violet-600/30 rounded-lg xs:rounded-xl text-white text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-medium transition-all duration-300 border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 group"
+                  className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 group"
                   onClick={(e) => {
                     const dropdown = e.currentTarget.parentElement?.querySelector('.export-dropdown');
                     if (dropdown) dropdown.classList.toggle('hidden');
                   }}
                 >
-                  <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />
+                  <FileText className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-purple-400" />
                   <span>Exporter</span>
-                  <ChevronDown className="w-3 h-3 text-purple-400" />
+                  <ChevronDown className="w-2 h-2 xs:w-2.5 xs:h-2.5 text-purple-400" />
                 </button>
 
                 {/* Dropdown */}
-                <div className="export-dropdown hidden absolute top-full right-0 mt-1 min-w-[140px] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 overflow-hidden z-50">
+                <div className="export-dropdown hidden absolute top-full right-0 mt-1 min-w-[120px] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 overflow-hidden z-50">
                   <button
                     onClick={() => { exportPDF(); }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] font-semibold text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors border-b border-gray-100"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-semibold text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors border-b border-gray-100"
                   >
-                    <FileText className="w-4 h-4 text-red-500" />
-                    Exporter en PDF
+                    <FileText className="w-3.5 h-3.5 text-red-500" />
+                    PDF
                   </button>
                   <button
                     onClick={() => { exportExcel(); }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] font-semibold text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-semibold text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors"
                   >
-                    <FileSpreadsheet className="w-4 h-4 text-green-500" />
-                    Exporter en Excel
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-green-500" />
+                    Excel
                   </button>
+
                 </div>
               </div>
 
-              {/* Version Mobile : Icône imprimante */}
+              {/* Version Mobile : Icône export */}
               <button
                 onClick={() => {
-                  // Menu contextuel mobile
                   const action = confirm(
-                    "📄 Exporter le rapport\n\nChoisissez le format :\n• OK → PDF\n• Annuler → Excel"
+                    "📄 Exporter\n\n• OK → PDF\n• Annuler → Excel"
                   );
                   if (action) {
                     exportPDF();
@@ -1940,80 +1968,83 @@ const renderTableauPanneaux = (): React.ReactNode => {
                     exportExcel();
                   }
                 }}
-                className="sm:hidden p-1.5 xs:p-2 bg-gradient-to-r from-purple-500/20 to-violet-600/20 hover:from-purple-500/30 hover:to-violet-600/30 rounded-lg xs:rounded-xl text-white transition-all duration-300 flex items-center justify-center border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] group"
+                className="sm:hidden p-1 xs:p-1.5 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-white transition-all duration-300 flex items-center justify-center border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 min-w-[24px] xs:min-w-[28px] group"
                 aria-label="Exporter"
               >
-                <Printer className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-purple-400 group-hover:rotate-12 transition-transform" />
+                <Printer className="w-2.5 h-2.5 xs:w-3 xs:h-3 text-purple-400 group-hover:rotate-12 transition-transform" />
               </button>
+
+
+
 
               {/* --- SÉPARATEUR --- */}
               <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
 
               {/* ============================================================ */}
-              {/* ✅ RAFRAÎCHIR */}
+              {/* ✅ RAFRAÎCHIR - Bleu clair */}
               {/* ============================================================ */}
               <button
-                onClick={loadData}
-                className="p-1.5 xs:p-2 sm:px-2.5 sm:py-1.5 bg-white/10 hover:bg-white/20 rounded-lg xs:rounded-xl text-white text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-medium transition-all duration-300 flex items-center justify-center hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 hover:border-white/30 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px]"
+                onClick={() => {
+                  loadData();
+                }}
+                className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-white/10 hover:bg-white/20 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 flex items-center justify-center hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 hover:border-white/30 min-w-[24px] xs:min-w-[28px] sm:min-w-[32px]"
                 disabled={loading}
                 aria-label="Rafraîchir"
               >
-                <RefreshCw className={`w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline ml-1">Rafraîchir</span>
+                <RefreshCw className={`w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline ml-0.5">Rafraîchir</span>
               </button>
 
               {/* --- SÉPARATEUR --- */}
               <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
 
               {/* ============================================================ */}
-              {/* ✅ IMPRIMER - Caché sur très petit écran */}
+              {/* ✅ IMPRIMER - Bleu nuit */}
               {/* ============================================================ */}
               <button
                 onClick={() => window.print()}
-                className="hidden xs:flex p-1.5 xs:p-2 sm:px-2.5 sm:py-1.5 bg-white/10 hover:bg-white/20 rounded-lg xs:rounded-xl text-white text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-medium transition-all duration-300 items-center justify-center border border-white/10 hover:border-white/30 hover:shadow-lg hover:shadow-blue-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px]"
+                className="hidden xs:flex p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-indigo-500/20 hover:bg-indigo-500/30 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 items-center justify-center border border-indigo-500/30 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/20 hover:scale-105 min-w-[24px] xs:min-w-[28px] sm:min-w-[32px]"
                 aria-label="Imprimer"
               >
-                <Printer className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline ml-1 text-white/90">Imprimer</span>
+                <Printer className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden sm:inline ml-0.5 text-white/90">Imprimer</span>
               </button>
 
-
+              {/* --- SÉPARATEUR --- */}
               <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
-
-
 
               {/* ============================================================ */}
               {/* ✅ BLOC PROFIL UTILISATEUR + QUITTER - UNIFIÉ */}
               {/* ============================================================ */}
-              <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-2 px-0.5 xs:px-1 sm:px-2.5 md:px-3 py-0.5 xs:py-1 sm:py-1.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300">
+              <div className="flex items-center gap-0.5 xs:gap-1 px-0.5 xs:px-1 sm:px-1.5 py-0.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300">
 
                 {/* --- AVATAR avec première lettre --- */}
-                <div className="relative w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-white/30">
+                <div className="relative w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-white/30">
                   {userPhoto ? (
                     <img src={userPhoto} alt="Avatar" className="w-full h-full rounded-full object-cover" />
                   ) : (
-                    <span className="text-[8px] xs:text-[9px] sm:text-[10px] md:text-xs font-bold text-white">
+                    <span className="text-[7px] xs:text-[8px] sm:text-[9px] md:text-[10px] font-bold text-white">
                       {userInitial}
                     </span>
                   )}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-emerald-500 rounded-full border border-white/50" />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-1 h-1 xs:w-1.5 xs:h-1.5 bg-emerald-500 rounded-full border border-white/50" />
                 </div>
 
                 {/* --- INFOS UTILISATEUR - Cachées sur mobile, visibles sur tablette et desktop --- */}
-                <div className="hidden sm:block min-w-0">
-                  <p className="text-[8px] xs:text-[9px] sm:text-[10px] md:text-xs font-bold text-white truncate max-w-[60px] xs:max-w-[80px] sm:max-w-[100px] md:max-w-[120px]">
+                <div className="hidden lg:block min-w-0">
+                  <p className="text-[7px] xs:text-[8px] sm:text-[9px] font-bold text-white truncate max-w-[50px] xs:max-w-[60px] sm:max-w-[80px]">
                     {displayName}
                   </p>
-                  <p className="text-[6px] xs:text-[7px] sm:text-[8px] text-blue-200 truncate max-w-[60px] xs:max-w-[80px] sm:max-w-[100px] md:max-w-[120px]">
+                  <p className="text-[5px] xs:text-[6px] sm:text-[7px] text-blue-200 truncate max-w-[50px] xs:max-w-[60px] sm:max-w-[80px]">
                     {userEmail}
                   </p>
-                  <span className="text-[5px] xs:text-[6px] sm:text-[7px] text-amber-400 font-bold uppercase tracking-wider">
+                  <span className="text-[4px] xs:text-[5px] sm:text-[6px] text-amber-400 font-bold uppercase tracking-wider">
                     {user?.role || "Utilisateur"}
                   </span>
                 </div>
 
                 {/* --- SÉPARATEUR - Caché sur mobile --- */}
-                <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden sm:block" />
+                <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden lg:block" />
 
                 {/* --- BOUTON QUITTER --- */}
                 <button
@@ -2029,11 +2060,11 @@ const renderTableauPanneaux = (): React.ReactNode => {
                       window.location.replace('/');
                     }
                   }}
-                  className="flex items-center gap-0.5 xs:gap-1 px-1 xs:px-1.5 sm:px-2.5 py-0.5 xs:py-1 sm:py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-all duration-300 border border-red-500/30 hover:border-red-500/50 hover:scale-105 active:scale-95 group"
+                  className="flex items-center gap-0.5 xs:gap-1 px-1 xs:px-1.5 py-0.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-all duration-300 border border-red-500/30 hover:border-red-500/50 hover:scale-105 active:scale-95 group"
                   aria-label="Déconnexion"
                 >
-                  <LogOut className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-red-400 group-hover:rotate-12 transition-transform" />
-                  <span className="hidden xs:inline text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-white/90 group-hover:text-white transition-colors">
+                  <LogOut className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-red-400 group-hover:rotate-12 transition-transform" />
+                  <span className="hidden xs:inline text-[6px] xs:text-[7px] sm:text-[8px] font-bold text-white/90 group-hover:text-white transition-colors">
                     Quitter
                   </span>
                 </button>
@@ -2042,7 +2073,6 @@ const renderTableauPanneaux = (): React.ReactNode => {
             </div>
           </div>
         </div>
-
         {/* Barre de progression animée */}
         <div className="h-0.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shimmer" />
@@ -2051,92 +2081,89 @@ const renderTableauPanneaux = (): React.ReactNode => {
       <div className="max-w-full px-2 xs:px-3 sm:px-4 md:px-6 py-2 xs:py-3 sm:py-4 md:py-6">
 
         {/* ============================================================ */}
-        {/* STATISTIQUES - GRILLE ADAPTATIVE AVEC CENTRAGE */}
+        {/* STATISTIQUES - VERSION ULTRA COMPACTE */}
         {/* ============================================================ */}
-        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 xs:gap-2 sm:gap-3 mb-3 xs:mb-4 sm:mb-6">
+        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-1 xs:gap-1.5 sm:gap-2 mb-2 xs:mb-3 sm:mb-4">
 
           {/* Panneaux */}
-          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1.5 xs:p-2 sm:p-3 lg:p-4 border border-gray-100 hover:border-blue-200 group text-center">
+          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1 xs:p-1.5 sm:p-2 lg:p-2.5 border border-gray-100 hover:border-blue-200 group text-center">
             <div className="flex flex-col items-center justify-center">
-              <p className="text-[6px] xs:text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-wider">Panneaux</p>
-              <p className="text-[10px] xs:text-xs sm:text-sm lg:text-lg xl:text-xl font-black text-gray-800 mt-0.5">
-                {loading ? <Loader2 className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-4 sm:h-4 animate-spin text-blue-500 mx-auto" /> : stats.totalPanneaux}
+              <p className="text-[5px] xs:text-[6px] sm:text-[7px] lg:text-[8px] font-bold text-gray-400 uppercase tracking-wider">Panneaux</p>
+              <p className="text-[9px] xs:text-[10px] sm:text-[11px] lg:text-[13px] xl:text-[15px] font-black text-gray-800 mt-0.5 leading-none">
+                {loading ? <Loader2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 animate-spin text-blue-500 mx-auto" /> : stats.totalPanneaux}
               </p>
-              <div className="p-1 xs:p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-200/30 mt-1">
-                <LayoutGrid className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+              <div className="p-0.5 xs:p-1 sm:p-1.5 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-200/30 mt-0.5">
+                <LayoutGrid className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-blue-600" />
               </div>
             </div>
           </div>
 
           {/* Faces */}
-          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1.5 xs:p-2 sm:p-3 lg:p-4 border border-gray-100 hover:border-indigo-200 group text-center">
+          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1 xs:p-1.5 sm:p-2 lg:p-2.5 border border-gray-100 hover:border-indigo-200 group text-center">
             <div className="flex flex-col items-center justify-center">
-              <p className="text-[6px] xs:text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-wider">Faces</p>
-              <p className="text-[10px] xs:text-xs sm:text-sm lg:text-lg xl:text-xl font-black text-gray-800 mt-0.5">
-                {loading ? <Loader2 className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-4 sm:h-4 animate-spin text-indigo-500 mx-auto" /> : stats.totalFaces}
+              <p className="text-[5px] xs:text-[6px] sm:text-[7px] lg:text-[8px] font-bold text-gray-400 uppercase tracking-wider">Faces</p>
+              <p className="text-[9px] xs:text-[10px] sm:text-[11px] lg:text-[13px] xl:text-[15px] font-black text-gray-800 mt-0.5 leading-none">
+                {loading ? <Loader2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 animate-spin text-indigo-500 mx-auto" /> : stats.totalFaces}
               </p>
-              <div className="p-1 xs:p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 border border-indigo-200/30 mt-1">
-                <Layers className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Libres */}
-          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1.5 xs:p-2 sm:p-3 lg:p-4 border border-gray-100 hover:border-emerald-200 group text-center">
-            <div className="flex flex-col items-center justify-center">
-              <p className="text-[6px] xs:text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-wider">Libres</p>
-              <p className="text-[10px] xs:text-xs sm:text-sm lg:text-lg xl:text-xl font-black text-gray-800 mt-0.5">
-                {loading ? <Loader2 className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-4 sm:h-4 animate-spin text-emerald-500 mx-auto" /> : stats.totalLibres}
-              </p>
-              <div className="p-1 xs:p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-200/30 mt-1">
-                <CheckCircle2 className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-emerald-600" />
+              <div className="p-0.5 xs:p-1 sm:p-1.5 rounded-lg bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 border border-indigo-200/30 mt-0.5">
+                <Layers className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-indigo-600" />
               </div>
             </div>
           </div>
 
           {/* Occupées */}
-          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1.5 xs:p-2 sm:p-3 lg:p-4 border border-gray-100 hover:border-blue-200 group text-center">
+          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1 xs:p-1.5 sm:p-2 lg:p-2.5 border border-gray-100 hover:border-blue-200 group text-center">
             <div className="flex flex-col items-center justify-center">
-              <p className="text-[6px] xs:text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-wider">Occupées</p>
-              <p className="text-[10px] xs:text-xs sm:text-sm lg:text-lg xl:text-xl font-black text-gray-800 mt-0.5">
-                {loading ? <Loader2 className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-4 sm:h-4 animate-spin text-blue-500 mx-auto" /> : stats.totalOccupes}
+              <p className="text-[5px] xs:text-[6px] sm:text-[7px] lg:text-[8px] font-bold text-gray-400 uppercase tracking-wider">Occupées</p>
+              <p className="text-[9px] xs:text-[10px] sm:text-[11px] lg:text-[13px] xl:text-[15px] font-black text-gray-800 mt-0.5 leading-none">
+                {loading ? <Loader2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 animate-spin text-blue-500 mx-auto" /> : stats.totalOccupes}
               </p>
-              <div className="p-1 xs:p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-200/30 mt-1">
-                <Activity className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+              <div className="p-0.5 xs:p-1 sm:p-1.5 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-200/30 mt-0.5">
+                <Activity className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Libres */}
+          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1 xs:p-1.5 sm:p-2 lg:p-2.5 border border-gray-100 hover:border-emerald-200 group text-center">
+            <div className="flex flex-col items-center justify-center">
+              <p className="text-[5px] xs:text-[6px] sm:text-[7px] lg:text-[8px] font-bold text-gray-400 uppercase tracking-wider">Libres</p>
+              <p className="text-[9px] xs:text-[10px] sm:text-[11px] lg:text-[13px] xl:text-[15px] font-black text-gray-800 mt-0.5 leading-none">
+                {loading ? <Loader2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 animate-spin text-emerald-500 mx-auto" /> : stats.totalLibres}
+              </p>
+              <div className="p-0.5 xs:p-1 sm:p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 border border-emerald-200/30 mt-0.5">
+                <CheckCircle2 className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-emerald-600" />
               </div>
             </div>
           </div>
 
           {/* Réservées */}
-          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1.5 xs:p-2 sm:p-3 lg:p-4 border border-gray-100 hover:border-amber-200 group text-center">
+          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1 xs:p-1.5 sm:p-2 lg:p-2.5 border border-gray-100 hover:border-amber-200 group text-center">
             <div className="flex flex-col items-center justify-center">
-              <p className="text-[6px] xs:text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-wider">Réservées</p>
-              <p className="text-[10px] xs:text-xs sm:text-sm lg:text-lg xl:text-xl font-black text-gray-800 mt-0.5">
-                {loading ? <Loader2 className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-4 sm:h-4 animate-spin text-amber-500 mx-auto" /> : stats.totalReserves}
+              <p className="text-[5px] xs:text-[6px] sm:text-[7px] lg:text-[8px] font-bold text-gray-400 uppercase tracking-wider">Réservées</p>
+              <p className="text-[9px] xs:text-[10px] sm:text-[11px] lg:text-[13px] xl:text-[15px] font-black text-gray-800 mt-0.5 leading-none">
+                {loading ? <Loader2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 animate-spin text-amber-500 mx-auto" /> : stats.totalReserves}
               </p>
-              <div className="p-1 xs:p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-amber-500/10 to-amber-600/10 border border-amber-200/30 mt-1">
-                <Clock className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-amber-600" />
+              <div className="p-0.5 xs:p-1 sm:p-1.5 rounded-lg bg-gradient-to-br from-amber-500/10 to-amber-600/10 border border-amber-200/30 mt-0.5">
+                <Clock className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-amber-600" />
               </div>
             </div>
           </div>
 
           {/* Rés. Futures */}
-          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1.5 xs:p-2 sm:p-3 lg:p-4 border border-gray-100 hover:border-purple-200 group text-center">
+          <div className="bg-white rounded-lg xs:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-1 xs:p-1.5 sm:p-2 lg:p-2.5 border border-gray-100 hover:border-purple-200 group text-center">
             <div className="flex flex-col items-center justify-center">
-              <p className="text-[6px] xs:text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rés. Futures</p>
-              <p className="text-[10px] xs:text-xs sm:text-sm lg:text-lg xl:text-xl font-black text-gray-800 mt-0.5">
-                {loading ? <Loader2 className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-4 sm:h-4 animate-spin text-purple-500 mx-auto" /> : stats.totalReservationsFutures}
+              <p className="text-[5px] xs:text-[6px] sm:text-[7px] lg:text-[8px] font-bold text-gray-400 uppercase tracking-wider">Rés. Futures</p>
+              <p className="text-[9px] xs:text-[10px] sm:text-[11px] lg:text-[13px] xl:text-[15px] font-black text-gray-800 mt-0.5 leading-none">
+                {loading ? <Loader2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 animate-spin text-purple-500 mx-auto" /> : stats.totalReservationsFutures}
               </p>
-              <div className="p-1 xs:p-1.5 sm:p-2 rounded-lg bg-gradient-to-br from-purple-500/10 to-purple-600/10 border border-purple-200/30 mt-1">
-                <Calendar className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-purple-600" />
+              <div className="p-0.5 xs:p-1 sm:p-1.5 rounded-lg bg-gradient-to-br from-purple-500/10 to-purple-600/10 border border-purple-200/30 mt-0.5">
+                <Calendar className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-purple-600" />
               </div>
             </div>
           </div>
 
         </div>
-        {/* ============================================================ */}
-        {/* FILTRES - DESIGN CLAIR ET LISIBLE */}
-        {/* ============================================================ */}
         <div className="bg-white rounded-xl shadow-md border border-gray-200 mb-3 xs:mb-4 sm:mb-6 overflow-hidden">
 
           {/* Bouton d'ouverture */}
@@ -2232,14 +2259,14 @@ const renderTableauPanneaux = (): React.ReactNode => {
 
                     {/* COMMUNE */}
                     <div>
-                      <label className="text-[9px] xs:text-[10px] font-black text-gray-600 uppercase tracking-wider">Commune</label>
+                      <label className="text-[9px] xs:text-[10px] font-black text-gray-600 uppercase tracking-wider">Tronçon</label>
                       <select
                         className="w-full mt-1 px-2 xs:px-3 py-1.5 xs:py-2 bg-white border-2 border-gray-200 rounded-lg text-xs xs:text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-40"
                         value={geoFilter.commune}
                         onChange={(e) => setGeoFilter({ ...geoFilter, commune: e.target.value })}
                         disabled={geoFilter.district === 'Tous' || geoFilter.province === 'Tous' || geoFilter.pays === 'Tous' || !GEOGRAPHIE}
                       >
-                        <option value="Tous">📍 Toutes</option>
+                        <option value="Tous">📍 Tous</option>
                         {geoFilter.pays !== 'Tous' && geoFilter.province !== 'Tous' && geoFilter.district !== 'Tous' &&
                           GEOGRAPHIE && GEOGRAPHIE[geoFilter.pays] &&
                           GEOGRAPHIE[geoFilter.pays][geoFilter.province] &&
@@ -2354,13 +2381,62 @@ const renderTableauPanneaux = (): React.ReactNode => {
         {/* ============================================================ */}
         {/* FOOTER */}
         {/* ============================================================ */}
-        <div className="mt-4 xs:mt-5 sm:mt-6 text-center text-[9px] xs:text-[10px] sm:text-xs text-gray-400 border-t border-gray-200 pt-3 xs:pt-4">
-          <p className="font-medium">© 2026 - Rapport généré le {currentDate || 'Chargement...'}</p>
-          <p className="mt-0.5 text-[8px] xs:text-[9px] sm:text-[10px] text-gray-400 font-medium">
-            Panneaux: <span className="text-gray-700 font-bold">{stats.totalPanneaux}</span> |
-            Faces: <span className="text-gray-700 font-bold">{stats.totalFaces}</span> |
-            Rés. Futures: <span className="text-gray-700 font-bold">{stats.totalReservationsFutures}</span>
-          </p>
+        <div className="mt-4 xs:mt-5 sm:mt-6 text-center border-t border-gray-200 pt-3 xs:pt-4">
+          {/* ✅ FOOTER AVEC 3 COLONNES - STRUCTURE FIXE SUR TOUS LES APPAREILS */}
+          <div className="flex flex-row items-center justify-between gap-1 xs:gap-2 sm:gap-4">
+
+            {/* 🔹 GAUCHE - Informations de la société */}
+            <div className="flex flex-col items-center xs:items-start gap-0.5 flex-1 min-w-0">
+              <p className="text-[7px] xs:text-[8px] sm:text-[9px] md:text-[10px] font-bold text-blue-700 truncate w-full">
+                Dispromalt
+              </p>
+              <p className="text-[5px] xs:text-[6px] sm:text-[7px] md:text-[8px] text-gray-400 truncate w-full">
+                Gestion Digitale des Panneaux
+              </p>
+              <p className="text-[4px] xs:text-[5px] sm:text-[6px] md:text-[7px] text-gray-400 truncate w-full">
+                © 2026 - Tous droits réservés
+              </p>
+            </div>
+
+            {/* 🔹 CENTRE - Application */}
+            <div className="flex flex-col items-center gap-0.5 flex-1 min-w-0">
+              <div className="flex items-center gap-0.5 xs:gap-1">
+                <span className="text-[8px] xs:text-[9px] sm:text-[10px] md:text-[11px] font-black text-blue-700">GDP</span>
+                <span className="text-[4px] xs:text-[5px] sm:text-[6px] md:text-[7px] text-gray-400 bg-gray-100 px-1 xs:px-1.5 py-0.5 rounded-full">
+                  v1.0.0
+                </span>
+              </div>
+              <div className="flex items-center gap-0.5 xs:gap-1">
+                <span className="w-1 xs:w-1.5 h-1 xs:h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[4px] xs:text-[5px] sm:text-[6px] md:text-[7px] text-gray-400 uppercase tracking-wider">
+                  En ligne
+                </span>
+              </div>
+            </div>
+
+            {/* 🔹 DROITE - Informations du développeur */}
+            <div className="flex flex-col items-center xs:items-end gap-0.5 flex-1 min-w-0">
+              <p className="text-[6px] xs:text-[7px] sm:text-[8px] md:text-[9px] font-semibold text-gray-600 truncate w-full text-center xs:text-right">
+                <span className="text-blue-700 font-bold">Andre Omeonga</span>
+              </p>
+              <div className="flex flex-col items-center xs:items-end gap-0.5 w-full">
+                <a href="mailto:omeongaandre2@dispromalt.cd" className="text-[5px] xs:text-[6px] sm:text-[7px] md:text-[8px] text-blue-500 hover:underline hover:text-blue-700 transition-colors truncate w-full text-center xs:text-right">
+                  📧 omeongaandre2@dispromalt.cd
+                </a>
+                <div className="flex items-center gap-0.5 xs:gap-1">
+                  <span className="text-[5px] xs:text-[6px] sm:text-[7px] md:text-[8px] text-gray-400">📱</span>
+                  <a href="tel:+243851553869" className="text-[5px] xs:text-[6px] sm:text-[7px] md:text-[8px] text-blue-500 hover:underline hover:text-blue-700 transition-colors whitespace-nowrap">
+                    0851553869
+                  </a>
+                  <span className="text-gray-300 text-[4px] xs:text-[5px]">•</span>
+                  <a href="tel:+243815023699" className="text-[5px] xs:text-[6px] sm:text-[7px] md:text-[8px] text-blue-500 hover:underline hover:text-blue-700 transition-colors whitespace-nowrap">
+                    0815023699
+                  </a>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
         {/* Modal des détails de la face */}
         {/* ✅ MODAL D'ÉDITION DU PANNEAU */}
@@ -2392,10 +2468,40 @@ const renderTableauPanneaux = (): React.ReactNode => {
             //user={localUser}
             />
           )}
+
+          {isReservationModalOpen && panneauForReservation && (
+            <EditPanneauModal
+              isOpen={isReservationModalOpen}
+              onClose={() => {
+                setIsReservationModalOpen(false);
+                setPanneauForReservation(null);
+                setFaceForReservation(null);
+              }}
+              panneau={panneauForReservation}
+              face={faceForReservation} // ✅ Passer la face pour pré-remplir
+              user={localUser || user}
+            />
+          )}
         </AnimatePresence>
       </div>
     </div>
   );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 };
 
 export default RapportPanneaux;
+
+
