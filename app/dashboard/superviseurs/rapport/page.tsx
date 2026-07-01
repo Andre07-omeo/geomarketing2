@@ -712,8 +712,8 @@ const RapportPanneaux: React.FC = () => {
     const allRes = getUserReservations();
     return allRes.filter((res: Reservation) =>
       res.validationComptable === false ||
-      res.statut === 'en_attente' ||
-      res.statut === 'Réservé'
+      res.statut === 'en_attente' 
+      //res.statut === 'Réservé'
     );
   }, [getUserReservations]);
 
@@ -1015,6 +1015,7 @@ const RapportPanneaux: React.FC = () => {
       totalRevenue
     };
   }, [filteredPanneaux]);
+  
 
   // États pour la réservation
   const [faceModalDefaultTab, setFaceModalDefaultTab] = useState<'details' | 'reservation'>('details');
@@ -1643,24 +1644,21 @@ const RapportPanneaux: React.FC = () => {
     };
 
     // ✅ Fonction pour extraire et calculer le produit des dimensions avec unité
-    const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
-      if (!dimension) return { value: 0, unit: '' };
+    // ✅ Fonction pour extraire et calculer le produit des dimensions avec unité
+const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
+  if (!dimension) return { value: 0, unit: 'm²' };
 
-      // Extraire l'unité complète de la dimension originale
-      const unitMatch = dimension.match(/[a-zA-Z²]+$/);
-      const originalUnit = unitMatch ? unitMatch[0] : '';
+  // Extrait les nombres
+  const numbers = dimension.match(/[\d.]+/g)?.map(Number).filter(num => num > 0) || [];
 
-      // Extrait les nombres
-      const numbers = dimension.match(/[\d.]+/g)?.map(Number).filter(num => num > 0) || [];
+  if (numbers.length === 0) return { value: 0, unit: 'm²' };
 
-      if (numbers.length === 0) return { value: 0, unit: originalUnit };
+  // Calcule le produit
+  const product = numbers.reduce((acc, val) => acc * val, 1);
+  const roundedProduct = Math.round(product * 100) / 100;
 
-      // Calcule le produit
-      const product = numbers.reduce((acc, val) => acc * val, 1);
-      const roundedProduct = Math.round(product * 100) / 100;
-
-      return { value: roundedProduct, unit: originalUnit || 'm²' };
-    };
+  return { value: roundedProduct, unit: 'm²' };
+};
 
     // ✅ Fonction pour formater l'adresse (affiche la commune si pas assez de place)
     const formatAddress = (address: string | undefined, maxLength?: number): string => {
