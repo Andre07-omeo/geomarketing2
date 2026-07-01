@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, Tooltip, Circle } from 'react-leaflet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Moon, Filter, X, Layers, Map as MapIcon, Navigation, Info, Search, RotateCcw } from 'lucide-react';
+import { Sun, Moon, Filter, X, Layers, Map as MapIcon, Navigation, Info, Search, RotateCcw, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 // ============================================
 // IMPORT CSS
@@ -389,6 +390,7 @@ function FilterOption({ label, count, active, onToggle }: any) {
 // COMPOSANT PRINCIPAL MAP
 // ============================================
 export default function MapComponent({ panneaux, onMarkerClick, userLocation }: MapComponentProps) {
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [theme, setTheme] = useState<MapTheme>('satellite');
@@ -396,6 +398,10 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [searchAddress, setSearchAddress] = useState('');
   const [activeAddressFilter, setActiveAddressFilter] = useState('');
+  
+  // ✅ État pour le mode d'affichage (tous ou un seul panneau)
+  const [filterMode, setFilterMode] = useState<'all' | 'single'>('all');
+  const [selectedPanneauId, setSelectedPanneauId] = useState<string | null>(null);
 
   const [activeFilters, setActiveFilters] = useState({
     libre: true,
@@ -404,6 +410,25 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
     maintenance: true
   });
   const [isFilterPanelVisible, setIsFilterPanelVisible] = useState(true);
+
+  // ✅ Charger le mode de filtrage depuis localStorage
+  useEffect(() => {
+    const filterType = localStorage.getItem('map_filter_type');
+    const singlePanneau = localStorage.getItem('map_single_panneau');
+    
+    if (filterType === 'single' && singlePanneau) {
+      try {
+        const panneau = JSON.parse(singlePanneau);
+        setFilterMode('single');
+        setSelectedPanneauId(panneau.id);
+      } catch (e) {
+        console.error('Erreur lors du chargement du panneau sélectionné:', e);
+        setFilterMode('all');
+      }
+    } else {
+      setFilterMode('all');
+    }
+  }, []);
 
   useEffect(() => {
     setIsMounted(true);
@@ -418,8 +443,14 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
 
   const center: [number, number] = [-4.3276, 15.3136];
 
-  // Filtrer par statut et par adresse
+  // ✅ Filtrer les panneaux selon le mode
   const filteredPanneaux = panneaux.filter((panneau: any) => {
+    // Si mode 'single', n'afficher que le panneau sélectionné
+    if (filterMode === 'single' && selectedPanneauId) {
+      return panneau.id === selectedPanneauId;
+    }
+    
+    // Sinon, appliquer les filtres normaux
     const { status } = getPanneauStatus(panneau.faces);
     const matchStatus = activeFilters[status as keyof typeof activeFilters];
     const matchAddress = !activeAddressFilter ||
@@ -427,12 +458,21 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
     return matchStatus && matchAddress;
   });
 
+  // ✅ Calculer les stats pour l'affichage
   const allStats = {
     total: filteredPanneaux.length,
     libre: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'libre').length,
     occupe: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'occupe').length,
     reserve: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'reserve').length,
     maintenance: panneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'maintenance').length
+  };
+
+  // ✅ Fonction pour réinitialiser le mode et afficher tous les panneaux
+  const resetToAllPanneaux = () => {
+    setFilterMode('all');
+    setSelectedPanneauId(null);
+    localStorage.removeItem('map_filter_type');
+    localStorage.removeItem('map_single_panneau');
   };
 
   // Fonction pour zoomer sur un panneau
@@ -480,8 +520,34 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
 
   const currentTile = tileConfig[theme];
 
+  // ✅ Récupérer les informations du panneau sélectionné pour l'affichage
+  const selectedPanneau = filterMode === 'single' && selectedPanneauId
+    ? panneaux.find((p: any) => p.id === selectedPanneauId)
+    : null;
+
   return (
     <div className="relative h-full w-full">
+      {/* ✅ BOUTON RETOUR QUAND UN SEUL PANNEAU EST AFFICHÉ */}
+      {filterMode === 'single' && selectedPanneau && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] bg-black/60 backdrop-blur-xl rounded-2xl border border-amber-500/30 shadow-2xl px-4 py-2">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={resetToAllPanneaux}
+              className="flex items-center gap-2 text-white hover:text-amber-400 transition-colors"
+            >
+              <ArrowLeft size={16} />
+              <span className="text-xs font-bold">Voir tous les panneaux</span>
+            </button>
+            <div className="w-px h-6 bg-white/20" />
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${getPanneauStatus(selectedPanneau.faces).status === 'libre' ? 'bg-green-500 animate-pulse' : getPanneauStatus(selectedPanneau.faces).status === 'occupe' ? 'bg-blue-500' : 'bg-amber-500'}`} />
+              <span className="text-white text-xs font-bold">{selectedPanneau.idPan}</span>
+              <span className="text-white/60 text-[10px]">{selectedPanneau.adresse?.substring(0, 30)}...</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Indicateur de chargement des données */}
       {isLoadingData && (
         <div className="absolute inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-center justify-center">
@@ -499,40 +565,42 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         </p>
       </div>
 
-      {/* PANEL DE RECHERCHE PAR ADRESSE */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-1.5 min-w-[200px] sm:min-w-[300px]">
-        <div className="flex items-center gap-1">
-          <Search size={14} className="text-amber-400 ml-1" />
-          <input
-            type="text"
-            placeholder="Filtrer par adresse..."
-            value={searchAddress}
-            onChange={(e) => setSearchAddress(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && searchByAddress()}
-            className="bg-transparent text-white text-[10px] sm:text-[11px] font-medium px-2 py-1.5 outline-none flex-1 placeholder:text-white/40"
-          />
-          {activeAddressFilter && (
+      {/* PANEL DE RECHERCHE PAR ADRESSE - Masqué en mode single */}
+      {filterMode !== 'single' && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-1.5 min-w-[200px] sm:min-w-[300px]">
+          <div className="flex items-center gap-1">
+            <Search size={14} className="text-amber-400 ml-1" />
+            <input
+              type="text"
+              placeholder="Filtrer par adresse..."
+              value={searchAddress}
+              onChange={(e) => setSearchAddress(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && searchByAddress()}
+              className="bg-transparent text-white text-[10px] sm:text-[11px] font-medium px-2 py-1.5 outline-none flex-1 placeholder:text-white/40"
+            />
+            {activeAddressFilter && (
+              <button
+                onClick={resetAddressFilter}
+                className="p-1 hover:bg-white/10 rounded-lg transition"
+                title="Réinitialiser"
+              >
+                <RotateCcw size={12} className="text-amber-400" />
+              </button>
+            )}
             <button
-              onClick={resetAddressFilter}
-              className="p-1 hover:bg-white/10 rounded-lg transition"
-              title="Réinitialiser"
+              onClick={searchByAddress}
+              className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 rounded-lg transition text-amber-400 text-[8px] font-bold uppercase"
             >
-              <RotateCcw size={12} className="text-amber-400" />
+              Filtrer
             </button>
-          )}
-          <button
-            onClick={searchByAddress}
-            className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 rounded-lg transition text-amber-400 text-[8px] font-bold uppercase"
-          >
-            Filtrer
-          </button>
-        </div>
-        {activeAddressFilter && (
-          <div className="px-2 pb-1 text-[7px] text-amber-400/80">
-            Filtre actif: "{activeAddressFilter}"
           </div>
-        )}
-      </div>
+          {activeAddressFilter && (
+            <div className="px-2 pb-1 text-[7px] text-amber-400/80">
+              Filtre actif: "{activeAddressFilter}"
+            </div>
+          )}
+        </div>
+      )}
 
       {/* PANEL DE THÈMES */}
       <div className="absolute top-4 left-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-1.5 flex gap-1">
@@ -559,88 +627,92 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         </button>
       </div>
 
-      {/* BOUTON FILTRES STATUT */}
-      <button
-        onClick={() => setIsFilterPanelVisible(!isFilterPanelVisible)}
-        className="absolute top-4 right-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-2.5 text-white/80 hover:text-amber-400 transition-all active:scale-95"
-        title="Filtres par statut"
-      >
-        <Filter size={18} />
-      </button>
+      {/* BOUTON FILTRES STATUT - Masqué en mode single */}
+      {filterMode !== 'single' && (
+        <button
+          onClick={() => setIsFilterPanelVisible(!isFilterPanelVisible)}
+          className="absolute top-4 right-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-2.5 text-white/80 hover:text-amber-400 transition-all active:scale-95"
+          title="Filtres par statut"
+        >
+          <Filter size={18} />
+        </button>
+      )}
 
-      {/* PANEL FILTRES STATUT */}
-      <AnimatePresence>
-        {isFilterPanelVisible && (
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="absolute top-16 right-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-4 min-w-[180px]"
-          >
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-[10px] font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Layers size={12} /> Statuts
-              </h3>
-              <button
-                onClick={() => setIsFilterPanelVisible(false)}
-                className="p-1 hover:bg-white/10 rounded-lg transition"
-              >
-                <X size={12} />
-              </button>
-            </div>
+      {/* PANEL FILTRES STATUT - Masqué en mode single */}
+      {filterMode !== 'single' && (
+        <AnimatePresence>
+          {isFilterPanelVisible && (
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 50 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="absolute top-16 right-4 z-[1000] bg-black/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-4 min-w-[180px]"
+            >
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-[10px] font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers size={12} /> Statuts
+                </h3>
+                <button
+                  onClick={() => setIsFilterPanelVisible(false)}
+                  className="p-1 hover:bg-white/10 rounded-lg transition"
+                >
+                  <X size={12} />
+                </button>
+              </div>
 
-            <div className="space-y-2">
-              <FilterOption
-                label="Libre"
-                count={allStats.libre}
-                active={activeFilters.libre}
-                onToggle={() => setActiveFilters({ ...activeFilters, libre: !activeFilters.libre })}
-              />
-              <FilterOption
-                label="Occupé"
-                count={allStats.occupe}
-                active={activeFilters.occupe}
-                onToggle={() => setActiveFilters({ ...activeFilters, occupe: !activeFilters.occupe })}
-              />
-              <FilterOption
-                label="Réservé"
-                count={allStats.reserve}
-                active={activeFilters.reserve}
-                onToggle={() => setActiveFilters({ ...activeFilters, reserve: !activeFilters.reserve })}
-              />
-              <FilterOption
-                label="Maintenance"
-                count={allStats.maintenance}
-                active={activeFilters.maintenance}
-                onToggle={() => setActiveFilters({ ...activeFilters, maintenance: !activeFilters.maintenance })}
-              />
-            </div>
+              <div className="space-y-2">
+                <FilterOption
+                  label="Libre"
+                  count={allStats.libre}
+                  active={activeFilters.libre}
+                  onToggle={() => setActiveFilters({ ...activeFilters, libre: !activeFilters.libre })}
+                />
+                <FilterOption
+                  label="Occupé"
+                  count={allStats.occupe}
+                  active={activeFilters.occupe}
+                  onToggle={() => setActiveFilters({ ...activeFilters, occupe: !activeFilters.occupe })}
+                />
+                <FilterOption
+                  label="Réservé"
+                  count={allStats.reserve}
+                  active={activeFilters.reserve}
+                  onToggle={() => setActiveFilters({ ...activeFilters, reserve: !activeFilters.reserve })}
+                />
+                <FilterOption
+                  label="Maintenance"
+                  count={allStats.maintenance}
+                  active={activeFilters.maintenance}
+                  onToggle={() => setActiveFilters({ ...activeFilters, maintenance: !activeFilters.maintenance })}
+                />
+              </div>
 
-            {/* Statistiques compactes */}
-            <div className="mt-3 pt-2 border-t border-white/10">
-              <div className="grid grid-cols-2 gap-1 text-center">
-                <div className="bg-white/5 rounded-lg p-1">
-                  <p className="text-[10px] font-black text-amber-400">{allStats.total}</p>
-                  <p className="text-[6px] text-white/40 uppercase">Affichés</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-1">
-                  <p className="text-[10px] font-black text-green-400">{allStats.libre}</p>
-                  <p className="text-[6px] text-white/40 uppercase">Libres</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-1">
-                  <p className="text-[10px] font-black text-blue-400">{allStats.occupe}</p>
-                  <p className="text-[6px] text-white/40 uppercase">Occupés</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-1">
-                  <p className="text-[10px] font-black text-amber-400">{allStats.reserve}</p>
-                  <p className="text-[6px] text-white/40 uppercase">Réservés</p>
+              {/* Statistiques compactes */}
+              <div className="mt-3 pt-2 border-t border-white/10">
+                <div className="grid grid-cols-2 gap-1 text-center">
+                  <div className="bg-white/5 rounded-lg p-1">
+                    <p className="text-[10px] font-black text-amber-400">{allStats.total}</p>
+                    <p className="text-[6px] text-white/40 uppercase">Affichés</p>
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-1">
+                    <p className="text-[10px] font-black text-green-400">{allStats.libre}</p>
+                    <p className="text-[6px] text-white/40 uppercase">Libres</p>
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-1">
+                    <p className="text-[10px] font-black text-blue-400">{allStats.occupe}</p>
+                    <p className="text-[6px] text-white/40 uppercase">Occupés</p>
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-1">
+                    <p className="text-[10px] font-black text-amber-400">{allStats.reserve}</p>
+                    <p className="text-[6px] text-white/40 uppercase">Réservés</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Message quand aucun panneau ne correspond */}
       {filteredPanneaux.length === 0 && (
@@ -649,26 +721,37 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
             <Filter size={24} className="text-amber-400 mx-auto mb-2" />
             <p className="text-white text-sm font-black uppercase">Aucun panneau</p>
             <p className="text-white/40 text-[8px] mt-1">
-              {activeAddressFilter
-                ? `Aucun panneau trouvé pour "${activeAddressFilter}"`
-                : 'Aucun panneau ne correspond aux filtres sélectionnés'}
+              {filterMode === 'single' 
+                ? 'Le panneau sélectionné n\'a pas été trouvé'
+                : activeAddressFilter
+                  ? `Aucun panneau trouvé pour "${activeAddressFilter}"`
+                  : 'Aucun panneau ne correspond aux filtres sélectionnés'
+              }
             </p>
-            <div className="flex gap-2 mt-3 justify-center">
-              {activeAddressFilter && (
-                <button
-                  onClick={resetAddressFilter}
-                  className="text-[8px] font-bold bg-blue-500 text-white px-3 py-1 rounded-full pointer-events-auto"
-                >
-                  Effacer l'adresse
-                </button>
-              )}
+            {filterMode === 'single' && (
+              <button
+                onClick={resetToAllPanneaux}
+                className="mt-3 text-[8px] font-bold bg-amber-500 text-black px-3 py-1 rounded-full pointer-events-auto"
+              >
+                Voir tous les panneaux
+              </button>
+            )}
+            {!filterMode && activeAddressFilter && (
+              <button
+                onClick={resetAddressFilter}
+                className="mt-2 text-[8px] font-bold bg-blue-500 text-white px-3 py-1 rounded-full pointer-events-auto ml-2"
+              >
+                Effacer l'adresse
+              </button>
+            )}
+            {!filterMode && (
               <button
                 onClick={() => setActiveFilters({ libre: true, occupe: true, reserve: true, maintenance: true })}
-                className="text-[8px] font-bold bg-amber-500 text-black px-3 py-1 rounded-full pointer-events-auto"
+                className="mt-2 text-[8px] font-bold bg-amber-500 text-black px-3 py-1 rounded-full pointer-events-auto"
               >
                 Réinitialiser les filtres
               </button>
-            </div>
+            )}
           </div>
         </div>
       )}

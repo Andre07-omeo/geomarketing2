@@ -568,6 +568,8 @@ const RapportPanneaux: React.FC = () => {
     loadData();
   }, [loadData]);
 
+
+
   const ouvrirLaCarte = () => {
     // S'assurer que user a la bonne structure
     const userData = {
@@ -579,6 +581,16 @@ const RapportPanneaux: React.FC = () => {
     };
 
     localStorage.setItem('current_user', JSON.stringify(userData));
+
+    // ✅ Récupérer le panneau sélectionné depuis le localStorage
+    const panneauData = localStorage.getItem('map_single_panneau');
+    if (panneauData) {
+      // Garder les données du panneau sélectionné
+      localStorage.setItem('map_filter_type', 'single');
+    } else {
+      localStorage.setItem('map_filter_type', 'all');
+    }
+
     router.push('/dashboard/superviseurs/carte');
   };
 
@@ -712,7 +724,7 @@ const RapportPanneaux: React.FC = () => {
     const allRes = getUserReservations();
     return allRes.filter((res: Reservation) =>
       res.validationComptable === false ||
-      res.statut === 'en_attente' 
+      res.statut === 'en_attente'
       //res.statut === 'Réservé'
     );
   }, [getUserReservations]);
@@ -1015,7 +1027,7 @@ const RapportPanneaux: React.FC = () => {
       totalRevenue
     };
   }, [filteredPanneaux]);
-  
+
 
   // États pour la réservation
   const [faceModalDefaultTab, setFaceModalDefaultTab] = useState<'details' | 'reservation'>('details');
@@ -1645,20 +1657,20 @@ const RapportPanneaux: React.FC = () => {
 
     // ✅ Fonction pour extraire et calculer le produit des dimensions avec unité
     // ✅ Fonction pour extraire et calculer le produit des dimensions avec unité
-const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
-  if (!dimension) return { value: 0, unit: 'm²' };
+    const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
+      if (!dimension) return { value: 0, unit: 'm²' };
 
-  // Extrait les nombres
-  const numbers = dimension.match(/[\d.]+/g)?.map(Number).filter(num => num > 0) || [];
+      // Extrait les nombres
+      const numbers = dimension.match(/[\d.]+/g)?.map(Number).filter(num => num > 0) || [];
 
-  if (numbers.length === 0) return { value: 0, unit: 'm²' };
+      if (numbers.length === 0) return { value: 0, unit: 'm²' };
 
-  // Calcule le produit
-  const product = numbers.reduce((acc, val) => acc * val, 1);
-  const roundedProduct = Math.round(product * 100) / 100;
+      // Calcule le produit
+      const product = numbers.reduce((acc, val) => acc * val, 1);
+      const roundedProduct = Math.round(product * 100) / 100;
 
-  return { value: roundedProduct, unit: 'm²' };
-};
+      return { value: roundedProduct, unit: 'm²' };
+    };
 
     // ✅ Fonction pour formater l'adresse (affiche la commune si pas assez de place)
     const formatAddress = (address: string | undefined, maxLength?: number): string => {
@@ -1754,46 +1766,46 @@ const calculateDimensionSum = (dimension: string | undefined): { value: number; 
           style={{ maxHeight: 'calc(100vh - 400px)' }}
         >
           <div className="w-full overflow-x-auto">
-            <table className="w-full border-collapse min-w-[1200px]">
+            <table className="w-full border-collapse min-w-[900px] sm:min-w-[1200px]">
               <thead className="sticky top-0 z-20">
                 <tr className="bg-[#00539B] from-blue-900 to-indigo-900">
-                  <th className="bg-[#00539B] px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[100px] sticky left-0 z-30">
+                  <th className="bg-[#00539B] px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[70px] sm:min-w-[100px] sticky left-0 z-30">
                     IdPan / Adresse
                   </th>
-                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
                     Type
                   </th>
-                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
                     Dimension
                   </th>
-                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
                     Total Dim
                   </th>
-                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[70px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[50px] sm:min-w-[70px]">
                     Nb Faces
                   </th>
-                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[130px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[90px] sm:min-w-[130px]">
                     Actions
                   </th>
-                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[50px] sm:min-w-[60px]">
                     Face
                   </th>
-                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[70px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[55px] sm:min-w-[70px]">
                     Sens
                   </th>
-                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[110px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px] sm:min-w-[110px]">
                     Société Locatrice
                   </th>
-                  <th className="px-3 py-3 text-left text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[140px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[100px] sm:min-w-[140px]">
                     Date début - fin
                   </th>
-                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[55px] sm:min-w-[80px]">
                     Nb Mois
                   </th>
-                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
                     Nb Rés. Fut.
                   </th>
-                  <th className="px-3 py-3 text-center text-xs md:text-sm font-black text-white uppercase tracking-wider min-w-[90px]">
+                  <th className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider min-w-[70px] sm:min-w-[90px]">
                     Statut
                   </th>
                 </tr>
@@ -1807,33 +1819,33 @@ const calculateDimensionSum = (dimension: string | undefined): { value: number; 
 
                   if (faces.length === 0) {
                     return (
-                      <tr key={`${panneau.id}-empty`} className="hover:bg-blue-50/50 transition-colors border-b border-gray-200">
-                        <td className="px-3 py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[100px]">
+                      <tr key={`${panneau.id}-empty`} className="hover:bg-amber-50/50 transition-colors border-b border-gray-200">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[70px] sm:min-w-[100px]">
                           <div>
-                            <div className="text-blue-700 text-xs md:text-sm">{panneau.idPan || 'N/A'}</div>
-                            <div className="text-xs md:text-sm font-medium text-gray-600 mt-1 break-words max-w-[200px]">
-                              {formatAddress(panneau.adresse, 30)}
+                            <div className="text-blue-700 text-[10px] sm:text-xs md:text-sm">{panneau.idPan || 'N/A'}</div>
+                            <div className="text-[9px] sm:text-xs md:text-sm font-medium text-gray-600 mt-1 break-words max-w-[120px] sm:max-w-[200px]">
+                              {formatAddress(panneau.adresse, 20)}
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.type || 'N/A'}</td>
-                        <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.dimension || 'N/A'}</td>
-                        <td className="px-3 py-3 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.type || 'N/A'}</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">{panneau.dimension || 'N/A'}</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
                           {dimensionResult.value > 0 ? `${dimensionResult.value} ${dimensionResult.unit}` : '-'}
                         </td>
-                        <td className="px-3 py-3 text-center text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">0</td>
-                        <td className="px-3 py-3 text-center border-r border-gray-200">
-                          <div className="flex items-center justify-center gap-1">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">0</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
+                          <div className="flex items-center justify-center gap-0.5 sm:gap-1">
                             <button
                               onClick={() => openOnMap(panneau)}
-                              className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
+                              className="px-1.5 sm:px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[8px] sm:text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
                             >
-                              <MapPin size={12} />
-                              <span className="hidden sm:inline">Carte</span>
+                              <MapPin size={10} className="sm:w-3 sm:h-3" />
+                              <span className="hidden xs:inline">Carte</span>
                             </button>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-xs text-gray-400 border-r border-gray-200 text-center" colSpan={6}>Aucune face</td>
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs text-gray-400 border-r border-gray-200 text-center" colSpan={6}>Aucune face</td>
                       </tr>
                     );
                   }
@@ -1842,34 +1854,34 @@ const calculateDimensionSum = (dimension: string | undefined): { value: number; 
                     <React.Fragment key={panneau.id}>
                       {/* Ligne principale du panneau - Cliquable pour dérouler */}
                       <tr
-                        className="hover:bg-[#00539B] transition-colors border-b border-gray-200 cursor-pointer"
+                        className="hover:bg-amber-50/60 transition-colors border-b border-gray-200 cursor-pointer"
                         onClick={() => togglePanneau(panneau.id)}
                       >
-                        <td className="px-3 py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[100px]">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-blue-700 text-xs md:text-sm">{panneau.idPan || 'N/A'}</span>
-                            <span className="text-[10px] text-gray-400">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[70px] sm:min-w-[100px]">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <span className="truncate text-blue-700 text-[10px] sm:text-xs md:text-sm">{panneau.idPan || 'N/A'}</span>
+                            <span className="text-[8px] sm:text-[10px] text-gray-400">
                               {isExpanded ? '▼' : '▶'}
                             </span>
                           </div>
-                          <div className="text-xs md:text-sm font-medium text-gray-600 mt-1 break-words max-w-[200px]">
-                            {formatAddress(panneau.adresse, 30)}
+                          <div className="text-[9px] sm:text-xs md:text-sm font-medium text-gray-600 mt-1 break-words max-w-[120px] sm:max-w-[200px]">
+                            {formatAddress(panneau.adresse, 20)}
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
                           {panneau.type || 'N/A'}
                         </td>
-                        <td className="px-3 py-3 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
                           {panneau.dimension || 'N/A'}
                         </td>
-                        <td className="px-3 py-3 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
                           {dimensionResult.value > 0 ? `${dimensionResult.value} ${dimensionResult.unit}` : '-'}
                         </td>
-                        <td className="px-3 py-3 text-center text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">
                           {faces.length}
                         </td>
-                        <td className="px-3 py-3 text-center border-r border-gray-200">
-                          <div className="flex items-center justify-center gap-1 flex-wrap">
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
+                          <div className="flex items-center justify-center gap-0.5 sm:gap-1 flex-wrap">
                             {/* Bouton Détails */}
                             <button
                               onClick={(e) => {
@@ -1878,28 +1890,28 @@ const calculateDimensionSum = (dimension: string | undefined): { value: number; 
                                   openFaceDetails(panneau, faces[0]);
                                 }
                               }}
-                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] md:text-xs font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
+                              className="px-1.5 sm:px-2 py-1 bg-blue-100 text-blue-700 rounded text-[8px] sm:text-[10px] md:text-xs font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
                               title="Voir les détails du panneau"
                             >
-                              <Eye size={12} />
-                              <span className="hidden sm:inline">Détails</span>
+                              <Eye size={10} className="sm:w-3 sm:h-3" />
+                              <span className="hidden xs:inline">Détails</span>
                             </button>
                             {/* Bouton Carte */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openOnMap(panneau);
+                                ouvrirLaCarte();
                               }}
-                              className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
+                              className="px-1.5 sm:px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[8px] sm:text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition flex items-center gap-0.5"
                               title="Voir sur la carte"
                             >
-                              <MapPin size={12} />
-                              <span className="hidden sm:inline">Carte</span>
+                              <MapPin size={10} className="sm:w-3 sm:h-3" />
+                              <span className="hidden xs:inline">Carte</span>
                             </button>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-center text-xs text-gray-400 border-r border-gray-200" colSpan={6}>
-                          <span className="text-[10px] text-blue-400 font-medium">Cliquez sur la ligne pour voir les faces</span>
+                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-center text-[9px] sm:text-[10px] text-gray-400 border-r border-gray-200" colSpan={6}>
+                          <span className="text-[8px] sm:text-[10px] text-blue-400 font-medium">Cliquez pour voir les faces</span>
                         </td>
                       </tr>
 
@@ -1937,88 +1949,88 @@ const calculateDimensionSum = (dimension: string | undefined): { value: number; 
                         return (
                           <tr
                             key={`${panneau.id}-face-${idx}`}
-                            className="hover:bg-[#00539B] transition-colors border-b border-gray-100 bg-blue-50/20"
+                            className="hover:bg-amber-50/40 transition-colors border-b border-gray-100 bg-blue-50/20"
                           >
                             {/* Colonne IdPan/Adresse - alignée avec la ligne parent */}
-                            <td className="px-3 py-2 text-[10px] text-gray-400 border-r border-gray-200 sticky left-0 z-10 bg-blue-50/20 min-w-[100px]">
-                              <span className="ml-4 text-[10px] text-blue-400">└── Face #{idx + 1}</span>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-[8px] sm:text-[10px] text-gray-400 border-r border-gray-200 sticky left-0 z-10 bg-blue-50/20 min-w-[70px] sm:min-w-[100px]">
+                              <span className="ml-2 sm:ml-4 text-[8px] sm:text-[10px] text-blue-400">└── Face #{idx + 1}</span>
                             </td>
 
                             {/* Colonne Type - vide mais alignée */}
-                            <td className="px-3 py-2 border-r border-gray-200"></td>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border-r border-gray-200"></td>
 
                             {/* Colonne Dimension - vide mais alignée */}
-                            <td className="px-3 py-2 border-r border-gray-200"></td>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border-r border-gray-200"></td>
 
                             {/* Colonne Total Dim - vide mais alignée */}
-                            <td className="px-3 py-2 border-r border-gray-200"></td>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border-r border-gray-200"></td>
 
                             {/* Colonne Nb Faces - vide mais alignée */}
-                            <td className="px-3 py-2 border-r border-gray-200"></td>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 border-r border-gray-200"></td>
 
                             {/* Colonne Actions - Boutons pour chaque face */}
-                            <td className="px-3 py-2 text-center border-r border-gray-200">
-                              <div className="flex items-center justify-center gap-1 flex-wrap">
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-center border-r border-gray-200">
+                              <div className="flex items-center justify-center gap-0.5 sm:gap-1 flex-wrap">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     openFaceDetails(panneau, face);
                                   }}
-                                  className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
+                                  className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-700 rounded text-[8px] sm:text-[10px] font-bold hover:bg-blue-200 transition flex items-center gap-0.5"
                                 >
-                                  <Eye size={10} />
-                                  Voir
+                                  <Eye size={9} className="sm:w-2.5 sm:h-2.5" />
+                                  <span className="hidden xs:inline">Voir</span>
                                 </button>
                                 <button
                                   onClick={(e) => {
                                     openReservationModal(panneau, face);
                                   }}
-                                  className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-[10px] font-bold hover:bg-amber-200 transition flex items-center gap-0.5"
+                                  className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-amber-100 text-amber-700 rounded text-[8px] sm:text-[10px] font-bold hover:bg-amber-200 transition flex items-center gap-0.5"
                                   title="Réserver cette face"
                                 >
-                                  <Calendar size={10} />
-                                  <span className="hidden sm:inline">Réserver</span>
+                                  <Calendar size={9} className="sm:w-2.5 sm:h-2.5" />
+                                  <span className="hidden xs:inline">Réserver</span>
                                 </button>
                               </div>
                             </td>
 
                             {/* Colonne Face */}
-                            <td className="px-3 py-2 text-xs md:text-sm font-bold text-indigo-600 border-r border-gray-200">
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-bold text-indigo-600 border-r border-gray-200">
                               {faceId}
                             </td>
 
                             {/* Colonne Sens */}
-                            <td className="px-3 py-2 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
                               {face.sens || 'N/A'}
                             </td>
 
                             {/* Colonne Société Locatrice */}
-                            <td className="px-3 py-2 text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
                               {activeReservation?.societeLocatrice || 'S/N'}
                             </td>
 
                             {/* Colonne Date début - fin */}
-                            <td className="px-3 py-2 text-xs md:text-sm font-medium text-gray-600 border-r border-gray-200">
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-medium text-gray-600 border-r border-gray-200">
                               {activeReservation?.dateDebut && activeReservation?.dateFin ? (
-                                <span className="text-gray-700 text-[10px] md:text-xs">{activeReservation.dateDebut} – {activeReservation.dateFin}</span>
+                                <span className="text-gray-700 text-[9px] sm:text-[10px] md:text-xs">{activeReservation.dateDebut} – {activeReservation.dateFin}</span>
                               ) : (
                                 <span className="text-gray-300">-</span>
                               )}
                             </td>
 
                             {/* Colonne Nb Mois */}
-                            <td className="px-3 py-2 text-center text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[10px] sm:text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
                               {nbMois > 0 ? `${nbMois} mois` : '-'}
                             </td>
 
                             {/* Colonne Nb Rés. Fut. */}
-                            <td className="px-3 py-2 text-center text-xs md:text-sm font-bold text-amber-600 border-r border-gray-200">
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-center text-[10px] sm:text-xs md:text-sm font-bold text-amber-600 border-r border-gray-200">
                               {futureReservations.length || 0}
                             </td>
 
                             {/* Colonne Statut */}
-                            <td className="px-3 py-2 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold border ${getStatusColor(status)} flex items-center gap-1 justify-center whitespace-nowrap`}>
+                            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-center">
+                              <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] md:text-xs font-bold border ${getStatusColor(status)} flex items-center gap-1 justify-center whitespace-nowrap`}>
                                 <span className={`w-1 h-1 rounded-full ${getStatusDot(status)}`} />
                                 {status}
                               </span>
@@ -2762,266 +2774,263 @@ const calculateDimensionSum = (dimension: string | undefined): { value: number; 
           </AnimatePresence>
         </div>
 
-{/* ============================================================ */}
-{/* PANIER DES PROFORMAS - VERSION BLEUE ROI PROFOND */}
-{/* ============================================================ */}
-<AnimatePresence>
-  {isCartOpen && (
-    <>
-      {/* OVERLAY */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={() => setIsCartOpen(false)}
-        className="fixed inset-0 z-[100]"
-      >
-        <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]" />
-      </motion.div>
+        {/* ============================================================ */}
+        {/* PANIER DES PROFORMAS - VERSION BLEUE ROI PROFOND */}
+        {/* ============================================================ */}
+        <AnimatePresence>
+          {isCartOpen && (
+            <>
+              {/* OVERLAY */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsCartOpen(false)}
+                className="fixed inset-0 z-[100]"
+              >
+                <div className="absolute inset-0 bg-black/5 backdrop-blur-[2px]" />
+              </motion.div>
 
-      {/* PANEL LATÉRAL */}
-      <motion.div
-        initial={{ x: "100%", opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: "100%", opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="fixed right-0 top-0 h-full w-full max-w-[480px] bg-white/95 backdrop-blur-xl border-l border-white/20 z-[101] flex flex-col shadow-2xl shadow-black/10"
-      >
-        {/* HEADER - BLEU ROI PROFOND */}
-        <div className="relative p-5 sm:p-6 border-b border-white/10 bg-gradient-to-r from-[#00539B] to-[#003A6B] backdrop-blur-sm flex-shrink-0">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-400/10 rounded-full blur-2xl" />
-          
-          <div className="flex justify-between items-center relative z-10">
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="w-1 h-6 bg-gradient-to-b from-blue-400 to-blue-300 rounded-full" />
-                <p className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em]">Facturation</p>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white">
-                Mes <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-blue-200">Réservations</span>
-              </h2>
-              <p className="text-xs text-blue-200 font-bold mt-1">
-                {reservationsEnAttente.length} réservation(s) en attente de paiement
-              </p>
-            </div>
-            <button
-              onClick={() => setIsCartOpen(false)}
-              className="group p-2.5 bg-white/20 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-white backdrop-blur-sm border border-white/20 hover:border-red-500"
-            >
-              <X className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" />
-            </button>
-          </div>
-        </div>
+              {/* PANEL LATÉRAL */}
+              <motion.div
+                initial={{ x: "100%", opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="fixed right-0 top-0 h-full w-full max-w-[480px] bg-white/95 backdrop-blur-xl border-l border-white/20 z-[101] flex flex-col shadow-2xl shadow-black/10"
+              >
+                {/* HEADER - BLEU ROI PROFOND */}
+                <div className="relative p-5 sm:p-6 border-b border-white/10 bg-gradient-to-r from-[#00539B] to-[#003A6B] backdrop-blur-sm flex-shrink-0">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-400/10 rounded-full blur-2xl" />
 
-        {/* CONTENU - TAILLES DE TEXTE AGRANDIES */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar bg-gray-50/50">
-          {reservationsEnAttente.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full py-12">
-              <div className="text-center">
-                <div className="w-20 h-20 mx-auto bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 border-2 border-[#00539B]/20">
-                  <FileText className="w-10 h-10 text-[#00539B]/40" />
-                </div>
-                <p className="text-gray-700 text-xl font-black uppercase tracking-wider">Panier vide</p>
-                <p className="text-gray-400 text-sm mt-2 max-w-[250px] mx-auto font-medium">
-                  Vous n'avez aucune réservation en attente de facturation
-                </p>
-              </div>
-            </div>
-          ) : (
-            reservationsEnAttente.map((res: any, index: number) => {
-              const key = res.resUniqueId || `res-${index}`;
-              const unitPrice = prices[key] || 0;
-              const isSelected = selectedForPrint[key] || false;
-              const dureeMois = res.dureeMois || 1;
-
-              return (
-                <motion.div
-                  key={key}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`group relative p-4 rounded-xl border-2 transition-all duration-300 backdrop-blur-sm ${
-                    isSelected
-                      ? 'bg-blue-50/80 border-[#00539B] shadow-lg shadow-[#00539B]/20'
-                      : 'bg-white/80 border-gray-200/60 hover:border-[#00539B]/40 hover:shadow-md hover:shadow-[#00539B]/10'
-                  }`}
-                >
-                  {/* HEADER */}
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-[#00539B] animate-pulse' : 'bg-gray-300'}`} />
-                      <span className="text-xs font-black text-[#00539B] uppercase tracking-wider">
-                        Réservation #{index + 1}
-                      </span>
+                  <div className="flex justify-between items-center relative z-10">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className="w-1 h-6 bg-gradient-to-b from-blue-400 to-blue-300 rounded-full" />
+                        <p className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em]">Facturation</p>
+                      </div>
+                      <h2 className="text-2xl sm:text-3xl font-black text-white">
+                        Mes <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-blue-200">Réservations</span>
+                      </h2>
+                      <p className="text-xs text-blue-200 font-bold mt-1">
+                        {reservationsEnAttente.length} réservation(s) en attente de paiement
+                      </p>
                     </div>
                     <button
-                      onClick={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                        isSelected
-                          ? 'bg-[#00539B] border-[#00539B]'
-                          : 'border-gray-300 hover:border-[#00539B]'
-                      }`}
+                      onClick={() => setIsCartOpen(false)}
+                      className="group p-2.5 bg-white/20 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-white backdrop-blur-sm border border-white/20 hover:border-red-500"
                     >
-                      {isSelected && (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                      )}
+                      <X className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" />
                     </button>
                   </div>
+                </div>
 
-                  {/* INFOS - TEXTES PLUS GRANDS */}
-                  <div className="mb-3">
-                    <p className="text-gray-800 text-base font-black uppercase truncate">{res.societeLocatrice}</p>
-                    <p className="text-sm text-gray-600 font-bold mt-1">
-                      Face: <span className="text-[#00539B]">{res.faceLabel || 'N/A'}</span> 
-                      <span className="text-gray-300 mx-2">•</span>
-                      Panneau: <span className="text-[#00539B]">{res.panneauIdPan || 'N/A'}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 font-medium mt-1">
-                      📅 {res.dateDebut} → {res.dateFin || 'En cours'}
-                    </p>
-                    <p className="text-xs text-gray-500 font-medium">
-                      ⏱️ Durée: <span className="font-bold text-[#00539B]">{dureeMois} mois</span>
-                    </p>
-                  </div>
-
-                  {/* PRIX - DESIGN AMÉLIORÉ */}
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-2.5 border border-gray-200/60">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold block">Prix unitaire</label>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <input
-                          type="number"
-                          value={unitPrice === 0 ? "" : unitPrice}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setPrices(prev => ({ ...prev, [key]: val === "" ? 0 : Number(val) }));
-                          }}
-                          placeholder="0"
-                          className="w-full bg-transparent text-base text-gray-800 font-bold outline-none"
-                        />
-                        <span className="text-sm text-[#00539B] font-black">$</span>
+                {/* CONTENU - TAILLES DE TEXTE AGRANDIES */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar bg-gray-50/50">
+                  {reservationsEnAttente.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full py-12">
+                      <div className="text-center">
+                        <div className="w-20 h-20 mx-auto bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 border-2 border-[#00539B]/20">
+                          <FileText className="w-10 h-10 text-[#00539B]/40" />
+                        </div>
+                        <p className="text-gray-700 text-xl font-black uppercase tracking-wider">Panier vide</p>
+                        <p className="text-gray-400 text-sm mt-2 max-w-[250px] mx-auto font-medium">
+                          Vous n'avez aucune réservation en attente de facturation
+                        </p>
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-50/80 to-blue-100/40 backdrop-blur-sm rounded-xl p-2.5 text-right border border-[#00539B]/20">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold block">Total</label>
-                      <span className="text-[#00539B] text-lg font-black">
-                        {(unitPrice * dureeMois).toLocaleString()} $
-                      </span>
-                    </div>
-                  </div>
+                  ) : (
+                    reservationsEnAttente.map((res: any, index: number) => {
+                      const key = res.resUniqueId || `res-${index}`;
+                      const unitPrice = prices[key] || 0;
+                      const isSelected = selectedForPrint[key] || false;
+                      const dureeMois = res.dureeMois || 1;
 
-                  {/* BOUTON SUPPRIMER - TEXTE PLUS GRAND */}
-                  <div className="flex justify-end pt-2 border-t border-gray-200/50">
+                      return (
+                        <motion.div
+                          key={key}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className={`group relative p-4 rounded-xl border-2 transition-all duration-300 backdrop-blur-sm ${isSelected
+                            ? 'bg-blue-50/80 border-[#00539B] shadow-lg shadow-[#00539B]/20'
+                            : 'bg-white/80 border-gray-200/60 hover:border-[#00539B]/40 hover:shadow-md hover:shadow-[#00539B]/10'
+                            }`}
+                        >
+                          {/* HEADER */}
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-[#00539B] animate-pulse' : 'bg-gray-300'}`} />
+                              <span className="text-xs font-black text-[#00539B] uppercase tracking-wider">
+                                Réservation #{index + 1}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => setSelectedForPrint(prev => ({ ...prev, [key]: !prev[key] }))}
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${isSelected
+                                ? 'bg-[#00539B] border-[#00539B]'
+                                : 'border-gray-300 hover:border-[#00539B]'
+                                }`}
+                            >
+                              {isSelected && (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                              )}
+                            </button>
+                          </div>
+
+                          {/* INFOS - TEXTES PLUS GRANDS */}
+                          <div className="mb-3">
+                            <p className="text-gray-800 text-base font-black uppercase truncate">{res.societeLocatrice}</p>
+                            <p className="text-sm text-gray-600 font-bold mt-1">
+                              Face: <span className="text-[#00539B]">{res.faceLabel || 'N/A'}</span>
+                              <span className="text-gray-300 mx-2">•</span>
+                              Panneau: <span className="text-[#00539B]">{res.panneauIdPan || 'N/A'}</span>
+                            </p>
+                            <p className="text-xs text-gray-500 font-medium mt-1">
+                              📅 {res.dateDebut} → {res.dateFin || 'En cours'}
+                            </p>
+                            <p className="text-xs text-gray-500 font-medium">
+                              ⏱️ Durée: <span className="font-bold text-[#00539B]">{dureeMois} mois</span>
+                            </p>
+                          </div>
+
+                          {/* PRIX - DESIGN AMÉLIORÉ */}
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-2.5 border border-gray-200/60">
+                              <label className="text-[10px] text-gray-500 uppercase font-bold block">Prix unitaire</label>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <input
+                                  type="number"
+                                  value={unitPrice === 0 ? "" : unitPrice}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setPrices(prev => ({ ...prev, [key]: val === "" ? 0 : Number(val) }));
+                                  }}
+                                  placeholder="0"
+                                  className="w-full bg-transparent text-base text-gray-800 font-bold outline-none"
+                                />
+                                <span className="text-sm text-[#00539B] font-black">$</span>
+                              </div>
+                            </div>
+                            <div className="bg-gradient-to-br from-blue-50/80 to-blue-100/40 backdrop-blur-sm rounded-xl p-2.5 text-right border border-[#00539B]/20">
+                              <label className="text-[10px] text-gray-500 uppercase font-bold block">Total</label>
+                              <span className="text-[#00539B] text-lg font-black">
+                                {(unitPrice * dureeMois).toLocaleString()} $
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* BOUTON SUPPRIMER - TEXTE PLUS GRAND */}
+                          <div className="flex justify-end pt-2 border-t border-gray-200/50">
+                            <button
+                              onClick={() => processOperations('delete', res, index)}
+                              className="px-4 py-1.5 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-600 rounded-xl font-black text-xs uppercase hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center gap-2"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Supprimer
+                            </button>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* FOOTER - AVEC GESTION DES TRANCHES - BLEU ROI */}
+                {reservationsEnAttente.length > 0 && (
+                  <div className="p-4 sm:p-5 border-t border-gray-200/50 bg-white/90 backdrop-blur-sm flex-shrink-0 space-y-4">
+                    {/* SECTION MODE DE PAIEMENT GLOBAL - TRANCHES */}
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-[#00539B]/20 shadow-sm">
+                      <h3 className="text-sm font-black text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-[#00539B]" />
+                        Mode de paiement
+                      </h3>
+
+                      <div className="flex gap-2 mb-3">
+                        {['total', 'tranche'].map((mode) => (
+                          <button
+                            key={mode}
+                            onClick={() => setGlobalPaymentMode(mode as 'total' | 'tranche')}
+                            className={`flex-1 py-2.5 text-sm font-black uppercase rounded-xl transition-all ${globalPaymentMode === mode
+                              ? 'bg-[#00539B] text-white shadow-lg shadow-[#00539B]/30'
+                              : 'bg-white/50 text-gray-500 hover:text-gray-700 border-2 border-gray-200/50'
+                              }`}
+                          >
+                            {mode === 'total' ? '💰 Comptant' : '📅 Tranches'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Configuration des tranches */}
+                      {globalPaymentMode === 'tranche' && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border-2 border-[#00539B]/20"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700 font-black uppercase">Nombre de tranches</span>
+                            <input
+                              type="number"
+                              min="2"
+                              max="12"
+                              value={globalTranchesCount}
+                              onChange={(e) => setGlobalTranchesCount(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
+                              className="w-20 bg-white/80 border-2 border-gray-200 rounded-xl px-3 py-2 text-center text-gray-800 text-base font-black outline-none focus:border-[#00539B] focus:ring-2 focus:ring-[#00539B]/20"
+                            />
+                          </div>
+                          <div className="mt-3 pt-3 border-t-2 border-gray-200/50">
+                            <div className="flex justify-between text-sm text-gray-600">
+                              <span className="font-bold">Total facture:</span>
+                              <span className="text-[#00539B] font-black text-base">{totalFactureAmount.toLocaleString()} $</span>
+                            </div>
+                            <div className="flex justify-between text-sm text-gray-600 mt-1">
+                              <span className="font-bold">Montant par tranche:</span>
+                              <span className="text-[#00539B] font-black text-base">
+                                {(totalFactureAmount / globalTranchesCount).toLocaleString()} $
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm text-gray-600 mt-1">
+                              <span className="font-bold">Nombre de tranches:</span>
+                              <span className="text-[#00539B] font-black text-base">{globalTranchesCount}</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {globalPaymentMode === 'total' && totalFactureAmount > 0 && (
+                        <div className="flex justify-between items-center pt-3 border-t-2 border-gray-200/50 mt-2">
+                          <span className="text-sm text-gray-700 font-black uppercase">Total à payer:</span>
+                          <span className="text-[#00539B] font-black text-xl">{totalFactureAmount.toLocaleString()} $</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* BOUTON PRINCIPAL - BLEU ROI */}
                     <button
-                      onClick={() => processOperations('delete', res, index)}
-                      className="px-4 py-1.5 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-600 rounded-xl font-black text-xs uppercase hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center gap-2"
+                      disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
+                      onClick={() => processOperations('selection')}
+                      className="w-full bg-[#00539B] disabled:opacity-40 text-white py-3.5 rounded-xl font-black text-base uppercase flex justify-between px-5 items-center hover:bg-[#003A6B] hover:shadow-xl hover:shadow-[#00539B]/30 transition-all active:scale-[0.98]"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Supprimer
+                      <span>📄 Facturer la sélection</span>
+                      <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
+                        {Object.values(selectedForPrint).filter(v => v).length} face(s)
+                      </span>
+                    </button>
+
+                    {/* BOUTON FERMER */}
+                    <button
+                      onClick={() => setIsCartOpen(false)}
+                      className="w-full py-3 bg-white/80 border-2 border-gray-200/60 text-gray-600 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all rounded-xl font-black uppercase text-sm tracking-[0.15em] active:scale-95"
+                    >
+                      Fermer le panier
                     </button>
                   </div>
-                </motion.div>
-              );
-            })
+                )}
+              </motion.div>
+            </>
           )}
-        </div>
-
-        {/* FOOTER - AVEC GESTION DES TRANCHES - BLEU ROI */}
-        {reservationsEnAttente.length > 0 && (
-          <div className="p-4 sm:p-5 border-t border-gray-200/50 bg-white/90 backdrop-blur-sm flex-shrink-0 space-y-4">
-            {/* SECTION MODE DE PAIEMENT GLOBAL - TRANCHES */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-[#00539B]/20 shadow-sm">
-              <h3 className="text-sm font-black text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-[#00539B]" />
-                Mode de paiement
-              </h3>
-
-              <div className="flex gap-2 mb-3">
-                {['total', 'tranche'].map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setGlobalPaymentMode(mode as 'total' | 'tranche')}
-                    className={`flex-1 py-2.5 text-sm font-black uppercase rounded-xl transition-all ${
-                      globalPaymentMode === mode
-                        ? 'bg-[#00539B] text-white shadow-lg shadow-[#00539B]/30'
-                        : 'bg-white/50 text-gray-500 hover:text-gray-700 border-2 border-gray-200/50'
-                    }`}
-                  >
-                    {mode === 'total' ? '💰 Comptant' : '📅 Tranches'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Configuration des tranches */}
-              {globalPaymentMode === 'tranche' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border-2 border-[#00539B]/20"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700 font-black uppercase">Nombre de tranches</span>
-                    <input
-                      type="number"
-                      min="2"
-                      max="12"
-                      value={globalTranchesCount}
-                      onChange={(e) => setGlobalTranchesCount(Math.max(2, Math.min(12, parseInt(e.target.value) || 2)))}
-                      className="w-20 bg-white/80 border-2 border-gray-200 rounded-xl px-3 py-2 text-center text-gray-800 text-base font-black outline-none focus:border-[#00539B] focus:ring-2 focus:ring-[#00539B]/20"
-                    />
-                  </div>
-                  <div className="mt-3 pt-3 border-t-2 border-gray-200/50">
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span className="font-bold">Total facture:</span>
-                      <span className="text-[#00539B] font-black text-base">{totalFactureAmount.toLocaleString()} $</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-gray-600 mt-1">
-                      <span className="font-bold">Montant par tranche:</span>
-                      <span className="text-[#00539B] font-black text-base">
-                        {(totalFactureAmount / globalTranchesCount).toLocaleString()} $
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm text-gray-600 mt-1">
-                      <span className="font-bold">Nombre de tranches:</span>
-                      <span className="text-[#00539B] font-black text-base">{globalTranchesCount}</span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {globalPaymentMode === 'total' && totalFactureAmount > 0 && (
-                <div className="flex justify-between items-center pt-3 border-t-2 border-gray-200/50 mt-2">
-                  <span className="text-sm text-gray-700 font-black uppercase">Total à payer:</span>
-                  <span className="text-[#00539B] font-black text-xl">{totalFactureAmount.toLocaleString()} $</span>
-                </div>
-              )}
-            </div>
-
-            {/* BOUTON PRINCIPAL - BLEU ROI */}
-            <button
-              disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
-              onClick={() => processOperations('selection')}
-              className="w-full bg-[#00539B] disabled:opacity-40 text-white py-3.5 rounded-xl font-black text-base uppercase flex justify-between px-5 items-center hover:bg-[#003A6B] hover:shadow-xl hover:shadow-[#00539B]/30 transition-all active:scale-[0.98]"
-            >
-              <span>📄 Facturer la sélection</span>
-              <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
-                {Object.values(selectedForPrint).filter(v => v).length} face(s)
-              </span>
-            </button>
-
-            {/* BOUTON FERMER */}
-            <button
-              onClick={() => setIsCartOpen(false)}
-              className="w-full py-3 bg-white/80 border-2 border-gray-200/60 text-gray-600 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all rounded-xl font-black uppercase text-sm tracking-[0.15em] active:scale-95"
-            >
-              Fermer le panier
-            </button>
-          </div>
-        )}
-      </motion.div>
-    </>
-  )}
-</AnimatePresence>
+        </AnimatePresence>
 
 
 
