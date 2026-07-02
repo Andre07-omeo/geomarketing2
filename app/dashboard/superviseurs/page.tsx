@@ -72,8 +72,8 @@ const logo = config.LOGO_DISPROMALT;
 
 
 
-const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user, ouvrirLaCarte,  onReserver,  // ✅ AJOUTER CETTE PROP
- }: any) => {
+const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user, ouvrirLaCarte, onReserver,  // ✅ AJOUTER CETTE PROP
+}: any) => {
   const [selectedFaceDetails, setSelectedFaceDetails] = useState<any>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
@@ -92,10 +92,10 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user,
   };
 
   const downloadImage = async (url: string) => {
-  // Créer une boîte de dialogue personnalisée
-  const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
-  modal.innerHTML = `
+    // Créer une boîte de dialogue personnalisée
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
+    modal.innerHTML = `
     <div class="bg-white rounded-2xl max-w-sm w-full mx-4 shadow-2xl overflow-hidden">
       <!-- HEADER - BLEU ROI PROFOND -->
       <div class="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-900 px-6 py-4 border-b border-white/10">
@@ -139,89 +139,89 @@ const ElegantCard = ({ panneau, selectedIds = [], onSelect, index, onEdit, user,
       </div>
     </div>
   `;
-  document.body.appendChild(modal);
+    document.body.appendChild(modal);
 
-  // Gérer la confirmation
-  const confirmBtn = modal.querySelector('#confirm-download');
-  const cancelBtn = modal.querySelector('#cancel-download');
+    // Gérer la confirmation
+    const confirmBtn = modal.querySelector('#confirm-download');
+    const cancelBtn = modal.querySelector('#cancel-download');
 
-  const closeModal = () => modal.remove();
+    const closeModal = () => modal.remove();
 
-  confirmBtn?.addEventListener('click', async () => {
-    closeModal();
+    confirmBtn?.addEventListener('click', async () => {
+      closeModal();
 
-    // Afficher un toast de chargement
-    const toast = document.createElement('div');
-    toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-white rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-blue-200 flex items-center gap-2';
-    toast.innerHTML = `
+      // Afficher un toast de chargement
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-white rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-blue-200 flex items-center gap-2';
+      toast.innerHTML = `
       <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       <span class="text-gray-700 font-medium">Téléchargement en cours...</span>
     `;
-    document.body.appendChild(toast);
+      document.body.appendChild(toast);
 
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `campagne_${Date.now()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `campagne_${Date.now()}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
 
-      toast.innerHTML = `
+        toast.innerHTML = `
         <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
         <span class="text-emerald-700 font-medium">✅ Téléchargement terminé !</span>
       `;
-      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-emerald-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-emerald-200 flex items-center gap-2';
-      setTimeout(() => toast.remove(), 2000);
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-emerald-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-emerald-200 flex items-center gap-2';
+        setTimeout(() => toast.remove(), 2000);
 
-    } catch (err) {
-      toast.innerHTML = `
+      } catch (err) {
+        toast.innerHTML = `
         <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
         <span class="text-red-700 font-medium">❌ Erreur lors du téléchargement</span>
       `;
-      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-red-200 flex items-center gap-2';
-      setTimeout(() => toast.remove(), 3000);
-    }
-  });
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-50 rounded-xl shadow-xl px-4 py-2 text-sm z-50 border border-red-200 flex items-center gap-2';
+        setTimeout(() => toast.remove(), 3000);
+      }
+    });
 
-  cancelBtn?.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
 
-  // Fermer en cliquant à l'extérieur
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
-  });
+    // Fermer en cliquant à l'extérieur
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
 
-  // Fermer avec la touche Echap
-  const handleEsc = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') closeModal();
+    // Fermer avec la touche Echap
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    document.addEventListener('keydown', handleEsc);
+
+    // Nettoyer l'écouteur d'événements lorsque le modal est fermé
+    const originalClose = closeModal;
+
+
+    // Remplacer la fonction closeModal
+    const closeModalWithCleanup = () => {
+      document.removeEventListener('keydown', handleEsc);
+      modal.remove();
+    };
+
+    // Mettre à jour les références
+    const closeModalFinal = closeModalWithCleanup;
+    modal.querySelector('#cancel-download')?.addEventListener('click', closeModalFinal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModalFinal();
+    });
   };
-  document.addEventListener('keydown', handleEsc);
-
-  // Nettoyer l'écouteur d'événements lorsque le modal est fermé
-  const originalClose = closeModal;
-  
-
-  // Remplacer la fonction closeModal
-  const closeModalWithCleanup = () => {
-    document.removeEventListener('keydown', handleEsc);
-    modal.remove();
-  };
-
-  // Mettre à jour les références
-  const closeModalFinal = closeModalWithCleanup;
-  modal.querySelector('#cancel-download')?.addEventListener('click', closeModalFinal);
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeModalFinal();
-  });
-};
 
   // ✅ LOGIQUE MÉTIER CORRIGÉE
   const isValidReservation = (res: any) => {
@@ -1307,10 +1307,10 @@ export default function UltimateSupervisor() {
     router.push('/dashboard/superviseurs/carte');
   };
 
-  
 
 
-   
+
+
   useEffect(() => {
     // Exposer les outils de debug dans la console
     if (typeof window !== 'undefined') {
@@ -3437,18 +3437,18 @@ export default function UltimateSupervisor() {
           </div>
         )}
         {isReservationModalOpen && panneauForReservation && (
-  <EditPanneauModal
-    isOpen={isReservationModalOpen}
-    onClose={() => {
-      setIsReservationModalOpen(false);
-      setPanneauForReservation(null);
-      setFaceForReservation(null);
-    }}
-    panneau={panneauForReservation}
-    face={faceForReservation}
-    user={user}
-  />
-)}
+          <EditPanneauModal
+            isOpen={isReservationModalOpen}
+            onClose={() => {
+              setIsReservationModalOpen(false);
+              setPanneauForReservation(null);
+              setFaceForReservation(null);
+            }}
+            panneau={panneauForReservation}
+            face={faceForReservation}
+            user={user}
+          />
+        )}
         {filtered.length === 0 && (
           <div className="py-40 text-center">
             <p className="text-zinc-200/50 font-black uppercase tracking-[0.5em] italic">Aucun panneau trouvé</p>
@@ -3469,12 +3469,12 @@ export default function UltimateSupervisor() {
 }
 
 
-
+// Dans le composant FaceDetailModal, ajoutez ces imports en haut
+import { Calendar, Activity, ShieldCheck, MinusCircle } from 'lucide-react';
 
 
 // Ajoutez cette ligne avec les autres imports en haut du fichier
 
-import { MinusCircle, Calendar, Activity, ShieldCheck, } from 'lucide-react';
 export const FaceDetailModal = ({
   isOpen,
   onClose,
@@ -3795,368 +3795,443 @@ export const FaceDetailModal = ({
   // ============================================
 
   return (
-    <>
-      <AnimatePresence>
-        {isOpen && (
-          <div
-            className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-3 md:p-4 bg-blue-900/70 backdrop-blur-md"
-            onClick={onClose}
+  <>
+    <AnimatePresence>
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[250] flex items-end sm:items-center justify-center p-0 sm:p-2 md:p-4 bg-blue-900/70 backdrop-blur-md"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: "100%" }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="relative w-full max-w-4xl mx-auto bg-white/95 backdrop-blur-xl border-t sm:border border-blue-200/50 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/20"
+            style={{ maxHeight: '90vh' }}
           >
-            <motion.div
-              initial={{ opacity: 0, y: "100%" }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              className="relative w-full max-w-5xl mx-auto bg-white/95 backdrop-blur-xl border-t sm:border border-blue-200/50 rounded-t-2xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/20"
-              style={{ maxHeight: '90vh' }}
+            {/* Effet de glow */}
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
+            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
+
+            {/* INDICATEUR DE SWIPE */}
+            <div className="sm:hidden flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 bg-blue-300/50 rounded-full" />
+            </div>
+
+            {/* BOUTON FERMETURE */}
+            <button
+              onClick={onClose}
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-white/80 backdrop-blur-xl hover:bg-red-500 hover:text-white rounded-full transition-all duration-300 border border-blue-200/50 active:scale-95 text-blue-900"
             >
-              {/* Effet de glow */}
-              <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
-              <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
+              <X size={16} className="sm:w-5 sm:h-5" />
+            </button>
 
-              {/* INDICATEUR DE SWIPE */}
-              <div className="sm:hidden flex justify-center pt-2 pb-1">
-                <div className="w-10 h-1 bg-blue-300/50 rounded-full" />
-              </div>
-
-              {/* BOUTON FERMETURE */}
+            <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
               <button
                 onClick={onClose}
-                className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 p-1.5 sm:p-2 bg-white/80 backdrop-blur-xl hover:bg-red-500 hover:text-white rounded-full transition-all duration-300 border border-blue-200/50 active:scale-95 text-blue-900"
+                className="px-4 py-2 bg-blue-600 backdrop-blur-xl rounded-full border border-blue-400/30 text-white text-[9px] font-black uppercase tracking-wider active:scale-95 shadow-lg shadow-blue-600/20"
               >
-                <X size={16} className="sm:w-5 sm:h-5" />
+                ✕ Fermer
               </button>
+            </div>
 
-              <div className="sm:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20">
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 bg-blue-600 backdrop-blur-xl rounded-full border border-blue-400/30 text-white text-[9px] font-black uppercase tracking-wider active:scale-95 shadow-lg shadow-blue-600/20"
-                >
-                  ✕ Fermer
-                </button>
-              </div>
+            {/* LAYOUT - HAUTEUR FIXE */}
+            <div className="flex flex-col md:flex-row" style={{ height: '80vh', maxHeight: '80vh' }}>
 
-              {/* LAYOUT - HAUTEUR FIXE */}
-              <div className="flex flex-col md:flex-row" style={{ height: '80vh', maxHeight: '80vh' }}>
+              {/* --- SECTION PHOTO --- */}
+              <div className="relative w-full md:w-[35%] lg:w-[30%] h-[30vh] md:h-auto shrink-0">
+                <img
+                  src={photoToShow}
+                  className="w-full h-full object-cover md:object-contain bg-blue-900/10"
+                  alt="Visual"
+                />
 
-                {/* --- SECTION PHOTO --- */}
-                <div className="relative w-full md:w-[35%] lg:w-[32%] h-[30vh] md:h-auto shrink-0">
-                  <img
-                    src={photoToShow}
-                    className="w-full h-full object-contain bg-blue-900/10"
-                    alt="Visual"
-                  />
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/20 to-blue-900/30" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 via-transparent to-transparent" />
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-blue-900/80 via-blue-900/20 to-blue-900/30" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 via-transparent to-transparent" />
-
-                  {/* BADGE STATUT */}
-                  <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
-                    <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${getBadgeColor()}`}>
-                      <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${getBadgeDotColor()}`} />
-                      <span className="text-[8px] sm:text-[10px] font-black text-white uppercase">
-                        {faceStatus.label}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* INFOS SUR L'IMAGE */}
-                  <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
-                    <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white italic leading-tight">
-                      {panneau.idPan}
-                    </h2>
-                    <div className="flex gap-1.5 mt-1 flex-wrap">
-                      <span className="bg-blue-500 text-white text-[11px] sm:text-[14px] md:text-[16px] font-black px-3 py-1 rounded-md">
-                        {face.sens}
-                      </span>
-                      {activeReservation && (
-                        <span className="bg-amber-500 text-white text-[11px] sm:text-[14px] md:text-[16px] font-black px-3 py-1 rounded-md">
-                          {activeReservation.societeLocatrice?.substring(0, 15)}
-                          {activeReservation.societeLocatrice?.length > 15 ? '...' : ''}
-                        </span>
-                      )}
-                    </div>
+                {/* BADGE STATUT */}
+                <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+                  <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full backdrop-blur-2xl border ${getBadgeColor()}`}>
+                    <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${getBadgeDotColor()}`} />
+                    <span className="text-[8px] sm:text-[10px] font-black text-white uppercase">
+                      {faceStatus.label}
+                    </span>
                   </div>
                 </div>
 
-                {/* --- SECTION CONTENU --- */}
-                <div className="flex-1 flex flex-col bg-gradient-to-b from-blue-50/80 to-white overflow-hidden">
-
-                  {/* HEADER - Taille fixe */}
-                  <div className="shrink-0 p-2 sm:p-3 md:p-4 border-b border-blue-200/50 bg-white/50">
-                    <p className="text-blue-700 text-[13px] sm:text-[16px] md:text-[18px] font-black uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
-                      <MapPin size={16} className="sm:w-5 sm:h-5" />
-                      📍 {panneau.adresse || 'Adresse non définie'}
-                    </p>
-
-                    {isSelected && (
-                      <span className="inline-block mt-1 text-blue-600 text-[9px] sm:text-[11px] font-black bg-blue-100 px-2 py-0.5 rounded-full">
-                        ✓ Sélectionné
+                {/* INFOS SUR L'IMAGE */}
+                <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3">
+                  <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-black text-white italic leading-tight break-words">
+                    {panneau.idPan}
+                  </h2>
+                  <div className="flex gap-1.5 mt-1 flex-wrap">
+                    <span className="bg-blue-500 text-white text-[10px] sm:text-[12px] md:text-[13px] font-black px-2 py-0.5 sm:px-3 sm:py-1 rounded-md truncate max-w-[120px] sm:max-w-[160px]">
+                      {face.sens}
+                    </span>
+                    {activeReservation && (
+                      <span className="bg-amber-500 text-white text-[10px] sm:text-[12px] md:text-[13px] font-black px-2 py-0.5 sm:px-3 sm:py-1 rounded-md truncate max-w-[120px] sm:max-w-[160px]">
+                        {activeReservation.societeLocatrice?.substring(0, 15)}
+                        {activeReservation.societeLocatrice?.length > 15 ? '...' : ''}
                       </span>
                     )}
-
-                    {activeReservation && (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        <span className="inline-block text-amber-600 text-[10px] sm:text-[13px] md:text-[15px] font-black bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-                          📅 {activeReservation.dateDebut} → {activeReservation.dateFin}
-                        </span>
-                        <span className="inline-block text-blue-600 text-[10px] sm:text-[13px] md:text-[15px] font-black bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
-                          👤 {activeReservation.societeLocatrice}
-                        </span>
-                      </div>
-                    )}
                   </div>
+                </div>
+              </div>
 
-                  {/* ZONE SCROLLABLE */}
-                  <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 custom-scrollbar bg-white/30">
+              {/* --- SECTION CONTENU --- */}
+              <div className="flex-1 flex flex-col bg-gradient-to-b from-blue-50/80 to-white overflow-hidden min-h-0">
 
-                    {/* TIMELINE */}
-                    <section className="space-y-3 sm:space-y-4">
-                      <div className="flex items-center gap-2 sm:gap-2.5 sticky top-0 bg-white/80 py-1 z-10">
-                        <Calendar size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6 text-blue-600" />
-                        <h4 className="text-blue-900 text-[12px] sm:text-[14px] md:text-[16px] font-black uppercase tracking-wider">Chronologie</h4>
-                        <span className="text-[9px] sm:text-[11px] text-blue-400 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50">
-                          {displayReservations.length} campagne{displayReservations.length !== 1 ? 's' : ''}
+                {/* HEADER - ID PANNEAU EN GRAND (14px) + INFOS SECONDAIRES (10px) */}
+                <div className="shrink-0 p-2 sm:p-3 md:p-4 border-b border-blue-200/50 bg-white/50">
+                  {/* ID PANNEAU - TAILLE 14px */}
+                  <p className="text-[14px] sm:text-[16px] md:text-[18px] font-black text-blue-900 uppercase tracking-wider break-words">
+                    {panneau.idPan}
+                  </p>
+
+                  {/* ADRESSE - TAILLE 10px */}
+                  <p className="text-[10px] sm:text-[11px] md:text-[12px] text-blue-700 font-medium mt-0.5 flex items-start gap-1.5 break-words">
+                    <MapPin size={12} className="sm:w-3.5 sm:h-3.5 flex-shrink-0 mt-0.5 text-blue-500" />
+                    <span className="break-words flex-1 min-w-[60px]">{panneau.adresse || 'Adresse non définie'}</span>
+                  </p>
+
+                  {/* DIMENSION - TAILLE 10px */}
+                  {panneau.dimension && (
+                    <p className="text-[10px] sm:text-[11px] text-gray-600 font-medium flex items-center gap-1.5 mt-0.5">
+                      <span className="text-blue-400">📐</span>
+                      <span>Dimension: {panneau.dimension}</span>
+                    </p>
+                  )}
+
+                  {/* COORDONNÉES GÉOGRAPHIQUES - TAILLE 10px */}
+                  {panneau.coords && (
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-0.5">
+                      <div className="flex items-center gap-1 sm:gap-1.5 bg-blue-50/80 backdrop-blur-sm px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full border border-blue-200/50">
+                        <Globe size={10} className="sm:w-3 sm:h-3 text-blue-500 flex-shrink-0" />
+                        <span className="text-[10px] sm:text-[10px] font-mono font-medium text-blue-700 truncate max-w-[120px] sm:max-w-[180px] md:max-w-[220px]">
+                          {typeof panneau.coords === 'object' && panneau.coords.lat !== undefined ? (
+                            `${panneau.coords.lat.toFixed(6)}, ${panneau.coords.lng.toFixed(6)}`
+                          ) : Array.isArray(panneau.coords) ? (
+                            `${panneau.coords[0].toFixed(6)}, ${panneau.coords[1].toFixed(6)}`
+                          ) : (
+                            panneau.gps_raw ? `${panneau.gps_raw.lat.toFixed(6)}, ${panneau.gps_raw.lng.toFixed(6)}` : 'Coordonnées non disponibles'
+                          )}
                         </span>
                       </div>
-
-                      <div className="relative border-l-2 border-blue-200 ml-3 sm:ml-4 pl-5 sm:pl-6 space-y-4 sm:space-y-5">
-                        {displayReservations.length > 0 ? (
-                          displayReservations.map(({ res, status }: any, i: number) => {
-                            return (
-                              <div key={i} className="relative group">
-                                {/* Point sur la timeline */}
-                                <div className={`absolute -left-[21px] sm:-left-[25px] top-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-[2.5px] bg-white flex items-center justify-center
-                                  ${status.isCurrent ? 'border-emerald-500 shadow-emerald-500/50' :
-                                    status.label.includes('✅') ? 'border-purple-500 shadow-purple-500/50' :
-                                      'border-blue-300'}`}>
-                                  <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full 
-                                    ${status.isCurrent ? 'bg-emerald-500 animate-pulse' :
-                                      status.label.includes('✅') ? 'bg-purple-500' :
-                                        'bg-blue-400'}`} />
-                                </div>
-
-                                {/* Carte de réservation */}
-                                <div className={`bg-white border rounded-xl sm:rounded-2xl p-3 sm:p-4 transition-all duration-300 hover:shadow-lg hover:border-blue-400/60
-                                  ${status.isCurrent ? 'border-2 border-emerald-500 shadow-lg shadow-emerald-500/20' :
-                                    status.label.includes('✅') ? 'border-purple-300' :
-                                      'border-blue-200/60'}`}>
-
-                                  {/* En-tête */}
-                                  <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-blue-900 text-[12px] sm:text-[14px] md:text-[16px] font-black uppercase tracking-tight truncate">
-                                        {res.societeLocatrice}
-                                      </p>
-
-                                      {/* ✅ Statut de la réservation (Réservé ou Occupé) */}
-                                      <div className="flex items-center gap-1.5 mt-1">
-                                        <span className={`text-[9px] sm:text-[11px] font-black px-2 py-0.5 rounded-full border
-                                          ${status.statutReservation === 'Occupé'
-                                            ? 'text-red-600 bg-red-50 border-red-200'
-                                            : 'text-amber-600 bg-amber-50 border-amber-200'}`}>
-                                          {status.statutReservation}
-                                        </span>
-                                      </div>
-
-                                      {/* Agent */}
-                                      {res.agentNom && (
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[8px] sm:text-[10px] text-gray-500 font-medium">
-                                            👤 Agent: <span className="text-gray-700 font-bold">{res.agentNom}</span>
-                                          </span>
-                                        </div>
-                                      )}
-
-                                      {/* Jours restants */}
-                                      {status.showDays && res.joursAvantExpiration > 0 && (
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[9px] sm:text-[11px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                                            📅 {res.joursAvantExpiration} jour{res.joursAvantExpiration > 1 ? 's' : ''} avant expiration
-                                          </span>
-                                          {res.expirationDateFormatted && (
-                                            <span className="text-[7px] sm:text-[9px] text-gray-400 font-medium">
-                                              Expire: {res.expirationDateFormatted}
-                                            </span>
-                                          )}
-                                        </div>
-                                      )}
-
-                                      {/* Statut paiement */}
-                                      {!res.validationComptable && res.statutPaiement !== 'payé' && res.joursAvantExpiration > 0 && (
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[9px] sm:text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                            ⏳ {res.joursAvantExpiration} jour{res.joursAvantExpiration > 1 ? 's' : ''} pour payer
-                                          </span>
-                                        </div>
-                                      )}
-
-                                      {/* Payé/Validé */}
-                                      {(res.validationComptable === true || res.statutPaiement === 'payé') && (
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                          <span className="text-[9px] sm:text-[11px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
-                                            ✅ {res.validationComptable ? 'Validé' : 'Payé'}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Badge statut */}
-                                    <span className={`shrink-0 text-[8px] sm:text-[10px] md:text-[11px] font-black uppercase px-2 py-1 rounded-md border ${status.color}`}>
-                                      {status.label}
-                                    </span>
-                                  </div>
-
-                                  {/* Dates */}
-                                  <div className="flex justify-between items-center gap-2 pt-2 border-t border-blue-100">
-                                    <div className="flex gap-3 sm:gap-4">
-                                      <div className="flex flex-col">
-                                        <span className="text-[8px] sm:text-[10px] text-blue-400 uppercase font-black">Début</span>
-                                        <span className="text-[11px] sm:text-[13px] md:text-[15px] text-blue-900 font-bold">
-                                          {new Date(res.dateDebut).toLocaleDateString('fr-FR')}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-end pb-1">
-                                        <span className="text-blue-300 text-[10px] sm:text-[12px]">→</span>
-                                      </div>
-                                      <div className="flex flex-col">
-                                        <span className="text-[8px] sm:text-[10px] text-blue-400 uppercase font-black">Fin</span>
-                                        <span className="text-[11px] sm:text-[13px] md:text-[15px] font-bold text-blue-900">
-                                          {new Date(res.dateFin).toLocaleDateString('fr-FR')}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* Badges */}
-                                    <div className="flex gap-1">
-                                      {res.validationComptable === true && (
-                                        <div className="p-1 bg-blue-100 text-blue-600 rounded-md border border-blue-200" title="Validé comptablement">
-                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
-                                        </div>
-                                      )}
-                                      {res.facturee === "oui" && (
-                                        <div className="p-1 bg-amber-100 text-amber-600 rounded-md border border-amber-200" title="Facturée">
-                                          <span className="text-[11px] font-black">€</span>
-                                        </div>
-                                      )}
-                                      {res.statutPaiement === "payé" && (
-                                        <div className="p-1 bg-emerald-100 text-emerald-600 rounded-md border border-emerald-200" title="Payée">
-                                          <span className="text-[11px] font-black">✓</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="relative">
-                            <div className="absolute -left-[21px] sm:-left-[25px] top-2 w-3.5 h-3.5 rounded-full border-2 border-blue-500 bg-white flex items-center justify-center">
-                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                            </div>
-
-                            <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-center space-y-2 hover:bg-blue-100/50 transition-all cursor-pointer">
-                              <div className="inline-flex p-2 bg-blue-100 rounded-full text-blue-600">
-                                <PlusCircle size={18} className="sm:w-6 sm:h-6" />
-                              </div>
-                              <h3 className="text-blue-700 text-[13px] sm:text-[15px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
-                              <p className="text-blue-500/80 text-[11px] sm:text-[13px] leading-relaxed max-w-[250px] mx-auto">
-                                Cette face n'attend que votre visibilité.<br />
-                                <span className="text-blue-900 font-bold italic">Réservez-la dès maintenant.</span>
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </section>
-                    <div className="h-4" />
-                  </div>
-
-                  {/* ACTIONS FIXES EN BAS */}
-                  <div className="shrink-0 p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0">
-                    <div className="flex gap-2">
                       <button
                         onClick={() => {
                           if (ouvrirLaCarte) ouvrirLaCarte();
                           onClose();
                         }}
-                        className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 rounded-lg text-emerald-700 transition-all active:scale-95 border border-emerald-200"
+                        className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 hover:bg-emerald-100 transition flex-shrink-0"
                       >
-                        <MapPin size={16} className="sm:w-5 sm:h-5" />
-                      </button>
-
-                      <button
-                        className={`flex-1 h-9 sm:h-10 rounded-lg font-black text-[10px] sm:text-[12px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
-  ${isSelected
-                            ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30 hover:shadow-red-500/50'
-                            : isLibreFinal
-                              ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02]'
-                              : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]'
-                          }`}
-                        onClick={() => {
-                          if (isSelected) {
-                            onSelect(selectionKey);
-                            return;
-                          }
-                          // ✅ Fermer le modal et ouvrir EditPanneauModal via onEdit
-                          onClose();
-                          setTimeout(() => {
-                            // Passer le panneau et la face à la fonction onEdit
-                            if (onEdit) {
-                              onEdit(panneau, face); // ✅ Passer la face aussi
-                            }
-                          }, 300);
-                        }}
-                      >
-                        {isSelected ? (
-                          <>
-                            <MinusCircle size={12} className="sm:w-4 sm:h-4" />
-                            <span className="hidden xs:inline">RETIRER</span>
-                            <span className="xs:hidden">RETIRER</span>
-                          </>
-                        ) : (
-                          <>
-                            <PlusCircle size={12} className="sm:w-4 sm:h-4" />
-                            <span className="hidden xs:inline">RÉSERVER</span>
-                            <span className="xs:hidden">RÉSERV</span>
-                          </>
-                        )}
+                        <MapPin size={10} />
+                        <span className="hidden xs:inline">Carte</span>
+                        <span className="xs:hidden">📍</span>
                       </button>
                     </div>
+                  )}
+
+                  {/* STATUTS SUPPLÉMENTAIRES */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    {isSelected && (
+                      <span className="inline-block text-blue-600 text-[9px] font-black bg-blue-100 px-1.5 py-0.5 rounded-full">
+                        ✓ Sélectionné
+                      </span>
+                    )}
+
+                    {activeReservation && (
+                      <>
+                        <span className="inline-block text-amber-600 text-[9px] font-black bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200 truncate max-w-[100px] sm:max-w-[160px]">
+                          📅 {activeReservation.dateDebut} → {activeReservation.dateFin}
+                        </span>
+                        <span className="inline-block text-blue-600 text-[9px] font-black bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200 truncate max-w-[100px] sm:max-w-[160px]">
+                          👤 {activeReservation.societeLocatrice}
+                        </span>
+                      </>
+                    )}
                   </div>
-
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      {isReservationModalOpen && panneauForReservation && (
-        <EditPanneauModal
-          isOpen={isReservationModalOpen}
-          onClose={() => {
-            setIsReservationModalOpen(false);
-            setPanneauForReservation(null);
-            setFaceForReservation(null);
-          }}
-          panneau={panneauForReservation}
-          face={faceForReservation}
-          user={user}
-        />
-      )}
 
+                {/* ZONE SCROLLABLE - TIMELINE */}
+                <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-3 sm:space-y-4 custom-scrollbar bg-white/30 min-h-0">
+
+                  {/* TIMELINE */}
+                  <section className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center gap-2 sm:gap-2.5 sticky top-0 bg-white/80 py-1 z-10">
+                      <Calendar size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5 text-blue-600 flex-shrink-0" />
+                      <h4 className="text-blue-900 text-[11px] sm:text-[13px] md:text-[14px] font-black uppercase tracking-wider">Chronologie</h4>
+                      <span className="text-[8px] sm:text-[9px] md:text-[10px] text-blue-400 bg-blue-50 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full border border-blue-200/50 flex-shrink-0">
+                        {displayReservations.length} campagne{displayReservations.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    <div className="relative border-l-2 border-blue-200 ml-2 sm:ml-3 md:ml-4 pl-4 sm:pl-5 md:pl-6 space-y-3 sm:space-y-4 md:space-y-5">
+                      {displayReservations.length > 0 ? (
+                        displayReservations.map(({ res, status }: any, i: number) => {
+                          return (
+                            <div key={i} className="relative group">
+                              {/* Point sur la timeline */}
+                              <div className={`absolute -left-[17px] sm:-left-[21px] md:-left-[25px] top-1 w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 rounded-full border-[2.5px] bg-white flex items-center justify-center
+                                ${status.isCurrent ? 'border-emerald-500 shadow-emerald-500/50' :
+                                  status.label.includes('✅') ? 'border-purple-500 shadow-purple-500/50' :
+                                    'border-blue-300'}`}>
+                                <div className={`w-1.5 h-1.5 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 rounded-full 
+                                  ${status.isCurrent ? 'bg-emerald-500 animate-pulse' :
+                                    status.label.includes('✅') ? 'bg-purple-500' :
+                                      'bg-blue-400'}`} />
+                              </div>
+
+                              {/* Carte de réservation */}
+                              <div className={`bg-white border rounded-xl sm:rounded-2xl p-2.5 sm:p-3 md:p-4 transition-all duration-300 hover:shadow-lg hover:border-blue-400/60
+                                ${status.isCurrent ? 'border-2 border-emerald-500 shadow-lg shadow-emerald-500/20' :
+                                  status.label.includes('✅') ? 'border-purple-300' :
+                                    'border-blue-200/60'}`}>
+
+                                {/* En-tête */}
+                                <div className="flex flex-wrap justify-between items-start gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-blue-900 text-[11px] sm:text-[13px] md:text-[14px] font-black uppercase tracking-tight truncate">
+                                      {res.societeLocatrice}
+                                    </p>
+
+                                    <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1 flex-wrap">
+                                      <span className={`text-[7px] sm:text-[8px] md:text-[10px] font-black px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full border
+                                        ${status.statutReservation === 'Occupé'
+                                          ? 'text-red-600 bg-red-50 border-red-200'
+                                          : 'text-amber-600 bg-amber-50 border-amber-200'}`}>
+                                        {status.statutReservation}
+                                      </span>
+                                      {res.agentNom && (
+                                        <span className="text-[7px] sm:text-[8px] md:text-[9px] text-gray-500 font-medium truncate max-w-[80px] sm:max-w-[120px]">
+                                          👤 {res.agentNom}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {status.showDays && res.joursAvantExpiration > 0 && (
+                                      <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1 flex-wrap">
+                                        <span className="text-[7px] sm:text-[8px] md:text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full border border-blue-200">
+                                          📅 {res.joursAvantExpiration}j
+                                        </span>
+                                        {res.expirationDateFormatted && (
+                                          <span className="text-[6px] sm:text-[7px] md:text-[8px] text-gray-400 font-medium truncate max-w-[70px] sm:max-w-[120px]">
+                                            Expire: {res.expirationDateFormatted}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {!res.validationComptable && res.statutPaiement !== 'payé' && res.joursAvantExpiration > 0 && (
+                                      <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1">
+                                        <span className="text-[7px] sm:text-[8px] md:text-[10px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full border border-amber-200">
+                                          ⏳ {res.joursAvantExpiration}j
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {(res.validationComptable === true || res.statutPaiement === 'payé') && (
+                                      <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1">
+                                        <span className="text-[7px] sm:text-[8px] md:text-[10px] font-black text-purple-600 bg-purple-50 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full border border-purple-200">
+                                          ✅ {res.validationComptable ? 'Validé' : 'Payé'}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <span className={`shrink-0 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border ${status.color}`}>
+                                    {status.label}
+                                  </span>
+                                </div>
+
+                                {/* Dates */}
+                                <div className="flex flex-wrap justify-between items-center gap-1.5 pt-1.5 border-t border-blue-100">
+                                  <div className="flex flex-wrap gap-2 sm:gap-3 md:gap-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-[6px] sm:text-[7px] md:text-[8px] text-blue-400 uppercase font-black">Début</span>
+                                      <span className="text-[9px] sm:text-[10px] md:text-[12px] text-blue-900 font-bold">
+                                        {new Date(res.dateDebut).toLocaleDateString('fr-FR', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric'
+                                        })}
+                                      </span>
+                                      {res.heureDebut && (
+                                        <span className="text-[7px] sm:text-[8px] md:text-[9px] text-blue-500 font-medium flex items-center gap-0.5">
+                                          <Clock size={8} className="sm:w-3 sm:h-3" />
+                                          {res.heureDebut}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-end pb-1">
+                                      <span className="text-blue-300 text-[8px] sm:text-[10px] md:text-[12px]">→</span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-[6px] sm:text-[7px] md:text-[8px] text-blue-400 uppercase font-black">Fin</span>
+                                      <span className="text-[9px] sm:text-[10px] md:text-[12px] font-bold text-blue-900">
+                                        {new Date(res.dateFin).toLocaleDateString('fr-FR', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric'
+                                        })}
+                                      </span>
+                                      {res.heureFin && (
+                                        <span className="text-[7px] sm:text-[8px] md:text-[9px] text-red-500 font-medium flex items-center gap-0.5">
+                                          <Clock size={8} className="sm:w-3 sm:h-3" />
+                                          {res.heureFin}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Badges */}
+                                  <div className="flex gap-0.5 sm:gap-1">
+                                    {res.validationComptable === true && (
+                                      <div className="p-0.5 sm:p-1 bg-blue-100 text-blue-600 rounded-md border border-blue-200" title="Validé comptablement">
+                                        <svg width="10" height="10" className="sm:w-3 sm:h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                                      </div>
+                                    )}
+                                    {res.facturee === "oui" && (
+                                      <div className="p-0.5 sm:p-1 bg-amber-100 text-amber-600 rounded-md border border-amber-200" title="Facturée">
+                                        <span className="text-[9px] sm:text-[11px] font-black">€</span>
+                                      </div>
+                                    )}
+                                    {res.statutPaiement === "payé" && (
+                                      <div className="p-0.5 sm:p-1 bg-emerald-100 text-emerald-600 rounded-md border border-emerald-200" title="Payée">
+                                        <span className="text-[9px] sm:text-[11px] font-black">✓</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Heure d'affichage */}
+                                {res.statut === 'Occupé' && res.heureAffichage && (
+                                  <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-amber-200/50 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                    <div className="flex items-center gap-1 sm:gap-1.5 bg-amber-50 px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-full border border-amber-200">
+                                      <Clock size={10} className="sm:w-3 sm:h-3 text-amber-600" />
+                                      <span className="text-[7px] sm:text-[8px] md:text-[9px] font-bold text-amber-700">
+                                        📺 {res.heureAffichage}
+                                      </span>
+                                    </div>
+                                    {res.dateAffichage && (
+                                      <span className="text-[6px] sm:text-[7px] md:text-[8px] text-amber-500 font-medium">
+                                        {new Date(res.dateAffichage).toLocaleDateString('fr-FR', {
+                                          day: 'numeric',
+                                          month: 'short'
+                                        })}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="relative">
+                          <div className="absolute -left-[17px] sm:-left-[21px] md:-left-[25px] top-2 w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 rounded-full border-2 border-blue-500 bg-white flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          </div>
+
+                          <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 text-center space-y-1.5 sm:space-y-2 hover:bg-blue-100/50 transition-all cursor-pointer">
+                            <div className="inline-flex p-1.5 sm:p-2 bg-blue-100 rounded-full text-blue-600">
+                              <PlusCircle size={14} className="sm:w-5 sm:h-5 md:w-6 md:h-6" />
+                            </div>
+                            <h3 className="text-blue-700 text-[11px] sm:text-[13px] md:text-[15px] font-black uppercase tracking-tighter">Opportunité disponible !</h3>
+                            <p className="text-blue-500/80 text-[10px] sm:text-[11px] md:text-[13px] leading-relaxed max-w-[200px] sm:max-w-[250px] mx-auto">
+                              Cette face n'attend que votre visibilité.<br />
+                              <span className="text-blue-900 font-bold italic">Réservez-la dès maintenant.</span>
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                  <div className="h-2 sm:h-4" />
+                </div>
+
+                {/* ACTIONS FIXES EN BAS */}
+                <div className="shrink-0 p-2 sm:p-3 bg-gradient-to-t from-white via-white/95 to-white/80 md:bg-transparent border-t border-blue-200/50 md:border-t-0">
+                  <div className="flex gap-1.5 sm:gap-2">
+                    <button
+                      onClick={() => {
+                        if (ouvrirLaCarte) ouvrirLaCarte();
+                        onClose();
+                      }}
+                      className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 rounded-lg text-emerald-700 transition-all active:scale-95 border border-emerald-200"
+                    >
+                      <MapPin size={14} className="sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                    </button>
+
+                    <button
+                      className={`flex-1 h-8 sm:h-9 md:h-10 rounded-lg font-black text-[8px] sm:text-[10px] md:text-[11px] uppercase flex items-center justify-center gap-1 transition-all active:scale-95 shadow-lg
+                        ${isSelected
+                          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-red-500/30 hover:shadow-red-500/50'
+                          : isLibreFinal
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02]'
+                            : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-[1.02]'
+                        }`}
+                      onClick={() => {
+                        if (isSelected) {
+                          onSelect(selectionKey);
+                          return;
+                        }
+                        onClose();
+                        setTimeout(() => {
+                          if (onEdit) {
+                            onEdit(panneau, face);
+                          }
+                        }, 300);
+                      }}
+                    >
+                      {isSelected ? (
+                        <>
+                          <MinusCircle size={10} className="sm:w-3 sm:h-3 md:w-4 md:h-4" />
+                          <span className="hidden xs:inline">RETIRER</span>
+                          <span className="xs:hidden">RETIRER</span>
+                        </>
+                      ) : (
+                        <>
+                          <PlusCircle size={10} className="sm:w-3 sm:h-3 md:w-4 md:h-4" />
+                          <span className="hidden xs:inline">RÉSERVER</span>
+                          <span className="xs:hidden">RÉSERV</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+    {isReservationModalOpen && panneauForReservation && (
       <EditPanneauModal
-        isOpen={isEditModalOpen}
-        onClose={handleCloseEditModal}
-        panneau={panneau}
+        isOpen={isReservationModalOpen}
+        onClose={() => {
+          setIsReservationModalOpen(false);
+          setPanneauForReservation(null);
+          setFaceForReservation(null);
+        }}
+        panneau={panneauForReservation}
+        face={faceForReservation}
+        user={user}
       />
-    </>
-  );
+    )}
+
+    <EditPanneauModal
+      isOpen={isEditModalOpen}
+      onClose={handleCloseEditModal}
+      panneau={panneau}
+    />
+  </>
+);
 };
 
 
