@@ -4413,37 +4413,34 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   };
 
   const calculateExpirationDays = (dateFin: string, dateDebut?: string): number => {
-    const now = new Date();
-    const utcNow = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        0, 0, 0, 0
-      )
-    );
+  const now = new Date();
+  const utcNow = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0, 0, 0, 0
+    )
+  );
 
-    const startDate = dateDebut ? new Date(dateDebut) : utcNow;
-    const endDate = new Date(dateFin);
+  const startDate = dateDebut ? new Date(dateDebut) : utcNow;
+  const endDate = new Date(dateFin);
 
-    startDate.setUTCHours(0, 0, 0, 0);
-    endDate.setUTCHours(0, 0, 0, 0);
+  startDate.setUTCHours(0, 0, 0, 0);
+  endDate.setUTCHours(0, 0, 0, 0);
 
-    if (endDate < startDate) return 0;
+  if (endDate < startDate) return 0;
 
-    let count = 0;
-    let current = new Date(startDate);
+  // ✅ Calculer la différence en jours calendaires (et non ouvrables)
+  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    while (current <= endDate) {
-      if (isWorkingDay(current.getUTCDay())) count++;
-      current.setUTCDate(current.getUTCDate() + 1);
-    }
+  return diffDays;
+};
 
-    return count;
-  };
 
   const calculateExpirationDate = (createdAt: string) => {
-    const DELAI_EXPIRATION_JOURS = 10;
+    const DELAI_EXPIRATION_JOURS = 3;
 
     const creationDate = new Date(createdAt);
     creationDate.setUTCHours(0, 0, 0, 0);
@@ -4471,31 +4468,27 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   };
 
   const calculateWorkingDaysRemaining = (expirationDate: Date): number => {
-    const now = new Date();
-    const utcNow = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-        0, 0, 0, 0
-      )
-    );
+  const now = new Date();
+  const utcNow = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0, 0, 0, 0
+    )
+  );
 
-    const expDate = new Date(expirationDate);
-    expDate.setUTCHours(0, 0, 0, 0);
+  const expDate = new Date(expirationDate);
+  expDate.setUTCHours(0, 0, 0, 0);
 
-    if (expDate < utcNow) return 0;
+  if (expDate < utcNow) return 0;
 
-    let count = 0;
-    let current = new Date(utcNow);
+  // ✅ Compter en jours calendaires
+  const diffTime = Math.abs(expDate.getTime() - utcNow.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    while (current <= expDate) {
-      if (isWorkingDay(current.getUTCDay())) count++;
-      current.setUTCDate(current.getUTCDate() + 1);
-    }
-
-    return count;
-  };
+  return diffDays;
+};
 
   const formatDateForDisplay = (dateString: string): string => {
     if (!dateString) return 'N/A';
