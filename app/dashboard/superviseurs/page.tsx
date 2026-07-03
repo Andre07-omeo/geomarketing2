@@ -517,7 +517,6 @@ import {
   limit,
 } from "firebase/firestore";
 
-const logoUrl = logo;
 
 // --- 3. COMPOSANT PRINCIPAL ---
 export default function UltimateSupervisor() {
@@ -681,7 +680,21 @@ export default function UltimateSupervisor() {
 
 
 
+useEffect(() => {
+    if (user) {
+      // Empêcher le retour arrière
+      const preventBack = () => {
+        window.history.pushState(null, '', window.location.href);
+      };
 
+      window.history.pushState(null, '', window.location.href);
+      window.addEventListener('popstate', preventBack);
+
+      return () => {
+        window.removeEventListener('popstate', preventBack);
+      };
+    }
+  }, [user]);
 
 
   // --- EFFECT : RÉCUPÉRATION FIRESTORE ---
@@ -776,7 +789,7 @@ export default function UltimateSupervisor() {
         }
       }
 
-      alert("✅ Réservation supprimée avec succès !");
+      alert("✅ dsee  Réservation supprimée avec succès !");
 
       // 9. Mettre à jour l'état local (optionnel, Firestore le fera via onSnapshot)
       // Rafraîchir les données pour que la réservation disparaisse de la liste
@@ -1080,11 +1093,21 @@ export default function UltimateSupervisor() {
 
 
 
+
+
+  // ============================================
+  // PROCESSUS DES OPÉRATIONS DU PANIER - CORRIGÉ
+  // ============================================
+
+  // ============================================
+  // PROCESSUS DES OPÉRATIONS DU PANIER - CORRIGÉ
+  // ============================================
+
   const processOperations = async (type: 'unique' | 'selection' | 'delete', data?: any, index?: number) => {
     // 1. CAS PARTICULIER : SUPPRESSION
     if (type === 'delete' && data) {
       await handleDeleteReservation(data);
-      return; // On s'arrête ici après suppression
+      return;
     }
 
     // 2. RÉCUPÉRATION DE LA SÉLECTION
@@ -1154,11 +1177,13 @@ export default function UltimateSupervisor() {
 
     if (!confirmation) return;
 
+    // ✅ APPEL À LA FONCTION DE FACTURATION
     lancerFacturation(selection, totalFacture);
   };
 
-
-  // 7. LA FONCTION QUI FAIT LA NAVIGATION (À placer juste en dessous ou au dessus)
+  // ============================================
+  // LANCER LA FACTURATION - REDIRECTION VERS /generationpdf
+  // ============================================
   const lancerFacturation = (donneesAEnvoyer: any[], totalFacture: number) => {
     if (!donneesAEnvoyer || donneesAEnvoyer.length === 0) {
       alert("⚠️ Erreur : Aucune donnée à facturer.");
@@ -1172,50 +1197,50 @@ export default function UltimateSupervisor() {
       modePaiement: globalPaymentMode,
       nombreTranches: globalPaymentMode === 'tranche' ? globalTranchesCount : 1,
       montantParTranche: globalPaymentMode === 'tranche' ? totalFacture / globalTranchesCount : 0,
-      totalFacture: totalFacture
+      totalFacture: totalFacture,
+      idFace: res.faceLabel || res.faceId || 'N/A',
+      adresse: res.panneauAdresse || res.adresse || '',
+      dateDebut: res.dateDebut || '',
+      dateFin: res.dateFin || '',
+      type: res.type || res.panneauType || 'N/A',
+      societeLocatrice: res.societeLocatrice,
+      agentNom: res.agentNom || user?.nomComplet || 'Agent',
+      agentEmail: res.agentEmail || user?.email || '',
+      factureIdFormat: res.factureIdFormat || 'N/A'
     }));
 
+    // ✅ Stocker dans localStorage pour la page de génération PDF
     localStorage.setItem('facture_preview_data', JSON.stringify(donneesCompletes));
+
+    // ✅ Rediriger vers la page de génération PDF
     router.push('/generationpdf');
   };
 
-  const reservationsEnAttente = useMemo(() => {
 
-    //let compteurLocal = Number(dernierIdFacture) || 0;
+  // Dans UltimateSupervisor, la fonction reservationsEnAttente
+  const reservationsEnAttente = useMemo(() => {
     let compteurLocal = Number(dernierIdFacture) || 0;
-    // 1. Sécurité de base
+
     if (!panneauxData || !user?.email) return [];
 
-    // 2. Initialisation typée pour éviter l'erreur sur "list"
     const list: any[] = [];
     const emailConnecte = user.email.trim().toLowerCase();
     const annee = new Date().getFullYear();
     const maintenant = new Date();
-
     const mois = String(maintenant.getMonth() + 1).padStart(2, '0');
 
     panneauxData.forEach((panneau: any) => {
-      // Vérification que "faces" existe bien
       const faces = panneau.faces || [];
 
       faces.forEach((face: any, faceIdx: number) => {
-        // Accès sécurisé à ".reservations"
         const reservations = face.reservations || [];
 
-
         reservations.forEach((res: any, resIdx: number) => {
-
-
-          // --- GÉNÉRATION DE L'ID UNIQUE ---
           compteurLocal++;
-
           const sequence = String(compteurLocal).padStart(3, '0');
-
-          // PadStart transforme "1" en "000001"
-          //const numeroSequence = String(compteurLocal).padStart(6, '0');
+          // ✅ FORMAT: ANNEE.MOIS.SEQUENCE (par exemple: 2026.07.001)
           const factureIdFormat = `${annee}.${mois}.${sequence}`;
 
-          // 3. LOGIQUE DE FILTRAGE (selon ta structure BD)
           const emailReservation = (res.agentEmail || "").trim().toLowerCase();
           const appartientALutilisateur = emailReservation === emailConnecte;
 
@@ -1225,35 +1250,29 @@ export default function UltimateSupervisor() {
             res.validationComptable !== true;
 
           if (appartientALutilisateur && estPretPourFacture) {
-            // Calcul de la durée
             const debut = new Date(res.dateDebut);
             const fin = new Date(res.dateFin);
             const duree = Math.max(1, (fin.getFullYear() - debut.getFullYear()) * 12 + (fin.getMonth() - debut.getMonth()));
 
-            // 4. RÉCUPÉRATION DES ÉLÉMENTS (y compris "sens")
             const faceLabel = `${panneau.idPan}-${faceIdx + 1} (${face.sens || 'SANS SENS'})`;
-
-            // Création de l'ID unique pour le panier
             const resUniqueId = `res-${panneau.id}-${faceIdx}-${resIdx}-${res.dateDebut}`;
 
             list.push({
               ...res,
               resUniqueId,
               faceLabel,
-              factureIdFormat, // Ton ID : 2026.000.000001
+              factureIdFormat, // ✅ INCLUS POUR LA FACTURE
               idPan: panneau.idPan,
               panelDocId: panneau.id,
               faceIndex: faceIdx,
               faceSens: face.sens,
               adresse: panneau.adresse,
-              //type: panneau.type,
+              panneauAdresse: panneau.adresse,
+              panneauType: panneau.type,
               dureeMois: duree,
-              // 2. FORCE LES DATES ICI POUR LA FACTURE
               dateDebut: res.dateDebut,
               dateFin: res.dateFin,
-              // 3. RÉCUPÈRE LE TYPE DEPUIS LE PANNEAU (très important !)
               type: panneau.type || "",
-              //dateTri: new Date(res.createdAt).getTime(),
               dateTri: res.createdAt ? new Date(res.createdAt).getTime() : 0
             });
           }
@@ -1261,13 +1280,11 @@ export default function UltimateSupervisor() {
       });
     });
 
-    // 5. TRI : LES PLUS RÉCENTS D'ABORD
     return list.sort((a, b) => b.dateTri - a.dateTri);
+  }, [panneauxData, user?.email, dernierIdFacture]);
 
-  }, [panneauxData, user?.email]);
 
 
-  // --- ÉTATS FILTRES ---
 
   // --- HOOKS D'ANIMATION ---
   const { scrollYProgress, scrollY } = useScroll();
@@ -2404,7 +2421,7 @@ export default function UltimateSupervisor() {
                       {/* BOUTON PRINCIPAL - COMPACT */}
                       <button
                         disabled={Object.values(selectedForPrint).filter(v => v).length === 0}
-                        onClick={() => processOperations('selection')}
+                        onClick={() => processOperations('selection')}  // ← ICI
                         className="w-full bg-gradient-to-r from-blue-500 to-blue-700 disabled:opacity-40 text-white py-2.5 rounded-lg font-black text-[9px] uppercase flex justify-between px-4 items-center hover:shadow-xl hover:shadow-blue-500/20 transition-all active:scale-[0.98]"
                       >
                         <span>📄 Facturer la sélection</span>
@@ -4555,15 +4572,11 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           animation: slideUp 0.3s ease;
           position: relative;
         ">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #f0f0f0;">
-            <div>
-              <div style="font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.1em;">📋 Confirmation</div>
-              <div style="font-size: 20px; font-weight: 800; color: #1e293b; margin-top: 4px;">Nouvelle Réservation</div>
-            </div>
-            <div style="background: ${joursRestants === 0 ? '#ef4444' : '#10b981'}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;">
-              ${joursRestants === 0 ? '⚠️ EXPIRATION' : `${joursRestants}j restants`}
-            </div>
-          </div>
+          <div style="background: #fef3c7; padding: 12px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #fcd34d;">
+      <div style="font-size: 11px; color: #92400e; font-weight: 600;">
+        ⚠️ Cette réservation doit être payée dans les 3 jours. Passé ce délai, elle sera automatiquement annulée.
+      </div>
+    </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
             <div style="background: #f8fafc; padding: 12px; border-radius: 12px;">
@@ -5161,6 +5174,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       setIsSaving(false);
     }
   };
+
+
 
 
 

@@ -23,7 +23,7 @@ import {
   Loader2,
 
 } from 'lucide-react';
-
+import { collection, getDocs, DocumentData, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useAuth } from "@/context/AuthContext";
 import { cleanupExpiredReservations, initAutoCleanup, stopAutoCleanup } from '@/utils/reservationCleanup';
 
@@ -34,11 +34,9 @@ import {
 import { useRouter } from 'next/navigation';
 
 
-
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { collection, getDocs, DocumentData } from 'firebase/firestore';
 import { getApps, getApp, initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -246,7 +244,7 @@ const RapportPanneaux: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string>('');
   const [userInitial, setUserInitial] = useState<string>('A');
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
-
+  const [globalTranchesCount, setGlobalTranchesCount] = useState<number>(2);
 
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
   const [panneauForReservation, setPanneauForReservation] = useState<any>(null);
@@ -258,6 +256,9 @@ const RapportPanneaux: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  // Ajouter cette ligne avec les autres states (vers la ligne 115)
+
+
 
   // États UI
   const [filtersExpanded, setFiltersExpanded] = useState<boolean>(false);
@@ -297,7 +298,6 @@ const RapportPanneaux: React.FC = () => {
   const [selectedForPrint, setSelectedForPrint] = useState<Record<string, boolean>>({});
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [globalPaymentMode, setGlobalPaymentMode] = useState<'total' | 'tranche'>('total');
-  const [globalTranchesCount, setGlobalTranchesCount] = useState<number>(2);
   const [activeTab, setActiveTab] = useState<'stats' | 'reservations' | 'rdv'>('stats');
 
   // États pour les réservations de l'utilisateur
@@ -749,50 +749,216 @@ const RapportPanneaux: React.FC = () => {
   }, [selectedForPrint, prices, reservationsEnAttente]);
 
   // ============================================
-  // PROCESSUS DES OPÉRATIONS DU PANIER
+  // LANCER LA FACTURATION - REDIRECTION VERS /generationpdf
   // ============================================
+  const lancerFacturation = (donneesAEnvoyer: any[], totalFacture: number) => {
+    if (!donneesAEnvoyer || donneesAEnvoyer.length === 0) {
+      alert("⚠️ Erreur : Aucune donnée à facturer.");
+      return;
+    }
 
-  const processOperations = async (action: string, reservation?: any, index?: number) => {
-    if (action === 'delete' && reservation) {
-      // Logique de suppression
-      const confirmDelete = confirm(`Supprimer la réservation de ${reservation.societeLocatrice} ?`);
-      if (confirmDelete) {
-        // Ici, vous pouvez ajouter la logique de suppression
-        console.log('Suppression de la réservation:', reservation);
-        // Recharger les données
-        loadData();
-      }
-    } else if (action === 'selection') {
-      // Logique de facturation
-      const selectedReservations = reservationsEnAttente.filter(
-        (res: any) => selectedForPrint[res.resUniqueId]
-      );
+    console.log('🔵 Données à facturer:', donneesAEnvoyer);
+    console.log('🔵 Total facture:', totalFacture);
 
-      if (selectedReservations.length === 0) {
-        alert('Veuillez sélectionner au moins une réservation');
+    // Appliquer le mode de paiement global à toutes les réservations
+    const donneesCompletes = donneesAEnvoyer.map(res => {
+      // S'assurer que chaque réservation a un prix
+      const prixSaisi = prices[res.resUniqueId] || 0;
+      const dureeMois = res.dureeMois || 1;
+      const total = prixSaisi * dureeMois;
+
+      return {
+        ...res,
+        prixSaisi: prixSaisi,
+        modePaiement: globalPaymentMode,
+        nombreTranches: globalPaymentMode === 'tranche' ? globalTranchesCount : 1,
+        montantParTranche: globalPaymentMode === 'tranche' ? total / globalTranchesCount : 0,
+        totalFacture: totalFacture,
+        // Champs pour la page de génération PDF
+        idFace: res.faceLabel || res.faceId || 'N/A',
+        adresse: res.panneauAdresse || res.adresse || '',
+        dateDebut: res.dateDebut || '',
+        dateFin: res.dateFin || '',
+        type: res.type || res.panneauType || 'N/A',
+        societeLocatrice: res.societeLocatrice,
+        agentNom: res.agentNom || user?.nomComplet || 'Agent',
+        agentEmail: res.agentEmail || user?.email || '',
+        factureIdFormat: res.factureIdFormat || `F-${Date.now()}`
+      };
+    });
+
+    console.log('📦 Données complètes pour la facture:', donneesCompletes);
+
+    // ✅ Stocker dans localStorage pour la page de génération PDF
+    localStorage.setItem('facture_preview_data', JSON.stringify(donneesCompletes));
+
+    // Vérifier que les données sont bien stockées
+    const storedData = localStorage.getItem('facture_preview_data');
+    console.log('💾 Données stockées dans localStorage:', storedData ? '✅ OK' : '❌ ERREUR');
+
+    // ✅ Rediriger vers la page de génération PDF
+    router.push('/generationpdf');
+  };
+
+const processOperations = async (type: 'unique' | 'selection' | 'delete', data?: any, index?: number) => {
+  console.log('🔵 processOperations appelé avec type:', type);
+  
+  // 1. CAS PARTICULIER : SUPPRESSION
+  if (type === 'delete' && data) {
+    await handleDeleteReservation(data);
+    return;
+  }
+
+  // 2. RÉCUPÉRATION DE LA SÉLECTION
+  const selection = type === 'unique'
+    ? [data]
+    : reservationsEnAttente.filter((r: any) => selectedForPrint[r.resUniqueId]);
+
+  console.log('📋 Réservations sélectionnées:', selection.length);
+
+  if (selection.length === 0) {
+    alert("⚠️ Action impossible : Aucune réservation n'est sélectionnée.");
+    return;
+  }
+
+  // 3. VÉRIFICATION SOCIÉTÉ UNIQUE
+  const premiereSociete = selection[0].societeLocatrice?.trim().toLowerCase();
+  if (!premiereSociete) {
+    alert("⚠️ Erreur : La société locatrice n'est pas renseignée.");
+    return;
+  }
+
+  const erreursSociete = selection.filter((r: any) =>
+    r.societeLocatrice?.trim().toLowerCase() !== premiereSociete
+  );
+
+  if (erreursSociete.length > 0) {
+    alert(`❌ Conflit : Vous ne pouvez pas mélanger plusieurs sociétés sur une facture.`);
+    return;
+  }
+
+  // 4. VÉRIFICATION DES PRIX
+  const erreursTechniques: string[] = [];
+  let totalFacture = 0;
+
+  selection.forEach((res: any) => {
+    const key = res.resUniqueId;
+    const prix = prices[key] || 0;
+    
+    if (!prices[key] || prices[key] <= 0) {
+      erreursTechniques.push(`- ${res.faceLabel} : Prix manquant`);
+    }
+    totalFacture += (prices[key] || 0) * (res.dureeMois || 1);
+  });
+
+  if (erreursTechniques.length > 0) {
+    alert(`❌ Données incomplètes :\n\n${erreursTechniques.join('\n')}`);
+    return;
+  }
+
+  // 5. VÉRIFICATION DU MODE DE PAIEMENT GLOBAL
+  if (globalPaymentMode === 'tranche' && globalTranchesCount < 2) {
+    alert("❌ Pour un paiement en tranches, veuillez préciser le nombre de tranches (minimum 2).");
+    return;
+  }
+
+  console.log('💰 Total facture calculé:', totalFacture);
+
+  // Afficher un résumé avant validation
+  const modeTexte = globalPaymentMode === 'total' ? 'Paiement comptant' : `Paiement en ${globalTranchesCount} tranches`;
+  const montantParTranche = globalPaymentMode === 'tranche' ? totalFacture / globalTranchesCount : totalFacture;
+
+  const confirmation = confirm(
+    `📊 RÉSUMÉ DE LA FACTURE\n\n` +
+    `Société: ${premiereSociete}\n` +
+    `Nombre de faces: ${selection.length}\n` +
+    `Total HT: ${totalFacture.toLocaleString()} $\n` +
+    `Mode: ${modeTexte}\n` +
+    `${globalPaymentMode === 'tranche' ? `Montant par tranche: ${montantParTranche.toLocaleString()} $\n` : ''}` +
+    `\nConfirmez-vous la facturation ?`
+  );
+
+  if (!confirmation) {
+    console.log('❌ Facturation annulée par l\'utilisateur');
+    return;
+  }
+
+  console.log('✅ Facturation confirmée, redirection vers /generationpdf');
+  
+  // ✅ APPEL À LA FONCTION DE FACTURATION
+  lancerFacturation(selection, totalFacture);
+};
+
+  // ============================================
+  // SUPPRESSION D'UNE RÉSERVATION
+  // ============================================
+  const handleDeleteReservation = async (res: any) => {
+    if (!window.confirm(`Supprimer définitivement la réservation de ${res.societeLocatrice} ?`)) {
+      return;
+    }
+
+    try {
+      const panneauRef = doc(db, "panneaux", res.panelDocId);
+      const panneauSnap = await getDoc(panneauRef);
+
+      if (!panneauSnap.exists()) {
+        alert("Panneau introuvable");
         return;
       }
 
-      // Ici, vous pouvez ajouter la logique de facturation
-      console.log('Facturation des réservations:', selectedReservations);
-      alert(`✅ ${selectedReservations.length} réservation(s) facturée(s) avec succès !`);
+      const data = panneauSnap.data();
+      const currentFaces = [...(data.faces || [])];
+      const faceIndex = res.faceIndex;
 
-      // Réinitialiser la sélection
-      setSelectedForPrint({});
+      if (!currentFaces[faceIndex]) {
+        alert("Face introuvable");
+        return;
+      }
+
+      const faceReservations = currentFaces[faceIndex].reservations || [];
+      const updatedReservations = faceReservations.filter((r: any) => {
+        return !(
+          r.dateDebut === res.dateDebut &&
+          r.societeLocatrice === res.societeLocatrice &&
+          r.createdAt === res.createdAt
+        );
+      });
+
+      currentFaces[faceIndex].reservations = updatedReservations;
+
+      if (updatedReservations.length === 0) {
+        currentFaces[faceIndex].statut = "Libre";
+      }
+
+      await updateDoc(panneauRef, {
+        faces: currentFaces
+      });
+
+      if (res.photoCampagneUrl && res.photoCampagneUrl.includes('cloudinary')) {
+        try {
+          await fetch('/api/delete-cloudinary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: res.photoCampagneUrl })
+          });
+        } catch (cloudinaryError) {
+          console.error("Erreur suppression image Cloudinary:", cloudinaryError);
+        }
+      }
+
+      alert("✅ Réservation supprimée avec succès !");
+
+      setSelectedForPrint(prev => {
+        const newState = { ...prev };
+        delete newState[res.resUniqueId];
+        return newState;
+      });
+
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      alert("❌ Erreur lors de la suppression de la réservation");
     }
   };
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
