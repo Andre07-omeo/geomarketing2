@@ -14,7 +14,7 @@ const config = require('../../../config/db');
 
 import { motion } from 'framer-motion';
 
-
+import { doc, updateDoc } from 'firebase/firestore';
 
 
 
@@ -33,7 +33,60 @@ const firebaseConfig = config.firebaseConfig;
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
+// Interface pour les faces avec les propriétés de dates
+// Définir l'interface une fois pour toute
+interface FaceData {
+    statut: string;
+    sens: string;
+    prix?: string;
+    clientNom?: string;
+    agentNom?: string;
+    agentEmail?: string;
+    dateDebut: string;
+    dateFin: string;
+    estAujourdhui?: boolean;
+    photoCampagneUrl?: string;
+    dateDebutOriginale?: string;
+    dateFinOriginale?: string;
+    joursRetard?: number;
+    aEteDecale?: boolean;
+}
 
+// Interface pour la réservation
+interface ReservationData {
+    agentEmail: string;
+    agentNom: string;
+    dateDebut: string;
+    dateFin: string;
+    dateDebutOriginale?: string;
+    dateFinOriginale?: string;
+    joursRetard?: number;
+    dateModification: string;
+    photoCampagneUrl: string;
+    societeLocatrice: string;
+    statut: string;
+}
+interface PanneauData {
+    id: string;
+    idPan?: string;
+    adresse?: string;
+    dimension?: string;
+    type?: string;
+    nbFaces?: number;
+    faces?: any[];
+    etatPanneau?: string;
+    coords?: any;
+    gps_raw?: any;
+    createdAt?: any;
+    updatedAt?: any;
+    dateModification?: any;
+}
+// Interface pour une face complète dans Firestore
+interface FaceFirestore {
+    sens: string;
+    historique: any[];
+    reservations: ReservationData[];
+}
 
 
 export default function PageEnregistrement({
@@ -52,6 +105,8 @@ export default function PageEnregistrement({
 
     const router = useRouter();
     const { user, logout } = useAuth();
+    const [showPanneauxModal, setShowPanneauxModal] = useState(false);
+
 
 
     // Ajoutez ce useEffect pour debug
@@ -60,27 +115,27 @@ export default function PageEnregistrement({
     }, [user]);
 
 
-   const goToMap = () => {
-    // ✅ Utiliser localUser au lieu de user
-    if (localUser) {
-        // Encoder les données utilisateur dans l'URL
-        const userEncoded = encodeURIComponent(JSON.stringify({
-            uid: localUser.uid,
-            email: localUser.email,
-            nomComplet: localUser.nomComplet || localUser.nom,
-            nom: localUser.nom,
-            role: localUser.role || localUser.fonction || "superviseurs"
-        }));
-        router.push(`/dashboard/components/carte?user=${userEncoded}`);
-    } else {
-        // Si pas d'utilisateur, rediriger vers la connexion
-        if (typeof setIsLoginOpen === 'function') {
-            setIsLoginOpen(true);
+    const goToMap = () => {
+        // ✅ Utiliser localUser au lieu de user
+        if (localUser) {
+            // Encoder les données utilisateur dans l'URL
+            const userEncoded = encodeURIComponent(JSON.stringify({
+                uid: localUser.uid,
+                email: localUser.email,
+                nomComplet: localUser.nomComplet || localUser.nom,
+                nom: localUser.nom,
+                role: localUser.role || localUser.fonction || "superviseurs"
+            }));
+            router.push(`/dashboard/components/carte?user=${userEncoded}`);
         } else {
-            router.push('/dashboard/components/');
+            // Si pas d'utilisateur, rediriger vers la connexion
+            if (typeof setIsLoginOpen === 'function') {
+                setIsLoginOpen(true);
+            } else {
+                router.push('/dashboard/components/');
+            }
         }
-    }
-};
+    };
 
     const [localUser, setLocalUser] = useState<any>(null);
 
@@ -130,11 +185,18 @@ export default function PageEnregistrement({
 
     const [listeAgents, setListeAgents] = useState<{ nom: string, email: string }[]>([]);
 
-    const [formData, setFormData] = useState({
-        idPan: '', // <-- NOUVEAU CHAMP AJOUTÉ
+    const [formData, setFormData] = useState<{
+        idPan: string;
+        adresse: string;
+        dimension: string;
+        type: string;
+        nbFaces: number;
+        faces: FaceData[];
+    }>({
+        idPan: '',
         adresse: '',
         dimension: '',
-        type: '', // Initialisé vide pour forcer le choix
+        type: '',
         nbFaces: 1,
         faces: [{
             statut: 'Libre',
@@ -142,10 +204,15 @@ export default function PageEnregistrement({
             prix: '',
             clientNom: '',
             agentNom: '',
+            agentEmail: '',
             dateDebut: '',
             dateFin: '',
             estAujourdhui: false,
-            photoCampagneUrl: ''
+            photoCampagneUrl: '',
+            dateDebutOriginale: '',
+            dateFinOriginale: '',
+            joursRetard: 0,
+            aEteDecale: false
         }]
     });
 
@@ -155,7 +222,7 @@ export default function PageEnregistrement({
         province: "",
         villeOuDistrict: "",
         communeOuZone: "",
-        
+
     });
 
 
@@ -409,7 +476,7 @@ export default function PageEnregistrement({
             province: "",
             villeOuDistrict: "",
             communeOuZone: "",
-            
+
         });
         setDimensions({
             hauteur: '',
@@ -507,6 +574,393 @@ export default function PageEnregistrement({
     };
 
 
+
+
+
+
+
+    // Composant : GestionPanneauxModal - Version corrigée (uniquement etatPanneau)
+    const GestionPanneauxModal = ({ isOpen, onClose, user }: { isOpen: boolean; onClose: () => void; user: any }) => {
+        const [panneaux, setPanneaux] = useState<any[]>([]);
+        const [panneauxFiltres, setPanneauxFiltres] = useState<any[]>([]);
+        const [loading, setLoading] = useState(true);
+        const [updating, setUpdating] = useState<string | null>(null);
+        const [searchTerm, setSearchTerm] = useState('');
+
+        useEffect(() => {
+            if (isOpen) {
+                fetchPanneaux();
+            }
+        }, [isOpen]);
+
+        useEffect(() => {
+            if (searchTerm.trim() === '') {
+                setPanneauxFiltres(panneaux);
+            } else {
+                const term = searchTerm.trim().toUpperCase();
+                const filtres = panneaux.filter(p =>
+                    p.idPan?.toUpperCase().includes(term) ||
+                    p.adresse?.toUpperCase().includes(term) ||
+                    p.type?.toUpperCase().includes(term)
+                );
+                setPanneauxFiltres(filtres);
+            }
+        }, [searchTerm, panneaux]);
+
+        const fetchPanneaux = async () => {
+            setLoading(true);
+            try {
+                const q = query(collection(db, "panneaux"));
+                const snapshot = await getDocs(q);
+                const data: any[] = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                const sorted = data.sort((a, b) => (a.idPan || '').localeCompare(b.idPan || ''));
+                setPanneaux(sorted);
+                setPanneauxFiltres(sorted);
+            } catch (error) {
+                console.error("Erreur lors du chargement des panneaux:", error);
+                alert("❌ Erreur de chargement des panneaux");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        // ✅ Fonction corrigée - Ne modifie QUE etatPanneau
+        const toggleEtatPanneau = async (panneauId: string, estEnPanne: boolean) => {
+            const action = estEnPanne ? 'remettre en service' : 'mettre en maintenance';
+            if (!confirm(`Voulez-vous ${action} ce panneau ?`)) return;
+
+            setUpdating(panneauId);
+            try {
+                const nouveauStatut = estEnPanne ? 'Libre' : 'En panne';
+                const panneauRef = doc(db, "panneaux", panneauId);
+
+                // ✅ UNIQUEMENT mettre à jour etatPanneau
+                await updateDoc(panneauRef, {
+                    etatPanneau: nouveauStatut,
+                    dateModification: serverTimestamp()
+                });
+
+                alert(`✅ Panneau ${estEnPanne ? 'remis en service' : 'mis en maintenance'} avec succès`);
+                await fetchPanneaux();
+            } catch (error) {
+                console.error("Erreur:", error);
+                alert("❌ Erreur lors de la mise à jour");
+            } finally {
+                setUpdating(null);
+            }
+        };
+
+        // Composant de carte panneau
+        const PanneauCard = ({ panneau }: { panneau: any }) => {
+            // ✅ L'état est déterminé UNIQUEMENT par etatPanneau
+            const estEnPanne = panneau.etatPanneau === 'En panne';
+
+            // Compter les faces occupées (pour l'affichage)
+            const facesOccupees = panneau.faces?.filter((f: any) => f.statut === 'Occupé' || f.statut === 'Réservé').length || 0;
+            const facesLibres = panneau.faces?.filter((f: any) => f.statut === 'Libre').length || 0;
+            const facesMaintenance = panneau.faces?.filter((f: any) => f.statut === 'Maintenance').length || 0;
+
+            const formattedAdresse = panneau.adresse?.length > 50
+                ? panneau.adresse.substring(0, 47) + '...'
+                : panneau.adresse || 'Adresse non renseignée';
+
+            return (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className={`bg-white rounded-xl border-2 p-4 hover:shadow-lg transition-all duration-300 ${estEnPanne
+                            ? 'border-red-200 hover:border-red-400 bg-red-50/50'
+                            : 'border-emerald-200 hover:border-emerald-400 bg-emerald-50/50'
+                        }`}
+                >
+                    {/* En-tête avec ID et statut */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-gray-800 text-sm truncate" title={panneau.idPan || 'Sans ID'}>
+                                #{panneau.idPan || 'Sans ID'}
+                            </h3>
+                            <p className="text-[10px] text-gray-500 truncate" title={panneau.type || ''}>
+                                {panneau.type || 'Type non spécifié'} • {panneau.nbFaces || 0} face(s)
+                            </p>
+                        </div>
+                        <span className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[8px] font-bold uppercase border ${estEnPanne
+                                ? 'bg-red-100 text-red-700 border-red-300'
+                                : 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                            }`}>
+                            {estEnPanne ? '🔧 En panne' : '✅ Opérationnel'}
+                        </span>
+                    </div>
+
+                    {/* Adresse */}
+                    <div className="mb-3 p-2 bg-white/60 rounded-lg border border-gray-100">
+                        <p className="text-xs text-gray-700 leading-relaxed" title={panneau.adresse || ''}>
+                            📍 {formattedAdresse}
+                        </p>
+                    </div>
+
+                    {/* Statistiques des faces */}
+                    <div className="grid grid-cols-3 gap-1.5 mb-3">
+                        <div className="text-center p-1.5 bg-emerald-50 rounded-lg border border-emerald-100">
+                            <span className="block text-[10px] font-bold text-emerald-700">{facesLibres}</span>
+                            <span className="text-[6px] text-emerald-600 uppercase font-medium">Libres</span>
+                        </div>
+                        <div className="text-center p-1.5 bg-amber-50 rounded-lg border border-amber-100">
+                            <span className="block text-[10px] font-bold text-amber-700">{facesOccupees}</span>
+                            <span className="text-[6px] text-amber-600 uppercase font-medium">Occupées</span>
+                        </div>
+                        <div className="text-center p-1.5 bg-red-50 rounded-lg border border-red-100">
+                            <span className="block text-[10px] font-bold text-red-700">{facesMaintenance}</span>
+                            <span className="text-[6px] text-red-600 uppercase font-medium">Maintenance</span>
+                        </div>
+                    </div>
+
+                    {/* ✅ Bouton d'action corrigé */}
+                    <button
+                        onClick={() => toggleEtatPanneau(panneau.id, estEnPanne)}
+                        disabled={updating === panneau.id}
+                        className={`w-full py-2.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 ${estEnPanne
+                                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm hover:shadow'
+                                : 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm hover:shadow'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                        {updating === panneau.id ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Traitement...</span>
+                            </>
+                        ) : estEnPanne ? (
+                            <>
+                                <span>🔄</span>
+                                <span>Remettre en service</span>
+                            </>
+                        ) : (
+                            <>
+                                <span>🔧</span>
+                                <span>Mettre en maintenance</span>
+                            </>
+                        )}
+                    </button>
+
+                    {panneau.dateModification && (
+                        <p className="mt-2 text-[6px] text-gray-400 text-center">
+                            Dernière modification: {new Date(panneau.dateModification.seconds * 1000).toLocaleDateString('fr-FR')}
+                        </p>
+                    )}
+                </motion.div>
+            );
+        };
+
+        if (!isOpen) return null;
+
+        return (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="w-full max-w-6xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                    {/* Header avec recherche */}
+                    <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-800 to-blue-900 px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl">📋</span>
+                            <div>
+                                <h2 className="text-lg font-bold text-white">Gestion des Panneaux</h2>
+                                <p className="text-xs text-blue-300">
+                                    {panneauxFiltres.length} panneau(x) • Supervision et maintenance
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Barre de recherche */}
+                        <div className="w-full sm:w-72">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="🔍 Rechercher par ID, adresse..."
+                                    className="w-full px-4 py-2 bg-white/10 text-white placeholder-blue-300 rounded-lg border border-white/20 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/50 transition text-sm"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                                {searchTerm && (
+                                    <button
+                                        onClick={() => setSearchTerm('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 hover:text-white"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-white/10 rounded-lg transition flex-shrink-0"
+                        >
+                            <X className="w-5 h-5 text-white" />
+                        </button>
+                    </div>
+
+                    {/* Corps avec liste des panneaux */}
+                    <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center h-64">
+                                <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
+                                <p className="text-sm text-gray-500">Chargement des panneaux...</p>
+                            </div>
+                        ) : panneauxFiltres.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-64">
+                                <span className="text-4xl mb-4">🔍</span>
+                                <p className="text-lg font-medium text-gray-600">Aucun panneau trouvé</p>
+                                <p className="text-sm text-gray-400 mt-1">
+                                    {searchTerm ? 'Essayez un autre terme de recherche' : 'Aucun panneau enregistré'}
+                                </p>
+                                {searchTerm && (
+                                    <button
+                                        onClick={() => setSearchTerm('')}
+                                        className="mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium underline"
+                                    >
+                                        Effacer la recherche
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                {panneauxFiltres.map((panneau) => (
+                                    <PanneauCard key={panneau.id} panneau={panneau} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer avec statistiques */}
+                    <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center gap-4">
+                            <span>Total: <strong className="text-gray-700">{panneaux.length}</strong></span>
+                            <span>Affichés: <strong className="text-gray-700">{panneauxFiltres.length}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                Opérationnels: {panneaux.filter(p => p.etatPanneau !== 'En panne').length}
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                En panne: {panneaux.filter(p => p.etatPanneau === 'En panne').length}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+
+    // Fonction pour gérer les dates avec retards et chevauchements
+    const traiterDatesReservation = async (faceData: any, panneauId: string) => {
+        const { dateDebut, dateFin } = faceData;
+
+        if (!dateDebut || !dateFin) return faceData;
+
+        // 1. Récupérer toutes les réservations futures de cette face
+        const q = query(
+            collection(db, "panneaux"),
+            where("id", "==", panneauId)
+        );
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) return faceData;
+
+        const panneauData = snapshot.docs[0].data();
+        const reservationsExistantes = panneauData.faces?.flatMap((f: any) =>
+            f.reservations?.filter((r: any) =>
+                new Date(r.dateDebut) > new Date() &&
+                new Date(r.dateFin) > new Date()
+            ) || []
+        ) || [];
+
+        // 2. Calculer le nombre de jours de retard
+        const debutReservation = new Date(dateDebut);
+        const aujourdhui = new Date();
+        aujourdhui.setHours(0, 0, 0, 0);
+
+        let joursRetard = 0;
+        if (debutReservation < aujourdhui) {
+            joursRetard = Math.ceil((aujourdhui.getTime() - debutReservation.getTime()) / (1000 * 60 * 60 * 24));
+        }
+
+        // 3. Si pas de retard, on retourne les dates inchangées
+        if (joursRetard <= 0) return faceData;
+
+        // 4. Décaler la date de début et de fin du nombre de jours de retard
+        const nouvelleDateDebut = new Date(dateDebut);
+        nouvelleDateDebut.setDate(nouvelleDateDebut.getDate() + joursRetard);
+
+        const nouvelleDateFin = new Date(dateFin);
+        nouvelleDateFin.setDate(nouvelleDateFin.getDate() + joursRetard);
+
+        // 5. Vérifier les chevauchements avec les réservations existantes
+        let dateDebutFinale = nouvelleDateDebut;
+        let dateFinFinale = nouvelleDateFin;
+
+        for (const reservation of reservationsExistantes) {
+            const debutExistant = new Date(reservation.dateDebut);
+            const finExistant = new Date(reservation.dateFin);
+
+            // Vérifier si les périodes se chevauchent
+            if (dateDebutFinale < finExistant && dateFinFinale > debutExistant) {
+                // Calculer le nombre de jours de chevauchement
+                const chevauchementDebut = dateDebutFinale < debutExistant ? debutExistant : dateDebutFinale;
+                const chevauchementFin = dateFinFinale < finExistant ? dateFinFinale : finExistant;
+                const joursChevauchement = Math.ceil(
+                    (chevauchementFin.getTime() - chevauchementDebut.getTime()) / (1000 * 60 * 60 * 24)
+                ) + 1;
+
+                // Décaler les dates pour éviter le chevauchement
+                dateDebutFinale.setDate(dateDebutFinale.getDate() + joursChevauchement);
+                dateFinFinale.setDate(dateFinFinale.getDate() + joursChevauchement);
+            }
+        }
+
+        // 6. Retourner les nouvelles dates
+        return {
+            ...faceData,
+            dateDebut: dateDebutFinale.toISOString().split('T')[0],
+            dateFin: dateFinFinale.toISOString().split('T')[0],
+            joursRetard: joursRetard,
+            dateDebutOriginale: dateDebut,
+            dateFinOriginale: dateFin,
+            aEteDecale: joursRetard > 0
+        };
+    };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     const enregistrerPanneau = async () => {
         // 1. Validation du formulaire
         const { isValid, missingFields } = validateForm();
@@ -574,16 +1028,55 @@ export default function PageEnregistrement({
                 throw new Error("Coordonnées GPS invalides.");
             }
 
-            // 3. Construction des faces selon ta structure exacte
-            const formattedFaces = formData.faces.map((f, i) => {
-                const isOccupied = f.statut !== "Libre";
 
-                // Préparation de l'objet de réservation 
-                const reservationData = isOccupied ? {
-                    agentEmail: (f as any).agentEmail || "non-specifie@mail.com",
-                    agentNom: (f as any).agentNom || "Agent inconnu",
+
+
+            const facesTraitees = await Promise.all(
+                formData.faces.map(async (face: FaceData, index: number) => {
+                    // Si la face est occupée ou réservée, traiter les dates
+                    if (face.statut !== 'Libre' && face.dateDebut && face.dateFin) {
+                        // Générer un ID temporaire pour le panneau
+                        const idPanTemp = formData.idPan.trim().toUpperCase();
+
+                        // Vérifier si le panneau existe déjà
+                        const q = query(
+                            collection(db, "panneaux"),
+                            where("idPan", "==", idPanTemp)
+                        );
+                        const snapshot = await getDocs(q);
+
+                        if (!snapshot.empty) {
+                            const panneauDoc = snapshot.docs[0];
+                            // Traiter les dates avec les réservations existantes
+                            const faceAvecDates = await traiterDatesReservation(face, panneauDoc.id);
+
+                            // Retourner la face avec toutes les propriétés
+                            return {
+                                ...face,
+                                dateDebut: faceAvecDates.dateDebut,
+                                dateFin: faceAvecDates.dateFin,
+                                joursRetard: faceAvecDates.joursRetard || 0,
+                                dateDebutOriginale: faceAvecDates.dateDebutOriginale || face.dateDebut,
+                                dateFinOriginale: faceAvecDates.dateFinOriginale || face.dateFin,
+                                aEteDecale: faceAvecDates.aEteDecale || false
+                            };
+                        }
+                    }
+                    return face;
+                })
+            );
+
+            // 3. Construction des faces selon ta structure exacte
+            const formattedFaces: FaceFirestore[] = facesTraitees.map((f: FaceData, i: number) => {
+                const isOccupied = f.statut !== "Libre";
+                const reservationData: ReservationData | null = isOccupied ? {
+                    agentEmail: f.agentEmail || "non-specifie@mail.com",
+                    agentNom: f.agentNom || "Agent inconnu",
                     dateDebut: f.dateDebut || "",
                     dateFin: f.dateFin || "",
+                    dateDebutOriginale: f.dateDebutOriginale || f.dateDebut || "",
+                    dateFinOriginale: f.dateFinOriginale || f.dateFin || "",
+                    joursRetard: f.joursRetard || 0,
                     dateModification: isoNow,
                     photoCampagneUrl: f.photoCampagneUrl || LOGO_DISPROMALT,
                     societeLocatrice: f.clientNom || "Inconnu",
@@ -596,7 +1089,6 @@ export default function PageEnregistrement({
                     reservations: reservationData ? [reservationData] : []
                 };
             });
-
             // 4. Envoi à Firestore avec l'organisation demandée
             await addDoc(collection(db, "panneaux"), {
                 idPan: idPanFinal, // ✅ Utilisation de l'ID saisi
@@ -607,6 +1099,7 @@ export default function PageEnregistrement({
                 nbFaces: formData.nbFaces,
                 type: formData.type,
                 faces: formattedFaces,
+                etatPanneau: 'Libre', // ✅ AJOUT : état global du panneau
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
             });
@@ -669,7 +1162,13 @@ export default function PageEnregistrement({
 
 
     return (
+
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
+            <GestionPanneauxModal
+                isOpen={showPanneauxModal}
+                onClose={() => setShowPanneauxModal(false)}
+                user={localUser}
+            />
             {/* ============================================ */}
             {/* MODAL PRINCIPAL - FOND BLANC */}
             {/* ============================================ */}
@@ -695,6 +1194,15 @@ export default function PageEnregistrement({
 
                     {/* Actions header */}
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowPanneauxModal(true)}
+                            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-500/50 transition-all"
+                        >
+                            <span className="text-amber-400">🔧</span>
+                            <span className="hidden xs:inline text-[7px] sm:text-[8px] font-bold text-amber-400 uppercase">
+                                Panneaux
+                            </span>
+                        </button>
                         <button
                             onClick={goToMap}
                             className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 transition-all"
@@ -886,7 +1394,7 @@ export default function PageEnregistrement({
 
                         {!isAdresseComplete ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                
+
                                 <select
                                     className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 text-[11px] outline-none focus:ring-2 focus:ring-blue-500"
                                     value={geo.pays}
@@ -934,7 +1442,7 @@ export default function PageEnregistrement({
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => setGeo({ pays: "", province: "", villeOuDistrict: "", communeOuZone: ""})}
+                                    onClick={() => setGeo({ pays: "", province: "", villeOuDistrict: "", communeOuZone: "" })}
                                     className="text-[10px] text-red-500 hover:text-red-700 font-medium underline"
                                 >
                                     Modifier

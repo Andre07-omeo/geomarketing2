@@ -680,7 +680,7 @@ export default function UltimateSupervisor() {
 
 
 
-useEffect(() => {
+  useEffect(() => {
     if (user) {
       // Empêcher le retour arrière
       const preventBack = () => {
@@ -4252,11 +4252,6 @@ export const FaceDetailModal = ({
 };
 
 
-
-
-
-
-
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -4560,104 +4555,307 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       `;
 
       modal.innerHTML = `
-        <div style="
-          background: white;
-          border-radius: 24px;
-          max-width: 550px;
-          width: 100%;
-          max-height: 90vh;
-          overflow-y: auto;
-          padding: 32px;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-          animation: slideUp 0.3s ease;
-          position: relative;
+  <div style="
+    background: white;
+    border-radius: 24px;
+    max-width: 550px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 32px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+    position: relative;
+  ">
+    <div style="
+  background: linear-gradient(135deg, #1e3a8a, #1e40af, #1e4fd9);
+  margin: -32px -32px 24px -32px;
+  padding: 24px 32px;
+  border-radius: 24px 24px 0 0;
+  position: sticky;
+  top: -32px;
+  z-index: 10;
+  border-bottom: 2px solid rgba(255,255,255,0.1);
+  box-shadow: 0 4px 20px rgba(30, 58, 138, 0.4);
+">
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 18px;">📋</span>
+        <span style="color: #bfdbfe; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.95;">
+          Confirmation de réservation
+        </span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+        <span style="
+          font-size: 22px;
+          font-weight: 900;
+          color: #ffffff;
+          letter-spacing: 0.5px;
+          text-shadow: 0 2px 8px rgba(0,0,0,0.3);
         ">
-          <div style="background: #fef3c7; padding: 12px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #fcd34d;">
-      <div style="font-size: 11px; color: #92400e; font-weight: 600;">
-        ⚠️ Cette réservation doit être payée dans les 3 jours. Passé ce délai, elle sera automatiquement annulée.
+          ${panneau.idPan || 'Panneau'}
+        </span>
+        <span style="
+          background: rgba(255, 255, 255, 0.12);
+          color: #bfdbfe;
+          padding: 3px 16px;
+          border-radius: 20px;
+          font-size: 10px;
+          font-weight: 700;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(4px);
+          text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        ">
+          Face ${faceLabel}
+        </span>
+      </div>
+    </div>
+    <button id="close-modal" style="
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #bfdbfe;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    " 
+    onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='rotate(90deg)'; this.style.color='white'"
+    onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='rotate(0deg)'; this.style.color='#bfdbfe'"
+    >✕</button>
+  </div>
+</div>
+
+    <!-- 📋 INSTRUCTIONS IMPORTANTES -->
+    <div style="
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      border-left: 4px solid #f59e0b;
+    ">
+      <div style="display: flex; align-items: flex-start; gap: 10px;">
+        <span style="font-size: 18px;">📌</span>
+        <div>
+          <div style="font-size: 11px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">
+            Instructions importantes
+          </div>
+          <ul style="
+            margin: 6px 0 0 0;
+            padding-left: 18px;
+            font-size: 11px;
+            color: #78350f;
+            line-height: 1.6;
+          ">
+            <li>⚠️ Cette réservation doit être <strong>payée sous 3 jours ouvrables</strong></li>
+            <li>⏰ Passé ce délai, la réservation sera <strong>automatiquement annulée</strong></li>
+            <li>📧 Une confirmation sera envoyée à l'agent responsable</li>
+          </ul>
+        </div>
       </div>
     </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
-            <div style="background: #f8fafc; padding: 12px; border-radius: 12px;">
-              <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Face</div>
-              <div style="font-size: 14px; font-weight: 700; color: #1e293b; margin-top: 2px;">${faceLabel}</div>
-            </div>
-            <div style="background: #f8fafc; padding: 12px; border-radius: 12px;">
-              <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Client</div>
-              <div style="font-size: 14px; font-weight: 700; color: #1e293b; margin-top: 2px;">${reservation.societeLocatrice || 'N/A'}</div>
-            </div>
-          </div>
+    <!-- 📊 INFORMATIONS DE LA RÉSERVATION -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+      <div style="background: #f8fafc; padding: 14px; border-radius: 12px;">
+        <div style="font-size: 9px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Face</div>
+        <div style="font-size: 15px; font-weight: 700; color: #1e293b; margin-top: 2px;">${faceLabel}</div>
+      </div>
+      <div style="background: #f8fafc; padding: 14px; border-radius: 12px;">
+        <div style="font-size: 9px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Client</div>
+        <div style="font-size: 15px; font-weight: 700; color: #1e293b; margin-top: 2px;">${reservation.societeLocatrice || 'N/A'}</div>
+      </div>
+    </div>
 
-          <div style="background: #eff6ff; padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #bfdbfe;">
-            <div style="font-size: 12px; font-weight: 700; color: #1e40af; margin-bottom: 8px;">📅 Période de Réservation (Location du panneau)</div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="font-size: 10px; color: #64748b;">Début</div>
-                <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${dateDebutFormatted}</div>
-              </div>
-              <div style="color: #94a3b8; font-size: 18px;">→</div>
-              <div>
-                <div style="font-size: 10px; color: #64748b;">Fin</div>
-                <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${dateFinFormatted}</div>
-              </div>
-            </div>
-            <div style="margin-top: 8px; font-size: 11px; color: #64748b;">${joursReservation} jour(s) ouvrable(s)</div>
-          </div>
-
-          <div style="background: ${joursRestants === 0 ? '#fef2f2' : '#f0fdf4'}; padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid ${joursRestants === 0 ? '#fecaca' : '#bbf7d0'};">
-            <div style="font-size: 12px; font-weight: 700; color: ${joursRestants === 0 ? '#dc2626' : '#16a34a'}; margin-bottom: 8px;">
-              ⏱️ ${joursRestants === 0 ? '⚠️ EXPIRATION IMMÉDIATE' : 'Délai d\'Expiration (10 jours ouvrables)'}
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div>
-                <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${dateExpirationFormatted}</div>
-                <div style="font-size: 11px; color: #64748b;">Heure : ${heureExpiration} (UTC)</div>
-                <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${joursRestants === 0 ? '🚨 Délai dépassé' : `${joursRestants} jour(s) restant(s) pour payer`}</div>
-              </div>
-              <div style="background: ${joursRestants === 0 ? '#ef4444' : '#22c55e'}; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 700;">
-                ${joursRestants === 0 ? '🔥 Expiré' : `${joursRestants}j restants`}
-              </div>
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
-            <div>
-              <div style="font-size: 10px; color: #94a3b8; font-weight: 600;">Jour actuel</div>
-              <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${currentUTC.dayOfWeek}</div>
-              <div style="font-size: 11px; color: #64748b;">${currentUTC.date}</div>
-            </div>
-            <div>
-              <div style="font-size: 10px; color: #94a3b8; font-weight: 600;">Heure UTC</div>
-              <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${currentUTC.time}</div>
-              <div style="font-size: 11px; color: ${estOuvrable ? '#16a34a' : '#ef4444'};">${estOuvrable ? '✅ Jour ouvrable' : '❌ Week-end'}</div>
-            </div>
-          </div>
-
-          <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 20px;">
-            <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">Agent responsable</div>
-            <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${user?.nom || user?.nomComplet || user?.prenom || 'Agent'}</div>
-            <div style="font-size: 11px; color: #64748b;">${user?.email || 'Email non disponible'}</div>
-            <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">ID: ${user?.id || user?.uid || 'N/A'}</div>
-          </div>
-
-          <div style="background: #fef3c7; padding: 12px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #fcd34d;">
-            <div style="font-size: 11px; color: #92400e; font-weight: 600;">
-              ⚠️ Cette réservation doit être payée dans les 10 jours ouvrables. Passé ce délai, elle sera automatiquement annulée.
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 12px; margin-top: 8px;">
-            <button id="confirm-cancel" style="flex: 1; padding: 12px; background: #f1f5f9; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; color: #64748b; cursor: pointer; transition: all 0.2s;">Annuler</button>
-            <button id="confirm-ok" style="flex: 2; padding: 12px; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; border-radius: 12px; font-size: 14px; font-weight: 700; color: white; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">✅ Confirmer la réservation</button>
-          </div>
+    <!-- 📅 PÉRIODE DE RÉSERVATION -->
+    <div style="
+      background: #eff6ff;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      border: 1px solid #bfdbfe;
+    ">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <span style="font-size: 14px;">📅</span>
+        <span style="font-size: 11px; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">
+          Période de réservation
+        </span>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Début</div>
+          <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${dateDebutFormatted}</div>
         </div>
+        <div style="color: #94a3b8; font-size: 20px;">→</div>
+        <div>
+          <div style="font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Fin</div>
+          <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${dateFinFormatted}</div>
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: #64748b;">
+        📆 ${joursReservation} jour(s) ouvrable(s) de location
+      </div>
+    </div>
 
-        <style>
-          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-          @keyframes slideUp { from { opacity: 0; transform: translateY(30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        </style>
-      `;
+    <!-- ⏱️ DÉLAI D'EXPIRATION -->
+    <div style="
+      background: ${joursRestants === 0 ? '#fef2f2' : '#f0fdf4'};
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      border: 1px solid ${joursRestants === 0 ? '#fecaca' : '#bbf7d0'};
+    ">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <span style="font-size: 14px;">⏱️</span>
+        <span style="font-size: 11px; font-weight: 700; color: ${joursRestants === 0 ? '#dc2626' : '#16a34a'}; text-transform: uppercase; letter-spacing: 0.5px;">
+          ${joursRestants === 0 ? '⚠️ Expiration immédiate' : 'Délai d\'expiration'}
+        </span>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${dateExpirationFormatted}</div>
+          <div style="font-size: 10px; color: #64748b;">Heure : ${heureExpiration} (UTC)</div>
+        </div>
+        <div style="
+          background: ${joursRestants === 0 ? '#ef4444' : '#22c55e'};
+          color: white;
+          padding: 4px 16px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 700;
+        ">
+          ${joursRestants === 0 ? '🔥 Expiré' : `${joursRestants}j restants`}
+        </div>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: ${joursRestants === 0 ? '#dc2626' : '#64748b'};">
+        ${joursRestants === 0 ? '🚨 Délai dépassé - Réservation annulée automatiquement' : `${joursRestants} jour(s) restant(s) pour effectuer le paiement`}
+      </div>
+    </div>
+
+    <!-- 📍 DATE ET HEURE ACTUELLES -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
+      <div style="background: #f8fafc; padding: 12px; border-radius: 12px;">
+        <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Jour actuel</div>
+        <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${currentUTC.dayOfWeek}</div>
+        <div style="font-size: 10px; color: #64748b;">${currentUTC.date}</div>
+      </div>
+      <div style="background: #f8fafc; padding: 12px; border-radius: 12px;">
+        <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Heure UTC</div>
+        <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${currentUTC.time}</div>
+        <div style="font-size: 10px; color: ${estOuvrable ? '#16a34a' : '#ef4444'};">
+          ${estOuvrable ? '✅ Jour ouvrable' : '❌ Week-end'}
+        </div>
+      </div>
+    </div>
+
+    <!-- 👤 AGENT RESPONSABLE -->
+    <div style="
+      background: #f1f5f9;
+      padding: 14px 16px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    ">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <span style="font-size: 12px;">👤</span>
+        <span style="font-size: 9px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Agent responsable</span>
+      </div>
+      <div style="font-size: 14px; font-weight: 700; color: #0f172a;">
+        ${user?.nom || user?.nomComplet || user?.prenom || 'Agent non identifié'}
+      </div>
+      <div style="font-size: 11px; color: #64748b;">${user?.email || 'Email non disponible'}</div>
+      <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">ID: ${user?.id || user?.uid || 'N/A'}</div>
+    </div>
+
+    <!-- ✅ BOUTONS D'ACTION -->
+    <div style="display: flex; gap: 12px; margin-top: 8px;">
+      <button id="confirm-cancel" style="
+        flex: 1;
+        padding: 14px;
+        background: #f1f5f9;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s;
+      ">
+        ✕ Annuler
+      </button>
+      <button id="confirm-ok" style="
+        flex: 2;
+        padding: 14px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border: none;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      ">
+        <span>✅</span>
+        Confirmer la réservation
+      </button>
+    </div>
+
+    <!-- 📌 NOTE DE BAS DE PAGE -->
+    <div style="
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+      font-size: 9px;
+      color: #94a3b8;
+      letter-spacing: 0.3px;
+    ">
+      En confirmant, vous acceptez les conditions générales de réservation
+    </div>
+
+    <style>
+      @keyframes fadeIn { 
+        from { opacity: 0; } 
+        to { opacity: 1; } 
+      }
+      @keyframes slideUp { 
+        from { 
+          opacity: 0; 
+          transform: translateY(30px) scale(0.95); 
+        } 
+        to { 
+          opacity: 1; 
+          transform: translateY(0) scale(1); 
+        } 
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      #confirm-ok:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 24px rgba(37, 99, 235, 0.45);
+      }
+      #confirm-cancel:hover {
+        background: #e2e8f0;
+        border-color: #cbd5e1;
+      }
+      #close-modal:hover {
+        background: rgba(255,255,255,0.2);
+        transform: rotate(90deg);
+      }
+    </style>
+  </div>
+`;
 
       document.body.appendChild(modal);
 

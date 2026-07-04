@@ -21,6 +21,133 @@ const CLOUDINARY_UPLOAD_PRESET = config.UPLOAD_PRESET;
 const CLOUDINARY_CLOUD_NAME = "dn7wnikzp";
 
 // ============================================
+// FONCTIONS UTILITAIRES POUR LES DATES - DÉPLACÉES ICI (AVANT LEUR UTILISATION)
+// ============================================
+const parseDateUTC = (dateStr: string): Date => {
+    if (!dateStr) return new Date();
+    const date = new Date(dateStr + 'T00:00:00Z');
+    date.setUTCHours(0, 0, 0, 0);
+    return date;
+};
+
+const addDaysUTC = (date: Date, days: number): Date => {
+    const result = new Date(date);
+    result.setUTCDate(result.getUTCDate() + days);
+    result.setUTCHours(0, 0, 0, 0);
+    return result;
+};
+
+const daysBetweenUTC = (date1: Date, date2: Date): number => {
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    d1.setUTCHours(0, 0, 0, 0);
+    d2.setUTCHours(0, 0, 0, 0);
+    return Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+};
+
+// ============================================
+// FONCTION DE CALCUL DES DATES AVEC RETARDS ET CHEVAUCHEMENTS
+// ============================================
+const calculerNouvellesDates = async (
+    panneauId: string,
+    faceIndex: number,
+    reservationIndex: number,
+    dateDebutActuelle: string,
+    dateFinActuelle: string,
+    dateChangement: string
+): Promise<{ nouvelleDateDebut: string; nouvelleDateFin: string; joursRetard: number }> => {
+    // ✅ Utiliser les fonctions utilitaires
+    const now = parseDateUTC(dateChangement);
+    const debutActuel = parseDateUTC(dateDebutActuelle);
+
+    // 1. Calculer le retard
+    let joursRetard = 0;
+    if (debutActuel < now) {
+        joursRetard = daysBetweenUTC(debutActuel, now);
+    }
+
+    if (joursRetard <= 0) {
+        return {
+            nouvelleDateDebut: dateDebutActuelle,
+            nouvelleDateFin: dateFinActuelle,
+            joursRetard: 0
+        };
+    }
+
+    // 2. Décaler les dates
+    let nouvelleDebut = parseDateUTC(dateDebutActuelle);
+    let nouvelleFin = parseDateUTC(dateFinActuelle);
+    nouvelleDebut = addDaysUTC(nouvelleDebut, joursRetard);
+    nouvelleFin = addDaysUTC(nouvelleFin, joursRetard);
+
+    // 3. Récupérer les réservations futures et gérer les chevauchements
+    try {
+        const panneauRef = doc(db, "panneaux", panneauId);
+        const panneauDoc = await getDoc(panneauRef);
+        
+        if (!panneauDoc.exists()) {
+            return {
+                nouvelleDateDebut: nouvelleDebut.toISOString().split('T')[0],
+                nouvelleDateFin: nouvelleFin.toISOString().split('T')[0],
+                joursRetard
+            };
+        }
+
+        const panneauData = panneauDoc.data();
+        const faces = panneauData.faces || [];
+        
+        const toutesReservations: Array<{ dateDebut: Date; dateFin: Date }> = [];
+        
+        faces.forEach((face: any, fIdx: number) => {
+            const reservations = face.reservations || [];
+            reservations.forEach((res: any, rIdx: number) => {
+                if (fIdx === faceIndex && rIdx === reservationIndex) return;
+                if (res.dateDebut && res.dateFin) {
+                    const fin = parseDateUTC(res.dateFin);
+                    if (fin >= now) {
+                        toutesReservations.push({
+                            dateDebut: parseDateUTC(res.dateDebut),
+                            dateFin: fin
+                        });
+                    }
+                }
+            });
+        });
+
+        toutesReservations.sort((a, b) => a.dateDebut.getTime() - b.dateDebut.getTime());
+
+        // 4. Ajuster les chevauchements
+        let dateDebutFinale = nouvelleDebut;
+        let dateFinFinale = nouvelleFin;
+
+        for (const res of toutesReservations) {
+            if (dateDebutFinale < res.dateFin && dateFinFinale > res.dateDebut) {
+                const chevauchementDebut = dateDebutFinale < res.dateDebut ? res.dateDebut : dateDebutFinale;
+                const chevauchementFin = dateFinFinale < res.dateFin ? res.dateFin : dateFinFinale;
+                const joursChevauchement = daysBetweenUTC(chevauchementDebut, chevauchementFin) + 1;
+
+                dateDebutFinale = addDaysUTC(dateDebutFinale, joursChevauchement);
+                dateFinFinale = addDaysUTC(dateFinFinale, joursChevauchement);
+            }
+        }
+
+        return {
+            nouvelleDateDebut: dateDebutFinale.toISOString().split('T')[0],
+            nouvelleDateFin: dateFinFinale.toISOString().split('T')[0],
+            joursRetard
+        };
+
+    } catch (error) {
+        console.error("Erreur:", error);
+        return {
+            nouvelleDateDebut: nouvelleDebut.toISOString().split('T')[0],
+            nouvelleDateFin: nouvelleFin.toISOString().split('T')[0],
+            joursRetard
+        };
+    }
+};
+
+// ============================================
 // COMPOSANT MAP DYNAMIQUE
 // ============================================
 const MapComponent = dynamic(() => import('@/components/MapComponent'), {
@@ -390,8 +517,8 @@ function PanneauReservationListModal({ panneau, onClose, onSelectReservation }: 
                                     transition={{ delay: idx * 0.05 }}
                                     onClick={() => onSelectReservation(item)}
                                     className={`w-full text-left p-5 rounded-xl border-2 transition-all group ${isCurrent
-                                            ? 'bg-emerald-50 border-emerald-200 hover:border-emerald-400'
-                                            : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-lg'
+                                        ? 'bg-emerald-50 border-emerald-200 hover:border-emerald-400'
+                                        : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-lg'
                                         }`}
                                 >
                                     {/* En-tête de la réservation */}
@@ -682,6 +809,7 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
     };
 
     // Sauvegarder les modifications
+    // Sauvegarder les modifications - AVEC GESTION DES DATES
     const handleSave = async () => {
         let currentUser = user;
         if (!currentUser) {
@@ -729,12 +857,44 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                 return;
             }
 
-            const finalStatut = newPhotoUrl ? "Occupé" : (newStatut || reservationsToUpdate[reservationIndex].statut);
+            const reservationActuelle = reservationsToUpdate[reservationIndex];
+            const finalStatut = newPhotoUrl ? "Occupé" : (newStatut || reservationActuelle.statut);
+
+            // ✅ SI LE STATUT PASSE DE "Réservé" À "Occupé"
+            let dateDebutFinale = reservationActuelle.dateDebut;
+            let dateFinFinale = reservationActuelle.dateFin;
+            let joursRetard = 0;
+
+            if (reservationActuelle.statut === "Réservé" && finalStatut === "Occupé") {
+                // ✅ Calculer les nouvelles dates avec gestion des retards et chevauchements
+                const dateDuJour = new Date().toISOString().split('T')[0];
+
+                const resultat = await calculerNouvellesDates(
+                    panneau.id,
+                    faceIndex,
+                    reservationIndex,
+                    reservationActuelle.dateDebut,
+                    reservationActuelle.dateFin,
+                    dateDuJour
+                );
+
+                dateDebutFinale = resultat.nouvelleDateDebut;
+                dateFinFinale = resultat.nouvelleDateFin;
+                joursRetard = resultat.joursRetard;
+
+                // ✅ Si la date de début a changé, afficher un message
+                if (joursRetard > 0) {
+                    setModificationMessage(`📅 Dates ajustées : +${joursRetard} jour(s) de retard pris en compte`);
+                }
+            }
 
             const updatedReservation = {
-                ...reservationsToUpdate[reservationIndex],
-                photoCampagneUrl: newPhotoUrl || reservationsToUpdate[reservationIndex].photoCampagneUrl,
+                ...reservationActuelle,
+                photoCampagneUrl: newPhotoUrl || reservationActuelle.photoCampagneUrl,
                 statut: finalStatut,
+                dateDebut: dateDebutFinale,
+                dateFin: dateFinFinale,
+                joursRetard: joursRetard > 0 ? joursRetard : reservationActuelle.joursRetard || 0,
                 dateModification: new Date().toISOString(),
                 modifiedBy: {
                     nom: currentUser.nomComplet || currentUser.nom || currentUser.email,
@@ -752,13 +912,13 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                 updatedAt: new Date().toISOString()
             });
 
-            setModificationMessage("✓ Modifications enregistrées avec succès !");
+            setModificationMessage(`✓ Modifications enregistrées avec succès !${joursRetard > 0 ? ` (+${joursRetard}j ajustés)` : ''}`);
 
             setTimeout(() => {
                 setModificationMessage(null);
                 setIsEditing(false);
                 window.location.reload();
-            }, 1500);
+            }, 2000);
 
         } catch (error) {
             console.error("Erreur détaillée:", error);
@@ -767,6 +927,7 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
             setSaving(false);
         }
     };
+
 
     const formatEcheance = () => {
         if (daysLeft === 0) return "Expire aujourd'hui";
@@ -826,10 +987,26 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
                     {/* Message de confirmation/erreur */}
                     {modificationMessage && (
                         <div className={`p-4 rounded-xl text-center text-sm sm:text-base font-bold ${modificationMessage.includes('succès')
-                                ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-200'
-                                : 'bg-red-50 text-red-700 border-2 border-red-200'
+                            ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-200'
+                            : 'bg-red-50 text-red-700 border-2 border-red-200'
                             }`}>
                             {modificationMessage}
+                        </div>
+                    )}
+
+                    {/* Jours de retard (si applicable) */}
+                    {res.joursRetard > 0 && (
+                        <div className="rounded-xl p-5 border-2 bg-amber-50 border-amber-200 shadow-sm">
+                            <label className="text-xs sm:text-sm text-amber-600 uppercase tracking-wider font-bold flex items-center gap-2">
+                                <Clock size={16} />
+                                Jours de retard
+                            </label>
+                            <p className="font-black text-base sm:text-lg mt-1.5 text-amber-700">
+                                +{res.joursRetard} jour(s) de retard pris en compte
+                            </p>
+                            <p className="text-xs text-amber-500 mt-1">
+                                Les dates ont été automatiquement ajustées
+                            </p>
                         </div>
                     )}
 
@@ -863,8 +1040,8 @@ function ReservationDetailModal({ reservationData, panneau, onClose, user }: any
 
                     {/* Échéance */}
                     <div className={`rounded-xl p-5 border-2 shadow-sm ${daysLeft <= 3
-                            ? 'bg-orange-50 border-orange-200'
-                            : 'bg-white border-gray-200'
+                        ? 'bg-orange-50 border-orange-200'
+                        : 'bg-white border-gray-200'
                         }`}>
                         <label className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold">Échéance</label>
                         <p className={`font-black text-base sm:text-lg mt-1.5 ${daysLeft <= 3 ? 'text-orange-600' : 'text-gray-800'
@@ -1121,3 +1298,4 @@ if (typeof document !== 'undefined') {
     styleSheet.innerText = styles;
     document.head.appendChild(styleSheet);
 }
+

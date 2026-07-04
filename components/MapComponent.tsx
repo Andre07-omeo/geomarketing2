@@ -186,7 +186,20 @@ function AddressFilter({
       setAvailableTroncons([]);
     }
   }, [selectedPays, selectedProvince, selectedVille, addressData]);
+  // Ajouter cet état en haut du composant
+  const [toastMessage, setToastMessage] = useState<{ show: boolean; message: string; type: 'error' | 'success' | 'info' }>({
+    show: false,
+    message: '',
+    type: 'info'
+  });
 
+  // Ajouter la fonction pour afficher le toast
+  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'error') => {
+    setToastMessage({ show: true, message, type });
+    setTimeout(() => {
+      setToastMessage({ show: false, message: '', type: 'info' });
+    }, 3000);
+  };
   // Réinitialiser quand un niveau change
   const handlePaysChange = (pays: string) => {
     setSelectedPays(pays);
@@ -764,31 +777,31 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
               </div>
 
               <div className="grid grid-cols-2 gap-1.5">
-  <FilterOption
-    label="Libre"
-    count={allStats.libre}
-    active={activeFilters.libre}
-    onToggle={() => setActiveFilters({ ...activeFilters, libre: !activeFilters.libre })}
-  />
-  <FilterOption
-    label="Occupé"
-    count={allStats.occupe}
-    active={activeFilters.occupe}
-    onToggle={() => setActiveFilters({ ...activeFilters, occupe: !activeFilters.occupe })}
-  />
-  <FilterOption
-    label="Réservé"
-    count={allStats.reserve}
-    active={activeFilters.reserve}
-    onToggle={() => setActiveFilters({ ...activeFilters, reserve: !activeFilters.reserve })}
-  />
-  <FilterOption
-    label="Maintenance"
-    count={allStats.maintenance}
-    active={activeFilters.maintenance}
-    onToggle={() => setActiveFilters({ ...activeFilters, maintenance: !activeFilters.maintenance })}
-  />
-</div>
+                <FilterOption
+                  label="Libre"
+                  count={allStats.libre}
+                  active={activeFilters.libre}
+                  onToggle={() => setActiveFilters({ ...activeFilters, libre: !activeFilters.libre })}
+                />
+                <FilterOption
+                  label="Occupé"
+                  count={allStats.occupe}
+                  active={activeFilters.occupe}
+                  onToggle={() => setActiveFilters({ ...activeFilters, occupe: !activeFilters.occupe })}
+                />
+                <FilterOption
+                  label="Réservé"
+                  count={allStats.reserve}
+                  active={activeFilters.reserve}
+                  onToggle={() => setActiveFilters({ ...activeFilters, reserve: !activeFilters.reserve })}
+                />
+                <FilterOption
+                  label="Maintenance"
+                  count={allStats.maintenance}
+                  active={activeFilters.maintenance}
+                  onToggle={() => setActiveFilters({ ...activeFilters, maintenance: !activeFilters.maintenance })}
+                />
+              </div>
               <div className="mt-3 pt-2 border-t border-white/10">
                 <div className="grid grid-cols-2 gap-1 text-center">
                   <div className="bg-white/5 rounded-lg p-1">
@@ -907,59 +920,62 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
           />
 
           {/* CERCLE DE PRÉCISION GPS */}
-          {userLocation && (
+          {userLocation && typeof window !== 'undefined' && L && (
             <Circle
               center={[userLocation.lat, userLocation.lng]}
-              radius={30}
+              radius={10} // Rayon de 30 mètres pour la précision GPS
               pathOptions={{
-                color: '#10B981',
-                fillColor: '#10B981',
+                color: '#7C3AED',
+                fillColor: '#7C3AED',
                 fillOpacity: 0.2,
-                weight: 2,
+                weight: 1,
               }}
             />
           )}
 
           {/* MARQUEUR DE LA POSITION UTILISATEUR */}
+          {/* MARQUEUR DE LA POSITION UTILISATEUR - EN VIOLET */}
           {userLocation && typeof window !== 'undefined' && L && (
             <Marker
               position={[userLocation.lat, userLocation.lng]}
               icon={L.divIcon({
                 className: 'user-marker',
                 html: `
-                  <div style="position: relative;">
-                    <div style="
-                      width: 20px;
-                      height: 20px;
-                      background: #10B981;
-                      border: 3px solid white;
-                      border-radius: 50%;
-                      box-shadow: 0 0 15px rgba(16, 185, 129, 0.9);
-                      animation: pulse-blue 1.5s infinite;
-                    "></div>
-                    <div style="
-                      position: absolute;
-                      top: 7px;
-                      left: 7px;
-                      width: 6px;
-                      height: 6px;
-                      background: white;
-                      border-radius: 50%;
-                    "></div>
-                  </div>
-                `,
-                iconSize: [20, 20],
+        <div style="position: relative;">
+          <div style="
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #7C3AED, #8B5CF6);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(124, 58, 237, 0.8), inset 0 0 15px rgba(124, 58, 237, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <div style="
+              width: 8px;
+              height: 8px;
+              background: white;
+              border-radius: 50%;
+              box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            "></div>
+          </div>
+        </div>
+      `,
+                iconSize: [24, 24],
                 popupAnchor: [0, -10],
               })}
             >
               <Tooltip direction="top" offset={[0, -10]} permanent={false} className="user-tooltip">
                 <div className="text-center px-2 py-1">
-                  <div className="font-black text-[10px] text-emerald-600">📍 Vous êtes ici</div>
+                  <div className="font-black text-[10px] text-purple-600">📍 Vous êtes ici</div>
                   <div className="text-[8px] text-gray-500">Position GPS précise</div>
                 </div>
               </Tooltip>
             </Marker>
           )}
+          {/* Toast pour les panneaux en panne */}
 
           {filteredPanneaux.map((panneau: any, index: number) => {
             let lat = panneau.coords?.[0] || panneau.gps_raw?.lat;
@@ -971,12 +987,63 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
             if (isNaN(lat) || isNaN(lng) || !lat || !lng) return null;
             if (lat < -4.5 || lat > -4.2 || lng < 15.2 || lng > 15.5) return null;
 
-            const { status, color, stats } = getPanneauStatus(panneau.faces);
+            const estEnPanne = panneau.etatPanneau === 'En panne';
+            const { status, color, stats } = getPanneauStatus(panneau.faces, panneau.etatPanneau);
             const isLibre = status === 'libre';
-            const customIcon = createCustomIcon(color, status, isLibre);
+            const customIcon = createCustomIcon(color, status, isLibre, estEnPanne);
 
             if (!customIcon) return null;
 
+            // ✅ Si le panneau est en panne, on affiche un message au clic
+            // ✅ Si le panneau est en panne, on affiche un message au clic
+            if (estEnPanne) {
+              let tooltipInstance: any = null; // Stocker l'instance du tooltip
+
+              return (
+                <Marker
+                  key={panneau.id || index}
+                  position={[lat, lng]}
+                  icon={customIcon}
+                  interactive={true}
+                  keyboard={false}
+                  zIndexOffset={-100}
+                  eventHandlers={{
+                    click: () => {
+                      alert(`🚫 Panneau "${panneau.idPan}" en panne\n\nAucune action n'est autorisée pour le moment.`);
+                    },
+                    mouseover: (e) => {
+                      // Créer et stocker le tooltip
+                      if (mapInstance) {
+                        // Fermer l'ancien tooltip s'il existe
+                        if (tooltipInstance) {
+                          mapInstance.removeLayer(tooltipInstance);
+                          tooltipInstance = null;
+                        }
+
+                        tooltipInstance = L.tooltip({
+                          permanent: false,
+                          direction: 'top',
+                          offset: [0, -20],
+                          className: 'panne-tooltip'
+                        })
+                          .setContent(`🚫 Panneau "${panneau.idPan}" en panne - Cliquez pour info`)
+                          .setLatLng([lat, lng]);
+
+                        tooltipInstance.addTo(mapInstance);
+                      }
+                    },
+                    mouseout: () => {
+                      // Supprimer le tooltip
+                      if (mapInstance && tooltipInstance) {
+                        mapInstance.removeLayer(tooltipInstance);
+                        tooltipInstance = null;
+                      }
+                    }
+                  }}
+                />
+              );
+            }
+            // ✅ Panneaux normaux avec toutes les interactions
             return (
               <Marker
                 key={panneau.id || index}
@@ -1014,6 +1081,7 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
                     stats={stats}
                     onMarkerClick={onMarkerClick}
                     zoomToPanneau={zoomToPanneau}
+                    estEnPanne={estEnPanne}
                   />
                 </div>
               </Marker>
@@ -1044,6 +1112,7 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         </div>
       </div>
 
+
       {/* STYLES GLOBAUX */}
       <style jsx global>{`
         @keyframes pulse {
@@ -1061,7 +1130,20 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
             opacity: 0.7;
           }
         }
-        
+        .panne-tooltip {
+    background: rgba(220, 38, 38, 0.95) !important;
+    border: 2px solid #DC2626 !important;
+    border-radius: 10px !important;
+    color: white !important;
+    font-weight: bold !important;
+    font-size: 10px !important;
+    padding: 6px 12px !important;
+    box-shadow: 0 4px 20px rgba(220, 38, 38, 0.5) !important;
+  }
+
+  .panne-tooltip::before {
+    border-top-color: #DC2626 !important;
+  }
         .custom-marker {
           background: transparent !important;
           border: none !important;
@@ -1157,6 +1239,42 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
         .leaflet-tile {
           background: transparent !important;
         }
+
+         @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.3; }
+    50% { transform: scale(1.4); opacity: 0.1; }
+  }
+  
+  @keyframes pulse-blue {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.3);
+      opacity: 0.7;
+    }
+  }
+  
+  /* ✅ Animation de clignotement pour les panneaux en panne */
+  @keyframes clignotement {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+  
+  /* ✅ Animation de pulse pour les panneaux en panne */
+  @keyframes pulse-panne {
+    0%, 100% { transform: scale(1); opacity: 0.3; }
+    50% { transform: scale(1.5); opacity: 0.05; }
+  }
+  
+  .clignotant {
+    animation: clignotement 0.8s ease-in-out infinite;
+  }
+  
+  .pulse-panne {
+    animation: pulse-panne 1.2s ease-in-out infinite;
+  }
       `}</style>
     </div>
   );
@@ -1180,6 +1298,7 @@ const getFaceStatus = (face: any): { status: string; label: string; activeReserv
     fin.setHours(0, 0, 0, 0);
 
     return now >= debut && now <= fin;
+    return now >= debut && now <= fin;
   });
 
   if (activeRes) {
@@ -1193,9 +1312,19 @@ const getFaceStatus = (face: any): { status: string; label: string; activeReserv
 };
 
 // ============================================
-// LOGIQUE DE STATUT DU PANNEAU
+// LOGIQUE DE STATUT DU PANNEAU - AVEC ETATPANNEAU
 // ============================================
-const getPanneauStatus = (faces: any[]): { status: string; label: string; color: string; stats: any } => {
+const getPanneauStatus = (faces: any[], etatPanneau?: string): { status: string; label: string; color: string; stats: any } => {
+  // ✅ Si le panneau est en panne, on retourne directement le statut "maintenance"
+  if (etatPanneau === 'En panne') {
+    return {
+      status: 'maintenance',
+      label: 'En panne',
+      color: '#EF4444',
+      stats: { libre: 0, occupe: 0, reserve: 0, maintenance: faces?.length || 0, total: faces?.length || 0 }
+    };
+  }
+
   if (!faces || faces.length === 0) {
     return {
       status: 'maintenance',
@@ -1252,28 +1381,27 @@ const getPanneauStatus = (faces: any[]): { status: string; label: string; color:
   return { status: 'maintenance', label: 'Maintenance', color: '#EF4444', stats };
 };
 
+
 // ============================================
-// CRÉATION DE L'ICÔNE PIN SVG
+// CRÉATION DE L'ICÔNE PIN SVG - AVEC CLIGNOTEMENT ROUGE POUR PANNE (SANS CERCLES)
 // ============================================
-const createCustomIcon = (color: string, status: string, isLibre: boolean) => {
+const createCustomIcon = (color: string, status: string, isLibre: boolean, estEnPanne: boolean = false) => {
   if (typeof window === 'undefined' || !L) return null;
 
   const width = isLibre ? 34 : 30;
   const height = isLibre ? 44 : 40;
 
-  const pulseAnimation = isLibre ? `
-    <div style="
-      position: absolute;
-      width: ${width + 10}px;
-      height: ${height + 10}px;
-      background-color: ${color};
-      border-radius: 50%;
-      opacity: 0.3;
-      top: -${height / 2 + 5}px;
-      left: -${width / 2 + 5}px;
-      animation: pulse 1.8s infinite;
-      z-index: 0;
-    "></div>
+  // ✅ Animation de clignotement pour les panneaux en panne (le pin lui-même clignote)
+  const clignotement = estEnPanne ? `
+    <style>
+      @keyframes clignotement {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.3; transform: scale(0.92); }
+      }
+      .clignotant {
+        animation: clignotement 0.6s ease-in-out infinite;
+      }
+    </style>
   ` : '';
 
   const shadow = `
@@ -1291,7 +1419,53 @@ const createCustomIcon = (color: string, status: string, isLibre: boolean) => {
     "></div>
   `;
 
-  const pinSvg = `
+  // ✅ Icône rouge avec croix blanche pour les panneaux en panne (clignotante, sans cercles)
+  const pinSvg = estEnPanne ? `
+    <svg 
+      width="${width}" 
+      height="${height}" 
+      viewBox="0 0 24 35" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      style="
+        filter: drop-shadow(0 2px 15px rgba(239, 68, 68, 0.8));
+        transition: transform 0.2s ease;
+        cursor: pointer;
+      "
+      class="marker-pin clignotant"
+    >
+      <defs>
+        <filter id="glow-red" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <!-- Pin principal rouge -->
+      <path 
+        d="M12 0C7.58 0 4 3.58 4 8c0 6 8 14 8 14s8-8 8-14c0-4.42-3.58-8-8-8z" 
+        fill="#DC2626" 
+        stroke="white" 
+        stroke-width="2.5"
+        filter="url(#glow-red)"
+      />
+      <!-- Croix blanche -->
+      <line x1="8" y1="5" x2="16" y2="13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="16" y1="5" x2="8" y2="13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Cercle intérieur -->
+      <circle 
+        cx="12" 
+        cy="8" 
+        r="4" 
+        fill="white" 
+        stroke="#DC2626" 
+        stroke-width="1.5"
+      />
+    </svg>
+  ` : `
     <svg 
       width="${width}" 
       height="${height}" 
@@ -1342,7 +1516,7 @@ const createCustomIcon = (color: string, status: string, isLibre: boolean) => {
     className: 'custom-marker',
     html: `
       <div style="position: relative; width: ${width}px; height: ${height + 12}px;">
-        ${pulseAnimation}
+        ${clignotement}
         ${shadow}
         <div style="position: relative; z-index: 1;">
           ${pinSvg}
@@ -1356,10 +1530,11 @@ const createCustomIcon = (color: string, status: string, isLibre: boolean) => {
 };
 
 // ============================================
-// COMPOSANT POPUP PERSONNALISÉE
+// COMPOSANT POPUP PERSONNALISÉE - AVEC AFFICHAGE DE LA PANNE
 // ============================================
-const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanneau }: any) => {
+const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanneau, estEnPanne }: any) => {
   const getStatusLabel = () => {
+    if (estEnPanne) return 'EN PANNE';
     if (status === 'libre') return 'Libre';
     if (status === 'occupe') return 'Occupé';
     if (status === 'reserve') return 'Réservé';
@@ -1367,10 +1542,19 @@ const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanne
   };
 
   const getStatusColor = () => {
+    if (estEnPanne) return 'from-red-600 to-red-700';
     if (status === 'libre') return 'from-green-600 to-green-500';
     if (status === 'occupe') return 'from-blue-600 to-blue-500';
     if (status === 'reserve') return 'from-amber-600 to-amber-500';
     return 'from-red-600 to-red-500';
+  };
+
+  const getStatusDotColor = () => {
+    if (estEnPanne) return 'bg-red-500';
+    if (status === 'libre') return 'bg-green-500';
+    if (status === 'occupe') return 'bg-blue-500';
+    if (status === 'reserve') return 'bg-amber-500';
+    return 'bg-red-500';
   };
 
   return (
@@ -1383,7 +1567,7 @@ const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanne
               {panneau.idPan}
             </h3>
           </div>
-          <div className={`w-2 h-2 rounded-full bg-white ${status === 'libre' ? 'animate-pulse' : ''}`} />
+          <div className={`w-2 h-2 rounded-full ${getStatusDotColor()} ${estEnPanne || status === 'libre' ? 'animate-pulse' : ''}`} />
         </div>
       </div>
 
@@ -1392,37 +1576,49 @@ const CustomPopupContent = ({ panneau, status, stats, onMarkerClick, zoomToPanne
           📍 {panneau.adresse}
         </p>
 
-        <div className="flex gap-2 mb-2 pb-2 border-b border-gray-100">
-          {stats.libre > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-[7px] font-bold text-gray-600">{stats.libre}</span>
+        {/* ✅ Affichage spécial pour les panneaux en panne */}
+        {estEnPanne ? (
+          <div className="mb-2 pb-2 border-b border-red-100">
+            <div className="flex items-center gap-2 bg-red-50 rounded-lg p-2">
+              <span className="text-[12px]">🚫</span>
+              <span className="text-[8px] font-bold text-red-600 uppercase tracking-wider">
+                PANNE TOTALE - En maintenance
+              </span>
             </div>
-          )}
-          {stats.occupe > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <span className="text-[7px] font-bold text-gray-600">{stats.occupe}</span>
-            </div>
-          )}
-          {stats.reserve > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-[7px] font-bold text-gray-600">{stats.reserve}</span>
-            </div>
-          )}
-          {stats.maintenance > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-[7px] font-bold text-gray-600">{stats.maintenance}</span>
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex gap-2 mb-2 pb-2 border-b border-gray-100">
+            {stats.libre > 0 && (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="text-[7px] font-bold text-gray-600">{stats.libre}</span>
+              </div>
+            )}
+            {stats.occupe > 0 && (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="text-[7px] font-bold text-gray-600">{stats.occupe}</span>
+              </div>
+            )}
+            {stats.reserve > 0 && (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-amber-500" />
+                <span className="text-[7px] font-bold text-gray-600">{stats.reserve}</span>
+              </div>
+            )}
+            {stats.maintenance > 0 && (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                <span className="text-[7px] font-bold text-gray-600">{stats.maintenance}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${status === 'libre' ? 'bg-green-500 animate-pulse' : status === 'occupe' ? 'bg-blue-500' : status === 'reserve' ? 'bg-amber-500' : 'bg-red-500'}`} />
-            <span className="text-[8px] font-bold uppercase text-gray-600">
+            <div className={`w-2 h-2 rounded-full ${getStatusDotColor()} ${estEnPanne || status === 'libre' ? 'animate-pulse' : ''}`} />
+            <span className={`text-[8px] font-bold uppercase ${estEnPanne ? 'text-red-600' : 'text-gray-600'}`}>
               {getStatusLabel()}
             </span>
           </div>
