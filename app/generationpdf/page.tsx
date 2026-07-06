@@ -29,55 +29,73 @@ const DispromaltPrintLayer = () => {
   const [factureNumber, setFactureNumber] = useState<string>('');
   const [allReservations, setAllReservations] = useState<any[]>([]);
 
-  // ✅ Fonction pour générer le numéro de facture
-  const generateFactureNumber = async () => {
-    try {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const datePrefix = `${year}${month}${day}`;
+ // ✅ Fonction pour générer le numéro de facture - CORRIGÉE
+const generateFactureNumber = async () => {
+  try {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const datePrefix = `${year}${month}${day}`;
 
-      const facturesRef = collection(db, "factures");
-      const q = query(
-        facturesRef,
-        orderBy("dateCreation", "desc"),
-        limit(1)
-      );
-      const querySnapshot = await getDocs(q);
+    console.log(`📅 Recherche des factures avec le préfixe: ${datePrefix}`);
 
-      let lastNumber = 0;
+    // ✅ Récupérer TOUTES les factures
+    const facturesRef = collection(db, "factures");
+    const querySnapshot = await getDocs(facturesRef);
+    
+    console.log(`📋 Nombre total de factures: ${querySnapshot.size}`);
+    
+    let maxNumber = 0;
 
-      if (!querySnapshot.empty) {
-        const lastDoc = querySnapshot.docs[0];
-        const lastData = lastDoc.data();
-        const lastFactureId = lastData.factureIdFormat || '';
-
-        if (lastFactureId.startsWith(datePrefix)) {
-          const sequentialPart = lastFactureId.substring(datePrefix.length);
-          lastNumber = parseInt(sequentialPart, 10) || 0;
+    // ✅ Parcourir TOUTES les factures pour trouver le plus grand numéro
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      
+      // ✅ Utiliser factureIdFormat (comme dans votre structure)
+      const factureId = data.factureIdFormat || '';
+      
+      if (factureId) {
+        console.log(`🔍 Facture trouvée: ${factureId}`);
+        
+        // ✅ Vérifier si la facture commence par le préfixe du jour
+        if (factureId.startsWith(datePrefix)) {
+          const sequentialPart = factureId.substring(datePrefix.length);
+          const num = parseInt(sequentialPart, 10);
+          console.log(`   └─ Partie séquentielle: "${sequentialPart}" → nombre: ${num}`);
+          
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+            console.log(`   └─ ✅ Nouveau max: ${maxNumber}`);
+          }
+        } else {
+          console.log(`   └─ ⚠️ Ne commence pas par ${datePrefix} (commence par ${factureId.substring(0, 8)})`);
         }
       }
+    });
 
-      const newNumber = lastNumber + 1;
-      const sequentialStr = String(newNumber).padStart(2, '0');
-      const newFactureId = `${datePrefix}${sequentialStr}`;
+    // ✅ Incrémenter le plus grand numéro trouvé
+    const newNumber = maxNumber + 1;
+    const sequentialStr = String(newNumber).padStart(2, '0');
+    const newFactureId = `${datePrefix}${sequentialStr}`;
 
-      setFactureNumber(newFactureId);
-      return newFactureId;
+    
+    setFactureNumber(newFactureId);
+    return newFactureId;
 
-    } catch (error) {
-      console.error('Erreur génération numéro facture:', error);
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const fallbackId = `${year}${month}${day}01`;
-      setFactureNumber(fallbackId);
-      return fallbackId;
-    }
-  };
-
+  } catch (error) {
+    console.error('❌ Erreur génération numéro facture:', error);
+    // ✅ Fallback avec timestamp + random
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const random = String(Math.floor(Math.random() * 100)).padStart(2, '0');
+    const fallbackId = `${year}${month}${day}${random}`;
+    setFactureNumber(fallbackId);
+    return fallbackId;
+  }
+};
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 850) {
@@ -158,7 +176,6 @@ const DispromaltPrintLayer = () => {
             rawReservations: decodedData
           });
         } catch (e) {
-          console.error('Erreur chargement données:', e);
         }
       }
     };
@@ -171,7 +188,6 @@ const DispromaltPrintLayer = () => {
 // ============================================
 const marquerReservationsFacturees = async (reservations: any[]) => {
   try {
-    console.log('📝 Marquage de', reservations.length, 'réservation(s)...');
     
     let successCount = 0;
     let errorCount = 0;
@@ -179,16 +195,9 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
     for (let i = 0; i < reservations.length; i++) {
       const res = reservations[i];
       
-      console.log(`\n🔍 Recherche réservation ${i+1}:`, {
-        panneauId: res.panneauId,
-        societeLocatrice: res.societeLocatrice,
-        dateDebut: res.dateDebut,
-        dateFin: res.dateFin,
-        agentEmail: res.agentEmail
-      });
+      
 
       if (!res.panneauId) {
-        console.warn(`⚠️ Réservation ${i+1}: pas de panneauId`);
         errorCount++;
         continue;
       }
@@ -206,9 +215,7 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
 
         const panneauData = panneauSnap.data();
         const faces = panneauData.faces || [];
-        console.log(`✅ Panneau trouvé: ${panneauData.idPan || res.panneauId}`);
-        console.log(`📋 Nombre de faces: ${faces.length}`);
-
+       
         // ✅ 2. Déterminer l'index de la face
         let faceIndex = -1;
 
@@ -229,39 +236,34 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
           faceIndex = faces.findIndex((f: any) => f.id === faceId);
           if (faceIndex === -1) {
             // Essayer de trouver par idPan + numéro
-            const idPan = panneauData.idPan || '';
+            //const idPan = panneauData.idPan || '';
             // Si l'ID de la face est comme "P_ZINGINDA_STADE_MARTYRE1" → extraire le numéro
             const match = faceId.match(/\d+$/);
             if (match) {
               const num = parseInt(match[0]) - 1; // -1 car l'index commence à 0
               if (num >= 0 && num < faces.length) {
                 faceIndex = num;
-                console.log(`✅ Face trouvée par extraction du numéro: ${faceIndex}`);
               }
             }
           }
           if (faceIndex !== -1) {
-            console.log(`✅ Face trouvée par faceId: ${faceIndex}`);
           }
         }
 
         // Méthode 3: Si on a une seule face, prendre l'index 0
         if (faceIndex === -1 && faces.length === 1) {
           faceIndex = 0;
-          console.log(`✅ Une seule face disponible, utilisation de l'index 0`);
         }
 
         // Méthode 4: Par sens
         if (faceIndex === -1 && res.faceSens) {
           faceIndex = faces.findIndex((f: any) => f.sens === res.faceSens);
           if (faceIndex !== -1) {
-            console.log(`✅ Face trouvée par sens: ${faceIndex}`);
           }
         }
 
         // Méthode 5: Parcourir toutes les faces pour trouver la réservation
         if (faceIndex === -1) {
-          console.log('🔍 Recherche dans toutes les faces...');
           for (let j = 0; j < faces.length; j++) {
             const faceReservations = faces[j].reservations || [];
             const found = faceReservations.some((r: any) => 
@@ -272,30 +274,21 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
             );
             if (found) {
               faceIndex = j;
-              console.log(`✅ Face trouvée par recherche dans les réservations: index ${j}`);
               break;
             }
           }
         }
 
         if (faceIndex === -1 || faceIndex >= faces.length) {
-          console.warn(`❌ Face non trouvée pour: ${res.societeLocatrice}`);
           errorCount++;
           continue;
         }
 
         const face = faces[faceIndex];
         const faceReservations = face.reservations || [];
-        console.log(`✅ Face ${faceIndex} trouvée avec ${faceReservations.length} réservation(s)`);
 
         // ✅ 3. Afficher les réservations pour débogage
-        console.log('📋 Réservations de la face:', faceReservations.map((r: any) => ({
-          societe: r.societeLocatrice,
-          dateDebut: r.dateDebut,
-          dateFin: r.dateFin,
-          agentEmail: r.agentEmail,
-          facturee: r.facturee
-        })));
+        
 
         // ✅ 4. Trouver et mettre à jour la réservation
         let updated = false;
@@ -306,14 +299,10 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
             r.dateFin === res.dateFin &&
             r.agentEmail?.toLowerCase().trim() === res.agentEmail?.toLowerCase().trim();
 
-          console.log(`🔍 Vérification réservation: ${r.societeLocatrice}`, {
-            match: isMatch,
-            facturee_actuelle: r.facturee
-          });
+          
 
           if (isMatch && r.facturee !== "oui" && r.facturee !== "Oui" && r.facturee !== true) {
             updated = true;
-            console.log(`✅ Marquage de: ${r.societeLocatrice}`);
             return {
               ...r,
               facturee: "oui",
@@ -327,7 +316,6 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
         });
 
         if (!updated) {
-          console.warn(`⚠️ Aucune modification pour: ${res.societeLocatrice}`);
           errorCount++;
           continue;
         }
@@ -344,20 +332,16 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
           updatedAt: new Date().toISOString()
         });
 
-        console.log(`✅ Réservation marquée avec succès: ${res.societeLocatrice}`);
         successCount++;
 
       } catch (err) {
-        console.error(`❌ Erreur réservation ${i+1}:`, err);
         errorCount++;
       }
     }
 
-    console.log(`\n📊 Résultat final: ${successCount} réservation(s) marquée(s), ${errorCount} erreur(s)`);
     return successCount > 0;
 
   } catch (error) {
-    console.error('❌ Erreur globale:', error);
     return false;
   }
 };
@@ -380,9 +364,6 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
       const items = JSON.parse(rawData);
       const firstItem = items[0];
 
-      // ✅ 2. MARQUER LES RÉSERVATIONS COMME FACTURÉES
-      console.log('🔵 Marquage des réservations comme facturées...');
-
       // Préparer les données pour le marquage
       const reservationsToMark = items.map((item: any) => ({
         panneauId: item.panneauId,
@@ -400,7 +381,9 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
       const markSuccess = await marquerReservationsFacturees(reservationsToMark);
 
       if (!markSuccess) {
-        console.warn('⚠️ Certaines réservations n\'ont pas été marquées');
+        alert("❌ Erreur lors du marquage des réservations comme facturées.");
+        setIsSaving(false);
+        return;
       }
 
       // ✅ 3. ENREGISTRER LA FACTURE DANS FIRESTORE
@@ -408,7 +391,7 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
 
       // Si c'est une modification, mettre à jour la réservation
       if (isModification && firstItem?.panelDocId && firstItem?.faceIndex !== undefined) {
-        console.log('🔄 Mise à jour de la réservation existante (modification)');
+        // console.log('🔄 Mise à jour de la réservation existante (modification)');
 
         const panneauRef = doc(db, "panneaux", firstItem.panelDocId);
         const panneauSnap = await getDoc(panneauRef);
@@ -513,16 +496,11 @@ const marquerReservationsFacturees = async (reservations: any[]) => {
       }, 2000);
 
     } catch (error) {
-      console.error("Erreur:", error);
       alert("❌ Erreur lors de l'enregistrement.");
     } finally {
       setIsSaving(false);
     }
   };
-
-  // ... le reste du code (getPaymentInfoInDesignation, return, etc.)
-  // ... gardez tout le reste identique
-
   if (!factureData) return null;
 
   const getPaymentInfoInDesignation = (l: any) => {
