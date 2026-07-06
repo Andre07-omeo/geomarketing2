@@ -3505,13 +3505,64 @@ export const FaceDetailModal = ({
 }: any) => {
   const { user } = useAuth();
 
+  const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+  const [panneauForReservation, setPanneauForReservation] = useState<any>(null);
+  const [faceForReservation, setFaceForReservation] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true); // ✅ État de chargement
+  const selectionKey = `${panneau.id}_${face.id}`;
+  const [startY, setStartY] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [panneauToEdit, setPanneauToEdit] = useState(null);
+
+
+
+
+
+  useEffect(() => {
+    // Si le modal est ouvert ET qu'on a des données
+    if (isOpen && panneau && face) {
+      setIsLoading(true);
+      // Simuler un petit temps de chargement (optionnel)
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    } else if (isOpen) {
+      // Si le modal est ouvert mais pas encore de données
+      setIsLoading(true);
+    } else {
+      // Si le modal est fermé
+      setIsLoading(true);
+    }
+  }, [isOpen, panneau, face]);
+
   if (!isOpen || !face) return null;
 
 
 
-  const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
-  const [panneauForReservation, setPanneauForReservation] = useState<any>(null);
-  const [faceForReservation, setFaceForReservation] = useState<any>(null);
+  //if (!isOpen) return null;
+
+  // 2️⃣ Vérifier si en chargement OU pas de données
+  if (isLoading || !panneau || !face) {
+    return (
+      <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 min-w-[200px]">
+          {/* Spinner */}
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-blue-100"></div>
+            <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-t-blue-600 border-r-transparent border-b-blue-300 border-l-transparent animate-spin"></div>
+          </div>
+
+          {/* Texte */}
+          <div className="text-center">
+            <p className="text-sm font-bold text-blue-900">Chargement...</p>
+            <p className="text-xs text-blue-500">Préparation du panneau</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ============================================
   // ✅ RÉSERVATION ACTIVE POUR LA PHOTO
@@ -3774,11 +3825,6 @@ export const FaceDetailModal = ({
   // ÉTATS ET GESTIONNAIRES
   // ============================================
 
-  const selectionKey = `${panneau.id}_${face.id}`;
-  const [startY, setStartY] = useState(0);
-  const [isSwiping, setIsSwiping] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [panneauToEdit, setPanneauToEdit] = useState(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setStartY(e.touches[0].clientY);
@@ -3807,9 +3853,6 @@ export const FaceDetailModal = ({
     setIsEditModalOpen(false);
   };
 
-  // ============================================
-  // RENDU
-  // ============================================
 
   return (
     <>
@@ -4304,8 +4347,8 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   // 2. TOUS LES useEffect
   // ============================================
 
-  
-   useEffect(() => {
+
+  useEffect(() => {
     if (panneau) {
       setFormData({ ...panneau });
       setIsLoading(false); // ✅ MARQUER COMME CHARGÉ
@@ -5383,26 +5426,26 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
 
 
-// ✅ VERSION SIMPLIFIÉE AVEC SPINNER BASIQUE
-if (isLoading || !formData) {
-  return (
-    <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 min-w-[200px]">
-        {/* Spinner */}
-        <div className="relative">
-          <div className="w-16 h-16 rounded-full border-4 border-blue-100"></div>
-          <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-t-blue-600 border-r-transparent border-b-blue-300 border-l-transparent animate-spin"></div>
-        </div>
-        
-        {/* Texte */}
-        <div className="text-center">
-          <p className="text-sm font-bold text-blue-900">Chargement...</p>
-          <p className="text-xs text-blue-500">Préparation du panneau</p>
+  // ✅ VERSION SIMPLIFIÉE AVEC SPINNER BASIQUE
+  if (isLoading || !formData) {
+     return (
+      <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 min-w-[200px]">
+          {/* Spinner */}
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-blue-100"></div>
+            <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-t-blue-600 border-r-transparent border-b-blue-300 border-l-transparent animate-spin"></div>
+          </div>
+
+          {/* Texte */}
+          <div className="text-center">
+            <p className="text-sm font-bold text-blue-900">Chargement...</p>
+            <p className="text-xs text-blue-500">Préparation du panneau</p>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   // Surveiller les changements de statut pour valider les champs
 
