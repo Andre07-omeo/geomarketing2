@@ -10,7 +10,7 @@ import {
   Building2, MapPin, LayoutGrid, Users, TrendingUp,
   Clock, CheckCircle2, XCircle, AlertCircle,
   FileText, FileSpreadsheet, Home, Database,
-  DollarSign, Activity, UserCheck, Layers,
+  DollarSign, Activity, UserCheck, Layers, Bell,
   Printer, RefreshCw, AlertTriangle,
   LogOut,           // ✅ AJOUTER
   User,   // ✅ AJOUTER
@@ -45,7 +45,9 @@ import { getAuth } from 'firebase/auth';
 // IMPORT DE LA CONFIGURATION
 // ============================================
 const config = require('../../../../config/db');
-
+import {
+  BellOff // ✅ AJOUTER Bell et BellOff
+} from 'lucide-react';
 
 import { FaceDetailModal, EditPanneauModal } from '@/app/dashboard/superviseurs/page';
 
@@ -372,6 +374,11 @@ const RapportPanneaux: React.FC = () => {
 
   const [isMounted, setIsMounted] = useState(false);
 
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
+  const [notificationFilter, setNotificationFilter] = useState<'toutes' | 'urgent' | 'bientot'>('toutes');
 
   // États UI
   const [filtersExpanded, setFiltersExpanded] = useState<boolean>(false);
@@ -808,10 +815,116 @@ const RapportPanneaux: React.FC = () => {
     }
   }, []); // ✅ Le tableau de dépendances est vide car la fonction ne dépend d'aucune variable externe
 
+
   // Chargement initial
   useEffect(() => {
     loadData();
   }, [loadData]); // ✅ Dépend de loadData qui est stable
+
+
+
+
+  // ============================================
+  // CHARGEMENT DES NOTIFICATIONS
+  // ============================================
+  const loadNotifications = useCallback(async () => {
+    if (!userEmail && !user?.email) return;
+
+    const email = userEmail || user?.email || '';
+    setNotificationsLoading(true);
+
+    try {
+      const allNotifications: any[] = [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const NOTIFICATION_THRESHOLD_DAYS = 16;
+
+      // Parcourir tous les panneaux
+      panneaux.forEach((panneau: Panneau) => {
+        const faces = panneau.faces || [];
+
+        faces.forEach((face: Face, faceIndex: number) => {
+          const faceReservations = (face as any).reservations || [];
+
+          faceReservations.forEach((res: any) => {
+            // ✅ Filtrer par email de l'utilisateur connecté
+            if (res.agentEmail?.toLowerCase() !== email.toLowerCase()) return;
+
+            if (!res.dateDebut || !res.dateFin) return;
+
+            const dateDebut = new Date(res.dateDebut);
+            const dateFin = new Date(res.dateFin);
+            dateDebut.setHours(0, 0, 0, 0);
+            dateFin.setHours(0, 0, 0, 0);
+
+            // ✅ Vérifier que la réservation est en cours
+            if (dateDebut > today || dateFin < today) return;
+
+            // ✅ Calculer les jours restants
+            const diffTime = dateFin.getTime() - today.getTime();
+            const joursRestants = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            // ✅ Si moins de 16 jours restants ET plus de 0 jours
+            if (joursRestants > 0 && joursRestants <= NOTIFICATION_THRESHOLD_DAYS) {
+              allNotifications.push({
+                id: res.id || res.resUniqueId || `${panneau.id}-${faceIndex}-${Date.now()}`,
+                panneauId: panneau.id,
+                panneauIdPan: panneau.idPan || 'N/A',
+                adresse: panneau.adresse || 'Adresse non définie',
+                faceId: face.id || `face-${faceIndex}`,
+                faceLabel: face.id || `Face ${faceIndex + 1}`,
+                faceSens: face.sens || 'N/A',
+                societeLocatrice: res.societeLocatrice || 'Société inconnue',
+                dateDebut: res.dateDebut,
+                dateFin: res.dateFin,
+                agentEmail: res.agentEmail,
+                agentNom: res.agentNom || 'Agent',
+                joursRestants: joursRestants,
+                statut: res.statut || 'Occupé',
+                //photoCampagneUrl: res.photoCampagneUrl || null,
+                type: panneau.type || 'Standard',
+                dimension: panneau.dimension || 'N/A'
+              });
+            }
+          });
+        });
+      });
+
+      // ✅ Trier par jours restants (croissant)
+      allNotifications.sort((a, b) => a.joursRestants - b.joursRestants);
+
+      // ✅ Vérifier si de nouvelles notifications
+      const hasNew = allNotifications.length > 0;
+      setHasNewNotifications(hasNew);
+
+      setNotifications(allNotifications);
+
+    } catch (error) {
+      console.error('❌ Erreur chargement notifications:', error);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [panneaux, userEmail, user]);
+
+  // ✅ Charger les notifications au montage et quand les données changent
+  useEffect(() => {
+    if (panneaux.length > 0 && (userEmail || user?.email)) {
+      loadNotifications();
+    }
+  }, [panneaux, userEmail, user, loadNotifications]);
+
+  // ✅ Rafraîchir périodiquement toutes les 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (panneaux.length > 0) {
+        loadNotifications();
+      }
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [panneaux, loadNotifications]);
+
+
 
 
   const ouvrirLaCarte = () => {
@@ -1238,14 +1351,56 @@ const RapportPanneaux: React.FC = () => {
   // RÉCUPÉRER LES RÉSERVATIONS EN ATTENTE POUR LE PANIER
   // ============================================
 
-  const reservationsEnAttente = useMemo(() => {
-    const allRes = getUserReservations();
-    return allRes.filter((res: Reservation) =>
-      res.validationComptable === false ||
-      res.statut === 'en_attente'
-      //res.statut === 'Réservé'
-    );
-  }, [getUserReservations]);
+  // ============================================
+// RÉCUPÉRER LES RÉSERVATIONS EN ATTENTE POUR LE PANIER
+// ============================================
+
+// ============================================
+// RÉCUPÉRER LES RÉSERVATIONS EN ATTENTE POUR LE PANIER
+// ============================================
+
+const reservationsEnAttente = useMemo(() => {
+  const allRes = getUserReservations();
+  return allRes.filter((res: Reservation) => {
+    // ✅ VÉRIFIER SI LA RÉSERVATION EST DÉJÀ FACTURÉE (plusieurs formats possibles)
+    const estFacturee = 
+      res.facturee === "oui" || 
+      res.facturee === "Oui" || 
+      res.facturee === "OUI" ||
+      // res.facturee === true ||
+      res.facturee === "true" ||
+      // res.facturee === 1 ||
+      res.facturee === "1" ||
+      res.facturee === "yes" ||
+      res.facturee === "Yes";
+    
+    // ✅ VÉRIFIER SI LA RÉSERVATION EST EN ATTENTE
+    const estEnAttente = 
+      res.validationComptable === false || 
+      res.statut === 'en_attente' ||
+      res.statut === 'Réservé' ||
+      res.statut === 'Occupé';
+    
+    // ✅ RETOURNER VRAI SEULEMENT SI :
+    // 1. NON FACTURÉE
+    // 2. EN ATTENTE (non validée par la comptabilité)
+    // 3. ET que la réservation est toujours en cours (dateFin >= aujourd'hui)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const dateFin = res.dateFin ? new Date(res.dateFin) : null;
+    const dateDebut = res.dateDebut ? new Date(res.dateDebut) : null;
+    
+    // Vérifier que la réservation est active ou future
+    const estActive = dateFin ? dateFin >= today : true;
+    const estFuture = dateDebut ? dateDebut > today : false;
+    const estEnCours = dateDebut && dateFin ? dateDebut <= today && dateFin >= today : false;
+    
+    // ✅ GARDER : non facturée ET en attente ET (active OU future)
+    return !estFacturee && estEnAttente && (estActive || estFuture || estEnCours);
+    
+  });
+}, [getUserReservations]);
 
   // ============================================
   // CALCUL DU TOTAL DE LA FACTURE
@@ -4401,8 +4556,8 @@ const RapportPanneaux: React.FC = () => {
               onClick={handlePrint}
               disabled={!formData.modification}
               className={`px-3 xs:px-4 sm:px-5 md:px-6 py-1.5 xs:py-2 rounded-lg xs:rounded-xl font-bold text-[9px] xs:text-[10px] sm:text-xs transition flex items-center gap-1.5 xs:gap-2 active:scale-95 ${formData.modification
-                  ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:shadow-lg hover:shadow-purple-500/30'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:shadow-lg hover:shadow-purple-500/30'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}
             >
               <Printer className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4" />
@@ -4778,28 +4933,25 @@ const RapportPanneaux: React.FC = () => {
             </div>
 
             {/* ==================== PARTIE DROITE ==================== */}
-            <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1 md:gap-1.5 flex-shrink-0">
-
-              {/* --- SÉPARATEUR --- */}
-              <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
+            {/* ============================================================ */}
+            {/* ✅ HEADER ACTIONS - RESPONSIVE */}
+            {/* ============================================================ */}
+            <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 flex-shrink-0 flex-wrap justify-end">
 
               {/* ============================================================ */}
-              {/* ✅ BOUTON CATALOGUE - Bleu */}
+              {/* 🔵 BOUTON CATALOGUE */}
               {/* ============================================================ */}
               <button
                 onClick={() => window.location.href = '/dashboard/superviseurs'}
-                className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 flex items-center justify-center border border-blue-500/30 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/20 hover:scale-105 min-w-[24px] xs:min-w-[28px] sm:min-w-[32px] group"
+                className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-white transition-all duration-300 flex items-center justify-center border border-blue-500/30 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px] md:min-w-[40px] group"
                 aria-label="Catalogue"
               >
-                <BookOpen className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-blue-400 group-hover:rotate-[-10deg] transition-transform" />
-                <span className="hidden sm:inline ml-0.5 text-white/90">Catalogue</span>
+                <BookOpen className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-blue-400 group-hover:rotate-[-10deg] transition-transform" />
+                <span className="hidden md:inline ml-1 text-white/90 text-[10px] sm:text-xs font-medium">Catalogue</span>
               </button>
 
-              {/* --- SÉPARATEUR --- */}
-              <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
-
               {/* ============================================================ */}
-              {/* ✅ BOUTON MAP - Vert émeraude */}
+              {/* 🟢 BOUTON MAP */}
               {/* ============================================================ */}
               <button
                 onClick={() => {
@@ -4811,55 +4963,51 @@ const RapportPanneaux: React.FC = () => {
                   localStorage.setItem('map_filter_type', 'all');
                   window.location.href = '/dashboard/superviseurs/carte';
                 }}
-                className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 flex items-center justify-center border border-emerald-500/30 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-105 min-w-[24px] xs:min-w-[28px] sm:min-w-[32px] group"
+                className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg text-white transition-all duration-300 flex items-center justify-center border border-emerald-500/30 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px] md:min-w-[40px] group"
                 aria-label="Voir la carte"
               >
-                <MapPin className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 group-hover:rotate-[-10deg] transition-transform" />
-                <span className="hidden sm:inline ml-0.5 text-white/90">Carte</span>
+                <MapPin className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-emerald-400 group-hover:rotate-[-10deg] transition-transform" />
+                <span className="hidden md:inline ml-1 text-white/90 text-[10px] sm:text-xs font-medium">Carte</span>
               </button>
 
-              {/* --- SÉPARATEUR --- */}
-              <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
-
               {/* ============================================================ */}
-              {/* ✅ BOUTON EXPORT - Violet */}
+              {/* 🟣 BOUTON EXPORT */}
               {/* ============================================================ */}
 
-              {/* Version Desktop : Menu déroulant Export */}
-              <div className="hidden sm:flex relative group">
+              {/* Version Desktop : Menu déroulant */}
+              <div className="hidden md:flex relative group">
                 <button
-                  className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 group"
+                  className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-white transition-all duration-300 border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 group"
                   onClick={(e) => {
                     const dropdown = e.currentTarget.parentElement?.querySelector('.export-dropdown');
                     if (dropdown) dropdown.classList.toggle('hidden');
                   }}
                 >
-                  <FileText className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-purple-400" />
-                  <span>Exporter</span>
-                  <ChevronDown className="w-2 h-2 xs:w-2.5 xs:h-2.5 text-purple-400" />
+                  <FileText className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-purple-400" />
+                  <span className="text-[10px] sm:text-xs font-medium text-white/90">Exporter</span>
+                  <ChevronDown className="w-2.5 h-2.5 xs:w-3 xs:h-3 text-purple-400" />
                 </button>
 
                 {/* Dropdown */}
-                <div className="export-dropdown hidden absolute top-full right-0 mt-1 min-w-[120px] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 overflow-hidden z-50">
+                <div className="export-dropdown hidden absolute top-full right-0 mt-1 min-w-[130px] bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 overflow-hidden z-50">
                   <button
                     onClick={() => { exportPDF(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-semibold text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors border-b border-gray-100"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] font-semibold text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors border-b border-gray-100"
                   >
-                    <FileText className="w-3.5 h-3.5 text-red-500" />
+                    <FileText className="w-4 h-4 text-red-500" />
                     PDF
                   </button>
                   <button
                     onClick={() => { exportExcel(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-semibold text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] font-semibold text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors"
                   >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-green-500" />
+                    <FileSpreadsheet className="w-4 h-4 text-green-500" />
                     Excel
                   </button>
-
                 </div>
               </div>
 
-              {/* Version Mobile : Icône export */}
+              {/* Version Mobile/Tablette : Icône export */}
               <button
                 onClick={() => {
                   const action = confirm(
@@ -4871,96 +5019,104 @@ const RapportPanneaux: React.FC = () => {
                     exportExcel();
                   }
                 }}
-                className="sm:hidden p-1 xs:p-1.5 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-white transition-all duration-300 flex items-center justify-center border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 min-w-[24px] xs:min-w-[28px] group"
+                className="md:hidden p-1 xs:p-1.5 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-white transition-all duration-300 flex items-center justify-center border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px] group"
                 aria-label="Exporter"
               >
-                <Printer className="w-2.5 h-2.5 xs:w-3 xs:h-3 text-purple-400 group-hover:rotate-12 transition-transform" />
+                <Printer className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-purple-400 group-hover:rotate-12 transition-transform" />
               </button>
 
-
-
-              {/* Afficher uniquement si le composant est monté côté client */}
+              {/* ============================================================ */}
+              {/* 👥 BOUTON ADMIN (si admin) */}
+              {/* ============================================================ */}
               {isMounted && (isAdmin || isUserAdmin) && (
                 <>
-                  <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
                   <button
                     onClick={() => setIsAdminModalOpen(true)}
-                    className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-gradient-to-r from-purple-500/30 to-indigo-500/30 hover:from-purple-500/40 hover:to-indigo-500/40 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 flex items-center justify-center border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 min-w-[24px] xs:min-w-[28px] sm:min-w-[32px] group"
+                    className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-gradient-to-r from-purple-500/30 to-indigo-500/30 hover:from-purple-500/40 hover:to-indigo-500/40 rounded-lg text-white transition-all duration-300 flex items-center justify-center border border-purple-500/30 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px] md:min-w-[40px] group"
                     aria-label="Administration"
                   >
-                    <Users className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-purple-400 group-hover:rotate-[-10deg] transition-transform" />
-                    <span className="hidden sm:inline ml-0.5 text-white/90">Admin</span>
+                    <Users className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-purple-400 group-hover:rotate-[-10deg] transition-transform" />
+                    <span className="hidden md:inline ml-1 text-white/90 text-[10px] sm:text-xs font-medium">Admin</span>
                   </button>
                 </>
               )}
-              {/* --- SÉPARATEUR --- */}
-              <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
 
               {/* ============================================================ */}
-              {/* ✅ RAFRAÎCHIR - Bleu clair */}
+              {/* 🔔 BOUTON NOTIFICATIONS */}
               {/* ============================================================ */}
               <button
-                onClick={() => {
-                  loadData();
-                }}
-                className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-white/10 hover:bg-white/20 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 flex items-center justify-center hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 hover:border-white/30 min-w-[24px] xs:min-w-[28px] sm:min-w-[32px]"
+                onClick={() => setIsNotificationModalOpen(true)}
+                className="relative p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-amber-500/20 hover:bg-amber-500/30 rounded-lg text-white transition-all duration-300 flex items-center justify-center border border-amber-500/30 hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px] md:min-w-[40px] group"
+                aria-label="Notifications"
+              >
+                <Bell className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-amber-400 group-hover:rotate-12 transition-transform" />
+                <span className="hidden md:inline ml-1 text-white/90 text-[10px] sm:text-xs font-medium">Alertes</span>
+
+                {/* Badge de notification */}
+                {notifications.filter(n => n.joursRestants <= 7).length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-black text-white animate-pulse border-2 border-white shadow-lg shadow-red-500/50">
+                    {notifications.filter(n => n.joursRestants <= 7).length > 9 ? '9+' : notifications.filter(n => n.joursRestants <= 7).length}
+                  </span>
+                )}
+              </button>
+
+              {/* ============================================================ */}
+              {/* 🔄 BOUTON RAFRAÎCHIR */}
+              {/* ============================================================ */}
+              <button
+                onClick={() => { loadData(); }}
+                className="p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all duration-300 flex items-center justify-center hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed border border-white/10 hover:border-white/30 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px] md:min-w-[40px]"
                 disabled={loading}
                 aria-label="Rafraîchir"
               >
-                <RefreshCw className={`w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline ml-0.5">Rafraîchir</span>
+                <RefreshCw className={`w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden md:inline ml-1 text-white/90 text-[10px] sm:text-xs font-medium">Rafraîchir</span>
               </button>
 
-              {/* --- SÉPARATEUR --- */}
-              <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
-
               {/* ============================================================ */}
-              {/* ✅ IMPRIMER - Bleu nuit */}
+              {/* 🖨️ BOUTON IMPRIMER */}
               {/* ============================================================ */}
               <button
                 onClick={() => window.print()}
-                className="hidden xs:flex p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-indigo-500/20 hover:bg-indigo-500/30 rounded-lg text-white text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-medium transition-all duration-300 items-center justify-center border border-indigo-500/30 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/20 hover:scale-105 min-w-[24px] xs:min-w-[28px] sm:min-w-[32px]"
+                className="hidden sm:flex p-1 xs:p-1.5 sm:px-2 sm:py-1 bg-indigo-500/20 hover:bg-indigo-500/30 rounded-lg text-white transition-all duration-300 items-center justify-center border border-indigo-500/30 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/20 hover:scale-105 min-w-[28px] xs:min-w-[32px] sm:min-w-[36px] md:min-w-[40px]"
                 aria-label="Imprimer"
               >
-                <Printer className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5" />
-                <span className="hidden sm:inline ml-0.5 text-white/90">Imprimer</span>
+                <Printer className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5" />
+                <span className="hidden md:inline ml-1 text-white/90 text-[10px] sm:text-xs font-medium">Imprimer</span>
               </button>
 
-              {/* --- SÉPARATEUR --- */}
-              <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
-
               {/* ============================================================ */}
-              {/* ✅ BLOC PROFIL UTILISATEUR + QUITTER - UNIFIÉ */}
+              {/* 👤 BLOC PROFIL UTILISATEUR + QUITTER */}
               {/* ============================================================ */}
-              <div className="flex items-center gap-0.5 xs:gap-1 px-0.5 xs:px-1 sm:px-1.5 py-0.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300">
+              <div className="flex items-center gap-0.5 xs:gap-1 px-0.5 xs:px-1 sm:px-1.5 md:px-2 py-0.5 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300">
 
-                {/* --- AVATAR avec première lettre --- */}
-                <div className="relative w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-white/30">
+                {/* --- AVATAR --- */}
+                <div className="relative w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-white/30">
                   {userPhoto ? (
                     <img src={userPhoto} alt="Avatar" className="w-full h-full rounded-full object-cover" />
                   ) : (
-                    <span className="text-[7px] xs:text-[8px] sm:text-[9px] md:text-[10px] font-bold text-white">
+                    <span className="text-[9px] xs:text-[10px] sm:text-[11px] md:text-[12px] font-bold text-white">
                       {userInitial}
                     </span>
                   )}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-1 h-1 xs:w-1.5 xs:h-1.5 bg-emerald-500 rounded-full border border-white/50" />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 xs:w-2 xs:h-2 bg-emerald-500 rounded-full border border-white/50 animate-pulse" />
                 </div>
 
                 {/* --- INFOS UTILISATEUR - Cachées sur mobile, visibles sur tablette et desktop --- */}
                 <div className="hidden lg:block min-w-0">
-                  <p className="text-[7px] xs:text-[8px] sm:text-[9px] font-bold text-white truncate max-w-[50px] xs:max-w-[60px] sm:max-w-[80px]">
+                  <p className="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-white truncate max-w-[60px] xs:max-w-[80px] sm:max-w-[100px] md:max-w-[120px]">
                     {displayName}
                   </p>
-                  <p className="text-[5px] xs:text-[6px] sm:text-[7px] text-blue-200 truncate max-w-[50px] xs:max-w-[60px] sm:max-w-[80px]">
+                  <p className="text-[6px] xs:text-[7px] sm:text-[8px] text-blue-200 truncate max-w-[60px] xs:max-w-[80px] sm:max-w-[100px] md:max-w-[120px]">
                     {userEmail}
                   </p>
-                  <span className="text-[4px] xs:text-[5px] sm:text-[6px] text-amber-400 font-bold uppercase tracking-wider">
+                  <span className="text-[5px] xs:text-[6px] sm:text-[7px] text-amber-400 font-bold uppercase tracking-wider">
                     {user?.role || "Utilisateur"}
                   </span>
                 </div>
 
-                {/* --- SÉPARATEUR - Caché sur mobile --- */}
-                <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden lg:block" />
+                {/* --- SÉPARATEUR --- */}
+                <div className="w-px h-5 xs:h-6 sm:h-7 bg-white/20 hidden lg:block" />
 
                 {/* --- BOUTON QUITTER --- */}
                 <button
@@ -4976,11 +5132,11 @@ const RapportPanneaux: React.FC = () => {
                       window.location.replace('/');
                     }
                   }}
-                  className="flex items-center gap-0.5 xs:gap-1 px-1 xs:px-1.5 py-0.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-all duration-300 border border-red-500/30 hover:border-red-500/50 hover:scale-105 active:scale-95 group"
+                  className="flex items-center gap-0.5 xs:gap-1 px-1 xs:px-1.5 sm:px-2 py-0.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-all duration-300 border border-red-500/30 hover:border-red-500/50 hover:scale-105 active:scale-95 group"
                   aria-label="Déconnexion"
                 >
-                  <LogOut className="w-2.5 h-2.5 xs:w-3 xs:h-3 sm:w-3.5 sm:h-3.5 text-red-400 group-hover:rotate-12 transition-transform" />
-                  <span className="hidden xs:inline text-[6px] xs:text-[7px] sm:text-[8px] font-bold text-white/90 group-hover:text-white transition-colors">
+                  <LogOut className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-red-400 group-hover:rotate-12 transition-transform" />
+                  <span className="hidden xs:inline text-[7px] xs:text-[8px] sm:text-[9px] md:text-[10px] font-bold text-white/90 group-hover:text-white transition-colors">
                     Quitter
                   </span>
                 </button>
@@ -4989,10 +5145,7 @@ const RapportPanneaux: React.FC = () => {
             </div>
           </div>
         </div>
-        {/* Barre de progression animée */}
-        <div className="h-0.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shimmer" />
-        </div>
+
       </header>
       <div className="max-w-full px-2 xs:px-3 sm:px-4 md:px-6 py-2 xs:py-3 sm:py-4 md:py-6">
 
@@ -5656,7 +5809,276 @@ const RapportPanneaux: React.FC = () => {
         </AnimatePresence>
 
 
+        {/* ============================================================ */}
+        {/* ✅ MODAL DES NOTIFICATIONS */}
+        {/* ============================================================ */}
+        <AnimatePresence>
+          {isNotificationModalOpen && (
+            <>
+              {/* OVERLAY */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsNotificationModalOpen(false)}
+                className="fixed inset-0 z-[300]"
+              >
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
+              </motion.div>
 
+              {/* MODAL */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="fixed inset-2 xs:inset-4 sm:inset-6 md:inset-10 lg:inset-16 z-[301] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl flex flex-col border border-white/20 overflow-hidden max-w-4xl mx-auto"
+              >
+                {/* ============================================================ */}
+                {/* HEADER */}
+                {/* ============================================================ */}
+                <div className="relative px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200/50 bg-gradient-to-r from-[#00539B] to-[#003A6B] flex-shrink-0">
+                  <div className="absolute top-0 right-0 w-32 sm:w-40 h-32 sm:h-40 bg-amber-400/10 rounded-full blur-2xl" />
+                  <div className="absolute bottom-0 left-0 w-24 sm:w-32 h-24 sm:h-32 bg-blue-400/10 rounded-full blur-xl" />
+
+                  <div className="flex justify-between items-center relative z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-1 h-6 sm:h-8 bg-gradient-to-b from-amber-400 to-amber-300 rounded-full" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[8px] sm:text-[10px] font-black text-amber-300 uppercase tracking-[0.2em]">Notifications</p>
+                          <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full text-[8px] font-bold">
+                            {notifications.length}
+                          </span>
+                        </div>
+                        <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white">
+                          Réservations <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-200">à renouveler</span>
+                        </h2>
+                        <p className="text-[8px] sm:text-[9px] text-blue-200 font-medium hidden xs:block">
+                          {notifications.filter(n => n.joursRestants <= 7).length} alerte(s) urgente(s) • {notifications.filter(n => n.joursRestants > 7 && n.joursRestants <= 16).length} alerte(s) à venir
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsNotificationModalOpen(false)}
+                      className="group p-2 bg-white/20 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-white backdrop-blur-sm border border-white/20 hover:border-red-500"
+                    >
+                      <X className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* ============================================================ */}
+                {/* FILTRES */}
+                {/* ============================================================ */}
+                <div className="px-4 sm:px-6 py-2 sm:py-3 border-b border-gray-200/50 bg-gray-50/50 flex flex-wrap items-center gap-2 flex-shrink-0">
+                  <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-wider">Filtrer :</span>
+                  {[
+                    { id: 'toutes', label: '📋 Toutes', count: notifications.length },
+                    { id: 'urgent', label: '🔴 Urgentes', count: notifications.filter(n => n.joursRestants <= 7).length },
+                    { id: 'bientot', label: '🟡 À venir', count: notifications.filter(n => n.joursRestants > 7 && n.joursRestants <= 16).length }
+                  ].map((filter) => (
+                    <button
+                      key={filter.id}
+                      onClick={() => setNotificationFilter(filter.id as any)}
+                      className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg text-[8px] sm:text-[10px] font-bold transition-all ${notificationFilter === filter.id
+                        ? 'bg-[#00539B] text-white shadow-lg shadow-[#00539B]/30'
+                        : 'bg-white/80 text-gray-600 hover:text-gray-800 border border-gray-200/50 hover:border-[#00539B]/30'
+                        }`}
+                    >
+                      {filter.label}
+                      {filter.count > 0 && (
+                        <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[7px] ${notificationFilter === filter.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                          {filter.count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+
+                  <div className="flex-1" />
+
+                  <button
+                    onClick={loadNotifications}
+                    className="p-1.5 sm:p-2 bg-white/80 hover:bg-blue-50 rounded-lg border border-gray-200/50 transition-colors"
+                    title="Rafraîchir"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 ${notificationsLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+
+                {/* ============================================================ */}
+                {/* LISTE DES NOTIFICATIONS */}
+                {/* ============================================================ */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-3 custom-scrollbar bg-gray-50/30">
+                  {notificationsLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 text-[#00539B] animate-spin" />
+                        <p className="text-xs text-gray-400 font-medium">Chargement des notifications...</p>
+                      </div>
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full py-12">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center mb-4 border-2 border-gray-200/50">
+                        <BellOff className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300" />
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-black text-gray-600">Aucune notification</h3>
+                      <p className="text-sm text-gray-400 font-medium max-w-[250px] text-center mt-1">
+                        Toutes vos réservations sont à jour. Aucune expiration imminente.
+                      </p>
+                    </div>
+                  ) : (
+                    notifications
+                      .filter(n => {
+                        if (notificationFilter === 'urgent') return n.joursRestants <= 7;
+                        if (notificationFilter === 'bientot') return n.joursRestants > 7 && n.joursRestants <= 16;
+                        return true;
+                      })
+                      .map((notif, index) => {
+                        const isUrgent = notif.joursRestants <= 3;
+                        const isBientot = notif.joursRestants <= 7;
+
+                        return (
+                          <motion.div
+                            key={notif.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            onClick={() => {
+                              // Ouvrir le panneau correspondant
+                              const panneau = panneaux.find(p => p.id === notif.panneauId);
+                              if (panneau) {
+                                const face = panneau.faces?.find(f => f.id === notif.faceId);
+                                if (face) {
+                                  openFaceDetails(panneau, face);
+                                  setIsNotificationModalOpen(false);
+                                }
+                              }
+                            }}
+                            className={`p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg ${isUrgent ? 'bg-red-50 border-red-200 hover:border-red-400' :
+                              isBientot ? 'bg-amber-50 border-amber-200 hover:border-amber-400' :
+                                'bg-blue-50 border-blue-200 hover:border-blue-400'
+                              }`}
+                          >
+                            <div className="flex items-start gap-3 sm:gap-4">
+                              {/* Icône */}
+                              <div className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center ${isUrgent ? 'bg-red-100' :
+                                isBientot ? 'bg-amber-100' :
+                                  'bg-blue-100'
+                                }`}>
+                                {isUrgent ? (
+                                  <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+                                ) : isBientot ? (
+                                  <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
+                                ) : (
+                                  <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                                )}
+                              </div>
+
+                              {/* Contenu */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <h4 className="text-sm sm:text-base font-black text-gray-800 truncate">
+                                    {notif.societeLocatrice}
+                                  </h4>
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black whitespace-nowrap ${isUrgent ? 'bg-red-500 text-white animate-pulse' :
+                                    isBientot ? 'bg-amber-500 text-white' :
+                                      'bg-blue-500 text-white'
+                                    }`}>
+                                    {notif.joursRestants} jour{notif.joursRestants > 1 ? 's' : ''} restant{notif.joursRestants > 1 ? 's' : ''}
+                                  </span>
+                                </div>
+
+                                <p className="text-[10px] sm:text-xs text-gray-600 font-medium mt-1">
+                                  {isUrgent ? (
+                                    <span className="text-red-600 font-bold">⚠️ URGENT - </span>
+                                  ) : isBientot ? (
+                                    <span className="text-amber-600 font-bold">🔔 ATTENTION - </span>
+                                  ) : null}
+                                  La réservation <span className="font-bold">{notif.societeLocatrice}</span> sur le panneau <span className="font-bold">{notif.panneauIdPan}</span>
+                                  {' '}à <span className="font-bold">{notif.adresse.substring(0, 30)}{notif.adresse.length > 30 ? '...' : ''}</span>
+                                  {' '}se termine dans <span className={`font-bold ${isUrgent ? 'text-red-600' : isBientot ? 'text-amber-600' : 'text-blue-600'}`}>
+                                    {notif.joursRestants} jours
+                                  </span>.
+                                </p>
+
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-[8px] sm:text-[9px] text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Building2 className="w-3 h-3" />
+                                    Face {notif.faceLabel}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {notif.dateDebut} → {notif.dateFin}
+                                  </span>
+                                  {notif.type && (
+                                    <span className="px-1.5 py-0.5 bg-gray-100 rounded-md">
+                                      {notif.type}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Message d'action */}
+                                <div className={`mt-2 p-2 rounded-lg text-[9px] sm:text-[10px] font-medium ${isUrgent ? 'bg-red-100 text-red-700' :
+                                  isBientot ? 'bg-amber-100 text-amber-700' :
+                                    'bg-blue-100 text-blue-700'
+                                  }`}>
+                                  {isUrgent ? (
+                                    '📞 Contactez immédiatement le client pour proposer un renouvellement !'
+                                  ) : isBientot ? (
+                                    '📞 Pensez à rappeler le client pour discuter du renouvellement.'
+                                  ) : (
+                                    '📞 Préparez une offre de renouvellement pour ce client.'
+                                  )}
+                                </div>
+                              </div>
+
+                              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 flex-shrink-0 mt-1" />
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                  )}
+                </div>
+
+                {/* ============================================================ */}
+                {/* FOOTER */}
+                {/* ============================================================ */}
+                <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200/50 bg-white/80 backdrop-blur-sm flex-shrink-0 flex flex-wrap justify-between items-center gap-2">
+                  <div className="flex items-center gap-3 text-[8px] sm:text-[9px] text-gray-500">
+                    <span className="font-medium">
+                      📊 {notifications.length} notification{notifications.length > 1 ? 's' : ''}
+                    </span>
+                    <span className="w-px h-4 bg-gray-200" />
+                    <span className="text-red-500 font-bold">
+                      🔴 {notifications.filter(n => n.joursRestants <= 7).length} urgente{notifications.filter(n => n.joursRestants <= 7).length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        // Marquer toutes comme lues
+                        setHasNewNotifications(false);
+                        // Optionnel : enregistrer dans Firebase que l'utilisateur a vu les notifications
+                      }}
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-bold text-[9px] sm:text-[10px] uppercase transition-colors"
+                    >
+                      Tout marquer lu
+                    </button>
+                    <button
+                      onClick={() => setIsNotificationModalOpen(false)}
+                      className="px-4 sm:px-6 py-1.5 sm:py-2 bg-[#00539B] hover:bg-[#003A6B] text-white rounded-lg font-bold text-[9px] sm:text-[10px] uppercase transition-colors"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {isStatsOpen && (
@@ -5837,7 +6259,7 @@ const RapportPanneaux: React.FC = () => {
               </motion.div>
             </>
           )}
-        </AnimatePresence>{/* CONTENU */}
+        </AnimatePresence>
 
 
         {/* ============================================================ */}
@@ -6098,6 +6520,7 @@ const RapportPanneaux: React.FC = () => {
         </AnimatePresence>
       </div>
     </div>
+
   );
 
 

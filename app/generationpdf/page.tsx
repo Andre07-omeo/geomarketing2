@@ -27,6 +27,7 @@ const DispromaltPrintLayer = () => {
   const [isModification, setIsModification] = useState(false);
   const [reservationData, setReservationData] = useState<any>(null);
   const [factureNumber, setFactureNumber] = useState<string>('');
+  const [allReservations, setAllReservations] = useState<any[]>([]);
 
   // ✅ Fonction pour générer le numéro de facture
   const generateFactureNumber = async () => {
@@ -37,7 +38,6 @@ const DispromaltPrintLayer = () => {
       const day = String(today.getDate()).padStart(2, '0');
       const datePrefix = `${year}${month}${day}`;
 
-      // ✅ Récupérer la dernière facture de la journée
       const facturesRef = collection(db, "factures");
       const q = query(
         facturesRef,
@@ -45,32 +45,29 @@ const DispromaltPrintLayer = () => {
         limit(1)
       );
       const querySnapshot = await getDocs(q);
-      
+
       let lastNumber = 0;
-      
+
       if (!querySnapshot.empty) {
         const lastDoc = querySnapshot.docs[0];
         const lastData = lastDoc.data();
         const lastFactureId = lastData.factureIdFormat || '';
-        
-        // ✅ Extraire le numéro séquentiel
+
         if (lastFactureId.startsWith(datePrefix)) {
           const sequentialPart = lastFactureId.substring(datePrefix.length);
           lastNumber = parseInt(sequentialPart, 10) || 0;
         }
       }
-      
-      // ✅ Incrémenter le numéro
+
       const newNumber = lastNumber + 1;
       const sequentialStr = String(newNumber).padStart(2, '0');
       const newFactureId = `${datePrefix}${sequentialStr}`;
-      
+
       setFactureNumber(newFactureId);
       return newFactureId;
-      
+
     } catch (error) {
       console.error('Erreur génération numéro facture:', error);
-      // ✅ Fallback : générer un numéro avec timestamp
       const today = new Date();
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -101,15 +98,14 @@ const DispromaltPrintLayer = () => {
         try {
           const decodedData = JSON.parse(rawData);
           const firstItem = decodedData[0];
-          
-          // ✅ Vérifier si c'est une modification
+
+          // ✅ Stocker toutes les réservations
+          setAllReservations(decodedData);
+
           const isModif = firstItem?.modification === true;
           setIsModification(isModif);
-          
-          // ✅ Stocker les données de réservation pour la mise à jour
           setReservationData(firstItem);
 
-          // ✅ Générer le numéro de facture
           const newFactureId = await generateFactureNumber();
 
           let cumulHT = 0;
@@ -118,10 +114,10 @@ const DispromaltPrintLayer = () => {
             const qte = Number(item.dureeMois || 1);
             const total = pu * qte;
             cumulHT += total;
-            
+
             const modePaiement = item.modePaiement || 'total';
             const nombreTranches = item.nombreTranches || 1;
-            
+
             return {
               qte,
               idFace: item.idFace || item.faceId || 'N/A',
@@ -134,9 +130,19 @@ const DispromaltPrintLayer = () => {
               type: item.type || "N/A",
               modePaiement: modePaiement,
               nombreTranches: nombreTranches,
-              montantParTranche: modePaiement === 'tranche' && nombreTranches > 1 
-                ? total / nombreTranches 
-                : 0
+              montantParTranche: modePaiement === 'tranche' && nombreTranches > 1
+                ? total / nombreTranches
+                : 0,
+              // ✅ Ajouter les infos pour le marquage
+              panneauId: item.panneauId,
+              faceId: item.faceId,
+              faceIndex: item.faceIndex,
+              societeLocatrice: item.societeLocatrice,
+              dateDebutOriginal: item.dateDebut,
+              dateFinOriginal: item.dateFin,
+              agentEmail: item.agentEmail,
+              createdAt: item.createdAt,
+              dateCreation: item.dateCreation || item.createdAt
             };
           });
 
@@ -148,43 +154,262 @@ const DispromaltPrintLayer = () => {
             lignes: lines,
             totalHT: cumulHT,
             originalData: firstItem,
-            isModification: isModif
+            isModification: isModif,
+            rawReservations: decodedData
           });
-        } catch (e) { 
-          console.error('Erreur chargement données:', e); 
+        } catch (e) {
+          console.error('Erreur chargement données:', e);
         }
       }
     };
-    
+
     loadData();
   }, []);
 
+// ============================================
+// ✅ FONCTION POUR MARQUER LES RÉSERVATIONS COMME FACTURÉES
+// ============================================
+const marquerReservationsFacturees = async (reservations: any[]) => {
+  try {
+    console.log('📝 Marquage de', reservations.length, 'réservation(s)...');
+    
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < reservations.length; i++) {
+      const res = reservations[i];
+      
+      console.log(`\n🔍 Recherche réservation ${i+1}:`, {
+        panneauId: res.panneauId,
+        societeLocatrice: res.societeLocatrice,
+        dateDebut: res.dateDebut,
+        dateFin: res.dateFin,
+        agentEmail: res.agentEmail
+      });
+
+      if (!res.panneauId) {
+        console.warn(`⚠️ Réservation ${i+1}: pas de panneauId`);
+        errorCount++;
+        continue;
+      }
+
+      try {
+        // ✅ 1. Récupérer le panneau
+        const panneauRef = doc(db, "panneaux", res.panneauId);
+        const panneauSnap = await getDoc(panneauRef);
+
+        if (!panneauSnap.exists()) {
+          console.warn(`❌ Panneau ${res.panneauId} introuvable`);
+          errorCount++;
+          continue;
+        }
+
+        const panneauData = panneauSnap.data();
+        const faces = panneauData.faces || [];
+        console.log(`✅ Panneau trouvé: ${panneauData.idPan || res.panneauId}`);
+        console.log(`📋 Nombre de faces: ${faces.length}`);
+
+        // ✅ 2. Déterminer l'index de la face
+        let faceIndex = -1;
+
+        // Méthode 1: Si on a un faceIndex explicite
+        if (res.faceIndex !== undefined && res.faceIndex !== null) {
+          faceIndex = parseInt(res.faceIndex);
+          if (faceIndex >= 0 && faceIndex < faces.length) {
+            console.log(`✅ Face trouvée par faceIndex: ${faceIndex}`);
+          } else {
+            faceIndex = -1;
+          }
+        }
+
+        // Méthode 2: Si faceId est fourni
+        if (faceIndex === -1 && res.faceId) {
+          const faceId = res.faceId;
+          // Essayer de trouver par ID exact
+          faceIndex = faces.findIndex((f: any) => f.id === faceId);
+          if (faceIndex === -1) {
+            // Essayer de trouver par idPan + numéro
+            const idPan = panneauData.idPan || '';
+            // Si l'ID de la face est comme "P_ZINGINDA_STADE_MARTYRE1" → extraire le numéro
+            const match = faceId.match(/\d+$/);
+            if (match) {
+              const num = parseInt(match[0]) - 1; // -1 car l'index commence à 0
+              if (num >= 0 && num < faces.length) {
+                faceIndex = num;
+                console.log(`✅ Face trouvée par extraction du numéro: ${faceIndex}`);
+              }
+            }
+          }
+          if (faceIndex !== -1) {
+            console.log(`✅ Face trouvée par faceId: ${faceIndex}`);
+          }
+        }
+
+        // Méthode 3: Si on a une seule face, prendre l'index 0
+        if (faceIndex === -1 && faces.length === 1) {
+          faceIndex = 0;
+          console.log(`✅ Une seule face disponible, utilisation de l'index 0`);
+        }
+
+        // Méthode 4: Par sens
+        if (faceIndex === -1 && res.faceSens) {
+          faceIndex = faces.findIndex((f: any) => f.sens === res.faceSens);
+          if (faceIndex !== -1) {
+            console.log(`✅ Face trouvée par sens: ${faceIndex}`);
+          }
+        }
+
+        // Méthode 5: Parcourir toutes les faces pour trouver la réservation
+        if (faceIndex === -1) {
+          console.log('🔍 Recherche dans toutes les faces...');
+          for (let j = 0; j < faces.length; j++) {
+            const faceReservations = faces[j].reservations || [];
+            const found = faceReservations.some((r: any) => 
+              r.societeLocatrice === res.societeLocatrice &&
+              r.dateDebut === res.dateDebut &&
+              r.dateFin === res.dateFin &&
+              r.agentEmail === res.agentEmail
+            );
+            if (found) {
+              faceIndex = j;
+              console.log(`✅ Face trouvée par recherche dans les réservations: index ${j}`);
+              break;
+            }
+          }
+        }
+
+        if (faceIndex === -1 || faceIndex >= faces.length) {
+          console.warn(`❌ Face non trouvée pour: ${res.societeLocatrice}`);
+          errorCount++;
+          continue;
+        }
+
+        const face = faces[faceIndex];
+        const faceReservations = face.reservations || [];
+        console.log(`✅ Face ${faceIndex} trouvée avec ${faceReservations.length} réservation(s)`);
+
+        // ✅ 3. Afficher les réservations pour débogage
+        console.log('📋 Réservations de la face:', faceReservations.map((r: any) => ({
+          societe: r.societeLocatrice,
+          dateDebut: r.dateDebut,
+          dateFin: r.dateFin,
+          agentEmail: r.agentEmail,
+          facturee: r.facturee
+        })));
+
+        // ✅ 4. Trouver et mettre à jour la réservation
+        let updated = false;
+        const updatedReservations = faceReservations.map((r: any) => {
+          const isMatch = 
+            r.societeLocatrice?.toLowerCase().trim() === res.societeLocatrice?.toLowerCase().trim() &&
+            r.dateDebut === res.dateDebut &&
+            r.dateFin === res.dateFin &&
+            r.agentEmail?.toLowerCase().trim() === res.agentEmail?.toLowerCase().trim();
+
+          console.log(`🔍 Vérification réservation: ${r.societeLocatrice}`, {
+            match: isMatch,
+            facturee_actuelle: r.facturee
+          });
+
+          if (isMatch && r.facturee !== "oui" && r.facturee !== "Oui" && r.facturee !== true) {
+            updated = true;
+            console.log(`✅ Marquage de: ${r.societeLocatrice}`);
+            return {
+              ...r,
+              facturee: "oui",
+              dateFacturation: new Date().toISOString(),
+              factureId: factureNumber || res.factureIdFormat || `F-${Date.now()}`,
+              modifiePar: "facturation",
+              modifieLe: new Date().toISOString()
+            };
+          }
+          return r;
+        });
+
+        if (!updated) {
+          console.warn(`⚠️ Aucune modification pour: ${res.societeLocatrice}`);
+          errorCount++;
+          continue;
+        }
+
+        // ✅ 5. Sauvegarder dans Firestore
+        const updatedFaces = [...faces];
+        updatedFaces[faceIndex] = {
+          ...face,
+          reservations: updatedReservations
+        };
+
+        await updateDoc(panneauRef, {
+          faces: updatedFaces,
+          updatedAt: new Date().toISOString()
+        });
+
+        console.log(`✅ Réservation marquée avec succès: ${res.societeLocatrice}`);
+        successCount++;
+
+      } catch (err) {
+        console.error(`❌ Erreur réservation ${i+1}:`, err);
+        errorCount++;
+      }
+    }
+
+    console.log(`\n📊 Résultat final: ${successCount} réservation(s) marquée(s), ${errorCount} erreur(s)`);
+    return successCount > 0;
+
+  } catch (error) {
+    console.error('❌ Erreur globale:', error);
+    return false;
+  }
+};
   // ============================================
-  // HANDLE PRINT AND SAVE - CORRIGÉ
+  // ✅ HANDLE PRINT AND SAVE - CORRIGÉ AVEC MARQUAGE
   // ============================================
   const handlePrintAndSave = async () => {
     if (isSaving) return;
     setIsSaving(true);
 
     try {
-      // ✅ Imprimer d'abord
+      // ✅ 1. IMPRIMER
       window.print();
 
       const rawData = localStorage.getItem('facture_preview_data');
       if (!rawData) {
         throw new Error('Aucune donnée trouvée');
       }
-      
+
       const items = JSON.parse(rawData);
       const firstItem = items[0];
 
-      // ✅ Vérifier si c'est une modification
+      // ✅ 2. MARQUER LES RÉSERVATIONS COMME FACTURÉES
+      console.log('🔵 Marquage des réservations comme facturées...');
+
+      // Préparer les données pour le marquage
+      const reservationsToMark = items.map((item: any) => ({
+        panneauId: item.panneauId,
+        faceId: item.faceId,
+        faceIndex: item.faceIndex,
+        societeLocatrice: item.societeLocatrice,
+        dateDebut: item.dateDebut,
+        dateFin: item.dateFin,
+        agentEmail: item.agentEmail,
+        createdAt: item.createdAt,
+        dateCreation: item.dateCreation || item.createdAt
+      }));
+
+      // ✅ Marquer comme facturées
+      const markSuccess = await marquerReservationsFacturees(reservationsToMark);
+
+      if (!markSuccess) {
+        console.warn('⚠️ Certaines réservations n\'ont pas été marquées');
+      }
+
+      // ✅ 3. ENREGISTRER LA FACTURE DANS FIRESTORE
       const isModification = firstItem?.modification === true;
 
-      // ✅ Si c'est une modification, on met à jour la réservation existante
+      // Si c'est une modification, mettre à jour la réservation
       if (isModification && firstItem?.panelDocId && firstItem?.faceIndex !== undefined) {
         console.log('🔄 Mise à jour de la réservation existante (modification)');
-        
+
         const panneauRef = doc(db, "panneaux", firstItem.panelDocId);
         const panneauSnap = await getDoc(panneauRef);
 
@@ -192,16 +417,16 @@ const DispromaltPrintLayer = () => {
           const data = panneauSnap.data();
           const currentFaces = [...(data.faces || [])];
           const faceIndex = firstItem.faceIndex;
-          
+
           if (currentFaces[faceIndex]) {
             const faceReservations = currentFaces[faceIndex].reservations || [];
-            
+
             const updatedReservations = faceReservations.map((r: any) => {
-              const isMatch = 
-                r.createdAt === firstItem.createdAt || 
-                (r.dateDebut === firstItem.dateDebut && 
-                 r.societeLocatrice === firstItem.societeLocatrice);
-              
+              const isMatch =
+                r.createdAt === firstItem.createdAt ||
+                (r.dateDebut === firstItem.dateDebut &&
+                  r.societeLocatrice === firstItem.societeLocatrice);
+
               if (isMatch) {
                 return {
                   ...r,
@@ -229,40 +454,14 @@ const DispromaltPrintLayer = () => {
               }
               return r;
             });
-            
+
             currentFaces[faceIndex].reservations = updatedReservations;
             await updateDoc(panneauRef, { faces: currentFaces });
           }
         }
-      } else {
-        // ✅ Si c'est une nouvelle réservation (pas de modification)
-        for (const item of items) {
-          if (item.panelDocId && item.faceIndex !== undefined) {
-            const panneauRef = doc(db, "panneaux", item.panelDocId);
-            const panneauSnap = await getDoc(panneauRef);
-
-            if (panneauSnap.exists()) {
-              const currentFaces = [...panneauSnap.data().faces];
-              const updatedReservations = currentFaces[item.faceIndex].reservations.map((res: any) => {
-                if (res.dateDebut === item.dateDebut && res.agentEmail === item.agentEmail) {
-                  return { 
-                    ...res, 
-                    facturee: "oui",
-                    modePaiement: item.modePaiement || 'total',
-                    nombreTranches: item.nombreTranches || 1
-                  };
-                }
-                return res;
-              });
-
-              currentFaces[item.faceIndex].reservations = updatedReservations;
-              await updateDoc(panneauRef, { faces: currentFaces });
-            }
-          }
-        }
       }
 
-      // ✅ Enregistrer la facture avec le numéro généré
+      // ✅ 4. ENREGISTRER LA FACTURE
       await addDoc(collection(db, "factures"), {
         factureIdFormat: factureNumber || factureData.factureId,
         clientNom: factureData.client || "CLIENT INCONNU",
@@ -283,7 +482,9 @@ const DispromaltPrintLayer = () => {
           type: l.type || "Vinyle",
           modePaiement: l.modePaiement || "total",
           nombreTranches: l.nombreTranches || 1,
-          montantParTranche: l.montantParTranche || 0
+          montantParTranche: l.montantParTranche || 0,
+          panneauId: l.panneauId || "",
+          faceId: l.faceId || ""
         })),
         statut: "Validée",
         statutPaiement: "Payé",
@@ -295,13 +496,19 @@ const DispromaltPrintLayer = () => {
         modifieParNom: firstItem?.modifieParNom || 'Administrateur'
       });
 
+      // ✅ 5. METTRE À JOUR LE LOCALSTORAGE
+      const updatedItems = items.map((item: any) => ({
+        ...item,
+        facturee: "oui",
+        dateFacturation: new Date().toISOString()
+      }));
+      localStorage.setItem('facture_preview_data', JSON.stringify(updatedItems));
+
       alert("✅ Facture enregistrée avec succès !");
-      
-      // ✅ Nettoyer localStorage
-      localStorage.removeItem('facture_preview_data');
-      
-      // ✅ Rediriger après 2 secondes
+
+      // ✅ 6. NETTOYER ET REDIRIGER
       setTimeout(() => {
+        localStorage.removeItem('facture_preview_data');
         router.back();
       }, 2000);
 
@@ -313,15 +520,18 @@ const DispromaltPrintLayer = () => {
     }
   };
 
+  // ... le reste du code (getPaymentInfoInDesignation, return, etc.)
+  // ... gardez tout le reste identique
+
   if (!factureData) return null;
 
   const getPaymentInfoInDesignation = (l: any) => {
     if (l.modePaiement === 'tranche' && l.nombreTranches > 1) {
       return (
-        <div style={{ 
-          fontSize: '8px', 
-          color: '#d4af37', 
-          marginTop: '5px', 
+        <div style={{
+          fontSize: '8px',
+          color: '#d4af37',
+          marginTop: '5px',
           fontWeight: 'bold',
           backgroundColor: '#fef9e6',
           padding: '3px 6px',
@@ -359,7 +569,7 @@ const DispromaltPrintLayer = () => {
       <div className="zoom-wrapper" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
         <div className="sheet">
 
-          {/* NUMÉRO DE FACTURE - FORMAT AAAAMMJJ + NUMÉRO SÉQUENTIEL */}
+          {/* NUMÉRO DE FACTURE */}
           <div style={{
             position: 'absolute',
             top: '76mm',
@@ -371,7 +581,7 @@ const DispromaltPrintLayer = () => {
             {factureNumber || factureData.factureId}
           </div>
 
-          {/* DATE - DATE DU JOUR */}
+          {/* DATE */}
           <div style={{ position: 'absolute', top: '66mm', left: '155mm', fontSize: '17px' }}>
             {new Date().toLocaleDateString('fr-FR')}
           </div>
@@ -390,11 +600,11 @@ const DispromaltPrintLayer = () => {
           </div>
 
           {/* TABLEAU DES LIGNES */}
-          <div style={{ 
-            position: 'absolute', 
-            top: isModification ? '108mm' : '110mm', 
-            left: '10mm', 
-            width: '180mm' 
+          <div style={{
+            position: 'absolute',
+            top: isModification ? '108mm' : '110mm',
+            left: '10mm',
+            width: '180mm'
           }}>
             {factureData.lignes.map((l: any, i: number) => (
               <div key={i} style={{ display: 'flex', minHeight: '15.5mm', alignItems: 'flex-start', fontSize: '12px', marginBottom: '5px' }}>
@@ -428,16 +638,16 @@ const DispromaltPrintLayer = () => {
               </div>
             ))}
           </div>
-          
+
           {/* TOTAL À PAYER */}
-          <div style={{ 
-            position: 'absolute', 
-            top: isModification ? '248mm' : '250mm', 
-            left: '160mm', 
-            width: '30mm', 
-            textAlign: 'right', 
-            fontWeight: 'bold', 
-            fontSize: '16px' 
+          <div style={{
+            position: 'absolute',
+            top: isModification ? '248mm' : '250mm',
+            left: '160mm',
+            width: '30mm',
+            textAlign: 'right',
+            fontWeight: 'bold',
+            fontSize: '16px'
           }}>
             {factureData.totalHT.toLocaleString()} $
           </div>
@@ -496,6 +706,10 @@ const DispromaltPrintLayer = () => {
           font-weight: bold; 
           cursor: pointer; 
           border-radius: 5px; 
+        }
+        .btn-print:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         @media print {
           .page-container { background: none; padding: 0; display: block; }
