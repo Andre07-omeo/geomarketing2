@@ -152,6 +152,10 @@ interface AdminReservation {
   societeLocatrice: string;
   faceId: string;
   panneauId: string;
+  reservationData?: any;        // ✅ AJOUTÉ (optionnel)
+  faceIndexInPanneau?: number;  // ✅ AJOUTÉ (optionnel)
+  faceIndex?: number;           // ✅ AJOUTÉ
+  resIndex?: number;
   panneauIdPan: string;
   adresse: string;
   dateDebut: string;
@@ -366,6 +370,7 @@ const RapportPanneaux: React.FC = () => {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   // Ajouter cette ligne avec les autres states (vers la ligne 115)
 
+  const [isMounted, setIsMounted] = useState(false);
 
 
   // États UI
@@ -586,7 +591,9 @@ const RapportPanneaux: React.FC = () => {
   };
 
 
-
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
 
   // ✅ AJOUTER CET USEFFECT POUR CHARGER LES DONNÉES LOCALES
@@ -624,172 +631,187 @@ const RapportPanneaux: React.FC = () => {
   }, [user]);
 
   // ============================================
-// CHARGEMENT DES DONNÉES DEPUIS FIREBASE
-// ============================================
-const loadData = useCallback(async (): Promise<void> => {
-  setLoading(true);
-  setError(null);
+  // CHARGEMENT DES DONNÉES DEPUIS FIREBASE
+  // ============================================
+  const loadData = useCallback(async (): Promise<void> => {
+    setLoading(true);
+    setError(null);
 
-  try {
-    if (!db) {
-      throw new Error('Base de données non initialisée');
-    }
+    try {
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
 
-    // 1. CHARGER LES PANNEAUX
-    const panneauxRef = collection(db, 'panneaux');
-    const panneauxSnapshot = await getDocs(panneauxRef);
+      // 1. CHARGER LES PANNEAUX
+      const panneauxRef = collection(db, 'panneaux');
+      const panneauxSnapshot = await getDocs(panneauxRef);
 
-    const panneauxData: Panneau[] = [];
-    const agentsMap = new Map<string, Agent>();
+      const panneauxData: Panneau[] = [];
+      const agentsMap = new Map<string, Agent>();
 
-    panneauxSnapshot.forEach((doc) => {
-      const data = doc.data() as DocumentData;
+      panneauxSnapshot.forEach((doc) => {
+        const data = doc.data() as DocumentData;
 
-      const faces = Array.isArray(data.faces) ? data.faces.map((f: any, idx: number) => ({
-        ...f,
-        id: f.id || `${data.idPan || 'F'}${idx + 1}`
-      })) : [];
+        const faces = Array.isArray(data.faces) ? data.faces.map((f: any, idx: number) => ({
+          ...f,
+          id: f.id || `${data.idPan || 'F'}${idx + 1}`
+        })) : [];
 
-      const reservations = Array.isArray(data.reservations) ? data.reservations.map((r: any) => ({
-        ...r,
-        faceId: r.faceId || r.face || null
-      })) : [];
+        const reservations = Array.isArray(data.reservations) ? data.reservations.map((r: any) => ({
+          ...r,
+          faceId: r.faceId || r.face || null
+        })) : [];
 
-      const panneau: Panneau = {
-        id: doc.id,
-        idPan: data.idPan || 'N/A',
-        adresse: data.adresse || '',
-        coords: data.coords || undefined,
-        createdAt: data.createdAt || new Date().toISOString(),
-        dimension: data.dimension || '',
-        faces: faces,
-        historique: Array.isArray(data.historique) ? data.historique : [],
-        nbFaces: data.nbFaces || faces.length,
-        reservations: reservations,
-        type: data.type || '',
-        updatedAt: data.updatedAt || new Date().toISOString(),
-        gps_raw: data.gps_raw || undefined
-      };
+        const panneau: Panneau = {
+          id: doc.id,
+          idPan: data.idPan || 'N/A',
+          adresse: data.adresse || '',
+          coords: data.coords || undefined,
+          createdAt: data.createdAt || new Date().toISOString(),
+          dimension: data.dimension || '',
+          faces: faces,
+          historique: Array.isArray(data.historique) ? data.historique : [],
+          nbFaces: data.nbFaces || faces.length,
+          reservations: reservations,
+          type: data.type || '',
+          updatedAt: data.updatedAt || new Date().toISOString(),
+          gps_raw: data.gps_raw || undefined
+        };
 
-      panneauxData.push(panneau);
+        panneauxData.push(panneau);
 
-      // Extraction des agents depuis les réservations
-      if (Array.isArray(data.reservations)) {
-        data.reservations.forEach((res: Reservation) => {
-          if (res.agentNom && res.agentEmail) {
-            if (!agentsMap.has(res.agentEmail)) {
-              agentsMap.set(res.agentEmail, {
-                id: res.agentEmail,
-                nom: res.agentNom,
-                email: res.agentEmail,
+        // Extraction des agents depuis les réservations
+        if (Array.isArray(data.reservations)) {
+          data.reservations.forEach((res: Reservation) => {
+            if (res.agentNom && res.agentEmail) {
+              if (!agentsMap.has(res.agentEmail)) {
+                agentsMap.set(res.agentEmail, {
+                  id: res.agentEmail,
+                  nom: res.agentNom,
+                  email: res.agentEmail,
+                  reservations: 0,
+                  actives: 0,
+                  validees: 0,
+                  revenue: 0,
+                  nomComplet: res.agentNom,
+                  fonction: 'commercial'
+                });
+              }
+
+              const agent = agentsMap.get(res.agentEmail);
+              if (agent) {
+                agent.reservations += 1;
+                if (res.validationComptable) agent.validees += 1;
+                if (res.montant) {
+                  agent.revenue += parseFloat(String(res.montant)) || 0;
+                }
+              }
+            }
+          });
+        }
+      });
+
+      // 2. CHARGER LES FACTURES
+      try {
+        const facturesRef = collection(db, 'factures');
+        const facturesSnapshot = await getDocs(facturesRef);
+        const facturesData: any[] = [];
+
+        // Dans loadData - Chargement des factures
+        facturesSnapshot.forEach((doc) => {
+          const data = doc.data();
+          const lignes = data.lignes || [];
+          const premiereLigne = lignes.length > 0 ? lignes[0] : null;
+
+          // 🔥 CRITIQUE : S'assurer que dateCreation est une chaîne valide
+          let dateCreation = data.dateCreation;
+          if (dateCreation?.toDate) {
+            dateCreation = dateCreation.toDate().toISOString();
+          } else if (dateCreation instanceof Date) {
+            dateCreation = dateCreation.toISOString();
+          } else if (!dateCreation) {
+            dateCreation = new Date().toISOString();
+          }
+
+          facturesData.push({
+            id: doc.id,
+            ...data,
+            totalHT: premiereLigne?.total || data.totalHT || data.total || data.montant || 0,
+            montant: premiereLigne?.total || data.totalHT || data.total || data.montant || 0,
+            statut: data.statut || premiereLigne?.statut || 'En attente',
+            statutPaiement: data.statutPaiement || premiereLigne?.statutPaiement || 'en attente',
+            validationComptable: data.validationComptable || premiereLigne?.validationComptable || false,
+            // 🔥 UTILISER LA DATE CORRECTEMENT CONVERTIE
+            dateCreation: dateCreation,
+            dateValidation: data.dateValidation?.toDate?.()?.toISOString() || data.dateValidation || new Date().toISOString(),
+            agentEmail: data.agentEmail || data.agentId || 'inconnu',
+            agentNom: data.agentNom || 'Inconnu',
+            lignes: lignes
+          });
+        });
+        setFactures(facturesData);
+        console.log(`📄 ${facturesData.length} factures chargées`);
+
+      } catch (err) {
+        console.error('Erreur lors du chargement des factures:', err);
+        setFactures([]);
+      }
+
+      // 3. CHARGER LES AGENTS DEPUIS LA COLLECTION "societe"
+      try {
+        const societeRef = collection(db, 'societes');
+        const societeSnapshot = await getDocs(societeRef);
+
+        societeSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.role === 'commercial' || data.role === 'agent') {
+            const email = data.email || data.id;
+            if (!agentsMap.has(email)) {
+              agentsMap.set(email, {
+                id: email,
+                nom: data.nom || data.nomComplet || email.split('@')[0] || 'Agent',
+                email: email,
                 reservations: 0,
                 actives: 0,
                 validees: 0,
                 revenue: 0,
-                nomComplet: res.agentNom,
-                fonction: 'commercial'
+                nomComplet: data.nomComplet || data.nom,
+                prenom: data.prenom,
+                postNom: data.postNom,
+                telephone: data.telephone,
+                fonction: data.fonction || 'commercial',
+                role: data.role,
+                isOnline: data.isOnline || false,
+                lastLogin: data.lastLogin,
+                logoUrl: data.logoUrl,
+                createdAt: data.createdAt,
+                updatedAt: data.updatedAt
               });
             }
-
-            const agent = agentsMap.get(res.agentEmail);
-            if (agent) {
-              agent.reservations += 1;
-              if (res.validationComptable) agent.validees += 1;
-              if (res.montant) {
-                agent.revenue += parseFloat(String(res.montant)) || 0;
-              }
-            }
           }
         });
+        console.log(`👥 ${agentsMap.size} agents commerciaux chargés`);
+
+      } catch (err) {
+        console.error('Erreur lors du chargement des agents:', err);
       }
-    });
 
-    // 2. CHARGER LES FACTURES
-    try {
-      const facturesRef = collection(db, 'factures');
-      const facturesSnapshot = await getDocs(facturesRef);
-      const facturesData: any[] = [];
-      
-      facturesSnapshot.forEach((doc) => {
-        const data = doc.data();
-        facturesData.push({
-          id: doc.id,
-          ...data,
-          totalHT: data.totalHT || data.total || data.montant || 0,
-          montant: data.montant || data.totalHT || data.total || 0,
-          dateCreation: data.dateCreation || data.createdAt || new Date().toISOString(),
-          dateValidation: data.dateValidation || data.updatedAt || new Date().toISOString(),
-          statut: data.statut || 'En attente',
-          statutPaiement: data.statutPaiement || 'en attente',
-          validationComptable: data.validationComptable || false,
-          agentEmail: data.agentEmail || data.agentId || 'inconnu',
-          agentNom: data.agentNom || 'Inconnu',
-        });
-      });
-      
-      setFactures(facturesData);
-      console.log(`📄 ${facturesData.length} factures chargées`);
-      
+      setPanneaux(panneauxData);
+      setAgents(Array.from(agentsMap.values()));
+      setLastUpdate(new Date());
+
     } catch (err) {
-      console.error('Erreur lors du chargement des factures:', err);
-      setFactures([]);
+      console.error('Erreur lors du chargement des données:', err);
+      setError('Impossible de charger les données. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
     }
+  }, []); // ✅ Le tableau de dépendances est vide car la fonction ne dépend d'aucune variable externe
 
-    // 3. CHARGER LES AGENTS DEPUIS LA COLLECTION "societe"
-    try {
-      const societeRef = collection(db, 'societes');
-      const societeSnapshot = await getDocs(societeRef);
-
-      societeSnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.role === 'commercial' || data.role === 'agent') {
-          const email = data.email || data.id;
-          if (!agentsMap.has(email)) {
-            agentsMap.set(email, {
-              id: email,
-              nom: data.nom || data.nomComplet || email.split('@')[0] || 'Agent',
-              email: email,
-              reservations: 0,
-              actives: 0,
-              validees: 0,
-              revenue: 0,
-              nomComplet: data.nomComplet || data.nom,
-              prenom: data.prenom,
-              postNom: data.postNom,
-              telephone: data.telephone,
-              fonction: data.fonction || 'commercial',
-              role: data.role,
-              isOnline: data.isOnline || false,
-              lastLogin: data.lastLogin,
-              logoUrl: data.logoUrl,
-              createdAt: data.createdAt,
-              updatedAt: data.updatedAt
-            });
-          }
-        }
-      });
-      console.log(`👥 ${agentsMap.size} agents commerciaux chargés`);
-      
-    } catch (err) {
-      console.error('Erreur lors du chargement des agents:', err);
-    }
-
-    setPanneaux(panneauxData);
-    setAgents(Array.from(agentsMap.values()));
-    setLastUpdate(new Date());
-
-  } catch (err) {
-    console.error('Erreur lors du chargement des données:', err);
-    setError('Impossible de charger les données. Veuillez réessayer.');
-  } finally {
-    setLoading(false);
-  }
-}, []); // ✅ Le tableau de dépendances est vide car la fonction ne dépend d'aucune variable externe
-
-// Chargement initial
-useEffect(() => {
-  loadData();
-}, [loadData]); // ✅ Dépend de loadData qui est stable
+  // Chargement initial
+  useEffect(() => {
+    loadData();
+  }, [loadData]); // ✅ Dépend de loadData qui est stable
 
 
   const ouvrirLaCarte = () => {
@@ -818,7 +840,281 @@ useEffect(() => {
 
 
 
+  // ============================================
+  // EXPORT AGENTS PDF - NOUVELLE FONCTION
+  // ============================================
+  const exportAgentsPDF = (data: {
+    agents: any[];
+    periode: string;
+    dateRange: { debut: string; fin: string };
+    totals: any;
+    topAgent: any;
+  }) => {
+    try {
+      console.log('📄 Export Agents PDF avec:', data.agents.length, 'agents');
 
+      if (!data.agents || data.agents.length === 0) {
+        alert('⚠️ Aucun agent à exporter');
+        return;
+      }
+
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // ============================================
+      // 1. EN-TÊTE AVEC LOGO ET BANDEAU
+      // ============================================
+
+      // Bandeau supérieur bleu
+      doc.setFillColor(37, 99, 235);
+      doc.rect(0, 0, pageWidth, 45, 'F');
+
+      // Dégradé visuel (bande plus claire)
+      doc.setFillColor(59, 130, 246, 0.3);
+      doc.rect(0, 45, pageWidth, 3, 'F');
+
+      // Titre principal
+      doc.setFontSize(20);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RAPPORT DES AGENTS COMMERCIAUX', pageWidth / 2, 28, { align: 'center' });
+
+      // Sous-titre
+      doc.setFontSize(11);
+      doc.setTextColor(191, 219, 254);
+      doc.setFont('helvetica', 'normal');
+      doc.text('GESTION DES PERFORMANCES ET CHIFFRE D\'AFFAIRES', pageWidth / 2, 38, { align: 'center' });
+
+      // ============================================
+      // 2. INFORMATIONS DE RAPPORT
+      // ============================================
+
+      let yPos = 56;
+
+      // Date et heure de génération
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`Généré le: ${new Date().toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`, 14, yPos);
+
+      // Période
+      doc.setTextColor(37, 99, 235);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`Période: ${data.periode}`, pageWidth - 40, yPos, { align: 'right' });
+
+      yPos += 8;
+
+      // Si c'est une période personnalisée, afficher les dates
+      if (data.dateRange.debut && data.dateRange.fin) {
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Du: ${data.dateRange.debut} au: ${data.dateRange.fin}`, 14, yPos);
+        yPos += 6;
+      }
+
+      yPos += 4;
+
+      // ============================================
+      // 3. STATISTIQUES EN CARTES
+      // ============================================
+
+      const statsY = yPos + 2;
+      const cardWidth = (pageWidth - 40) / 5;
+      const cardHeight = 22;
+      const colors = [
+        { bg: [219, 234, 254], border: [37, 99, 235], text: [30, 58, 138], label: '👥 Total Agents', value: data.agents.length },
+        { bg: [209, 250, 229], border: [16, 185, 129], text: [6, 78, 59], label: '📊 Réservations', value: data.totals?.reservations || 0 },
+        { bg: [253, 230, 138], border: [245, 158, 11], text: [120, 53, 15], label: '✅ Validées', value: data.totals?.validees || 0 },
+        { bg: [243, 232, 255], border: [168, 85, 247], text: [91, 33, 182], label: '📄 Factures', value: data.totals?.factures || 0 },
+        { bg: [209, 250, 229], border: [16, 185, 129], text: [6, 78, 59], label: '💰 CA Total', value: `${(data.totals?.revenue || 0).toLocaleString()} $` }
+      ];
+
+      colors.forEach((card, index) => {
+        const x = 14 + (index * cardWidth) + (index * 2);
+
+        // Fond de la carte
+        doc.setFillColor(card.bg[0], card.bg[1], card.bg[2]);
+        doc.roundedRect(x, statsY, cardWidth, cardHeight, 2, 2, 'F');
+
+        // Bordure
+        doc.setDrawColor(card.border[0], card.border[1], card.border[2]);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(x, statsY, cardWidth, cardHeight, 2, 2, 'S');
+
+        // Label
+        doc.setFontSize(7);
+        doc.setTextColor(card.text[0], card.text[1], card.text[2]);
+        doc.setFont('helvetica', 'bold');
+        doc.text(card.label, x + 3, statsY + 6);
+
+        // Valeur
+        doc.setFontSize(12);
+        doc.setTextColor(card.text[0], card.text[1], card.text[2]);
+        doc.setFont('helvetica', 'bold');
+        doc.text(String(card.value), x + 3, statsY + 17);
+      });
+
+      yPos = statsY + cardHeight + 10;
+
+      // ============================================
+      // 4. MEILLEUR AGENT (PROCLAMATION)
+      // ============================================
+
+      if (data.topAgent) {
+        // Fond doré pour le meilleur agent
+        doc.setFillColor(255, 247, 237);
+        doc.roundedRect(14, yPos, pageWidth - 28, 18, 3, 3, 'F');
+        doc.setDrawColor(251, 191, 36);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(14, yPos, pageWidth - 28, 18, 3, 3, 'S');
+
+        doc.setFontSize(10);
+        doc.setTextColor(180, 83, 9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`👑 Meilleur agent: ${data.topAgent.nomComplet || data.topAgent.nom || 'Agent'}`, 20, yPos + 7);
+
+        if (data.topAgent.stats?.revenue > 0) {
+          doc.text(`💰 CA: ${(data.topAgent.stats.revenue || 0).toLocaleString()} $`, 20, yPos + 15);
+        } else {
+          doc.text(`📊 Réservations: ${data.topAgent.stats?.total || 0}`, 20, yPos + 15);
+        }
+
+        yPos += 24;
+      }
+
+      // ============================================
+      // 5. TABLEAU DES AGENTS
+      // ============================================
+
+      // Ligne de séparation
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(0.3);
+      doc.line(14, yPos, pageWidth - 14, yPos);
+      yPos += 4;
+
+      // Titre du tableau
+      doc.setFontSize(11);
+      doc.setTextColor(37, 99, 235);
+      doc.setFont('helvetica', 'bold');
+      doc.text('DÉTAIL DES PERFORMANCES PAR AGENT', 14, yPos);
+      yPos += 6;
+
+      // Préparation des données du tableau
+      const tableData = data.agents.map((agent: any) => {
+        const stats = agent.stats || {};
+        return [
+          agent.nomComplet || agent.nom || 'N/A',
+          agent.email || 'N/A',
+          agent.telephone || '-',
+          stats.total || 0,
+          stats.actives || 0,
+          stats.validees || 0,
+          stats.facturesValidees || 0,
+          `${(stats.revenue || 0).toLocaleString()} $`
+        ];
+      });
+
+      if (tableData.length > 0) {
+        autoTable(doc, {
+          head: [[
+            { content: 'Agent', styles: { halign: 'left' } },
+            { content: 'Email', styles: { halign: 'left' } },
+            { content: 'Tél.', styles: { halign: 'center' } },
+            { content: 'Réserv.', styles: { halign: 'center' } },
+            { content: 'Actives', styles: { halign: 'center' } },
+            { content: 'Validées', styles: { halign: 'center' } },
+            { content: 'Factures', styles: { halign: 'center' } },
+            { content: 'CA', styles: { halign: 'right' } }
+          ]],
+          body: tableData,
+          startY: yPos + 2,
+          margin: { left: 14, right: 14 },
+          styles: {
+            fontSize: 7,
+            cellPadding: 2,
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1
+          },
+          headStyles: {
+            fillColor: [37, 99, 235],
+            textColor: [255, 255, 255],
+            fontSize: 8,
+            fontStyle: 'bold',
+            halign: 'center'
+          },
+          alternateRowStyles: {
+            fillColor: [249, 250, 251]
+          },
+          columnStyles: {
+            0: { cellWidth: 35 },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 20, halign: 'center' },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 20, halign: 'center' },
+            5: { cellWidth: 22, halign: 'center' },
+            6: { cellWidth: 22, halign: 'center' },
+            7: { cellWidth: 28, halign: 'right' }
+          },
+          didDrawCell: (data: any) => {
+            // Colorer les cellules de CA si > 0
+            if (data.section === 'body' && data.column.index === 7) {
+              const value = data.cell.raw;
+              const numValue = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+              if (numValue > 0) {
+                data.cell.styles.textColor = [37, 99, 235];
+                data.cell.styles.fontStyle = 'bold';
+              }
+            }
+          }
+        });
+
+        // Récupérer la position Y après le tableau
+        const finalY = (doc as any).lastAutoTable?.finalY || yPos + 50;
+
+        // ============================================
+        // 6. PIED DE PAGE
+        // ============================================
+
+        const pageFinalY = doc.internal.pageSize.getHeight() - 12;
+
+        // Ligne de séparation
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        doc.line(14, pageFinalY - 5, pageWidth - 14, pageFinalY - 5);
+
+        // Pied de page
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.setFont('helvetica', 'italic');
+        doc.text(`© ${new Date().getFullYear()} - Rapport généré le ${new Date().toLocaleString('fr-FR')}`, 14, pageFinalY);
+
+        doc.setTextColor(37, 99, 235);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Page 1/1`, pageWidth - 14, pageFinalY, { align: 'right' });
+
+        // ============================================
+        // 7. SAUVEGARDE
+        // ============================================
+
+        doc.save(`Rapport_Agents_${new Date().toISOString().split('T')[0]}.pdf`);
+
+      } else {
+        alert('⚠️ Aucun agent à exporter');
+      }
+
+    } catch (err) {
+      console.error('Erreur export Agents PDF:', err);
+      alert('Erreur lors de l\'export du PDF des agents.');
+    }
+  };
 
 
 
@@ -1181,14 +1477,6 @@ useEffect(() => {
       alert("❌ Erreur lors de la suppression de la réservation");
     }
   };
-
-
-
-
-
-
-
-
 
 
 
@@ -1723,27 +2011,98 @@ useEffect(() => {
     }
   };
 
-  // Gestion des réservations
-  const handleReservationAction = (action: string, reservation: any) => {
+  // Gestion des réservations - CORRIGÉ
+  const handleReservationAction = async (action: string, reservation: any) => {
     console.log(`Action ${action} sur réservation:`, reservation);
     switch (action) {
       case 'view':
         // Voir les détails
         alert(`📋 Réservation: ${reservation.societeLocatrice}\n👤 Agent: ${reservation.agentNom}\n📅 ${reservation.dateDebut} → ${reservation.dateFin}\n💰 ${reservation.montant} $`);
         break;
+
       case 'update':
-        // Mettre à jour
-        console.log('Mise à jour de la réservation:', reservation);
-        // Ici, vous devriez mettre à jour dans Firestore
-        alert(`✅ Réservation mise à jour: ${reservation.societeLocatrice}`);
+
+        // ✅ Mettre à jour dans Firestore
+        try {
+          // Vérifier si la réservation a un panneauId
+          if (!reservation.panneauId) {
+            alert('❌ Erreur: ID du panneau manquant');
+            return;
+          }
+
+          // Trouver le panneau
+          const panneauRef = doc(db, "panneaux", reservation.panneauId);
+          const panneauSnap = await getDoc(panneauRef);
+
+          if (!panneauSnap.exists()) {
+            alert('❌ Panneau introuvable');
+            return;
+          }
+
+          const data = panneauSnap.data();
+          const currentFaces = [...(data.faces || [])];
+
+          // Trouver la face par son ID
+          const faceIndex = currentFaces.findIndex((f: any) => f.id === reservation.faceId);
+
+          if (faceIndex === -1) {
+            alert('❌ Face introuvable');
+            return;
+          }
+
+          const faceReservations = currentFaces[faceIndex].reservations || [];
+
+          // Mettre à jour la réservation
+          const updatedReservations = faceReservations.map((r: any) => {
+            // Identifier la réservation par sa date de création ou son ID
+            if (r.createdAt === reservation.createdAt || r.id === reservation.id) {
+              return {
+                ...r,
+                // ✅ NOUVELLES DONNÉES
+                agentEmail: reservation.agentEmail,
+                agentNom: reservation.agentNom,
+                societeLocatrice: reservation.societeLocatrice,
+                dateDebut: reservation.dateDebut,
+                dateFin: reservation.dateFin,
+                montant: reservation.montant,
+                // ✅ ANCIENNES DONNÉES (historique)
+                ancienAgentEmail: reservation.ancienAgentEmail || reservation.agentEmail,
+                ancienAgentNom: reservation.ancienAgentNom || reservation.agentNom,
+                ancienneSociete: reservation.ancienneSociete || reservation.societeLocatrice,
+                ancienneDateDebut: reservation.ancienneDateDebut || reservation.dateDebut,
+                ancienneDateFin: reservation.ancienneDateFin || reservation.dateFin,
+                ancienMontant: reservation.ancienMontant || reservation.montant,
+                // ✅ MÉTADONNÉES
+                modification: true,
+                modifiePar: reservation.modifiePar || 'admin',
+                modifieParNom: reservation.modifieParNom || 'Administrateur',
+                modifieLe: reservation.modifieLe || new Date().toISOString(),
+                dateModification: new Date().toISOString()
+              };
+            }
+            return r;
+          });
+
+          currentFaces[faceIndex].reservations = updatedReservations;
+
+          // Sauvegarder dans Firestore
+          await updateDoc(panneauRef, { faces: currentFaces });
+
+          alert(`✅ Réservation mise à jour avec succès !`);
+
+          // 🔥 Recharger les données pour mettre à jour l'affichage
+          loadData();
+
+        } catch (error) {
+          alert('❌ Erreur lors de la mise à jour de la réservation');
+        }
         break;
+
       case 'print':
-        // Imprimer la facture
-        console.log('Impression de la facture:', reservation);
-        // Rediriger vers la page de génération PDF
         localStorage.setItem('facture_preview_data', JSON.stringify([reservation]));
         router.push('/generationpdf');
         break;
+
       default:
         console.log('Action non reconnue:', action);
     }
@@ -1751,7 +2110,6 @@ useEffect(() => {
 
   // Gestion des rendez-vous
   const handleRdvAction = (action: string, rdv: any) => {
-    console.log(`Action ${action} sur RDV:`, rdv);
     switch (action) {
       case 'add':
         alert('📅 Nouveau rendez-vous à créer');
@@ -1764,18 +2122,16 @@ useEffect(() => {
         break;
       case 'delete':
         if (confirm(`Supprimer le RDV avec ${rdv.clientNom} ?`)) {
-          console.log('RDV supprimé:', rdv);
           alert('✅ RDV supprimé');
         }
         break;
       default:
-        console.log('Action non reconnue:', action);
+      //console.log('Action non reconnue:', action);
     }
   };
 
   // Export du rapport admin
   const exportAdminReport = (type: string) => {
-    console.log(`📄 Export du rapport ${type}`);
     // Utiliser la même logique que exportPDF mais avec les données admin
     const data = {
       type,
@@ -1825,7 +2181,6 @@ useEffect(() => {
 
       doc.save(`Rapport_Admin_${type}_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
-      console.error('Erreur export:', error);
       alert('Erreur lors de l\'export du rapport');
     }
   };
@@ -2655,7 +3010,13 @@ useEffect(() => {
     panneaux: Panneau[];
     factures: any[];
     onAgentAction: (action: string, agent: any) => void;
-    onExport: () => void;
+    onExport: (data: {
+      agents: any[];
+      periode: string;
+      dateRange: { debut: string; fin: string };
+      totals: any;
+      topAgent: any;
+    }) => void; // 🔥 MODIFICATION
   }) => {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [periodeFilter, setPeriodeFilter] = useState<PeriodeFiltre>('mois');
@@ -2665,49 +3026,99 @@ useEffect(() => {
 
     // Fonction pour filtrer par période
     const filterByPeriode = useCallback((items: any[], dateField: string) => {
+      // 🔥 CRITIQUE : Créer une date de référence avec l'heure à 00:00:00
       const now = new Date();
+      now.setHours(0, 0, 0, 0);
+
       let filtered = items;
+
+      // Fonction utilitaire pour convertir une date Firebase en Date JS
+      const toDate = (value: any): Date | null => {
+        if (!value) return null;
+
+        // Si c'est déjà un objet Date
+        if (value instanceof Date) return value;
+
+        // Si c'est un Timestamp Firestore (avec toDate())
+        if (value.toDate && typeof value.toDate === 'function') {
+          return value.toDate();
+        }
+
+        // Si c'est une chaîne ou un nombre
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? null : date;
+      };
 
       if (periodeFilter === 'mois') {
         const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
         filtered = items.filter((item: any) => {
-          const date = new Date(item[dateField]);
+          const date = toDate(item[dateField]);
+          if (!date) return false;
+          date.setHours(0, 0, 0, 0);
           return date >= debutMois && date <= now;
         });
       } else if (periodeFilter === 'trimestre') {
-        const trimestre = Math.floor(now.getMonth() / 3);
-        const debutTrimestre = new Date(now.getFullYear(), trimestre * 3, 1);
+        // 🔥 CORRECTION : Trimestre = 3 derniers mois (mois en cours - 3 mois)
+        const dateLimite = new Date(now);
+        dateLimite.setMonth(now.getMonth() - 3);
+        dateLimite.setHours(0, 0, 0, 0);
+
         filtered = items.filter((item: any) => {
-          const date = new Date(item[dateField]);
-          return date >= debutTrimestre && date <= now;
+          const date = toDate(item[dateField]);
+          if (!date) return false;
+          date.setHours(0, 0, 0, 0);
+          return date >= dateLimite && date <= now;
         });
       } else if (periodeFilter === 'semestre') {
-        const semestre = Math.floor(now.getMonth() / 6);
-        const debutSemestre = new Date(now.getFullYear(), semestre * 6, 1);
+        // 🔥 CORRECTION : Semestre = 6 derniers mois
+        const dateLimite = new Date(now);
+        dateLimite.setMonth(now.getMonth() - 6);
+        dateLimite.setHours(0, 0, 0, 0);
+
         filtered = items.filter((item: any) => {
-          const date = new Date(item[dateField]);
-          return date >= debutSemestre && date <= now;
+          const date = toDate(item[dateField]);
+          if (!date) return false;
+          date.setHours(0, 0, 0, 0);
+          return date >= dateLimite && date <= now;
         });
       } else if (periodeFilter === 'annee') {
-        const debutAnnee = new Date(now.getFullYear(), 0, 1);
+        // 🔥 CORRECTION : Année = 12 derniers mois
+        const dateLimite = new Date(now);
+        dateLimite.setFullYear(now.getFullYear() - 1);
+        dateLimite.setHours(0, 0, 0, 0);
+
         filtered = items.filter((item: any) => {
-          const date = new Date(item[dateField]);
-          return date >= debutAnnee && date <= now;
+          const date = toDate(item[dateField]);
+          if (!date) return false;
+          date.setHours(0, 0, 0, 0);
+          return date >= dateLimite && date <= now;
         });
       } else if (periodeFilter === 'deuxAns') {
-        const debutDeuxAns = new Date(now.getFullYear() - 2, 0, 1);
+        // 🔥 CORRECTION : 2 Ans = 24 derniers mois
+        const dateLimite = new Date(now);
+        dateLimite.setFullYear(now.getFullYear() - 2);
+        dateLimite.setHours(0, 0, 0, 0);
+
         filtered = items.filter((item: any) => {
-          const date = new Date(item[dateField]);
-          return date >= debutDeuxAns && date <= now;
+          const date = toDate(item[dateField]);
+          if (!date) return false;
+          date.setHours(0, 0, 0, 0);
+          return date >= dateLimite && date <= now;
         });
       } else if (periodeFilter === 'personnalise' && dateRange.debut && dateRange.fin) {
         const debut = new Date(dateRange.debut);
+        debut.setHours(0, 0, 0, 0);
         const fin = new Date(dateRange.fin);
+        fin.setHours(23, 59, 59, 999);
+
         filtered = items.filter((item: any) => {
-          const date = new Date(item[dateField]);
+          const date = toDate(item[dateField]);
+          if (!date) return false;
           return date >= debut && date <= fin;
         });
       }
+
+      // 🔍 DÉBOGAGE
 
       return filtered;
     }, [periodeFilter, dateRange]);
@@ -2732,8 +3143,37 @@ useEffect(() => {
       const filteredReservations = filterByPeriode(allReservations, 'createdAt');
 
       // 4. FILTRER LES FACTURES PAR PÉRIODE (dateCreation)
-      const filteredFactures = filterByPeriode(agentFactures, 'dateCreation');
+      const filteredFactures = agentFactures.filter((f: any) => {
+        // Si la facture n'a pas de dateCreation, on la garde (comptabilité)
+        if (!f.dateCreation) return true;
 
+        const date = new Date(f.dateCreation);
+        const now = new Date();
+
+        if (periodeFilter === 'mois') {
+          const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
+          return date >= debutMois && date <= now;
+        } else if (periodeFilter === 'trimestre') {
+          const trimestre = Math.floor(now.getMonth() / 3);
+          const debutTrimestre = new Date(now.getFullYear(), trimestre * 3, 1);
+          return date >= debutTrimestre && date <= now;
+        } else if (periodeFilter === 'semestre') {
+          const semestre = Math.floor(now.getMonth() / 6);
+          const debutSemestre = new Date(now.getFullYear(), semestre * 6, 1);
+          return date >= debutSemestre && date <= now;
+        } else if (periodeFilter === 'annee') {
+          const debutAnnee = new Date(now.getFullYear(), 0, 1);
+          return date >= debutAnnee && date <= now;
+        } else if (periodeFilter === 'deuxAns') {
+          const debutDeuxAns = new Date(now.getFullYear() - 2, 0, 1);
+          return date >= debutDeuxAns && date <= now;
+        } else if (periodeFilter === 'personnalise' && dateRange.debut && dateRange.fin) {
+          const debut = new Date(dateRange.debut);
+          const fin = new Date(dateRange.fin);
+          return date >= debut && date <= fin;
+        }
+        return true;
+      });
       // 5. CALCUL DES STATISTIQUES
 
       // 📊 TOTAL = Nombre total de réservations
@@ -2759,24 +3199,64 @@ useEffect(() => {
 
       // 📄 FACTURES = Nombre de factures validées par la comptabilité (payées)
       // ✅ FILTRER UNIQUEMENT LES FACTURES VALIDÉES
-      const facturesValidees = filteredFactures.filter((f: any) =>
-        f.validationComptable === true ||
-        f.statut === 'Validée' ||
-        f.statutPaiement === 'Payé'
-      ).length;
+      const facturesValidees = filteredFactures.filter((f: any) => {
+        // Vérification au niveau racine
+        if (f.validationComptable === true ||
+          f.statut === 'Validée' ||
+          f.statutPaiement === 'Payé') {
+          return true;
+        }
+
+        // Vérification dans les lignes
+        if (f.lignes && f.lignes.length > 0) {
+          return f.lignes.some((ligne: any) =>
+            ligne.validationComptable === true ||
+            ligne.statut === 'Validée' ||
+            ligne.statutPaiement === 'Payé'
+          );
+        }
+
+        return false;
+      }).length;
 
       // 💰 CA = Somme totale de l'argent encaissé par l'agent
       // ✅ SOMME UNIQUEMENT DES FACTURES VALIDÉES
       const revenue = filteredFactures
-        .filter((f: any) =>
-          f.validationComptable === true ||
-          f.statut === 'Validée' ||
-          f.statutPaiement === 'Payé'
-        )
+        .filter((f: any) => {
+          // Vérification au niveau racine
+          if (f.validationComptable === true ||
+            f.statut === 'Validée' ||
+            f.statutPaiement === 'Payé') {
+            return true;
+          }
+
+          // Vérification dans les lignes
+          if (f.lignes && f.lignes.length > 0) {
+            return f.lignes.some((ligne: any) =>
+              ligne.validationComptable === true ||
+              ligne.statut === 'Validée' ||
+              ligne.statutPaiement === 'Payé'
+            );
+          }
+
+          return false;
+        })
         .reduce((sum: number, f: any) => {
-          // Utiliser totalHT ou total ou montant selon la structure
-          const montant = f.totalHT || f.total || f.montant || 0;
-          return sum + montant;
+          let totalFacture = 0;
+
+          // Parcourir toutes les lignes de la facture
+          if (f.lignes && f.lignes.length > 0) {
+            f.lignes.forEach((ligne: any) => {
+              totalFacture += ligne.total || 0;
+            });
+          }
+
+          // Si pas de lignes, utiliser les champs racine
+          if (totalFacture === 0) {
+            totalFacture = f.totalHT || f.total || f.montant || 0;
+          }
+
+          return sum + totalFacture;
         }, 0);
 
       // Réservations expirées (pour information)
@@ -2787,13 +3267,27 @@ useEffect(() => {
         return dateFin < now && r.validationComptable === false;
       }).length;
 
-      // 🔍 DÉBOGAGE - Afficher les factures trouvées
-      console.log(`📊 Statistiques pour ${agent.email}:`);
-      console.log(`  📄 Factures totales: ${agentFactures.length}`);
-      console.log(`  📄 Factures filtrées: ${filteredFactures.length}`);
-      console.log(`  ✅ Factures validées: ${facturesValidees}`);
-      console.log(`  💰 CA total: ${revenue} $`);
-      console.log(`  📋 Réservations: ${total}`);
+
+      if (filteredFactures.length > 0) {
+        console.log(`  📄 Détail des ${filteredFactures.length} factures:`);
+        filteredFactures.forEach((f: any, idx: number) => {
+          const lignes = f.lignes || [];
+          let total = 0;
+          lignes.forEach((l: any) => {
+            total += l.total || 0;
+          });
+          if (total === 0) total = f.totalHT || f.total || f.montant || 0;
+
+          console.log(`    ${idx + 1}. ${f.factureIdFormat || f.id} - Total: ${total} $ - Statut: ${f.statut} - Paiement: ${f.statutPaiement} - Validée: ${f.validationComptable}`);
+
+          if (lignes.length > 0) {
+            lignes.forEach((l: any, li: number) => {
+              console.log(`       Ligne ${li + 1}: ${l.total} $ - ${l.statut || 'N/A'} - ${l.statutPaiement || 'N/A'}`);
+            });
+          }
+        });
+      }
+
 
       return {
         total,           // 📊 Total des réservations
@@ -2846,9 +3340,33 @@ useEffect(() => {
     // Meilleur agent (proclamation)
     const topAgent = useMemo(() => {
       if (filteredAgents.length === 0) return null;
-      return filteredAgents.reduce((a: any, b: any) =>
+
+      // Trouver l'agent avec le plus grand CA
+      const topByRevenue = filteredAgents.reduce((a: any, b: any) =>
         a.stats.revenue > b.stats.revenue ? a : b
       );
+
+      // Si le CA est > 0, c'est le meilleur
+      if (topByRevenue.stats.revenue > 0) {
+        return topByRevenue;
+      }
+
+      // Sinon, trouver l'agent avec le plus de réservations
+      const topByReservations = filteredAgents.reduce((a: any, b: any) =>
+        a.stats.total > b.stats.total ? a : b
+      );
+
+      // Si l'agent a des réservations, c'est le meilleur
+      if (topByReservations.stats.total > 0) {
+        return {
+          ...topByReservations,
+          // Ajouter un message spécial pour indiquer que c'est basé sur les réservations
+          _topBy: 'reservations'
+        };
+      }
+
+      // Si aucun agent n'a de CA ni de réservations, retourner null
+      return null;
     }, [filteredAgents]);
 
     // Totaux
@@ -2878,10 +3396,26 @@ useEffect(() => {
               placeholder="🔍 Rechercher..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 sm:flex-none px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="flex-1 sm:flex-none px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
             <button
-              onClick={onExport}
+              onClick={() => {
+                const periodeTexte = periodeFilter === 'mois' ? 'Ce mois-ci' :
+                  periodeFilter === 'trimestre' ? 'Dernier trimestre' :
+                    periodeFilter === 'semestre' ? 'Dernier semestre' :
+                      periodeFilter === 'annee' ? 'Cette année' :
+                        periodeFilter === 'deuxAns' ? '2 dernières années' :
+                          periodeFilter === 'personnalise' ? `Du ${dateRange.debut} au ${dateRange.fin}` :
+                            'Toutes les périodes';
+
+                onExport({
+                  agents: filteredAgents,
+                  periode: periodeTexte,
+                  dateRange: dateRange,
+                  totals: totals,
+                  topAgent: topAgent
+                });
+              }}
               className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-200 transition"
             >
               📄 Exporter
@@ -2933,8 +3467,7 @@ useEffect(() => {
         </div>
 
         {/* Proclamation - Meilleur agent */}
-        {/* Proclamation - Meilleur agent */}
-        {topAgent && topAgent.stats && topAgent.stats.revenue > 0 && (
+        {topAgent && topAgent.stats && (
           <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/50 rounded-xl p-2 sm:p-3 flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-black text-sm sm:text-lg shadow-lg">
@@ -2944,8 +3477,27 @@ useEffect(() => {
                 <p className="text-[10px] sm:text-sm font-black text-gray-800">
                   {topAgent.nomComplet || topAgent.nom || 'Agent'}
                 </p>
-                <p className="text-[8px] sm:text-[10px] text-amber-600 font-bold">
-                  🏆 Meilleur agent - {topAgent.stats.revenue.toLocaleString()} $ de CA
+                {topAgent.stats.revenue > 0 ? (
+                  <p className="text-[8px] sm:text-[10px] text-amber-600 font-bold">
+                    🏆 Meilleur agent - {topAgent.stats.revenue.toLocaleString()} $ de CA
+                  </p>
+                ) : topAgent.stats.total > 0 ? (
+                  <p className="text-[8px] sm:text-[10px] text-blue-600 font-bold">
+                    📊 Meilleur agent - {topAgent.stats.total} réservation(s)
+                  </p>
+                ) : (
+                  <p className="text-[8px] sm:text-[10px] text-gray-500 font-bold">
+                    👤 Agent
+                  </p>
+                )}
+                {/* 🔥 AJOUT : Indicateur de la période */}
+                <p className="text-[6px] sm:text-[8px] text-gray-400 font-medium mt-0.5">
+                  {periodeFilter === 'mois' ? '📅 Ce mois-ci' :
+                    periodeFilter === 'trimestre' ? '📅 Dernier trimestre' :
+                      periodeFilter === 'semestre' ? '📅 Dernier semestre' :
+                        periodeFilter === 'annee' ? '📅 Cette année' :
+                          periodeFilter === 'deuxAns' ? '📅 2 dernières années' :
+                            periodeFilter === 'personnalise' ? `📅 ${dateRange.debut} → ${dateRange.fin}` : ''}
                 </p>
               </div>
             </div>
@@ -3108,7 +3660,7 @@ useEffect(() => {
 
 
   // ============================================
-  // COMPOSANT ADMIN RESERVATIONS TAB
+  // COMPOSANT ADMIN RESERVATIONS TAB - CORRIGÉ
   // ============================================
   const AdminReservationsTab = ({ panneaux, agents, onReservationAction, onExport }: {
     panneaux: Panneau[];
@@ -3124,19 +3676,37 @@ useEffect(() => {
     const [selectedReservation, setSelectedReservation] = useState<any>(null);
     const [isEditing, setIsEditing] = useState(false);
 
-    // Récupérer toutes les réservations
+    // 🔍 DÉBOGAGE - Voir la structure des agents
+    useEffect(() => {
+      if (agents && agents.length > 0) {
+        agents.forEach((agent: any, index: number) => {
+          console.log(`Agent ${index + 1}:`, {
+            nom: agent.nom || agent.nomComplet || agent.displayName || 'N/A',
+            email: agent.email || agent.id || 'N/A',
+            toutes_cles: Object.keys(agent || {})
+          });
+        });
+      }
+    }, [agents]);
+
+    // Récupérer toutes les réservations - CORRIGÉ
     const getAllReservations = useCallback(() => {
       const allRes: AdminReservation[] = [];
 
       panneaux.forEach((panneau: any) => {
-        (panneau.faces || []).forEach((face: any) => {
-          (face.reservations || []).forEach((res: any) => {
+        (panneau.faces || []).forEach((face: any, faceIndex: number) => {
+          (face.reservations || []).forEach((res: any, resIndex: number) => {
+            // ✅ Récupérer l'ID de la face correctement
+            const faceId = face.id || face.faceId || `face-${faceIndex}`;
+
             allRes.push({
-              id: res.id || `${panneau.id}-${face.id}-${Date.now()}`,
+              id: res.id || res.resId || `${panneau.id}-${faceId}-${Date.now()}`,
               agentNom: res.agentNom || 'N/A',
               agentEmail: res.agentEmail || 'N/A',
               societeLocatrice: res.societeLocatrice || 'N/A',
-              faceId: face.id || 'N/A',
+              faceId: faceId,
+              faceIndex: faceIndex,
+              resIndex: resIndex,
               panneauId: panneau.id,
               panneauIdPan: panneau.idPan || 'N/A',
               adresse: panneau.adresse || 'N/A',
@@ -3147,7 +3717,10 @@ useEffect(() => {
               statutPaiement: res.statutPaiement || 'en attente',
               validationComptable: res.validationComptable || false,
               createdAt: res.createdAt || new Date().toISOString(),
-              dateModification: res.dateModification || ''
+              dateModification: res.dateModification || '',
+              reservationData: res,
+              // ✅ Ajouter l'index de la face dans le panneau
+              faceIndexInPanneau: faceIndex
             });
           });
         });
@@ -3176,7 +3749,11 @@ useEffect(() => {
 
       // Filtre par agent
       if (selectedAgent !== 'tous') {
-        result = result.filter(r => r.agentEmail === selectedAgent);
+        result = result.filter(r => {
+          const emailReservation = (r.agentEmail || '').toLowerCase().trim();
+          const emailSelected = (selectedAgent || '').toLowerCase().trim();
+          return emailReservation === emailSelected;
+        });
       }
 
       // Filtre par période
@@ -3249,11 +3826,15 @@ useEffect(() => {
 
     // Ouvrir l'édition
     const openEditReservation = (reservation: any) => {
-      if (!reservation.validationComptable) {
+      console.log('🔍 Ouverture modification:', reservation);
+      console.log('📋 FaceId:', reservation.faceId);
+      console.log('📋 PanneauId:', reservation.panneauId);
+
+      if (!reservation.validationComptable && reservation.statutPaiement !== 'Payé') {
         setSelectedReservation(reservation);
         setIsEditing(true);
       } else {
-        alert('⚠️ Cette réservation est déjà validée par la comptabilité, modification impossible.');
+        alert('⚠️ Cette réservation est déjà validée ou payée, modification impossible.');
       }
     };
 
@@ -3273,22 +3854,41 @@ useEffect(() => {
               placeholder="🔍 Rechercher..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 sm:flex-none px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="flex-1 sm:flex-none px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             />
             <select
               value={selectedAgent}
-              onChange={(e) => setSelectedAgent(e.target.value)}
-              className="px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+              onChange={(e) => {
+                const value = e.target.value;
+                console.log('🔍 Agent sélectionné:', value);
+                setSelectedAgent(value);
+              }}
+              className="px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none min-w-[160px]"
             >
-              <option value="tous">👥 Tous les agents</option>
-              {agents.map((agent: any) => (
-                <option key={agent.email} value={agent.email}>{agent.nom}</option>
-              ))}
+              <option value="tous" className="text-gray-800">👥 Tous les agents</option>
+              {agents && agents.length > 0 ? (
+                agents
+                  .filter((agent: any) => agent && (agent.email || agent.id))
+                  .map((agent: any) => {
+                    const agentEmail = agent.email || agent.id || '';
+                    const agentName = agent.nomComplet || agent.nom || agent.displayName || agent.email?.split('@')[0] || 'Agent';
+                    const count = getAllReservations().filter(r =>
+                      (r.agentEmail || '').toLowerCase().trim() === (agentEmail || '').toLowerCase().trim()
+                    ).length;
+                    return (
+                      <option key={agentEmail} value={agentEmail} className="text-gray-800">
+                        {agentName} {count > 0 ? `(${count})` : ' (0)'}
+                      </option>
+                    );
+                  })
+              ) : (
+                <option value="" disabled className="text-gray-400">⚠️ Aucun agent disponible</option>
+              )}
             </select>
           </div>
         </div>
 
-        {/* Filtres */}
+        {/* Filtres Statut */}
         <div className="flex flex-wrap items-center gap-1 sm:gap-2 bg-white p-2 sm:p-3 rounded-xl border border-gray-200">
           <span className="text-[8px] sm:text-[10px] font-black text-gray-400 uppercase mr-1">Statut:</span>
           {[
@@ -3342,14 +3942,14 @@ useEffect(() => {
                 type="date"
                 value={dateRange.debut}
                 onChange={(e) => setDateRange({ ...dateRange, debut: e.target.value })}
-                className="px-1 sm:px-2 py-0.5 sm:py-1 bg-white border border-gray-200 rounded text-[8px] sm:text-xs"
+                className="px-1 sm:px-2 py-0.5 sm:py-1 bg-white border border-gray-200 rounded text-[8px] sm:text-xs text-gray-800"
               />
               <span className="text-[8px] sm:text-xs text-gray-400">→</span>
               <input
                 type="date"
                 value={dateRange.fin}
                 onChange={(e) => setDateRange({ ...dateRange, fin: e.target.value })}
-                className="px-1 sm:px-2 py-0.5 sm:py-1 bg-white border border-gray-200 rounded text-[8px] sm:text-xs"
+                className="px-1 sm:px-2 py-0.5 sm:py-1 bg-white border border-gray-200 rounded text-[8px] sm:text-xs text-gray-800"
               />
             </div>
           )}
@@ -3430,17 +4030,22 @@ useEffect(() => {
                           </button>
                           <button
                             onClick={() => openEditReservation(res)}
-                            className={`p-1 rounded transition ${res.validationComptable
-                              ? 'text-gray-300 cursor-not-allowed'
+                            className={`p-1 rounded transition ${res.validationComptable || res.statutPaiement === 'Payé'
+                              ? 'text-gray-300 cursor-not-allowed opacity-50'
                               : 'text-amber-600 hover:bg-amber-100'
                               }`}
-                            title={res.validationComptable ? 'Modification impossible' : 'Modifier'}
-                            disabled={res.validationComptable}
+                            title={res.validationComptable || res.statutPaiement === 'Payé'
+                              ? '❌ Modifiable - Réservation payée'
+                              : '✏️ Modifier'}
+                            disabled={res.validationComptable || res.statutPaiement === 'Payé'}
                           >
                             <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
                           </button>
                           <button
-                            onClick={() => onReservationAction('print', res)}
+                            onClick={() => {
+                              localStorage.setItem('facture_preview_data', JSON.stringify([res]));
+                              window.location.href = '/generationpdf';
+                            }}
                             className="p-1 text-purple-600 hover:bg-purple-100 rounded transition"
                             title="Imprimer la facture"
                           >
@@ -3476,7 +4081,6 @@ useEffect(() => {
               reservation={selectedReservation}
               agents={agents}
               onSave={(updatedRes) => {
-                // Mettre à jour la réservation
                 onReservationAction('update', updatedRes);
                 setIsEditing(false);
                 setSelectedReservation(null);
@@ -3488,9 +4092,8 @@ useEffect(() => {
     );
   };
 
-
   // ============================================
-  // MODAL D'ÉDITION DE RÉSERVATION
+  // MODAL D'ÉDITION DE RÉSERVATION - CORRIGÉ
   // ============================================
   const EditReservationModal = ({ isOpen, onClose, reservation, agents, onSave }: {
     isOpen: boolean;
@@ -3499,37 +4102,67 @@ useEffect(() => {
     agents: Agent[];
     onSave: (reservation: any) => void;
   }) => {
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
-      agentEmail: reservation?.agentEmail || '',
-      societeLocatrice: reservation?.societeLocatrice || '',
-      dateDebut: reservation?.dateDebut || '',
-      dateFin: reservation?.dateFin || '',
-      montant: reservation?.montant || 0
+      agentEmail: '',
+      agentNom: '',
+      societeLocatrice: '',
+      dateDebut: '',
+      dateFin: '',
+      montant: 0,
+      ancienAgentEmail: '',
+      ancienAgentNom: '',
+      ancienneSociete: '',
+      ancienneDateDebut: '',
+      ancienneDateFin: '',
+      ancienMontant: 0,
+      modification: false
     });
 
     useEffect(() => {
       if (reservation) {
         setFormData({
           agentEmail: reservation.agentEmail || '',
+          agentNom: reservation.agentNom || '',
           societeLocatrice: reservation.societeLocatrice || '',
           dateDebut: reservation.dateDebut || '',
           dateFin: reservation.dateFin || '',
-          montant: reservation.montant || 0
+          montant: reservation.montant || 0,
+          ancienAgentEmail: reservation.agentEmail || '',
+          ancienAgentNom: reservation.agentNom || '',
+          ancienneSociete: reservation.societeLocatrice || '',
+          ancienneDateDebut: reservation.dateDebut || '',
+          ancienneDateFin: reservation.dateFin || '',
+          ancienMontant: reservation.montant || 0,
+          modification: false
         });
       }
     }, [reservation]);
 
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      const agent = agents.find((a: any) => a.email === formData.agentEmail);
-      onSave({
+    const handlePrint = () => {
+      const reservationImprime = {
         ...reservation,
-        ...formData,
-        agentNom: agent?.nom || 'N/A',
-        dateModification: new Date().toISOString()
-      });
-    };
+        agentEmail: formData.agentEmail,
+        agentNom: formData.agentNom || formData.agentEmail?.split('@')[0] || 'Agent',
+        societeLocatrice: formData.societeLocatrice,
+        dateDebut: formData.dateDebut,
+        dateFin: formData.dateFin,
+        montant: formData.montant,
+        ancienAgentEmail: formData.ancienAgentEmail,
+        ancienAgentNom: formData.ancienAgentNom,
+        ancienneSociete: formData.ancienneSociete,
+        ancienneDateDebut: formData.ancienneDateDebut,
+        ancienneDateFin: formData.ancienneDateFin,
+        ancienMontant: formData.ancienMontant,
+        modification: true,
+        modifiePar: user?.email || 'admin',
+        modifieParNom: user?.nomComplet || user?.nom || 'Administrateur',
+        modifieLe: new Date().toISOString()
+      };
 
+      localStorage.setItem('facture_preview_data', JSON.stringify([reservationImprime]));
+      window.location.href = '/generationpdf';
+    };
     if (!isOpen) return null;
 
     return (
@@ -3547,119 +4180,243 @@ useEffect(() => {
 
         {/* Modal */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          className="fixed inset-4 sm:inset-8 md:inset-12 lg:inset-20 z-[301] bg-white rounded-2xl shadow-2xl flex flex-col max-w-2xl mx-auto border border-gray-200"
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="fixed inset-2 xs:inset-3 sm:inset-4 md:inset-8 lg:inset-12 xl:inset-16 z-[301] bg-white rounded-xl xs:rounded-2xl shadow-2xl flex flex-col max-w-3xl mx-auto border border-gray-200/50"
         >
-          <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-[#00539B] to-[#003A6B] rounded-t-2xl flex-shrink-0">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg sm:text-xl font-black text-white">Modifier la réservation</h2>
-              <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg text-white transition">
-                <X className="w-5 h-5" />
+
+          {/* ============================================================ */}
+          {/* HEADER - ULTRA RESPONSIVE */}
+          {/* ============================================================ */}
+          <div className="relative px-3 xs:px-4 sm:px-5 md:px-6 py-2 xs:py-2.5 sm:py-3 md:py-4 border-b border-gray-200/50 bg-gradient-to-r from-[#00539B] to-[#003A6B] rounded-t-xl xs:rounded-t-2xl flex-shrink-0">
+            <div className="absolute top-0 right-0 w-20 xs:w-28 sm:w-32 h-20 xs:h-28 sm:h-32 bg-purple-400/10 rounded-full blur-2xl" />
+            <div className="absolute bottom-0 left-0 w-16 xs:w-20 sm:w-24 h-16 xs:h-20 sm:h-24 bg-blue-400/10 rounded-full blur-xl" />
+
+            <div className="flex justify-between items-center relative z-10">
+              <div className="flex items-center gap-2 xs:gap-3 min-w-0">
+                <div className="w-0.5 xs:w-1 h-4 xs:h-5 sm:h-6 bg-gradient-to-b from-purple-400 to-purple-300 rounded-full flex-shrink-0" />
+                <div className="min-w-0">
+                  <h2 className="text-xs xs:text-sm sm:text-base md:text-lg font-black text-white leading-tight truncate">
+                    ✏️ Modifier la réservation
+                  </h2>
+                  <p className="text-[7px] xs:text-[8px] sm:text-[9px] text-blue-200 font-medium truncate max-w-[120px] xs:max-w-[180px] sm:max-w-[250px] md:max-w-[350px]">
+                    {reservation?.societeLocatrice || 'Réservation'} • {reservation?.panneauIdPan || 'N/A'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="group p-1.5 xs:p-2 hover:bg-red-500 hover:text-white rounded-lg xs:rounded-xl transition-all duration-300 text-white/80 hover:scale-105 active:scale-95 flex-shrink-0"
+              >
+                <X className="w-4 h-4 xs:w-5 xs:h-5 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" />
               </button>
             </div>
-            <p className="text-xs text-blue-200 font-medium mt-1">Modifiez les informations de la réservation</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-black text-gray-600 uppercase tracking-wider">Agent Commercial</label>
-                <select
-                  value={formData.agentEmail}
-                  onChange={(e) => setFormData({ ...formData, agentEmail: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                >
-                  {agents.map((agent: any) => (
-                    <option key={agent.email} value={agent.email}>{agent.nom} ({agent.email})</option>
-                  ))}
-                </select>
+          {/* ============================================================ */}
+          {/* CONTENU - ULTRA RESPONSIVE */}
+          {/* ============================================================ */}
+          <div className="flex-1 overflow-y-auto p-3 xs:p-4 sm:p-5 md:p-6 space-y-3 xs:space-y-4 custom-scrollbar bg-gray-50/30">
+
+            {/* 🔹 HISTORIQUE DES MODIFICATIONS */}
+            {reservation?.modification && (
+              <div className="bg-amber-50/90 border border-amber-200/70 rounded-xl p-2.5 xs:p-3 sm:p-3.5 shadow-sm">
+                <div className="flex items-center gap-1.5 xs:gap-2 mb-1.5 xs:mb-2">
+                  <span className="text-[10px] xs:text-xs">📜</span>
+                  <p className="text-[8px] xs:text-[9px] sm:text-[10px] font-black text-amber-700 uppercase tracking-wider">Historique</p>
+                </div>
+                <div className="grid grid-cols-2 gap-x-2 xs:gap-x-4 gap-y-0.5 xs:gap-y-1 text-[9px] xs:text-[10px] sm:text-xs text-amber-700">
+                  <div className="flex items-center gap-1">
+                    <span className="text-amber-500/70">Agent:</span>
+                    <span className="font-bold truncate">{reservation.ancienAgentNom || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-amber-500/70">Société:</span>
+                    <span className="font-bold truncate">{reservation.ancienneSociete || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-amber-500/70">Début:</span>
+                    <span className="font-bold truncate">{reservation.ancienneDateDebut || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-amber-500/70">Fin:</span>
+                    <span className="font-bold truncate">{reservation.ancienneDateFin || 'N/A'}</span>
+                  </div>
+                  <div className="col-span-2 flex items-center gap-1">
+                    <span className="text-amber-500/70">Mon tant:</span>
+                    <span className="font-bold">{reservation.ancienMontant?.toLocaleString()} $</span>
+                  </div>
+                  <div className="col-span-2 text-[7px] xs:text-[8px] text-amber-500 mt-0.5 flex items-center gap-1 flex-wrap">
+                    <span>✏️</span>
+                    <span>{reservation.modifieParNom || reservation.modifiePar || 'Inconnu'}</span>
+                    <span className="text-amber-300">•</span>
+                    <span>{reservation.modifieLe ? new Date(reservation.modifieLe).toLocaleDateString('fr-FR') : 'N/A'}</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-black text-gray-600 uppercase tracking-wider">Société Locatrice</label>
+            )}
+
+            {/* 🔹 DONNÉES ACTUELLES */}
+            <div className="bg-blue-50/70 border border-blue-200/50 rounded-xl p-2.5 xs:p-3 sm:p-3.5 shadow-sm">
+              <div className="flex items-center gap-1.5 xs:gap-2 mb-1.5 xs:mb-2">
+                <span className="text-[10px] xs:text-xs">📋</span>
+                <p className="text-[8px] xs:text-[9px] sm:text-[10px] font-black text-blue-600 uppercase tracking-wider">Données actuelles</p>
+              </div>
+              <div className="grid grid-cols-2 gap-x-2 xs:gap-x-4 gap-y-0.5 xs:gap-y-1 text-[9px] xs:text-[10px] sm:text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400">Agent:</span>
+                  <span className="font-bold text-gray-700 truncate">{reservation?.agentNom || 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400">Société:</span>
+                  <span className="font-bold text-gray-700 truncate">{reservation?.societeLocatrice || 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400">Début:</span>
+                  <span className="font-bold text-gray-700 truncate">{reservation?.dateDebut || 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400">Fin:</span>
+                  <span className="font-bold text-gray-700 truncate">{reservation?.dateFin || 'N/A'}</span>
+                </div>
+                <div className="col-span-2 flex items-center gap-1">
+                  <span className="text-gray-400">Montant:</span>
+                  <span className="font-bold text-[#00539B]">{reservation?.montant?.toLocaleString()} $</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 🔹 NOUVELLES DONNÉES */}
+            <div className="bg-green-50/60 border border-green-200/50 rounded-xl p-2.5 xs:p-3 sm:p-3.5 shadow-sm">
+              <div className="flex items-center gap-1.5 xs:gap-2 mb-2 xs:mb-3">
+                <span className="text-[10px] xs:text-xs">✏️</span>
+                <p className="text-[8px] xs:text-[9px] sm:text-[10px] font-black text-green-600 uppercase tracking-wider">Nouvelles données</p>
+              </div>
+
+              {/* Ligne 1 : Agent + Société */}
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 xs:gap-3">
+                <div>
+                  <label className="text-[7px] xs:text-[8px] sm:text-[9px] font-bold text-gray-500 uppercase tracking-wider block">Agent</label>
+                  <select
+                    value={formData.agentEmail}
+                    onChange={(e) => {
+                      const agent = agents.find((a: any) => a.email === e.target.value);
+                      setFormData({
+                        ...formData,
+                        agentEmail: e.target.value,
+                        agentNom: agent?.nom || '',
+                        modification: true
+                      });
+                    }}
+                    className="w-full mt-0.5 xs:mt-1 px-2 xs:px-3 py-1.5 xs:py-2 bg-white border border-gray-200 rounded-lg text-[10px] xs:text-xs sm:text-sm font-medium text-gray-800 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
+                  >
+                    {agents.map((agent: any) => (
+                      <option key={agent.email} value={agent.email}>
+                        {agent.nom} ({agent.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[7px] xs:text-[8px] sm:text-[9px] font-bold text-gray-500 uppercase tracking-wider block">Société</label>
+                  <input
+                    type="text"
+                    value={formData.societeLocatrice}
+                    onChange={(e) => setFormData({ ...formData, societeLocatrice: e.target.value, modification: true })}
+                    className="w-full mt-0.5 xs:mt-1 px-2 xs:px-3 py-1.5 xs:py-2 bg-white border border-gray-200 rounded-lg text-[10px] xs:text-xs sm:text-sm font-medium text-gray-800 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
+                    placeholder="Nom de la société"
+                  />
+                </div>
+              </div>
+
+              {/* Ligne 2 : Date Début + Date Fin */}
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 xs:gap-3 mt-2 xs:mt-3">
+                <div>
+                  <label className="text-[7px] xs:text-[8px] sm:text-[9px] font-bold text-gray-500 uppercase tracking-wider block">Début</label>
+                  <input
+                    type="date"
+                    value={formData.dateDebut}
+                    onChange={(e) => setFormData({ ...formData, dateDebut: e.target.value, modification: true })}
+                    className="w-full mt-0.5 xs:mt-1 px-2 xs:px-3 py-1.5 xs:py-2 bg-white border border-gray-200 rounded-lg text-[10px] xs:text-xs sm:text-sm font-medium text-gray-800 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label className="text-[7px] xs:text-[8px] sm:text-[9px] font-bold text-gray-500 uppercase tracking-wider block">Fin</label>
+                  <input
+                    type="date"
+                    value={formData.dateFin}
+                    onChange={(e) => setFormData({ ...formData, dateFin: e.target.value, modification: true })}
+                    className="w-full mt-0.5 xs:mt-1 px-2 xs:px-3 py-1.5 xs:py-2 bg-white border border-gray-200 rounded-lg text-[10px] xs:text-xs sm:text-sm font-medium text-gray-800 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
+                  />
+                </div>
+              </div>
+
+              {/* Ligne 3 : Montant */}
+              <div className="mt-2 xs:mt-3">
+                <label className="text-[7px] xs:text-[8px] sm:text-[9px] font-bold text-gray-500 uppercase tracking-wider block">Montant ($)</label>
                 <input
                   type="text"
-                  value={formData.societeLocatrice}
-                  onChange={(e) => setFormData({ ...formData, societeLocatrice: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                  required
+                  value={formData.montant === 0 ? '' : formData.montant}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                    setFormData({
+                      ...formData,
+                      montant: val === '' ? 0 : Number(val),
+                      modification: true
+                    });
+                  }}
+                  onFocus={(e) => {
+                    if (e.target.value === '0' || e.target.value === '') {
+                      e.target.value = '';
+                    }
+                  }}
+                  placeholder="0"
+                  className="w-full mt-0.5 xs:mt-1 px-2 xs:px-3 py-1.5 xs:py-2 bg-white border border-gray-200 rounded-lg text-[10px] xs:text-xs sm:text-sm font-medium text-gray-800 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-black text-gray-600 uppercase tracking-wider">Date Début</label>
-                <input
-                  type="date"
-                  value={formData.dateDebut}
-                  onChange={(e) => setFormData({ ...formData, dateDebut: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-xs font-black text-gray-600 uppercase tracking-wider">Date Fin</label>
-                <input
-                  type="date"
-                  value={formData.dateFin}
-                  onChange={(e) => setFormData({ ...formData, dateFin: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                  required
-                />
-              </div>
+            {/* 🔹 AVERTISSEMENT */}
+            <div className="bg-blue-50/70 border border-blue-200/50 rounded-lg p-2 xs:p-2.5 sm:p-3 text-[8px] xs:text-[9px] sm:text-[10px] text-blue-600 flex items-start gap-1.5">
+              <span className="text-[10px] xs:text-xs mt-0.5">⚠️</span>
+              <span>Les anciennes données seront sauvegardées dans l'historique. Les nouvelles données seront utilisées pour l'impression.</span>
             </div>
+          </div>
 
-            <div>
-              <label className="text-xs font-black text-gray-600 uppercase tracking-wider">Montant ($)</label>
-              <input
-                type="number"
-                value={formData.montant}
-                onChange={(e) => setFormData({ ...formData, montant: Number(e.target.value) })}
-                className="w-full mt-1 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                min="0"
-                step="0.01"
-                required
-              />
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-              ⚠️ La validation comptable est <strong>désactivée</strong> pour cette réservation. Vous pouvez la modifier.
-            </div>
-          </form>
-
-          <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex flex-col sm:flex-row justify-between items-center gap-3 flex-shrink-0">
+          {/* ============================================================ */}
+          {/* FOOTER - ULTRA RESPONSIVE - SANS BOUTON ENREGISTRER */}
+          {/* ============================================================ */}
+          <div className="px-3 xs:px-4 sm:px-5 md:px-6 py-2 xs:py-2.5 sm:py-3 md:py-4 border-t border-gray-200/50 bg-gray-50/90 rounded-b-xl xs:rounded-b-2xl flex flex-wrap justify-between items-center gap-1.5 xs:gap-2 flex-shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-6 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-300 transition"
+              className="px-3 xs:px-4 sm:px-5 md:px-6 py-1.5 xs:py-2 bg-gray-200 text-gray-700 rounded-lg xs:rounded-xl font-bold text-[9px] xs:text-[10px] sm:text-xs hover:bg-gray-300 transition active:scale-95"
             >
-              Annuler
+              ❌ Fermer
             </button>
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="w-full sm:w-auto px-6 py-2 bg-purple-100 text-purple-700 rounded-xl font-bold text-sm hover:bg-purple-200 transition flex items-center justify-center gap-2"
-              >
-                <Printer className="w-4 h-4" />
-                Imprimer
-              </button>
-              <button
-                type="submit"
-                onClick={handleSubmit}
-                className="w-full sm:w-auto px-6 py-2 bg-[#00539B] text-white rounded-xl font-bold text-sm hover:bg-[#003A6B] transition"
-              >
-                💾 Enregistrer
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={!formData.modification}
+              className={`px-3 xs:px-4 sm:px-5 md:px-6 py-1.5 xs:py-2 rounded-lg xs:rounded-xl font-bold text-[9px] xs:text-[10px] sm:text-xs transition flex items-center gap-1.5 xs:gap-2 active:scale-95 ${formData.modification
+                  ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:shadow-lg hover:shadow-purple-500/30'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+            >
+              <Printer className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4" />
+              <span>Imprimer</span>
+              {formData.modification && (
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse ml-0.5" />
+              )}
+            </button>
           </div>
+
         </motion.div>
       </>
     );
   };
-
   // ============================================
   // COMPOSANT ADMIN RDV TAB (CORRIGÉ)
   // ============================================
@@ -4121,10 +4878,9 @@ useEffect(() => {
               </button>
 
 
-              {/* ============================================================ */}
-              {/* ✅ BOUTON ADMIN - UNIQUEMENT POUR LES ADMINISTRATEURS */}
-              {/* ============================================================ */}
-              {(isAdmin || isUserAdmin) && (
+
+              {/* Afficher uniquement si le composant est monté côté client */}
+              {isMounted && (isAdmin || isUserAdmin) && (
                 <>
                   <div className="w-px h-4 xs:h-5 sm:h-6 bg-white/20 hidden xs:block" />
                   <button
@@ -5082,9 +5838,12 @@ useEffect(() => {
             </>
           )}
         </AnimatePresence>{/* CONTENU */}
+
+
         {/* ============================================================ */}
         {/* ✅ MODAL ADMIN - DOIT ÊTRE ICI ! */}
         {/* ============================================================ */}
+
         <AnimatePresence>
           {isAdminModalOpen && (
             <>
@@ -5105,46 +5864,55 @@ useEffect(() => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="fixed inset-4 sm:inset-8 md:inset-12 lg:inset-20 z-[201] bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl flex flex-col border border-white/20 overflow-hidden"
+                className="fixed inset-3 xs:inset-4 sm:inset-6 md:inset-10 lg:inset-16 z-[201] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl flex flex-col border border-white/20 overflow-hidden"
               >
-                {/* HEADER */}
-                <div className="relative p-4 sm:p-6 border-b border-gray-200/50 bg-gradient-to-r from-[#00539B] to-[#003A6B] flex-shrink-0">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-purple-400/10 rounded-full blur-3xl" />
-                  <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/10 rounded-full blur-2xl" />
+                {/* ============================================================ */}
+                {/* HEADER RÉDUIT - Plus compact */}
+                {/* ============================================================ */}
+                <div className="relative px-3 xs:px-4 sm:px-5 py-1.5 xs:py-2 sm:py-2.5 border-b border-gray-200/50 bg-gradient-to-r from-[#00539B] to-[#003A6B] flex-shrink-0">
+                  <div className="absolute top-0 right-0 w-32 sm:w-40 md:w-48 h-32 sm:h-40 md:h-48 bg-purple-400/10 rounded-full blur-2xl" />
+                  <div className="absolute bottom-0 left-0 w-24 sm:w-32 h-24 sm:h-32 bg-blue-400/10 rounded-full blur-xl" />
 
                   <div className="flex justify-between items-center relative z-10">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="w-1 h-6 bg-gradient-to-b from-purple-400 to-purple-300 rounded-full" />
-                        <p className="text-[10px] font-black text-purple-300 uppercase tracking-[0.3em]">Administration</p>
+                    <div className="flex items-center gap-1.5 xs:gap-2">
+                      {/* Icône réduite */}
+                      <div className="w-1 h-4 sm:h-5 bg-gradient-to-b from-purple-400 to-purple-300 rounded-full" />
+                      <div>
+                        {/* Titre réduit */}
+                        <p className="text-[7px] xs:text-[8px] sm:text-[9px] font-black text-purple-300 uppercase tracking-[0.2em]">
+                          Administration
+                        </p>
+                        <h2 className="text-sm xs:text-base sm:text-lg md:text-xl font-black text-white leading-tight">
+                          Panel <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-300">Admin</span>
+                        </h2>
+                        <p className="text-[6px] xs:text-[7px] sm:text-[8px] text-blue-200 font-medium hidden xs:block">
+                          Gestion des agents, réservations et rendez-vous
+                        </p>
                       </div>
-                      <h2 className="text-2xl sm:text-3xl font-black text-white">
-                        Panel <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-300">Admin</span>
-                      </h2>
-                      <p className="text-xs text-blue-200 font-bold mt-1">
-                        Gestion des agents commerciaux, réservations et rendez-vous
-                      </p>
                     </div>
+                    {/* Bouton fermer réduit */}
                     <button
                       onClick={() => setIsAdminModalOpen(false)}
-                      className="group p-2.5 bg-white/20 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-white backdrop-blur-sm border border-white/20 hover:border-red-500"
+                      className="group p-1.5 xs:p-2 bg-white/20 hover:bg-red-500 hover:text-white rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 text-white backdrop-blur-sm border border-white/20 hover:border-red-500"
                     >
-                      <X className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-300" />
+                      <X className="w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" />
                     </button>
                   </div>
                 </div>
 
-                {/* TABS NAVIGATION */}
-                <div className="flex border-b border-gray-200/50 bg-gray-50/50 px-4 sm:px-6 gap-1 sm:gap-2 flex-shrink-0">
+                {/* ============================================================ */}
+                {/* TABS NAVIGATION - Plus compact */}
+                {/* ============================================================ */}
+                <div className="flex border-b border-gray-200/50 bg-gray-50/50 px-2 xs:px-3 sm:px-4 gap-0.5 xs:gap-1 sm:gap-1.5 flex-shrink-0 overflow-x-auto">
                   {[
-                    { id: 'agents', label: '👥 Agents Commerciaux' },
-                    { id: 'reservations', label: '📋 Réservations' },
-                    { id: 'rdv', label: '📅 Rendez-vous' }
+                    { id: 'agents', label: '👥 Agents' },
+                    { id: 'reservations', label: '📋 Réserv.' },
+                    { id: 'rdv', label: '📅 RDV' }
                   ].map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setAdminActiveTab(tab.id as any)}
-                      className={`px-3 sm:px-5 py-2.5 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all relative ${adminActiveTab === tab.id
+                      className={`px-2 xs:px-3 sm:px-4 py-1.5 xs:py-2 sm:py-2.5 text-[8px] xs:text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all relative whitespace-nowrap ${adminActiveTab === tab.id
                         ? 'text-[#00539B]'
                         : 'text-gray-400 hover:text-gray-600'
                         }`}
@@ -5153,33 +5921,36 @@ useEffect(() => {
                       {adminActiveTab === tab.id && (
                         <motion.div
                           layoutId="adminTabIndicator"
-                          className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                          className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
                         />
                       )}
                     </button>
                   ))}
                 </div>
 
+                {/* ============================================================ */}
                 {/* CONTENU */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar bg-gray-50/30">
+                {/* ============================================================ */}
+                <div className="flex-1 overflow-y-auto p-2 xs:p-3 sm:p-4 custom-scrollbar bg-gray-50/30">
                   {adminLoading ? (
                     <div className="flex items-center justify-center h-full">
-                      <Loader2 className="w-8 h-8 text-[#00539B] animate-spin" />
+                      <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 text-[#00539B] animate-spin" />
                     </div>
                   ) : (
                     <>
-                      {/* Onglet Agents */}
                       {adminActiveTab === 'agents' && (
                         <AdminAgentsTab
                           agents={agents}
                           panneaux={panneaux}
                           factures={factures}
                           onAgentAction={handleAgentAction}
-                          onExport={() => exportAdminReport('agents')}
+                          onExport={(data) => {
+                            console.log('📄 Export des agents avec données:', data);
+                            exportAgentsPDF(data);
+                          }}
                         />
                       )}
 
-                      {/* Onglet Réservations */}
                       {adminActiveTab === 'reservations' && (
                         <AdminReservationsTab
                           panneaux={panneaux}
@@ -5189,7 +5960,6 @@ useEffect(() => {
                         />
                       )}
 
-                      {/* Onglet Rendez-vous */}
                       {adminActiveTab === 'rdv' && (
                         <AdminRdvTab
                           rdvList={rdvList}
@@ -5200,17 +5970,15 @@ useEffect(() => {
                     </>
                   )}
                 </div>
-
-                {/* FOOTER MODAL */}
-                <div className="p-4 border-t border-gray-200/50 bg-gray-50/50 flex-shrink-0 flex justify-between items-center">
-                  <p className="text-xs text-gray-400 font-medium">
-                    {adminActiveTab === 'agents' && `${agents.length} agent(s) commerciaux`}
-                    {adminActiveTab === 'reservations' && `${panneaux.length} panneau(x) enregistré(s)`}
-                    {adminActiveTab === 'rdv' && `${rdvList.length} rendez-vous programmé(s)`}
+                <div className="px-3 xs:px-4 sm:px-5 py-1.5 xs:py-2 sm:py-2.5 border-t border-gray-200/50 bg-gray-50/50 flex-shrink-0 flex flex-wrap justify-between items-center gap-1">
+                  <p className="text-[7px] xs:text-[8px] sm:text-[9px] text-gray-400 font-medium">
+                    {adminActiveTab === 'agents' && `👥 ${agents.length} agent(s)`}
+                    {adminActiveTab === 'reservations' && `📋 ${panneaux.length} panneau(x)`}
+                    {adminActiveTab === 'rdv' && `📅 ${rdvList.length} RDV`}
                   </p>
                   <button
                     onClick={() => setIsAdminModalOpen(false)}
-                    className="px-6 py-2 bg-[#00539B] text-white rounded-xl font-bold text-sm hover:bg-[#003A6B] transition active:scale-95"
+                    className="px-3 xs:px-4 sm:px-5 py-1 xs:py-1.5 sm:py-2 bg-[#00539B] text-white rounded-lg font-bold text-[10px] xs:text-xs sm:text-sm hover:bg-[#003A6B] transition active:scale-95"
                   >
                     Fermer
                   </button>
@@ -5219,7 +5987,6 @@ useEffect(() => {
             </>
           )}
         </AnimatePresence>
-
 
 
 

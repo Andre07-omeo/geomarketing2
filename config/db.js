@@ -57,7 +57,7 @@ const UPLOAD_PRESET = process.env.NEXT_PUBLIC_UPLOAD_PRESET || "panneaux";
 // 4. LOGO ET CONSTANTES
 // ============================================
 const LOGO_DISPROMALT = process.env.NEXT_PUBLIC_LOGO_URL || "https://res.cloudinary.com/dn7wnikzp/image/upload/v1773690069/vvrno0qyzvo9cujavqcj.jpg";
-const TYPES_SUPPORTS = ["LED", "Bache", "Vinyle"];
+const TYPES_SUPPORTS = ["LED", "Bache", "Tri vision"];
 const STATUTS_POSSIBLES = ["Libre", "Occupé", "En Maintenance", "Réservé"];
 
 // ============================================

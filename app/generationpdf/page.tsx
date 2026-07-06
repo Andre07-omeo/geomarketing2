@@ -12,7 +12,7 @@ const config = require('../../config/db');
 // FIREBASE - Utilisation de la config
 // ============================================
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, collection, addDoc, doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, doc, updateDoc, getDoc, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { getAuth } from "firebase/auth";
 
 const app = getApps().length > 0 ? getApp() : initializeApp(config.firebaseConfig);
@@ -24,6 +24,62 @@ const DispromaltPrintLayer = () => {
   const [factureData, setFactureData] = useState<any>(null);
   const [zoom, setZoom] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
+  const [isModification, setIsModification] = useState(false);
+  const [reservationData, setReservationData] = useState<any>(null);
+  const [factureNumber, setFactureNumber] = useState<string>('');
+
+  // ✅ Fonction pour générer le numéro de facture
+  const generateFactureNumber = async () => {
+    try {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const datePrefix = `${year}${month}${day}`;
+
+      // ✅ Récupérer la dernière facture de la journée
+      const facturesRef = collection(db, "factures");
+      const q = query(
+        facturesRef,
+        orderBy("dateCreation", "desc"),
+        limit(1)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      let lastNumber = 0;
+      
+      if (!querySnapshot.empty) {
+        const lastDoc = querySnapshot.docs[0];
+        const lastData = lastDoc.data();
+        const lastFactureId = lastData.factureIdFormat || '';
+        
+        // ✅ Extraire le numéro séquentiel
+        if (lastFactureId.startsWith(datePrefix)) {
+          const sequentialPart = lastFactureId.substring(datePrefix.length);
+          lastNumber = parseInt(sequentialPart, 10) || 0;
+        }
+      }
+      
+      // ✅ Incrémenter le numéro
+      const newNumber = lastNumber + 1;
+      const sequentialStr = String(newNumber).padStart(2, '0');
+      const newFactureId = `${datePrefix}${sequentialStr}`;
+      
+      setFactureNumber(newFactureId);
+      return newFactureId;
+      
+    } catch (error) {
+      console.error('Erreur génération numéro facture:', error);
+      // ✅ Fallback : générer un numéro avec timestamp
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const fallbackId = `${year}${month}${day}01`;
+      setFactureNumber(fallbackId);
+      return fallbackId;
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -39,68 +95,182 @@ const DispromaltPrintLayer = () => {
   }, []);
 
   useEffect(() => {
-    const rawData = localStorage.getItem('facture_preview_data');
-    if (rawData) {
-      try {
-        const decodedData = JSON.parse(rawData);
-        let cumulHT = 0;
-        const lines = decodedData.map((item: any) => {
-          const pu = Number(item.prixSaisi || 0);
-          const qte = Number(item.dureeMois || 1);
-          const total = pu * qte;
-          cumulHT += total;
+    const loadData = async () => {
+      const rawData = localStorage.getItem('facture_preview_data');
+      if (rawData) {
+        try {
+          const decodedData = JSON.parse(rawData);
+          const firstItem = decodedData[0];
           
-          const modePaiement = item.modePaiement || 'total';
-          const nombreTranches = item.nombreTranches || 1;
+          // ✅ Vérifier si c'est une modification
+          const isModif = firstItem?.modification === true;
+          setIsModification(isModif);
           
-          return {
-            qte,
-            idFace: item.idFace,
-            label: item.faceLabel,
-            adresse: item.adresse,
-            pu,
-            total,
-            dateDebut: item.dateDebut || "...",
-            dateFin: item.dateFin || "...",
-            type: item.type || "N/A",
-            modePaiement: modePaiement,
-            nombreTranches: nombreTranches,
-            montantParTranche: modePaiement === 'tranche' && nombreTranches > 1 
-              ? total / nombreTranches 
-              : 0
-          };
-        });
+          // ✅ Stocker les données de réservation pour la mise à jour
+          setReservationData(firstItem);
 
-        setFactureData({
-          factureId: decodedData[0].factureIdFormat || "N/A",
-          client: decodedData[0].societeLocatrice,
-          agent: decodedData[0].agentNom || "N/A",
-          email: decodedData[0].agentEmail || "",
-          lignes: lines,
-          totalHT: cumulHT,
-        });
-      } catch (e) { console.error(e); }
-    }
+          // ✅ Générer le numéro de facture
+          const newFactureId = await generateFactureNumber();
+
+          let cumulHT = 0;
+          const lines = decodedData.map((item: any) => {
+            const pu = Number(item.prixSaisi || item.montant || 0);
+            const qte = Number(item.dureeMois || 1);
+            const total = pu * qte;
+            cumulHT += total;
+            
+            const modePaiement = item.modePaiement || 'total';
+            const nombreTranches = item.nombreTranches || 1;
+            
+            return {
+              qte,
+              idFace: item.idFace || item.faceId || 'N/A',
+              label: item.faceLabel || item.label || item.idFace || 'N/A',
+              adresse: item.adresse || item.panneauAdresse || '',
+              pu,
+              total,
+              dateDebut: item.dateDebut || "...",
+              dateFin: item.dateFin || "...",
+              type: item.type || "N/A",
+              modePaiement: modePaiement,
+              nombreTranches: nombreTranches,
+              montantParTranche: modePaiement === 'tranche' && nombreTranches > 1 
+                ? total / nombreTranches 
+                : 0
+            };
+          });
+
+          setFactureData({
+            factureId: newFactureId,
+            client: firstItem.societeLocatrice || firstItem.clientNom || 'CLIENT',
+            agent: firstItem.agentNom || 'Agent',
+            email: firstItem.agentEmail || '',
+            lignes: lines,
+            totalHT: cumulHT,
+            originalData: firstItem,
+            isModification: isModif
+          });
+        } catch (e) { 
+          console.error('Erreur chargement données:', e); 
+        }
+      }
+    };
+    
+    loadData();
   }, []);
 
+  // ============================================
+  // HANDLE PRINT AND SAVE - CORRIGÉ
+  // ============================================
   const handlePrintAndSave = async () => {
     if (isSaving) return;
     setIsSaving(true);
 
     try {
+      // ✅ Imprimer d'abord
       window.print();
 
       const rawData = localStorage.getItem('facture_preview_data');
-      if (!rawData) return;
+      if (!rawData) {
+        throw new Error('Aucune donnée trouvée');
+      }
+      
       const items = JSON.parse(rawData);
+      const firstItem = items[0];
 
+      // ✅ Vérifier si c'est une modification
+      const isModification = firstItem?.modification === true;
+
+      // ✅ Si c'est une modification, on met à jour la réservation existante
+      if (isModification && firstItem?.panelDocId && firstItem?.faceIndex !== undefined) {
+        console.log('🔄 Mise à jour de la réservation existante (modification)');
+        
+        const panneauRef = doc(db, "panneaux", firstItem.panelDocId);
+        const panneauSnap = await getDoc(panneauRef);
+
+        if (panneauSnap.exists()) {
+          const data = panneauSnap.data();
+          const currentFaces = [...(data.faces || [])];
+          const faceIndex = firstItem.faceIndex;
+          
+          if (currentFaces[faceIndex]) {
+            const faceReservations = currentFaces[faceIndex].reservations || [];
+            
+            const updatedReservations = faceReservations.map((r: any) => {
+              const isMatch = 
+                r.createdAt === firstItem.createdAt || 
+                (r.dateDebut === firstItem.dateDebut && 
+                 r.societeLocatrice === firstItem.societeLocatrice);
+              
+              if (isMatch) {
+                return {
+                  ...r,
+                  agentEmail: firstItem.agentEmail || r.agentEmail,
+                  agentNom: firstItem.agentNom || r.agentNom,
+                  societeLocatrice: firstItem.societeLocatrice || r.societeLocatrice,
+                  dateDebut: firstItem.dateDebut || r.dateDebut,
+                  dateFin: firstItem.dateFin || r.dateFin,
+                  montant: firstItem.montant || r.montant,
+                  ancienAgentEmail: firstItem.ancienAgentEmail || r.agentEmail,
+                  ancienAgentNom: firstItem.ancienAgentNom || r.agentNom,
+                  ancienneSociete: firstItem.ancienneSociete || r.societeLocatrice,
+                  ancienneDateDebut: firstItem.ancienneDateDebut || r.dateDebut,
+                  ancienneDateFin: firstItem.ancienneDateFin || r.dateFin,
+                  ancienMontant: firstItem.ancienMontant || r.montant,
+                  modification: true,
+                  modifiePar: firstItem.modifiePar || 'admin',
+                  modifieParNom: firstItem.modifieParNom || 'Administrateur',
+                  modifieLe: firstItem.modifieLe || new Date().toISOString(),
+                  dateModification: new Date().toISOString(),
+                  facturee: "oui",
+                  modePaiement: firstItem.modePaiement || r.modePaiement || 'total',
+                  nombreTranches: firstItem.nombreTranches || r.nombreTranches || 1
+                };
+              }
+              return r;
+            });
+            
+            currentFaces[faceIndex].reservations = updatedReservations;
+            await updateDoc(panneauRef, { faces: currentFaces });
+          }
+        }
+      } else {
+        // ✅ Si c'est une nouvelle réservation (pas de modification)
+        for (const item of items) {
+          if (item.panelDocId && item.faceIndex !== undefined) {
+            const panneauRef = doc(db, "panneaux", item.panelDocId);
+            const panneauSnap = await getDoc(panneauRef);
+
+            if (panneauSnap.exists()) {
+              const currentFaces = [...panneauSnap.data().faces];
+              const updatedReservations = currentFaces[item.faceIndex].reservations.map((res: any) => {
+                if (res.dateDebut === item.dateDebut && res.agentEmail === item.agentEmail) {
+                  return { 
+                    ...res, 
+                    facturee: "oui",
+                    modePaiement: item.modePaiement || 'total',
+                    nombreTranches: item.nombreTranches || 1
+                  };
+                }
+                return res;
+              });
+
+              currentFaces[item.faceIndex].reservations = updatedReservations;
+              await updateDoc(panneauRef, { faces: currentFaces });
+            }
+          }
+        }
+      }
+
+      // ✅ Enregistrer la facture avec le numéro généré
       await addDoc(collection(db, "factures"), {
-        factureIdFormat: factureData.factureId || "SANS-ID",
+        factureIdFormat: factureNumber || factureData.factureId,
         clientNom: factureData.client || "CLIENT INCONNU",
         agentNom: factureData.agent || "N/A",
         agentEmail: factureData.email || "",
         totalHT: Number(factureData.totalHT) || 0,
-        dateCreation: serverTimestamp(),
+        dateCreation: new Date().toISOString(),
+        dateValidation: new Date().toISOString(),
         lignes: factureData.lignes.map((l: any) => ({
           qte: l.qte || 1,
           idFace: l.idFace || "N/A",
@@ -115,37 +285,29 @@ const DispromaltPrintLayer = () => {
           nombreTranches: l.nombreTranches || 1,
           montantParTranche: l.montantParTranche || 0
         })),
-        statut: "Validée"
+        statut: "Validée",
+        statutPaiement: "Payé",
+        validationComptable: true,
+        estModification: isModification || false,
+        ancienAgentNom: firstItem?.ancienAgentNom || '',
+        ancienneSociete: firstItem?.ancienneSociete || '',
+        modifiePar: firstItem?.modifiePar || 'admin',
+        modifieParNom: firstItem?.modifieParNom || 'Administrateur'
       });
 
-      for (const item of items) {
-        if (item.panelDocId && item.faceIndex !== undefined) {
-          const panneauRef = doc(db, "panneaux", item.panelDocId);
-          const panneauSnap = await getDoc(panneauRef);
+      alert("✅ Facture enregistrée avec succès !");
+      
+      // ✅ Nettoyer localStorage
+      localStorage.removeItem('facture_preview_data');
+      
+      // ✅ Rediriger après 2 secondes
+      setTimeout(() => {
+        router.back();
+      }, 2000);
 
-          if (panneauSnap.exists()) {
-            const currentFaces = [...panneauSnap.data().faces];
-            const updatedReservations = currentFaces[item.faceIndex].reservations.map((res: any) => {
-              if (res.dateDebut === item.dateDebut && res.agentEmail === item.agentEmail) {
-                return { 
-                  ...res, 
-                  facturee: "oui",
-                  modePaiement: item.modePaiement || 'total',
-                  nombreTranches: item.nombreTranches || 1
-                };
-              }
-              return res;
-            });
-
-            currentFaces[item.faceIndex].reservations = updatedReservations;
-            await updateDoc(panneauRef, { faces: currentFaces });
-          }
-        }
-      }
-      alert("Facture enregistrée avec succès !");
     } catch (error) {
       console.error("Erreur:", error);
-      alert("Erreur lors de l'enregistrement.");
+      alert("❌ Erreur lors de l'enregistrement.");
     } finally {
       setIsSaving(false);
     }
@@ -153,7 +315,6 @@ const DispromaltPrintLayer = () => {
 
   if (!factureData) return null;
 
-  // Fonction pour afficher le texte du mode de paiement dans la désignation
   const getPaymentInfoInDesignation = (l: any) => {
     if (l.modePaiement === 'tranche' && l.nombreTranches > 1) {
       return (
@@ -191,14 +352,14 @@ const DispromaltPrintLayer = () => {
           onClick={handlePrintAndSave}
           disabled={isSaving}
         >
-          {isSaving ? "ENREGISTREMENT..." : "IMPRIMER & VALIDER"}
+          {isSaving ? "ENREGISTREMENT..." : isModification ? "VALIDER" : "IMPRIMER"}
         </button>
       </div>
 
       <div className="zoom-wrapper" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
         <div className="sheet">
 
-          {/* NUMÉRO DE FACTURE */}
+          {/* NUMÉRO DE FACTURE - FORMAT AAAAMMJJ + NUMÉRO SÉQUENTIEL */}
           <div style={{
             position: 'absolute',
             top: '76mm',
@@ -207,10 +368,10 @@ const DispromaltPrintLayer = () => {
             fontWeight: 'bold',
             color: '#000'
           }}>
-            {factureData.factureId}
+            {factureNumber || factureData.factureId}
           </div>
 
-          {/* DATE */}
+          {/* DATE - DATE DU JOUR */}
           <div style={{ position: 'absolute', top: '66mm', left: '155mm', fontSize: '17px' }}>
             {new Date().toLocaleDateString('fr-FR')}
           </div>
@@ -229,16 +390,19 @@ const DispromaltPrintLayer = () => {
           </div>
 
           {/* TABLEAU DES LIGNES */}
-          <div style={{ position: 'absolute', top: '110mm', left: '10mm', width: '180mm' }}>
+          <div style={{ 
+            position: 'absolute', 
+            top: isModification ? '108mm' : '110mm', 
+            left: '10mm', 
+            width: '180mm' 
+          }}>
             {factureData.lignes.map((l: any, i: number) => (
               <div key={i} style={{ display: 'flex', minHeight: '15.5mm', alignItems: 'flex-start', fontSize: '12px', marginBottom: '5px' }}>
 
-                {/* QUANTITÉ */}
                 <div style={{ width: '22mm', textAlign: 'center', paddingTop: '5px' }}>
                   {l.qte}
                 </div>
 
-                {/* DÉSIGNATION - LE MESSAGE EST ICI */}
                 <div style={{ width: '105mm', paddingLeft: '5mm', paddingTop: '5px', lineHeight: '1.3' }}>
                   <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '11px' }}>
                     {l.idFace} - {l.label}
@@ -250,16 +414,13 @@ const DispromaltPrintLayer = () => {
                     <span>Type: {l.type || 'Vinyle'}</span>
                     <span style={{ marginLeft: '10px' }}>Période: {l.dateDebut} au {l.dateFin}</span>
                   </div>
-                  {/* ✅ MESSAGE DE PAIEMENT DANS LA DÉSIGNATION */}
                   {getPaymentInfoInDesignation(l)}
                 </div>
 
-                {/* PRIX UNITAIRE */}
                 <div style={{ width: '25mm', textAlign: 'right', paddingRight: '5mm', paddingTop: '5px' }}>
                   {Number(l.pu).toLocaleString()}
                 </div>
 
-                {/* PRIX TOTAL */}
                 <div style={{ width: '28mm', textAlign: 'right', paddingTop: '5px' }}>
                   {Number(l.total).toLocaleString()}
                 </div>
@@ -267,12 +428,22 @@ const DispromaltPrintLayer = () => {
               </div>
             ))}
           </div>
+          
           {/* TOTAL À PAYER */}
-          <div style={{ position: 'absolute', top: '250mm', left: '160mm', width: '30mm', textAlign: 'right', fontWeight: 'bold', fontSize: '16px' }}>
+          <div style={{ 
+            position: 'absolute', 
+            top: isModification ? '248mm' : '250mm', 
+            left: '160mm', 
+            width: '30mm', 
+            textAlign: 'right', 
+            fontWeight: 'bold', 
+            fontSize: '16px' 
+          }}>
             {factureData.totalHT.toLocaleString()} $
           </div>
         </div>
       </div>
+
       <style jsx>{`
         .page-container {
           background-color: #525659;
@@ -286,7 +457,6 @@ const DispromaltPrintLayer = () => {
           margin-top: 80px;
           transition: transform 0.2s ease-out;
         }
-
         .sheet {
           background-color: white;
           width: 210mm;
@@ -296,7 +466,6 @@ const DispromaltPrintLayer = () => {
           color: black;
           font-family: 'Courier New', Courier, monospace;
         }
-        
         .mobile-actions {
           position: fixed;
           top: 0;
@@ -310,17 +479,30 @@ const DispromaltPrintLayer = () => {
           gap: 20px;
           box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
-
-        .btn-print { background: #27ae60; color: white; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 5px; }
-        .btn-back { background: #e74c3c; color: white; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 5px; }
-
+        .btn-print { 
+          background: #27ae60; 
+          color: white; 
+          border: none; 
+          padding: 10px 20px; 
+          font-weight: bold; 
+          cursor: pointer; 
+          border-radius: 5px; 
+        }
+        .btn-back { 
+          background: #e74c3c; 
+          color: white; 
+          border: none; 
+          padding: 10px 20px; 
+          font-weight: bold; 
+          cursor: pointer; 
+          border-radius: 5px; 
+        }
         @media print {
           .page-container { background: none; padding: 0; display: block; }
           .zoom-wrapper { transform: none !important; margin: 0 !important; }
           .sheet { box-shadow: none; margin: 0; width: 100%; }
           .no-print { display: none !important; }
         }
-
         @media (max-width: 600px) {
           .btn-print, .btn-back { padding: 8px 12px; font-size: 12px; }
         }
