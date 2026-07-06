@@ -4298,15 +4298,23 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   const [listeSocietes, setListeSocietes] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentUser } = useAuth();
+  const [isLoading, setIsLoading] = useState(true); // ✅ AJOUTER CET ÉTAT
 
   // ============================================
   // 2. TOUS LES useEffect
   // ============================================
 
-  // Charger les données du panneau
-  useEffect(() => {
+  
+   useEffect(() => {
     if (panneau) {
       setFormData({ ...panneau });
+      setIsLoading(false); // ✅ MARQUER COMME CHARGÉ
+    } else {
+      // ✅ SI PAS DE PANNEAU, ATTENDRE 500ms PUIS MARQUER CHARGÉ
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [panneau]);
 
@@ -5375,7 +5383,26 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
 
 
-
+// ✅ VERSION SIMPLIFIÉE AVEC SPINNER BASIQUE
+if (isLoading || !formData) {
+  return (
+    <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 min-w-[200px]">
+        {/* Spinner */}
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full border-4 border-blue-100"></div>
+          <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-t-blue-600 border-r-transparent border-b-blue-300 border-l-transparent animate-spin"></div>
+        </div>
+        
+        {/* Texte */}
+        <div className="text-center">
+          <p className="text-sm font-bold text-blue-900">Chargement...</p>
+          <p className="text-xs text-blue-500">Préparation du panneau</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
   // Surveiller les changements de statut pour valider les champs
 
