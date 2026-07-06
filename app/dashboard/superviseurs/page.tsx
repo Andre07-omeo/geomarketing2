@@ -48,9 +48,9 @@ import { getDoc } from "firebase/firestore";
 // ✅ Version require avec chemin correct
 const config = require('../../../config/db');
 import {
-  // ... vos autres imports
-  BookOpen,  // ✅ AJOUTER CETTE LIGNE
+  Trash2, BookOpen,  // ✅ AJOUTER CETTE LIGNE
 } from 'lucide-react';
+
 
 // Toutes ces variables fonctionneront maintenant :
 const firebaseConfig = config.firebaseConfig;
@@ -1091,19 +1091,13 @@ export default function UltimateSupervisor() {
   }, [user?.email]);
 
 
-
-
-
-
-  // ============================================
-  // PROCESSUS DES OPÉRATIONS DU PANIER - CORRIGÉ
-  // ============================================
-
   // ============================================
   // PROCESSUS DES OPÉRATIONS DU PANIER - CORRIGÉ
   // ============================================
 
   const processOperations = async (type: 'unique' | 'selection' | 'delete', data?: any, index?: number) => {
+    console.log('🔵 processOperations appelé avec type:', type);
+
     // 1. CAS PARTICULIER : SUPPRESSION
     if (type === 'delete' && data) {
       await handleDeleteReservation(data);
@@ -1113,7 +1107,9 @@ export default function UltimateSupervisor() {
     // 2. RÉCUPÉRATION DE LA SÉLECTION
     const selection = type === 'unique'
       ? [data]
-      : reservationsEnAttente.filter(r => selectedForPrint[r.resUniqueId]);
+      : reservationsEnAttente.filter((r: any) => selectedForPrint[r.resUniqueId]);
+
+    console.log('📋 Réservations sélectionnées:', selection.length);
 
     if (selection.length === 0) {
       alert("⚠️ Action impossible : Aucune réservation n'est sélectionnée.");
@@ -1127,7 +1123,7 @@ export default function UltimateSupervisor() {
       return;
     }
 
-    const erreursSociete = selection.filter(r =>
+    const erreursSociete = selection.filter((r: any) =>
       r.societeLocatrice?.trim().toLowerCase() !== premiereSociete
     );
 
@@ -1140,12 +1136,14 @@ export default function UltimateSupervisor() {
     const erreursTechniques: string[] = [];
     let totalFacture = 0;
 
-    selection.forEach(res => {
+    selection.forEach((res: any) => {
       const key = res.resUniqueId;
+      const prix = prices[key] || 0;
+
       if (!prices[key] || prices[key] <= 0) {
         erreursTechniques.push(`- ${res.faceLabel} : Prix manquant`);
       }
-      totalFacture += (prices[key] || 0) * res.dureeMois;
+      totalFacture += (prices[key] || 0) * (res.dureeMois || 1);
     });
 
     if (erreursTechniques.length > 0) {
@@ -1159,7 +1157,7 @@ export default function UltimateSupervisor() {
       return;
     }
 
-    setTotalFactureAmount(totalFacture);
+    console.log('💰 Total facture calculé:', totalFacture);
 
     // Afficher un résumé avant validation
     const modeTexte = globalPaymentMode === 'total' ? 'Paiement comptant' : `Paiement en ${globalTranchesCount} tranches`;
@@ -1175,11 +1173,71 @@ export default function UltimateSupervisor() {
       `\nConfirmez-vous la facturation ?`
     );
 
-    if (!confirmation) return;
+    if (!confirmation) {
+      console.log('❌ Facturation annulée par l\'utilisateur');
+      return;
+    }
+
+    console.log('✅ Facturation confirmée, redirection vers /generationpdf');
 
     // ✅ APPEL À LA FONCTION DE FACTURATION
     lancerFacturation(selection, totalFacture);
   };
+
+
+
+
+  // ============================================
+  // RÉCUPÉRER LES RÉSERVATIONS POUR L'IMPRESSION
+  // ============================================
+  const getFilteredReservations = () => {
+    const allRes: any[] = [];
+
+    panneauxData?.forEach((panneau: any) => {
+      const idPan = panneau.idPan || "N/A";
+
+      panneau.faces?.forEach((face: any, index: number) => {
+        if (Array.isArray(face.reservations)) {
+          face.reservations.forEach((res: any) => {
+            // ✅ Vérifier que la réservation appartient à l'utilisateur connecté
+            const isMine = res.agentEmail === user?.email;
+
+            // ✅ Vérifier que la réservation N'EST PAS déjà facturée
+            const estFacturee = res.facturee === "oui" || res.facturee === "Oui" || res.facturee === true;
+
+            // ✅ Vérifier que la réservation est en attente ou validée
+            const estEnAttente = res.statutPaiement === "en attente" || res.statutPaiement === "en_attente";
+            const estValide = res.validationComptable === true || res.validationComptable === "oui";
+
+            // ✅ GARDER : appartient à l'utilisateur ET (en attente OU validée) ET NON facturée
+            if (isMine && (estEnAttente || estValide) && !estFacturee) {
+              allRes.push({
+                ...res,
+                faceId: `${idPan}-${index}`,
+                societe: res.societeLocatrice,
+                panneauId: panneau.id,
+                panneauIdPan: idPan,
+                panneauAdresse: panneau.adresse,
+                panneauType: panneau.type,
+                faceIndex: index,
+                faceLabel: face.sens || `Face ${index + 1}`,
+                resUniqueId: `${panneau.id}-${index}-${res.dateDebut}-${res.societeLocatrice}`
+              });
+            }
+          });
+        }
+      });
+    });
+
+    // ✅ Trier du plus récent au plus ancien
+    return allRes.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  };
+
+
 
   // ============================================
   // LANCER LA FACTURATION - REDIRECTION VERS /generationpdf
@@ -1217,75 +1275,65 @@ export default function UltimateSupervisor() {
   };
 
 
-  // Dans UltimateSupervisor, la fonction reservationsEnAttente
-  const reservationsEnAttente = useMemo(() => {
-    let compteurLocal = Number(dernierIdFacture) || 0;
+// Dans UltimateSupervisor, la fonction reservationsEnAttente
+const reservationsEnAttente = useMemo(() => {
+  if (!panneauxData || !user?.email) return [];
 
-    if (!panneauxData || !user?.email) return [];
+  const list: any[] = [];
+  const emailConnecte = user.email.trim().toLowerCase();
 
-    const list: any[] = [];
-    const emailConnecte = user.email.trim().toLowerCase();
-    const annee = new Date().getFullYear();
-    const maintenant = new Date();
-    const mois = String(maintenant.getMonth() + 1).padStart(2, '0');
+  panneauxData.forEach((panneau: any) => {
+    const faces = panneau.faces || [];
 
-    panneauxData.forEach((panneau: any) => {
-      const faces = panneau.faces || [];
+    faces.forEach((face: any, faceIdx: number) => {
+      const reservations = face.reservations || [];
 
-      faces.forEach((face: any, faceIdx: number) => {
-        const reservations = face.reservations || [];
+      reservations.forEach((res: any, resIdx: number) => {
+        // ✅ 1. Vérifier que l'agent correspond
+        const emailReservation = (res.agentEmail || "").trim().toLowerCase();
+        if (emailReservation !== emailConnecte) return;
 
-        reservations.forEach((res: any, resIdx: number) => {
-          compteurLocal++;
-          const sequence = String(compteurLocal).padStart(3, '0');
-          // ✅ FORMAT: ANNEE.MOIS.SEQUENCE (par exemple: 2026.07.001)
-          const factureIdFormat = `${annee}.${mois}.${sequence}`;
+        // ✅ 2. Vérifier que facturee === "non"
+        if (res.facturee !== "non") return;
 
-          const emailReservation = (res.agentEmail || "").trim().toLowerCase();
-          const appartientALutilisateur = emailReservation === emailConnecte;
+        // ✅ 3. Ajouter à la liste
+        const debut = new Date(res.dateDebut);
+        const fin = new Date(res.dateFin);
+        const duree = Math.max(1, (fin.getFullYear() - debut.getFullYear()) * 12 + (fin.getMonth() - debut.getMonth()));
 
-          const estPretPourFacture =
-            (res.facturee === "non" || !res.facturee) &&
-            (res.statutPaiement === "en attente" || !res.statutPaiement) &&
-            res.validationComptable !== true;
+        const faceLabel = `${panneau.idPan}-${faceIdx + 1} (${face.sens || 'SANS SENS'})`;
+        const resUniqueId = `res-${panneau.id}-${faceIdx}-${resIdx}-${res.dateDebut}`;
 
-          if (appartientALutilisateur && estPretPourFacture) {
-            const debut = new Date(res.dateDebut);
-            const fin = new Date(res.dateFin);
-            const duree = Math.max(1, (fin.getFullYear() - debut.getFullYear()) * 12 + (fin.getMonth() - debut.getMonth()));
-
-            const faceLabel = `${panneau.idPan}-${faceIdx + 1} (${face.sens || 'SANS SENS'})`;
-            const resUniqueId = `res-${panneau.id}-${faceIdx}-${resIdx}-${res.dateDebut}`;
-
-            list.push({
-              ...res,
-              resUniqueId,
-              faceLabel,
-              factureIdFormat, // ✅ INCLUS POUR LA FACTURE
-              idPan: panneau.idPan,
-              panelDocId: panneau.id,
-              faceIndex: faceIdx,
-              faceSens: face.sens,
-              adresse: panneau.adresse,
-              panneauAdresse: panneau.adresse,
-              panneauType: panneau.type,
-              dureeMois: duree,
-              dateDebut: res.dateDebut,
-              dateFin: res.dateFin,
-              type: panneau.type || "",
-              dateTri: res.createdAt ? new Date(res.createdAt).getTime() : 0
-            });
-          }
+        list.push({
+          ...res,
+          resUniqueId,
+          faceLabel,
+          idPan: panneau.idPan,
+          panelDocId: panneau.id,
+          faceIndex: faceIdx,
+          faceSens: face.sens,
+          adresse: panneau.adresse,
+          panneauAdresse: panneau.adresse,
+          panneauType: panneau.type,
+          dureeMois: duree,
+          dateDebut: res.dateDebut,
+          dateFin: res.dateFin,
+          type: panneau.type || "",
+          dateTri: res.createdAt ? new Date(res.createdAt).getTime() : 0,
+          societeLocatrice: res.societeLocatrice,
+          statut: res.statut,
+          statutPaiement: res.statutPaiement,
+          validationComptable: res.validationComptable,
+          facturee: res.facturee,
+          photoCampagneUrl: res.photoCampagneUrl,
+          joursAvantExpiration: res.joursAvantExpiration
         });
       });
     });
+  });
 
-    return list.sort((a, b) => b.dateTri - a.dateTri);
-  }, [panneauxData, user?.email, dernierIdFacture]);
-
-
-
-
+  return list.sort((a, b) => b.dateTri - a.dateTri);
+}, [panneauxData, user?.email]);
   // --- HOOKS D'ANIMATION ---
   const { scrollYProgress, scrollY } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
@@ -1434,42 +1482,6 @@ export default function UltimateSupervisor() {
     };
   };
 
-
-  const getFilteredReservations = () => {
-    const allRes: any[] = [];
-
-    panneauxData?.forEach((panneau: any) => {
-      // On récupère l'identifiant du panneau (ex: "B")
-      const idPan = panneau.idPan || "N/A";
-
-      panneau.faces?.forEach((face: any, index: number) => {
-        if (Array.isArray(face.reservations)) {
-          face.reservations.forEach((res: any) => {
-
-            const isMine = res.agentEmail === user?.email;
-            const isFacturee = res.facturee === "oui" || res.facturee === true;
-            const isValide = res.validationComptable === "oui" || res.validationComptable === true;
-
-            if (isMine && isFacturee && isValide) {
-              allRes.push({
-                ...res,
-                // Construction dynamique : idPan + "-" + index (ex: B-0, B-1...)
-                // Si vous voulez commencer à 1 au lieu de 0, utilisez (index + 1)
-                faceId: `${idPan}-${index}`,
-                societe: res.societeLocatrice
-              });
-            }
-          });
-        }
-      });
-    });
-
-    return allRes.sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
-  };
 
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -2064,7 +2076,7 @@ export default function UltimateSupervisor() {
           {/* ========== BOUTON FLOTTANT PRINCIPAL (En bas à droite) ========== */}
           {/* ============================================================ */}
 
-          {/* Bouton flottant principal */}
+          {/* ✅ Bouton flottant - SEULEMENT l'icône et le badge */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsFloatingMenuOpen(!isFloatingMenuOpen)}
@@ -2078,7 +2090,7 @@ export default function UltimateSupervisor() {
               <Plus size={24} className="sm:w-[28px] sm:h-[28px] group-hover:rotate-90 transition-transform duration-300" />
             </motion.div>
 
-            {/* Indicateur de notification */}
+            {/* ✅ Seulement le badge de notification */}
             {reservationsEnAttente.length > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[8px] font-bold text-white flex items-center justify-center border-2 border-white animate-pulse">
                 {reservationsEnAttente.length}
@@ -4502,13 +4514,39 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   };
 
 
+  // ✅ Fonction utilitaire pour ajuster la date si week-end
+  const ajusterDateSiWeekend = (date: Date): Date => {
+    const result = new Date(date);
+    const dayOfWeek = result.getUTCDay();
+
+    // Si samedi (6) → lundi (+2 jours)
+    if (dayOfWeek === 6) {
+      result.setUTCDate(result.getUTCDate() + 2);
+    }
+    // Si dimanche (0) → lundi (+1 jour)
+    else if (dayOfWeek === 0) {
+      result.setUTCDate(result.getUTCDate() + 1);
+    }
+
+    return result;
+  };
+
+  // ✅ Fonction principale améliorée
   const calculateExpirationDate = (createdAt: string) => {
     const DELAI_EXPIRATION_JOURS = 3;
 
+    // Créer la date de création
     const creationDate = new Date(createdAt);
     creationDate.setUTCHours(0, 0, 0, 0);
 
-    const expirationDate = addWorkingDays(creationDate, DELAI_EXPIRATION_JOURS);
+    // Ajouter 3 jours calendaires
+    let expirationDate = new Date(creationDate);
+    expirationDate.setUTCDate(expirationDate.getUTCDate() + DELAI_EXPIRATION_JOURS);
+
+    // ✅ Ajuster si week-end
+    expirationDate = ajusterDateSiWeekend(expirationDate);
+
+    // Mettre l'heure à 23:59:59
     expirationDate.setUTCHours(23, 59, 59, 999);
 
     const joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -4523,14 +4561,15 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         timeZone: 'UTC'
       }),
       dayOfWeek: joursSemaine[expirationDate.getUTCDay()],
-      isWorkingDay: isWorkingDay(expirationDate.getUTCDay()),
+      isWorkingDay: expirationDate.getUTCDay() >= 1 && expirationDate.getUTCDay() <= 5,
       timestamp: expirationDate.getTime(),
       isoString: expirationDate.toISOString(),
-      joursRestants: calculateWorkingDaysRemaining(expirationDate)
+      joursRestants: calculateDaysRemaining(expirationDate)
     };
   };
 
-  const calculateWorkingDaysRemaining = (expirationDate: Date): number => {
+  // ✅ Fonction pour calculer les jours restants
+  const calculateDaysRemaining = (expirationDate: Date): number => {
     const now = new Date();
     const utcNow = new Date(
       Date.UTC(
@@ -4546,12 +4585,13 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
     if (expDate < utcNow) return 0;
 
-    // ✅ Compter en jours calendaires
     const diffTime = Math.abs(expDate.getTime() - utcNow.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     return diffDays;
   };
+
+
 
   const formatDateForDisplay = (dateString: string): string => {
     if (!dateString) return 'N/A';
@@ -4590,261 +4630,271 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
       const modal = document.createElement('div');
       modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(10px);
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        animation: fadeIn 0.3s ease;
-      `;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      animation: fadeIn 0.3s ease;
+    `;
 
       modal.innerHTML = `
   <div style="
     background: white;
-    border-radius: 24px;
-    max-width: 550px;
+    border-radius: 16px;
+    max-width: 480px;
     width: 100%;
-    max-height: 90vh;
+    max-height: 95vh;
     overflow-y: auto;
-    padding: 32px;
+    padding: 16px 20px 24px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     animation: slideUp 0.3s ease;
     position: relative;
+    margin: 8px;
   ">
+    <!-- HEADER -->
     <div style="
-  background: linear-gradient(135deg, #1e3a8a, #1e40af, #1e4fd9);
-  margin: -32px -32px 24px -32px;
-  padding: 24px 32px;
-  border-radius: 24px 24px 0 0;
-  position: sticky;
-  top: -32px;
-  z-index: 10;
-  border-bottom: 2px solid rgba(255,255,255,0.1);
-  box-shadow: 0 4px 20px rgba(30, 58, 138, 0.4);
-">
-  <div style="display: flex; align-items: center; justify-content: space-between;">
-    <div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 18px;">📋</span>
-        <span style="color: #bfdbfe; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.95;">
-          Confirmation de réservation
-        </span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
-        <span style="
-          font-size: 22px;
-          font-weight: 900;
-          color: #ffffff;
-          letter-spacing: 0.5px;
-          text-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        ">
-          ${panneau.idPan || 'Panneau'}
-        </span>
-        <span style="
-          background: rgba(255, 255, 255, 0.12);
+      background: linear-gradient(135deg, #1e3a8a, #1e40af, #1e4fd9);
+      margin: -16px -20px 16px -20px;
+      padding: 16px 20px;
+      border-radius: 16px 16px 0 0;
+      position: sticky;
+      top: -16px;
+      z-index: 10;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+      box-shadow: 0 4px 20px rgba(30, 58, 138, 0.4);
+    ">
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 14px;">📋</span>
+            <span style="color: #bfdbfe; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.95;">
+              Confirmation
+            </span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
+            <span style="
+              font-size: 16px;
+              font-weight: 900;
+              color: #ffffff;
+              letter-spacing: 0.3px;
+              text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              word-break: break-word;
+            ">
+              ${panneau.idPan || 'Panneau'}
+            </span>
+            <span style="
+              background: rgba(255, 255, 255, 0.12);
+              color: #bfdbfe;
+              padding: 2px 10px;
+              border-radius: 20px;
+              font-size: 8px;
+              font-weight: 700;
+              border: 1px solid rgba(255, 255, 255, 0.15);
+              backdrop-filter: blur(4px);
+              text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+              white-space: nowrap;
+            ">
+              Face ${faceLabel}
+            </span>
+          </div>
+        </div>
+        <button id="close-modal" style="
+          background: rgba(255,255,255,0.1);
+          border: 1px solid rgba(255,255,255,0.15);
           color: #bfdbfe;
-          padding: 3px 16px;
-          border-radius: 20px;
-          font-size: 10px;
-          font-weight: 700;
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          backdrop-filter: blur(4px);
-          text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-        ">
-          Face ${faceLabel}
-        </span>
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          cursor: pointer;
+          font-size: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: all 0.3s ease;
+        " 
+        onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='rotate(90deg)'; this.style.color='white'"
+        onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='rotate(0deg)'; this.style.color='#bfdbfe'"
+        ontouchstart="this.style.background='rgba(255,255,255,0.25)'"
+        ontouchend="this.style.background='rgba(255,255,255,0.1)'"
+        >✕</button>
       </div>
     </div>
-    <button id="close-modal" style="
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #bfdbfe;
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-    " 
-    onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='rotate(90deg)'; this.style.color='white'"
-    onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='rotate(0deg)'; this.style.color='#bfdbfe'"
-    >✕</button>
-  </div>
-</div>
 
-    <!-- 📋 INSTRUCTIONS IMPORTANTES -->
+    <!-- 📋 INSTRUCTIONS -->
     <div style="
       background: linear-gradient(135deg, #fef3c7, #fde68a);
-      padding: 16px 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      border-left: 4px solid #f59e0b;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      border-left: 3px solid #f59e0b;
     ">
-      <div style="display: flex; align-items: flex-start; gap: 10px;">
-        <span style="font-size: 18px;">📌</span>
-        <div>
-          <div style="font-size: 11px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">
-            Instructions importantes
+      <div style="display: flex; align-items: flex-start; gap: 8px;">
+        <span style="font-size: 16px; flex-shrink: 0;">📌</span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 9px; font-weight: 800; color: #d70606; text-transform: uppercase; letter-spacing: 0.3px;">
+            Instructions
           </div>
           <ul style="
-            margin: 6px 0 0 0;
-            padding-left: 18px;
-            font-size: 11px;
-            color: #78350f;
-            line-height: 1.6;
+            margin: 4px 0 0 0;
+            padding-left: 14px;
+            font-size: 9px;
+            color: #020206f6;
+            line-height: 1.5;
           ">
-            <li>⚠️ Cette réservation doit être <strong>payée sous 3 jours ouvrables</strong></li>
-            <li>⏰ Passé ce délai, la réservation sera <strong>automatiquement annulée</strong></li>
-            <li>📧 Une confirmation sera envoyée à l'agent responsable</li>
+            <li>⚠️ Paiement sous <strong>3 jours ouvrables</strong></li>
+            <li>⏰ Sinon <strong>annulation automatique</strong></li>
+            <li>📧 Confirmation envoyée à l'agent</li>
           </ul>
         </div>
       </div>
     </div>
 
-    <!-- 📊 INFORMATIONS DE LA RÉSERVATION -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
-      <div style="background: #f8fafc; padding: 14px; border-radius: 12px;">
-        <div style="font-size: 9px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Face</div>
-        <div style="font-size: 15px; font-weight: 700; color: #1e293b; margin-top: 2px;">${faceLabel}</div>
+    <!-- 📊 INFORMATIONS -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;">
+      <div style="background: #274e75; padding: 10px 12px; border-radius: 10px;">
+        <div style="font-size: 7px; color: #a9c605; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">Face</div>
+        <div style="font-size: 13px; font-weight: 700; color: #f9f9f9; margin-top: 2px; word-break: break-word;">${faceLabel}</div>
       </div>
-      <div style="background: #f8fafc; padding: 14px; border-radius: 12px;">
-        <div style="font-size: 9px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Client</div>
-        <div style="font-size: 15px; font-weight: 700; color: #1e293b; margin-top: 2px;">${reservation.societeLocatrice || 'N/A'}</div>
+      <div style="background: #274e75; padding: 10px 12px; border-radius: 10px;">
+        <div style="font-size: 7px; color: #a9c605; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">Client</div>
+        <div style="font-size: 13px; font-weight: 700; color: #f9f9f9; margin-top: 2px; word-break: break-word;">${reservation.societeLocatrice || 'N/A'}</div>
       </div>
     </div>
 
-    <!-- 📅 PÉRIODE DE RÉSERVATION -->
+    <!-- 📅 PÉRIODE -->
     <div style="
       background: #eff6ff;
-      padding: 16px 20px;
-      border-radius: 12px;
-      margin-bottom: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 14px;
       border: 1px solid #bfdbfe;
     ">
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-        <span style="font-size: 14px;">📅</span>
-        <span style="font-size: 11px; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px;">
-          Période de réservation
+      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+        <span style="font-size: 12px;">📅</span>
+        <span style="font-size: 9px; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.3px;">
+          Période
         </span>
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <div style="font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Début</div>
-          <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${dateDebutFormatted}</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 7px; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Début</div>
+          <div style="font-size: 11px; font-weight: 700; color: #0f172a; word-break: break-word;">${dateDebutFormatted}</div>
         </div>
-        <div style="color: #94a3b8; font-size: 20px;">→</div>
-        <div>
-          <div style="font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Fin</div>
-          <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${dateFinFormatted}</div>
+        <div style="color: #94a3b8; font-size: 16px; flex-shrink: 0;">→</div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 7px; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Fin</div>
+          <div style="font-size: 11px; font-weight: 700; color: #0f172a; word-break: break-word;">${dateFinFormatted}</div>
         </div>
       </div>
-      <div style="margin-top: 6px; font-size: 10px; color: #64748b;">
-        📆 ${joursReservation} jour(s) ouvrable(s) de location
+      <div style="margin-top: 4px; font-size: 8px; color: #64748b;">
+        📆 ${joursReservation} jour(s) ouvrable(s)
       </div>
     </div>
 
-    <!-- ⏱️ DÉLAI D'EXPIRATION -->
+    <!-- ⏱️ EXPIRATION -->
     <div style="
       background: ${joursRestants === 0 ? '#fef2f2' : '#f0fdf4'};
-      padding: 16px 20px;
-      border-radius: 12px;
-      margin-bottom: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 14px;
       border: 1px solid ${joursRestants === 0 ? '#fecaca' : '#bbf7d0'};
     ">
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-        <span style="font-size: 14px;">⏱️</span>
-        <span style="font-size: 11px; font-weight: 700; color: ${joursRestants === 0 ? '#dc2626' : '#16a34a'}; text-transform: uppercase; letter-spacing: 0.5px;">
-          ${joursRestants === 0 ? '⚠️ Expiration immédiate' : 'Délai d\'expiration'}
+      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+        <span style="font-size: 12px;">⏱️</span>
+        <span style="font-size: 9px; font-weight: 700; color: ${joursRestants === 0 ? '#dc2626' : '#16a34a'}; text-transform: uppercase; letter-spacing: 0.3px;">
+          ${joursRestants === 0 ? '⚠️ Expiré' : 'Délai d\'expiration'}
         </span>
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div>
-          <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${dateExpirationFormatted}</div>
-          <div style="font-size: 10px; color: #64748b;">Heure : ${heureExpiration} (UTC)</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 11px; font-weight: 700; color: #0f172a; word-break: break-word;">${dateExpirationFormatted}</div>
+          <div style="font-size: 8px; color: #64748b;">${heureExpiration} UTC</div>
         </div>
         <div style="
           background: ${joursRestants === 0 ? '#ef4444' : '#22c55e'};
           color: white;
-          padding: 4px 16px;
+          padding: 3px 12px;
           border-radius: 20px;
-          font-size: 12px;
+          font-size: 10px;
           font-weight: 700;
+          flex-shrink: 0;
         ">
-          ${joursRestants === 0 ? '🔥 Expiré' : `${joursRestants}j restants`}
+          ${joursRestants === 0 ? '🔥 Expiré' : `${joursRestants}j`}
         </div>
       </div>
-      <div style="margin-top: 6px; font-size: 10px; color: ${joursRestants === 0 ? '#dc2626' : '#64748b'};">
-        ${joursRestants === 0 ? '🚨 Délai dépassé - Réservation annulée automatiquement' : `${joursRestants} jour(s) restant(s) pour effectuer le paiement`}
+      <div style="margin-top: 4px; font-size: 8px; color: ${joursRestants === 0 ? '#dc2626' : '#64748b'};">
+        ${joursRestants === 0 ? '🚨 Délai dépassé - Annulée' : `${joursRestants} jour(s) restant(s)`}
       </div>
     </div>
 
-    <!-- 📍 DATE ET HEURE ACTUELLES -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px;">
-      <div style="background: #f8fafc; padding: 12px; border-radius: 12px;">
-        <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Jour actuel</div>
-        <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${currentUTC.dayOfWeek}</div>
-        <div style="font-size: 10px; color: #64748b;">${currentUTC.date}</div>
+    <!-- 📍 DATE/HEURE -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px;">
+      <div style="background: #274e75; padding: 8px 10px; border-radius: 8px;">
+        <div style="font-size: 7px; color: #a9c605; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Jour</div>
+        <div style="font-size: 11px; font-weight: 700; color: #f9f9f9;">${currentUTC.dayOfWeek}</div>
+        <div style="font-size: 8px; color: #a9c605;">${currentUTC.date}</div>
       </div>
-      <div style="background: #f8fafc; padding: 12px; border-radius: 12px;">
-        <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Heure UTC</div>
-        <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${currentUTC.time}</div>
-        <div style="font-size: 10px; color: ${estOuvrable ? '#16a34a' : '#ef4444'};">
-          ${estOuvrable ? '✅ Jour ouvrable' : '❌ Week-end'}
+      <div style="background: #274e75; padding: 8px 10px; border-radius: 8px;">
+        <div style="font-size: 7px; color: #a9c605; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Heure UTC</div>
+        <div style="font-size: 11px; font-weight: 700; color: #f9f9f9;">${currentUTC.time}</div>
+        <div style="font-size: 8px; color: ${estOuvrable ? '#a9c605' : '#ef4444'};">
+          ${estOuvrable ? '✅ Ouvrable' : '❌ Week-end'}
         </div>
       </div>
     </div>
 
-    <!-- 👤 AGENT RESPONSABLE -->
+    <!-- 👤 AGENT -->
     <div style="
       background: #f1f5f9;
-      padding: 14px 16px;
-      border-radius: 12px;
-      margin-bottom: 20px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
     ">
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-        <span style="font-size: 12px;">👤</span>
-        <span style="font-size: 9px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Agent responsable</span>
+      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+        <span style="font-size: 10px;">👤</span>
+        <span style="font-size: 7px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">Agent</span>
       </div>
-      <div style="font-size: 14px; font-weight: 700; color: #0f172a;">
-        ${user?.nom || user?.nomComplet || user?.prenom || 'Agent non identifié'}
+      <div style="font-size: 12px; font-weight: 700; color: #0f172a; word-break: break-word;">
+        ${user?.nom || user?.nomComplet || user?.prenom || 'Agent'}
       </div>
-      <div style="font-size: 11px; color: #64748b;">${user?.email || 'Email non disponible'}</div>
-      <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">ID: ${user?.id || user?.uid || 'N/A'}</div>
+      <div style="font-size: 9px; color: #64748b; word-break: break-word;">${user?.email || 'Email non disponible'}</div>
     </div>
 
-    <!-- ✅ BOUTONS D'ACTION -->
-    <div style="display: flex; gap: 12px; margin-top: 8px;">
+    <!-- ✅ BOUTONS -->
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
       <button id="confirm-cancel" style="
         flex: 1;
-        padding: 14px;
+        min-width: 80px;
+        padding: 12px 16px;
         background: #f1f5f9;
         border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 13px;
+        border-radius: 10px;
+        font-size: 11px;
         font-weight: 700;
         color: #64748b;
         cursor: pointer;
         transition: all 0.2s;
+        -webkit-tap-highlight-color: transparent;
       ">
         ✕ Annuler
       </button>
       <button id="confirm-ok" style="
         flex: 2;
-        padding: 14px;
+        min-width: 120px;
+        padding: 12px 16px;
         background: linear-gradient(135deg, #2563eb, #1d4ed8);
         border: none;
-        border-radius: 12px;
-        font-size: 13px;
+        border-radius: 10px;
+        font-size: 11px;
         font-weight: 700;
         color: white;
         cursor: pointer;
@@ -4853,24 +4903,25 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: 6px;
+        -webkit-tap-highlight-color: transparent;
       ">
         <span>✅</span>
-        Confirmer la réservation
+        <span>Confirmer</span>
       </button>
     </div>
 
-    <!-- 📌 NOTE DE BAS DE PAGE -->
+    <!-- 📌 NOTE -->
     <div style="
-      margin-top: 16px;
-      padding-top: 12px;
+      margin-top: 12px;
+      padding-top: 10px;
       border-top: 1px solid #e2e8f0;
       text-align: center;
-      font-size: 9px;
+      font-size: 7px;
       color: #94a3b8;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
     ">
-      En confirmant, vous acceptez les conditions générales de réservation
+      En confirmant, vous acceptez les conditions générales
     </div>
 
     <style>
@@ -4888,21 +4939,42 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
           transform: translateY(0) scale(1); 
         } 
       }
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-      }
       #confirm-ok:hover {
         transform: scale(1.02);
         box-shadow: 0 6px 24px rgba(37, 99, 235, 0.45);
+      }
+      #confirm-ok:active {
+        transform: scale(0.98);
       }
       #confirm-cancel:hover {
         background: #e2e8f0;
         border-color: #cbd5e1;
       }
+      #confirm-cancel:active {
+        transform: scale(0.98);
+      }
       #close-modal:hover {
         background: rgba(255,255,255,0.2);
         transform: rotate(90deg);
+      }
+      #close-modal:active {
+        transform: rotate(90deg) scale(0.9);
+      }
+      @media (max-width: 480px) {
+        #confirm-ok, #confirm-cancel {
+          padding: 14px 12px;
+          font-size: 13px;
+        }
+      }
+      @media (max-width: 360px) {
+        .modal-content {
+          padding: 12px 14px 18px !important;
+        }
+        #confirm-ok, #confirm-cancel {
+          padding: 16px 10px;
+          font-size: 14px;
+          min-height: 48px;
+        }
       }
     </style>
   </div>
@@ -5428,7 +5500,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
 
   // ✅ VERSION SIMPLIFIÉE AVEC SPINNER BASIQUE
   if (isLoading || !formData) {
-     return (
+    return (
       <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 backdrop-blur-sm">
         <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 min-w-[200px]">
           {/* Spinner */}

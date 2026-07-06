@@ -532,41 +532,50 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
   };
 
   // ✅ Filtrer les panneaux selon le mode
-  const filteredPanneaux = displayPanneaux.filter((panneau: any) => {
-    // Si mode 'single', n'afficher que le panneau sélectionné
-    if (filterMode === 'single' && selectedPanneauId) {
-      return panneau.id === selectedPanneauId;
-    }
+  // ✅ Filtrer les panneaux selon le mode
+const filteredPanneaux = displayPanneaux.filter((panneau: any) => {
+  // Si mode 'single', n'afficher que le panneau sélectionné
+  if (filterMode === 'single' && selectedPanneauId) {
+    return panneau.id === selectedPanneauId;
+  }
 
-    // Sinon, appliquer les filtres normaux
-    const { status } = getPanneauStatus(panneau.faces);
-    const matchStatus = activeFilters[status as keyof typeof activeFilters];
+  // ✅ PASSER etatPanneau À getPanneauStatus
+  const { status } = getPanneauStatus(panneau.faces, panneau.etatPanneau);
+  const matchStatus = activeFilters[status as keyof typeof activeFilters];
 
-    // Filtrage par adresse - CORRIGÉ
-    const matchAddress = selectedAddresses.length === 0 ||
-      selectedAddresses.some(addr => {
-        // Extraire le tronçon de l'adresse sélectionnée
-        const parts = addr.split(',').map(p => p.trim());
-        const troncon = parts[0]?.toLowerCase() || '';
+  // Filtrage par adresse - CORRIGÉ
+  const matchAddress = selectedAddresses.length === 0 ||
+    selectedAddresses.some(addr => {
+      const parts = addr.split(',').map(p => p.trim());
+      const troncon = parts[0]?.toLowerCase() || '';
+      const panneauAdresse = panneau.adresse?.toLowerCase() || '';
+      return panneauAdresse.includes(troncon);
+    });
 
-        // L'adresse du panneau est stockée dans panneau.adresse
-        const panneauAdresse = panneau.adresse?.toLowerCase() || '';
-
-        // Vérifier si le tronçon est contenu dans l'adresse du panneau
-        return panneauAdresse.includes(troncon);
-      });
-
-    return matchStatus && matchAddress;
-  });
+  return matchStatus && matchAddress;
+});
 
   // ✅ Calculer les stats
-  const allStats = {
-    total: filteredPanneaux.length,
-    libre: displayPanneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'libre').length,
-    occupe: displayPanneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'occupe').length,
-    reserve: displayPanneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'reserve').length,
-    maintenance: displayPanneaux.filter((p: any) => getPanneauStatus(p.faces).status === 'maintenance').length
-  };
+ // ✅ Calculer les stats - CORRIGÉ avec etatPanneau
+const allStats = {
+  total: filteredPanneaux.length,
+  libre: displayPanneaux.filter((p: any) => {
+    const { status } = getPanneauStatus(p.faces, p.etatPanneau);
+    return status === 'libre';
+  }).length,
+  occupe: displayPanneaux.filter((p: any) => {
+    const { status } = getPanneauStatus(p.faces, p.etatPanneau);
+    return status === 'occupe';
+  }).length,
+  reserve: displayPanneaux.filter((p: any) => {
+    const { status } = getPanneauStatus(p.faces, p.etatPanneau);
+    return status === 'reserve';
+  }).length,
+  maintenance: displayPanneaux.filter((p: any) => {
+    const { status } = getPanneauStatus(p.faces, p.etatPanneau);
+    return status === 'maintenance';
+  }).length
+};
 
   // ✅ Fonction pour réinitialiser le mode
   const resetToAllPanneaux = () => {
