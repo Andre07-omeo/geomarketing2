@@ -576,15 +576,12 @@ export default function MapComponent({ panneaux, onMarkerClick, userLocation }: 
     }).length
   };
 
-  // ✅ Fonction pour réinitialiser le mode
   const resetToAllPanneaux = () => {
     setFilterMode('all');
     setSelectedPanneauId(null);
     localStorage.removeItem('map_filter_type');
     localStorage.removeItem('map_single_panneau');
   };
-
-  // Fonction pour zoomer sur un panneau (limité à MAX_ZOOM)
   const zoomToPanneau = (panneau: any) => {
     if (mapInstance) {
       let lat = panneau.coords?.[0] || panneau.gps_raw?.lat;

@@ -9,17 +9,15 @@ import {
   Filter, ChevronDown, ChevronUp, XCircle, Grid3x3, List
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
 // --- CONFIG FIREBASE ---
-import { getDocs, query, where, writeBatch } from "firebase/firestore";
+import { getDocs, query, getDoc, writeBatch } from "firebase/firestore";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, Timestamp } from "firebase/firestore";
 import { getAuth, signOut } from "firebase/auth";
 import { useRouter } from 'next/navigation';
 
-// ============================================
-// IMPORT DE LA CONFIGURATION
-// ============================================
+
+
 const config = require('../../../config/db');
 
 const firebaseConfig = config.firebaseConfig;
@@ -183,58 +181,192 @@ const AccountingMaster = () => {
   };
 
   // ============================================
-  // VALIDATION DE FACTURE
-  // ============================================
-  const handleValidation = async (f: any) => {
-    // ✅ Vérifier l'authentification avant l'action
-    if (!checkAuth()) return;
+// VALIDATION DE FACTURE - AVEC HISTORIQUE
+// ============================================
+const handleValidation = async (f: any) => {
+  if (!checkAuth()) return;
 
-    // ✅ Recharger les données utilisateur fraîches
-    const freshUserData = loadUserFromLocalStorage();
-    if (!freshUserData) {
-      alert("⚠️ Session expirée. Veuillez vous reconnecter.");
-      router.push('/auth/login');
-      return;
-    }
+  const freshUserData = loadUserFromLocalStorage();
+  if (!freshUserData) {
+    alert("⚠️ Session expirée. Veuillez vous reconnecter.");
+    router.push('/auth/login');
+    return;
+  }
 
-    const userInfo = {
-      name: freshUserData.nom || freshUserData.nomComplet || freshUserData.displayName || freshUserData.fullName || freshUserData.email?.split('@')[0] || "Agent",
-      email: freshUserData.email || "Non renseigné",
-      uid: freshUserData.uid || freshUserData.id || "UID_INCONNU"
+  const userInfo = {
+    name: freshUserData.nom || freshUserData.nomComplet || freshUserData.displayName || freshUserData.fullName || freshUserData.email?.split('@')[0] || "Agent",
+    email: freshUserData.email || "Non renseigné",
+    uid: freshUserData.uid || freshUserData.id || "UID_INCONNU"
+  };
+
+  const du = Number(f.totalHT) - (Number(f.montantPaye) || 0);
+  const mnt = prompt(`ENCAISSEMENT : ${f.clientNom}\nSomme due : $${du}`, du.toString());
+
+  if (!mnt || isNaN(Number(mnt))) return;
+
+  const v = Number(mnt);
+  const nCumul = (Number(f.montantPaye) || 0) + v;
+  const isDone = nCumul >= Number(f.totalHT);
+
+  try {
+    const batch = writeBatch(db);
+    const now = new Date().toISOString();
+    const timestamp = Timestamp.now();
+
+    // ✅ 1. Mettre à jour la facture avec historique
+    const docRef = doc(db, "factures", f.id);
+    
+    // ✅ Récupérer l'historique existant
+    const historiqueActuel = f.historique || [];
+    
+    // ✅ Ajouter l'entrée d'historique
+    const nouvelleEntreeHistorique = {
+      date: timestamp,
+      dateString: now,
+      action: isDone ? "validation_complete" : "acompte",
+      montantEncaisse: v,
+      montantTotalPaye: nCumul,
+      totalHT: f.totalHT,
+      reste: du - v,
+      valideParNom: userInfo.name,
+      valideParEmail: userInfo.email,
+      valideParUID: userInfo.uid,
+      statutPrecedent: f.statut || "En attente",
+      statutNouveau: isDone ? "Validée" : "Acompte",
+      statutPaiementPrecedent: f.statutPaiement || "en attente",
+      statutPaiementNouveau: isDone ? "Payé" : "Acompte"
     };
 
-    const du = Number(f.totalHT) - (Number(f.montantPaye) || 0);
-    const mnt = prompt(`ENCAISSEMENT : ${f.clientNom}\nSomme due : $${du}`, du.toString());
+    const nouvelHistorique = [...historiqueActuel, nouvelleEntreeHistorique];
 
-    if (!mnt || isNaN(Number(mnt))) return;
+    batch.update(docRef, {
+      validationComptable: isDone,
+      montantPaye: nCumul,
+      statut: isDone ? "Validée" : "Acompte",
+      dateValidation: timestamp,
+      derniereTransaction: v,
+      valideParNom: userInfo.name,
+      valideParEmail: userInfo.email,
+      statutPaiement: isDone ? "Payé" : "Acompte",
+      valideParUID: userInfo.uid,
+      historique: nouvelHistorique, // ✅ Sauvegarde de l'historique
+      dateModification: now
+    });
 
-    const v = Number(mnt);
-    const nCumul = (Number(f.montantPaye) || 0) + v;
-    const isDone = nCumul >= Number(f.totalHT);
+    // ✅ 2. Mettre à jour CHAQUE FACE (réservation) de la facture
+    if (f.lignes && f.lignes.length > 0) {
+      for (const ligne of f.lignes) {
+        if (ligne.panneauId && ligne.faceId) {
+          try {
+            const panneauRef = doc(db, "panneaux", ligne.panneauId);
+            const panneauSnap = await getDoc(panneauRef);
 
-    try {
-      const batch = writeBatch(db);
-      const docRef = doc(db, "factures", f.id);
+            if (panneauSnap.exists()) {
+              const panneauData = panneauSnap.data();
+              const faces = panneauData.faces || [];
+              
+              const faceIndex = faces.findIndex((face: any) => face.id === ligne.faceId);
+              
+              if (faceIndex !== -1) {
+                const face = faces[faceIndex];
+                const faceReservations = face.reservations || [];
+                
+                // ✅ Récupérer l'historique de la face
+                const faceHistorique = face.historique || [];
 
-      batch.update(docRef, {
-        validationComptable: isDone,
-        montantPaye: nCumul,
-        statut: isDone ? "Validée" : "Acompte",
-        dateValidation: Timestamp.now(),
-        derniereTransaction: v,
-        valideParNom: userInfo.name,
-        valideParEmail: userInfo.email,
-        statutPaiement: isDone ? "Payé" : "Acompte",
-        valideParUID: userInfo.uid,
-      });
+                const updatedReservations = faceReservations.map((res: any) => {
+                  const isMatch = 
+                    res.societeLocatrice === f.clientNom &&
+                    res.dateDebut === ligne.dateDebut &&
+                    res.dateFin === ligne.dateFin;
+                  
+                  if (isMatch) {
+                    // ✅ Ajouter l'historique pour cette réservation
+                    const resHistorique = res.historique || [];
+                    resHistorique.push({
+                      date: timestamp,
+                      dateString: now,
+                      action: isDone ? "validation_complete" : "acompte",
+                      statutPaiementPrecedent: res.statutPaiement || "en attente",
+                      statutPaiementNouveau: isDone ? "Payé" : "Acompte",
+                      validationComptablePrecedent: res.validationComptable || false,
+                      validationComptableNouveau: isDone,
+                      valideParNom: userInfo.name,
+                      valideParEmail: userInfo.email,
+                      valideParUID: userInfo.uid,
+                      montantPaye: nCumul
+                    });
 
-      await batch.commit();
-      alert(`✅ Transaction enregistrée avec succès !`);
-    } catch (e) {
-      console.error(e);
-      alert("❌ Erreur technique lors de la mise à jour");
+                    return {
+                      ...res,
+                      statutPaiement: isDone ? "Payé" : "Acompte",
+                      validationComptable: isDone,
+                      dateValidationComptable: now,
+                      valideParNom: userInfo.name,
+                      valideParEmail: userInfo.email,
+                      valideParUID: userInfo.uid,
+                      montantPaye: nCumul,
+                      statut: isDone ? "Occupé" : "Réservé",
+                      historique: resHistorique // ✅ Historique de la réservation
+                    };
+                  }
+                  return res;
+                });
+
+                const updatedFaces = [...faces];
+                updatedFaces[faceIndex] = {
+                  ...face,
+                  reservations: updatedReservations,
+                  statut: isDone ? "Occupé" : "Réservé",
+                  statutPaiement: isDone ? "Payé" : "Acompte",
+                  dateValidationComptable: now,
+                  valideParNom: userInfo.name,
+                  valideParEmail: userInfo.email,
+                  historique: [...faceHistorique, {
+                    date: timestamp,
+                    dateString: now,
+                    action: "validation_comptable",
+                    statutPrecedent: face.statut || "Réservé",
+                    statutNouveau: isDone ? "Occupé" : "Réservé",
+                    statutPaiementPrecedent: face.statutPaiement || "en attente",
+                    statutPaiementNouveau: isDone ? "Payé" : "Acompte",
+                    valideParNom: userInfo.name
+                  }]
+                };
+
+                batch.update(panneauRef, {
+                  faces: updatedFaces,
+                  updatedAt: now
+                });
+              }
+            }
+          } catch (error) {
+            console.error(`❌ Erreur mise à jour de la face ${ligne.faceId}:`, error);
+          }
+        }
+      }
     }
-  };
+
+    await batch.commit();
+    
+    // ✅ Rafraîchir les données
+    const q = query(collection(db, "factures"));
+    const snapshot = await getDocs(q);
+    setFactures(snapshot.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      dateFormatted: d.data().createdAt?.seconds ? new Date(d.data().createdAt.seconds * 1000).toLocaleDateString() : 'N/A'
+    })));
+
+    alert(`✅ Transaction enregistrée avec succès !`);
+    
+  } catch (e) {
+    console.error(e);
+    alert("❌ Erreur technique lors de la mise à jour");
+  }
+};
+
+
 
   // ============================================
   // LOGIQUE DE FILTRAGE

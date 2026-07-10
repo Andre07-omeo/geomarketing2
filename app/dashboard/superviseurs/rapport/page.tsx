@@ -1373,55 +1373,55 @@ const RapportPanneaux: React.FC = () => {
   // ============================================
 
   // ============================================
-// RÉCUPÉRER LES RÉSERVATIONS EN ATTENTE POUR LE PANIER
-// ============================================
+  // RÉCUPÉRER LES RÉSERVATIONS EN ATTENTE POUR LE PANIER
+  // ============================================
 
-// ============================================
-// RÉCUPÉRER LES RÉSERVATIONS EN ATTENTE POUR LE PANIER
-// ============================================
+  // ============================================
+  // RÉCUPÉRER LES RÉSERVATIONS EN ATTENTE POUR LE PANIER
+  // ============================================
 
-const reservationsEnAttente = useMemo(() => {
-  const allRes = getUserReservations();
-  return allRes.filter((res: Reservation) => {
-    // ✅ VÉRIFIER SI LA RÉSERVATION EST DÉJÀ FACTURÉE (plusieurs formats possibles)
-    const estFacturee = 
-      res.facturee === "oui" || 
-      res.facturee === "Oui" || 
-      res.facturee === "OUI" ||
-      // res.facturee === true ||
-      res.facturee === "true" ||
-      // res.facturee === 1 ||
-      res.facturee === "1" ||
-      res.facturee === "yes" ||
-      res.facturee === "Yes";
-    
-    // ✅ VÉRIFIER SI LA RÉSERVATION EST EN ATTENTE
-    const estEnAttente = 
-      res.validationComptable === false || 
-      res.statut === 'en_attente' ||
-      res.statut === 'Réservé' ||
-      res.statut === 'Occupé';
-    
-    // ✅ RETOURNER VRAI SEULEMENT SI :
-    // 1. NON FACTURÉE
-    // 2. EN ATTENTE (non validée par la comptabilité)
-    // 3. ET que la réservation est toujours en cours (dateFin >= aujourd'hui)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const dateFin = res.dateFin ? new Date(res.dateFin) : null;
-    const dateDebut = res.dateDebut ? new Date(res.dateDebut) : null;
-    
-    // Vérifier que la réservation est active ou future
-    const estActive = dateFin ? dateFin >= today : true;
-    const estFuture = dateDebut ? dateDebut > today : false;
-    const estEnCours = dateDebut && dateFin ? dateDebut <= today && dateFin >= today : false;
-    
-    // ✅ GARDER : non facturée ET en attente ET (active OU future)
-    return !estFacturee && estEnAttente && (estActive || estFuture || estEnCours);
-    
-  });
-}, [getUserReservations]);
+  const reservationsEnAttente = useMemo(() => {
+    const allRes = getUserReservations();
+    return allRes.filter((res: Reservation) => {
+      // ✅ VÉRIFIER SI LA RÉSERVATION EST DÉJÀ FACTURÉE (plusieurs formats possibles)
+      const estFacturee =
+        res.facturee === "oui" ||
+        res.facturee === "Oui" ||
+        res.facturee === "OUI" ||
+        // res.facturee === true ||
+        res.facturee === "true" ||
+        // res.facturee === 1 ||
+        res.facturee === "1" ||
+        res.facturee === "yes" ||
+        res.facturee === "Yes";
+
+      // ✅ VÉRIFIER SI LA RÉSERVATION EST EN ATTENTE
+      const estEnAttente =
+        res.validationComptable === false ||
+        res.statut === 'en_attente' ||
+        res.statut === 'Réservé' ||
+        res.statut === 'Occupé';
+
+      // ✅ RETOURNER VRAI SEULEMENT SI :
+      // 1. NON FACTURÉE
+      // 2. EN ATTENTE (non validée par la comptabilité)
+      // 3. ET que la réservation est toujours en cours (dateFin >= aujourd'hui)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const dateFin = res.dateFin ? new Date(res.dateFin) : null;
+      const dateDebut = res.dateDebut ? new Date(res.dateDebut) : null;
+
+      // Vérifier que la réservation est active ou future
+      const estActive = dateFin ? dateFin >= today : true;
+      const estFuture = dateDebut ? dateDebut > today : false;
+      const estEnCours = dateDebut && dateFin ? dateDebut <= today && dateFin >= today : false;
+
+      // ✅ GARDER : non facturée ET en attente ET (active OU future)
+      return !estFacturee && estEnAttente && (estActive || estFuture || estEnCours);
+
+    });
+  }, [getUserReservations]);
 
   // ============================================
   // CALCUL DU TOTAL DE LA FACTURE
@@ -2190,23 +2190,25 @@ const reservationsEnAttente = useMemo(() => {
   // Gestion des réservations - CORRIGÉ
   const handleReservationAction = async (action: string, reservation: any) => {
     console.log(`Action ${action} sur réservation:`, reservation);
+
     switch (action) {
       case 'view':
-        // Voir les détails
         alert(`📋 Réservation: ${reservation.societeLocatrice}\n👤 Agent: ${reservation.agentNom}\n📅 ${reservation.dateDebut} → ${reservation.dateFin}\n💰 ${reservation.montant} $`);
         break;
 
       case 'update':
-
         // ✅ Mettre à jour dans Firestore
         try {
-          // Vérifier si la réservation a un panneauId
+          console.log('📝 Mise à jour de la réservation:', reservation);
+          console.log('📝 faceIndexOriginal:', reservation.faceIndexOriginal);
+          console.log('📝 dateCreationOriginal:', reservation.dateCreationOriginal);
+          console.log('📝 isModification:', reservation.isModification);
+
           if (!reservation.panneauId) {
             alert('❌ Erreur: ID du panneau manquant');
             return;
           }
 
-          // Trouver le panneau
           const panneauRef = doc(db, "panneaux", reservation.panneauId);
           const panneauSnap = await getDoc(panneauRef);
 
@@ -2218,58 +2220,142 @@ const reservationsEnAttente = useMemo(() => {
           const data = panneauSnap.data();
           const currentFaces = [...(data.faces || [])];
 
-          // Trouver la face par son ID
-          const faceIndex = currentFaces.findIndex((f: any) => f.id === reservation.faceId);
+          // 🔥 Trouver la face - Utiliser faceIndexOriginal en priorité
+          let faceIndex = -1;
 
-          if (faceIndex === -1) {
+          // ✅ Méthode 1: faceIndexOriginal (le plus fiable pour les modifications)
+          if (reservation.faceIndexOriginal !== undefined && reservation.faceIndexOriginal !== null) {
+            faceIndex = parseInt(reservation.faceIndexOriginal);
+            console.log(`  └─ Utilisation faceIndexOriginal: ${faceIndex}`);
+          }
+
+          // ✅ Méthode 2: faceIndex
+          if (faceIndex === -1 && reservation.faceIndex !== undefined && reservation.faceIndex !== null) {
+            faceIndex = parseInt(reservation.faceIndex);
+            console.log(`  └─ Utilisation faceIndex: ${faceIndex}`);
+          }
+
+          // ✅ Méthode 3: faceId
+          if (faceIndex === -1 && reservation.faceId) {
+            console.log(`  └─ Recherche par faceId: ${reservation.faceId}`);
+            faceIndex = currentFaces.findIndex((f: any) => f.id === reservation.faceId);
+          }
+
+          if (faceIndex === -1 || faceIndex >= currentFaces.length) {
             alert('❌ Face introuvable');
             return;
           }
 
           const faceReservations = currentFaces[faceIndex].reservations || [];
 
-          // Mettre à jour la réservation
+          // 🔥 Trouver la réservation
+          let reservationFound = false;
           const updatedReservations = faceReservations.map((r: any) => {
-            // Identifier la réservation par sa date de création ou son ID
-            if (r.createdAt === reservation.createdAt || r.id === reservation.id) {
+            let isMatch = false;
+
+            // ✅ Méthode 1: Par createdAt (le plus fiable)
+            const searchCreatedAt = reservation.dateCreationOriginal || reservation.createdAt;
+            if (searchCreatedAt && r.createdAt === searchCreatedAt) {
+              isMatch = true;
+              console.log(`  └─ ✅ Match par createdAt: ${searchCreatedAt}`);
+            }
+
+            // ✅ Méthode 2: Par combinaison de critères
+            if (!isMatch) {
+              const rSociete = (r.societeLocatrice || '').toLowerCase().trim();
+              const rDateDebut = r.dateDebut;
+              const rDateFin = r.dateFin;
+              const rAgent = (r.agentEmail || '').toLowerCase().trim();
+
+              const searchSociete = (reservation.ancienneSociete || reservation.societeLocatrice || '').toLowerCase().trim();
+              const searchDateDebut = reservation.ancienneDateDebut || reservation.dateDebut;
+              const searchDateFin = reservation.ancienneDateFin || reservation.dateFin;
+              const searchAgent = (reservation.ancienAgentEmail || reservation.agentEmail || '').toLowerCase().trim();
+
+              let matchCount = 0;
+              if (searchSociete && rSociete === searchSociete) matchCount++;
+              if (searchDateDebut && rDateDebut === searchDateDebut) matchCount++;
+              if (searchDateFin && rDateFin === searchDateFin) matchCount++;
+              if (searchAgent && rAgent === searchAgent) matchCount++;
+
+              isMatch = matchCount >= 2;
+
+              if (isMatch) {
+                console.log(`  └─ ✅ Match par critères (${matchCount}/4)`);
+              }
+            }
+
+            // ✅ Méthode 3: Pour les modifications, vérifier avec les anciennes valeurs
+            if (!isMatch && (reservation.isModification || reservation.modification || reservation.estModification)) {
+              const rSociete = (r.societeLocatrice || '').toLowerCase().trim();
+              const rDateDebut = r.dateDebut;
+              const rDateFin = r.dateFin;
+              const rAgent = (r.agentEmail || '').toLowerCase().trim();
+
+              const ancienneSociete = (reservation.ancienneSociete || '').toLowerCase().trim();
+              const ancienneDateDebut = reservation.ancienneDateDebut;
+              const ancienneDateFin = reservation.ancienneDateFin;
+              const ancienAgent = (reservation.ancienAgentEmail || '').toLowerCase().trim();
+
+              let matchCount = 0;
+              if (ancienneSociete && rSociete === ancienneSociete) matchCount++;
+              if (ancienneDateDebut && rDateDebut === ancienneDateDebut) matchCount++;
+              if (ancienneDateFin && rDateFin === ancienneDateFin) matchCount++;
+              if (ancienAgent && rAgent === ancienAgent) matchCount++;
+
+              isMatch = matchCount >= 2;
+
+              if (isMatch) {
+                console.log(`  └─ ✅ Match par anciennes valeurs (${matchCount}/4)`);
+              }
+            }
+
+            if (isMatch) {
+              reservationFound = true;
+              console.log('  └─ ✅ Réservation trouvée, mise à jour...');
+
               return {
                 ...r,
                 // ✅ NOUVELLES DONNÉES
-                agentEmail: reservation.agentEmail,
-                agentNom: reservation.agentNom,
-                societeLocatrice: reservation.societeLocatrice,
-                dateDebut: reservation.dateDebut,
-                dateFin: reservation.dateFin,
-                montant: reservation.montant,
+                agentEmail: reservation.agentEmail || r.agentEmail,
+                agentNom: reservation.agentNom || r.agentNom,
+                societeLocatrice: reservation.societeLocatrice || r.societeLocatrice,
+                dateDebut: reservation.dateDebut || r.dateDebut,
+                dateFin: reservation.dateFin || r.dateFin,
+                montant: reservation.montant || r.montant,
                 // ✅ ANCIENNES DONNÉES (historique)
-                ancienAgentEmail: reservation.ancienAgentEmail || reservation.agentEmail,
-                ancienAgentNom: reservation.ancienAgentNom || reservation.agentNom,
-                ancienneSociete: reservation.ancienneSociete || reservation.societeLocatrice,
-                ancienneDateDebut: reservation.ancienneDateDebut || reservation.dateDebut,
-                ancienneDateFin: reservation.ancienneDateFin || reservation.dateFin,
-                ancienMontant: reservation.ancienMontant || reservation.montant,
+                ancienAgentEmail: r.agentEmail,
+                ancienAgentNom: r.agentNom,
+                ancienneSociete: r.societeLocatrice,
+                ancienneDateDebut: r.dateDebut,
+                ancienneDateFin: r.dateFin,
+                ancienMontant: r.montant || 0,
                 // ✅ MÉTADONNÉES
                 modification: true,
-                modifiePar: reservation.modifiePar || 'admin',
-                modifieParNom: reservation.modifieParNom || 'Administrateur',
-                modifieLe: reservation.modifieLe || new Date().toISOString(),
+                modifiePar: reservation.modifiePar || user?.email || 'admin',
+                modifieParNom: reservation.modifieParNom || user?.nomComplet || 'Administrateur',
+                modifieLe: new Date().toISOString(),
                 dateModification: new Date().toISOString()
               };
             }
             return r;
           });
 
-          currentFaces[faceIndex].reservations = updatedReservations;
+          if (!reservationFound) {
+            alert('❌ Réservation introuvable dans la base de données');
+            return;
+          }
 
-          // Sauvegarder dans Firestore
+          currentFaces[faceIndex].reservations = updatedReservations;
           await updateDoc(panneauRef, { faces: currentFaces });
 
           alert(`✅ Réservation mise à jour avec succès !`);
 
-          // 🔥 Recharger les données pour mettre à jour l'affichage
-          loadData();
+          // 🔥 CRITIQUE : Recharger les données pour mettre à jour l'affichage
+          await loadData();
 
         } catch (error) {
+          console.error('❌ Erreur lors de la mise à jour:', error);
           alert('❌ Erreur lors de la mise à jour de la réservation');
         }
         break;
@@ -2283,6 +2369,8 @@ const reservationsEnAttente = useMemo(() => {
         console.log('Action non reconnue:', action);
     }
   };
+
+
 
   // Gestion des rendez-vous
   const handleRdvAction = (action: string, rdv: any) => {
@@ -2664,563 +2752,563 @@ const reservationsEnAttente = useMemo(() => {
     }
   };
 
-// ============================================
-// RENDU DU TABLEAU - VERSION ULTRA RESPONSIVE
-// ============================================
-const renderTableauPanneaux = (): React.ReactNode => {
-  // État local pour gérer l'expansion des panneaux
-  const [expandedPanneaux, setExpandedPanneaux] = useState<Set<string>>(new Set());
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
+  // ============================================
+  // RENDU DU TABLEAU - VERSION ULTRA RESPONSIVE
+  // ============================================
+  const renderTableauPanneaux = (): React.ReactNode => {
+    // État local pour gérer l'expansion des panneaux
+    const [expandedPanneaux, setExpandedPanneaux] = useState<Set<string>>(new Set());
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
 
-  // ✅ Détection de la taille d'écran
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 640);
-      setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
+    // ✅ Détection de la taille d'écran
+    useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth < 640);
+        setIsTablet(window.innerWidth >= 640 && window.innerWidth < 1024);
+      };
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const togglePanneau = (panneauId: string) => {
+      const newExpanded = new Set(expandedPanneaux);
+      if (newExpanded.has(panneauId)) {
+        newExpanded.delete(panneauId);
+      } else {
+        newExpanded.add(panneauId);
+      }
+      setExpandedPanneaux(newExpanded);
     };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
-  const togglePanneau = (panneauId: string) => {
-    const newExpanded = new Set(expandedPanneaux);
-    if (newExpanded.has(panneauId)) {
-      newExpanded.delete(panneauId);
-    } else {
-      newExpanded.add(panneauId);
+    // ✅ Fonctions de gestion de l'état du panneau
+    const estEnPanne = (panneau: Panneau): boolean => {
+      if (!panneau || !panneau.etatPanneau) return false;
+      const etat = panneau.etatPanneau.toLowerCase().trim();
+      return etat === 'en panne' || etat === 'En panne';
+    };
+
+    const getPanneauStatusColor = (panneau: Panneau): string => {
+      if (!panneau || !panneau.etatPanneau) {
+        return 'bg-gray-100 text-gray-700 border-gray-300';
+      }
+      const etat = panneau.etatPanneau.toLowerCase().trim();
+      if (etat === 'en panne' || etat === 'En panne') {
+        return 'bg-red-100 text-red-700 border-red-300';
+      }
+      if (etat === 'libre' || etat === 'disponible') {
+        return 'bg-emerald-100 text-emerald-700 border-emerald-300';
+      }
+      return 'bg-blue-100 text-blue-700 border-blue-300';
+    };
+
+    const getPanneauStatusIcon = (panneau: Panneau): string => {
+      if (!panneau || !panneau.etatPanneau) return '⚪';
+      const etat = panneau.etatPanneau.toLowerCase().trim();
+      if (etat === 'en panne' || etat === 'En panne') return '🔴';
+      if (etat === 'libre' || etat === 'disponible') return '🟢';
+      return '🔵';
+    };
+
+    const getPanneauStatusLabel = (panneau: Panneau): string => {
+      return panneau?.etatPanneau || 'Inconnu';
+    };
+
+    // ✅ Fonction pour calculer le nombre de mois
+    const calculateMonths = (dateDebut: string | undefined, dateFin: string | undefined): number => {
+      if (!dateDebut || !dateFin) return 0;
+      const start = new Date(dateDebut);
+      const end = new Date(dateFin);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays <= 30) return 1;
+      return Math.floor(diffDays / 30);
+    };
+
+    const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
+      if (!dimension) return { value: 0, unit: 'm²' };
+      const numbers = dimension.match(/[\d.]+/g)?.map(Number).filter(num => num > 0) || [];
+      if (numbers.length === 0) return { value: 0, unit: 'm²' };
+      const product = numbers.reduce((acc, val) => acc * val, 1);
+      const roundedProduct = Math.round(product * 100) / 100;
+      return { value: roundedProduct, unit: 'm²' };
+    };
+
+    const formatAddress = (address: string | undefined, maxLength?: number): string => {
+      if (!address) return 'N/A';
+      if (!maxLength || address.length <= maxLength) return address;
+      const parts = address.split(',').map(p => p.trim());
+      if (parts.length > 1) {
+        const lastParts = parts.slice(-2).join(', ');
+        if (lastParts.length <= maxLength) return lastParts;
+        return parts[parts.length - 1] || address;
+      }
+      return address.substring(0, maxLength) + '...';
+    };
+
+    const openOnMap = (panneau: Panneau) => {
+      const coords = panneau?.coords || panneau?.gps_raw;
+      if (coords && coords.lat && coords.lng) {
+        localStorage.setItem('map_single_panneau', JSON.stringify({
+          id: panneau.id,
+          idPan: panneau.idPan,
+          adresse: panneau.adresse || 'Adresse non définie',
+          lat: coords.lat,
+          lng: coords.lng,
+          type: panneau.type || 'Standard'
+        }));
+        window.location.href = '/dashboard/superviseurs/carte';
+      } else {
+        alert('⚠️ Ce panneau n\'a pas de coordonnées GPS enregistrées.');
+      }
+    };
+
+    if (loading) {
+      return (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement des données...</p>
+        </div>
+      );
     }
-    setExpandedPanneaux(newExpanded);
-  };
 
-  // ✅ Fonctions de gestion de l'état du panneau
-  const estEnPanne = (panneau: Panneau): boolean => {
-    if (!panneau || !panneau.etatPanneau) return false;
-    const etat = panneau.etatPanneau.toLowerCase().trim();
-    return etat === 'en panne' || etat === 'En panne';
-  };
-
-  const getPanneauStatusColor = (panneau: Panneau): string => {
-    if (!panneau || !panneau.etatPanneau) {
-      return 'bg-gray-100 text-gray-700 border-gray-300';
+    if (error) {
+      return (
+        <div className="bg-white rounded-xl shadow-lg border border-red-200 p-8 text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={loadData}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            Réessayer
+          </button>
+        </div>
+      );
     }
-    const etat = panneau.etatPanneau.toLowerCase().trim();
-    if (etat === 'en panne' || etat === 'En panne') {
-      return 'bg-red-100 text-red-700 border-red-300';
+
+    const openEditPanneau = (panneau: any) => {
+      if (!panneau) {
+        alert('⚠️ Aucun panneau sélectionné');
+        return;
+      }
+      setPanneauToEdit(panneau);
+    };
+
+    const closeEditPanneau = () => {
+      setPanneauToEdit(null);
+    };
+
+    if (filteredPanneaux.length === 0) {
+      return (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
+          <div className="text-6xl mb-4">📭</div>
+          <h3 className="text-lg font-semibold text-gray-600">Aucun panneau trouvé</h3>
+          <p className="text-sm text-gray-400 mt-1">Ajustez vos filtres pour voir plus de résultats</p>
+        </div>
+      );
     }
-    if (etat === 'libre' || etat === 'disponible') {
-      return 'bg-emerald-100 text-emerald-700 border-emerald-300';
-    }
-    return 'bg-blue-100 text-blue-700 border-blue-300';
-  };
 
-  const getPanneauStatusIcon = (panneau: Panneau): string => {
-    if (!panneau || !panneau.etatPanneau) return '⚪';
-    const etat = panneau.etatPanneau.toLowerCase().trim();
-    if (etat === 'en panne' || etat === 'En panne') return '🔴';
-    if (etat === 'libre' || etat === 'disponible') return '🟢';
-    return '🔵';
-  };
-
-  const getPanneauStatusLabel = (panneau: Panneau): string => {
-    return panneau?.etatPanneau || 'Inconnu';
-  };
-
-  // ✅ Fonction pour calculer le nombre de mois
-  const calculateMonths = (dateDebut: string | undefined, dateFin: string | undefined): number => {
-    if (!dateDebut || !dateFin) return 0;
-    const start = new Date(dateDebut);
-    const end = new Date(dateFin);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays <= 30) return 1;
-    return Math.floor(diffDays / 30);
-  };
-
-  const calculateDimensionSum = (dimension: string | undefined): { value: number; unit: string } => {
-    if (!dimension) return { value: 0, unit: 'm²' };
-    const numbers = dimension.match(/[\d.]+/g)?.map(Number).filter(num => num > 0) || [];
-    if (numbers.length === 0) return { value: 0, unit: 'm²' };
-    const product = numbers.reduce((acc, val) => acc * val, 1);
-    const roundedProduct = Math.round(product * 100) / 100;
-    return { value: roundedProduct, unit: 'm²' };
-  };
-
-  const formatAddress = (address: string | undefined, maxLength?: number): string => {
-    if (!address) return 'N/A';
-    if (!maxLength || address.length <= maxLength) return address;
-    const parts = address.split(',').map(p => p.trim());
-    if (parts.length > 1) {
-      const lastParts = parts.slice(-2).join(', ');
-      if (lastParts.length <= maxLength) return lastParts;
-      return parts[parts.length - 1] || address;
-    }
-    return address.substring(0, maxLength) + '...';
-  };
-
-  const openOnMap = (panneau: Panneau) => {
-    const coords = panneau?.coords || panneau?.gps_raw;
-    if (coords && coords.lat && coords.lng) {
-      localStorage.setItem('map_single_panneau', JSON.stringify({
-        id: panneau.id,
-        idPan: panneau.idPan,
-        adresse: panneau.adresse || 'Adresse non définie',
-        lat: coords.lat,
-        lng: coords.lng,
-        type: panneau.type || 'Standard'
-      }));
-      window.location.href = '/dashboard/superviseurs/carte';
-    } else {
-      alert('⚠️ Ce panneau n\'a pas de coordonnées GPS enregistrées.');
-    }
-  };
-
-  if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Chargement des données...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg border border-red-200 p-8 text-center">
-        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <p className="text-red-600">{error}</p>
-        <button
-          onClick={loadData}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div
+          ref={tableContainerRef}
+          className="overflow-auto"
+          style={{ maxHeight: 'calc(100vh - 400px)' }}
         >
-          Réessayer
-        </button>
-      </div>
-    );
-  }
+          <div className="w-full overflow-x-auto">
+            <table className="w-full border-collapse min-w-[600px] sm:min-w-[900px] lg:min-w-[1100px] xl:min-w-[1300px]">
+              <thead className="sticky top-0 z-20">
+                <tr className="bg-[#00539B] from-blue-900 to-indigo-900">
+                  {/* Colonne ID - toujours visible */}
+                  <th className="bg-[#00539B] px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-left text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] xs:min-w-[70px] sm:min-w-[100px] sticky left-0 z-30">
+                    <span className="hidden xs:inline">IdPan / Adresse</span>
+                    <span className="xs:hidden">Panneau</span>
+                  </th>
+                  {/* Colonnes masquées sur mobile */}
+                  <th className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
+                    Type
+                  </th>
+                  <th className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
+                    Dim.
+                  </th>
+                  <th className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
+                    Total Dim
+                  </th>
+                  <th className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px] sm:min-w-[100px]">
+                    Statut Panneau
+                  </th>
+                  <th className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[35px] xs:min-w-[50px] sm:min-w-[70px]">
+                    <span className="hidden xs:inline">Nb Faces</span>
+                    <span className="xs:hidden">F</span>
+                  </th>
+                  <th className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] xs:min-w-[70px] sm:min-w-[90px] lg:min-w-[130px]">
+                    Actions
+                  </th>
+                  <th className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[50px] sm:min-w-[60px]">
+                    Face
+                  </th>
+                  <th className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[55px] sm:min-w-[70px]">
+                    Sens
+                  </th>
+                  <th className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px] sm:min-w-[110px]">
+                    Société
+                  </th>
+                  <th className="hidden xl:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[100px] sm:min-w-[140px]">
+                    Date début - fin
+                  </th>
+                  <th className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[55px] sm:min-w-[80px]">
+                    Nb Mois
+                  </th>
+                  <th className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
+                    Rés. Fut.
+                  </th>
+                  <th className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider min-w-[50px] xs:min-w-[60px] sm:min-w-[70px] lg:min-w-[90px]">
+                    <span className="hidden xs:inline">Statut Face</span>
+                    <span className="xs:hidden">Statut</span>
+                  </th>
+                </tr>
+              </thead>
 
-  const openEditPanneau = (panneau: any) => {
-    if (!panneau) {
-      alert('⚠️ Aucun panneau sélectionné');
-      return;
-    }
-    setPanneauToEdit(panneau);
-  };
+              <tbody className="divide-y divide-gray-100">
+                {filteredPanneaux.map((panneau: Panneau) => {
+                  const faces = panneau.faces || [];
+                  const isExpanded = expandedPanneaux.has(panneau.id);
+                  const dimensionResult = calculateDimensionSum(panneau.dimension);
+                  const estEnPanneau = estEnPanne(panneau);
+                  const estBloque = estEnPanneau;
 
-  const closeEditPanneau = () => {
-    setPanneauToEdit(null);
-  };
+                  if (faces.length === 0) {
+                    return (
+                      <tr key={`${panneau.id}-empty`} className={`hover:bg-amber-50/50 transition-colors border-b border-gray-200 ${estEnPanneau ? 'bg-red-50/30' : ''}`}>
+                        <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-[10px] xs:text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[60px] xs:min-w-[70px] sm:min-w-[100px]">
+                          <div>
+                            <div className="text-blue-700 text-[8px] xs:text-[10px] sm:text-xs md:text-sm truncate max-w-[50px] xs:max-w-[80px] sm:max-w-[120px]">
+                              {panneau.idPan || 'N/A'}
+                            </div>
+                            <div className="text-[7px] xs:text-[9px] sm:text-xs md:text-sm font-medium text-gray-600 mt-0.5 break-words max-w-[80px] xs:max-w-[120px] sm:max-w-[200px]">
+                              {formatAddress(panneau.adresse, isMobile ? 12 : 20)}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                          <span className="truncate max-w-[60px] block">{panneau.type || 'N/A'}</span>
+                        </td>
+                        <td className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                          <span className="truncate max-w-[60px] block">{panneau.dimension || 'N/A'}</span>
+                        </td>
+                        <td className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                          {dimensionResult.value > 0 ? `${dimensionResult.value}${isMobile ? '' : ` ${dimensionResult.unit}`}` : '-'}
+                        </td>
+                        <td className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
+                          <span className={`px-1 xs:px-2 py-0.5 rounded-full text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold border ${getPanneauStatusColor(panneau)} whitespace-nowrap`}>
+                            <span className="hidden xs:inline">{getPanneauStatusIcon(panneau)}</span>
+                            <span className="hidden sm:inline"> {getPanneauStatusLabel(panneau)}</span>
+                            <span className="sm:hidden">{getPanneauStatusLabel(panneau).substring(0, 3)}</span>
+                          </span>
+                        </td>
+                        <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">
+                          <span className="hidden xs:inline">0</span>
+                          <span className="xs:hidden">0</span>
+                        </td>
+                        <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
+                          <div className="flex items-center justify-center gap-0.5 xs:gap-1">
+                            {estBloque ? (
+                              <span className="text-[6px] xs:text-[8px] sm:text-[10px] text-red-500 font-bold whitespace-nowrap">⛔</span>
+                            ) : (
+                              <button
+                                onClick={() => openOnMap(panneau)}
+                                className="p-0.5 xs:p-1 sm:px-1.5 sm:py-1 bg-emerald-100 text-emerald-700 rounded text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition"
+                                title="Voir sur la carte"
+                              >
+                                <MapPin size={isMobile ? 12 : 14} className="inline" />
+                                <span className="hidden xs:inline sm:hidden">📍</span>
+                                <span className="hidden sm:inline ml-0.5">Carte</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs text-gray-400 border-r border-gray-200 text-center" colSpan={estEnPanneau ? 5 : 6}>
+                          <span className="text-[7px] xs:text-[8px] sm:text-[10px] text-blue-400 font-medium whitespace-nowrap">
+                            {estBloque ? '⛔ Indisponible' : 'Aucune face'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  }
 
-  if (filteredPanneaux.length === 0) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
-        <div className="text-6xl mb-4">📭</div>
-        <h3 className="text-lg font-semibold text-gray-600">Aucun panneau trouvé</h3>
-        <p className="text-sm text-gray-400 mt-1">Ajustez vos filtres pour voir plus de résultats</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-      <div
-        ref={tableContainerRef}
-        className="overflow-auto"
-        style={{ maxHeight: 'calc(100vh - 400px)' }}
-      >
-        <div className="w-full overflow-x-auto">
-          <table className="w-full border-collapse min-w-[600px] sm:min-w-[900px] lg:min-w-[1100px] xl:min-w-[1300px]">
-            <thead className="sticky top-0 z-20">
-              <tr className="bg-[#00539B] from-blue-900 to-indigo-900">
-                {/* Colonne ID - toujours visible */}
-                <th className="bg-[#00539B] px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-left text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] xs:min-w-[70px] sm:min-w-[100px] sticky left-0 z-30">
-                  <span className="hidden xs:inline">IdPan / Adresse</span>
-                  <span className="xs:hidden">Panneau</span>
-                </th>
-                {/* Colonnes masquées sur mobile */}
-                <th className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
-                  Type
-                </th>
-                <th className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
-                  Dim.
-                </th>
-                <th className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
-                  Total Dim
-                </th>
-                <th className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px] sm:min-w-[100px]">
-                  Statut Panneau
-                </th>
-                <th className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[35px] xs:min-w-[50px] sm:min-w-[70px]">
-                  <span className="hidden xs:inline">Nb Faces</span>
-                  <span className="xs:hidden">F</span>
-                </th>
-                <th className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] xs:min-w-[70px] sm:min-w-[90px] lg:min-w-[130px]">
-                  Actions
-                </th>
-                <th className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[50px] sm:min-w-[60px]">
-                  Face
-                </th>
-                <th className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[55px] sm:min-w-[70px]">
-                  Sens
-                </th>
-                <th className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[80px] sm:min-w-[110px]">
-                  Société
-                </th>
-                <th className="hidden xl:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[100px] sm:min-w-[140px]">
-                  Date début - fin
-                </th>
-                <th className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[55px] sm:min-w-[80px]">
-                  Nb Mois
-                </th>
-                <th className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider border-r border-blue-700/30 min-w-[60px] sm:min-w-[80px]">
-                  Rés. Fut.
-                </th>
-                <th className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[8px] xs:text-[10px] sm:text-xs md:text-sm font-black text-white uppercase tracking-wider min-w-[50px] xs:min-w-[60px] sm:min-w-[70px] lg:min-w-[90px]">
-                  <span className="hidden xs:inline">Statut Face</span>
-                  <span className="xs:hidden">Statut</span>
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-100">
-              {filteredPanneaux.map((panneau: Panneau) => {
-                const faces = panneau.faces || [];
-                const isExpanded = expandedPanneaux.has(panneau.id);
-                const dimensionResult = calculateDimensionSum(panneau.dimension);
-                const estEnPanneau = estEnPanne(panneau);
-                const estBloque = estEnPanneau;
-
-                if (faces.length === 0) {
                   return (
-                    <tr key={`${panneau.id}-empty`} className={`hover:bg-amber-50/50 transition-colors border-b border-gray-200 ${estEnPanneau ? 'bg-red-50/30' : ''}`}>
-                      <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-[10px] xs:text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[60px] xs:min-w-[70px] sm:min-w-[100px]">
-                        <div>
-                          <div className="text-blue-700 text-[8px] xs:text-[10px] sm:text-xs md:text-sm truncate max-w-[50px] xs:max-w-[80px] sm:max-w-[120px]">
-                            {panneau.idPan || 'N/A'}
+                    <React.Fragment key={panneau.id}>
+                      <tr
+                        className={`hover:bg-amber-50/60 transition-colors border-b border-gray-200 cursor-pointer ${estEnPanneau ? 'bg-red-50/30' : ''}`}
+                        onClick={() => togglePanneau(panneau.id)}
+                      >
+                        <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-[10px] xs:text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[60px] xs:min-w-[70px] sm:min-w-[100px]">
+                          <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-2">
+                            <span className="truncate text-blue-700 text-[8px] xs:text-[10px] sm:text-xs md:text-sm max-w-[40px] xs:max-w-[60px] sm:max-w-[100px]">
+                              {panneau.idPan || 'N/A'}
+                            </span>
+                            <span className="text-[6px] xs:text-[8px] sm:text-[10px] text-gray-400 flex-shrink-0">
+                              {isExpanded ? '▼' : '▶'}
+                            </span>
                           </div>
                           <div className="text-[7px] xs:text-[9px] sm:text-xs md:text-sm font-medium text-gray-600 mt-0.5 break-words max-w-[80px] xs:max-w-[120px] sm:max-w-[200px]">
                             {formatAddress(panneau.adresse, isMobile ? 12 : 20)}
                           </div>
-                        </div>
-                      </td>
-                      <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                        <span className="truncate max-w-[60px] block">{panneau.type || 'N/A'}</span>
-                      </td>
-                      <td className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                        <span className="truncate max-w-[60px] block">{panneau.dimension || 'N/A'}</span>
-                      </td>
-                      <td className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
-                        {dimensionResult.value > 0 ? `${dimensionResult.value}${isMobile ? '' : ` ${dimensionResult.unit}`}` : '-'}
-                      </td>
-                      <td className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
-                        <span className={`px-1 xs:px-2 py-0.5 rounded-full text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold border ${getPanneauStatusColor(panneau)} whitespace-nowrap`}>
-                          <span className="hidden xs:inline">{getPanneauStatusIcon(panneau)}</span>
-                          <span className="hidden sm:inline"> {getPanneauStatusLabel(panneau)}</span>
-                          <span className="sm:hidden">{getPanneauStatusLabel(panneau).substring(0, 3)}</span>
-                        </span>
-                      </td>
-                      <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">
-                        <span className="hidden xs:inline">0</span>
-                        <span className="xs:hidden">0</span>
-                      </td>
-                      <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
-                        <div className="flex items-center justify-center gap-0.5 xs:gap-1">
-                          {estBloque ? (
-                            <span className="text-[6px] xs:text-[8px] sm:text-[10px] text-red-500 font-bold whitespace-nowrap">⛔</span>
-                          ) : (
-                            <button
-                              onClick={() => openOnMap(panneau)}
-                              className="p-0.5 xs:p-1 sm:px-1.5 sm:py-1 bg-emerald-100 text-emerald-700 rounded text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition"
-                              title="Voir sur la carte"
-                            >
-                              <MapPin size={isMobile ? 12 : 14} className="inline" />
-                              <span className="hidden xs:inline sm:hidden">📍</span>
-                              <span className="hidden sm:inline ml-0.5">Carte</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs text-gray-400 border-r border-gray-200 text-center" colSpan={estEnPanneau ? 5 : 6}>
-                        <span className="text-[7px] xs:text-[8px] sm:text-[10px] text-blue-400 font-medium whitespace-nowrap">
-                          {estBloque ? '⛔ Indisponible' : 'Aucune face'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                }
-
-                return (
-                  <React.Fragment key={panneau.id}>
-                    <tr
-                      className={`hover:bg-amber-50/60 transition-colors border-b border-gray-200 cursor-pointer ${estEnPanneau ? 'bg-red-50/30' : ''}`}
-                      onClick={() => togglePanneau(panneau.id)}
-                    >
-                      <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-[10px] xs:text-sm md:text-base font-black text-blue-700 border-r border-gray-200 sticky left-0 z-10 bg-white min-w-[60px] xs:min-w-[70px] sm:min-w-[100px]">
-                        <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-2">
-                          <span className="truncate text-blue-700 text-[8px] xs:text-[10px] sm:text-xs md:text-sm max-w-[40px] xs:max-w-[60px] sm:max-w-[100px]">
-                            {panneau.idPan || 'N/A'}
+                        </td>
+                        <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                          <span className="truncate max-w-[60px] block">{panneau.type || 'N/A'}</span>
+                        </td>
+                        <td className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                          <span className="truncate max-w-[60px] block">{panneau.dimension || 'N/A'}</span>
+                        </td>
+                        <td className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                          {dimensionResult.value > 0 ? `${dimensionResult.value}${isMobile ? '' : ` ${dimensionResult.unit}`}` : '-'}
+                        </td>
+                        <td className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
+                          <span className={`px-1 xs:px-2 py-0.5 rounded-full text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold border ${getPanneauStatusColor(panneau)} whitespace-nowrap`}>
+                            <span className="hidden xs:inline">{getPanneauStatusIcon(panneau)}</span>
+                            <span className="hidden sm:inline"> {getPanneauStatusLabel(panneau)}</span>
+                            <span className="sm:hidden">{getPanneauStatusLabel(panneau).substring(0, 3)}</span>
                           </span>
-                          <span className="text-[6px] xs:text-[8px] sm:text-[10px] text-gray-400 flex-shrink-0">
-                            {isExpanded ? '▼' : '▶'}
-                          </span>
-                        </div>
-                        <div className="text-[7px] xs:text-[9px] sm:text-xs md:text-sm font-medium text-gray-600 mt-0.5 break-words max-w-[80px] xs:max-w-[120px] sm:max-w-[200px]">
-                          {formatAddress(panneau.adresse, isMobile ? 12 : 20)}
-                        </div>
-                      </td>
-                      <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                        <span className="truncate max-w-[60px] block">{panneau.type || 'N/A'}</span>
-                      </td>
-                      <td className="hidden md:table-cell px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                        <span className="truncate max-w-[60px] block">{panneau.dimension || 'N/A'}</span>
-                      </td>
-                      <td className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
-                        {dimensionResult.value > 0 ? `${dimensionResult.value}${isMobile ? '' : ` ${dimensionResult.unit}`}` : '-'}
-                      </td>
-                      <td className="hidden lg:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
-                        <span className={`px-1 xs:px-2 py-0.5 rounded-full text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold border ${getPanneauStatusColor(panneau)} whitespace-nowrap`}>
-                          <span className="hidden xs:inline">{getPanneauStatusIcon(panneau)}</span>
-                          <span className="hidden sm:inline"> {getPanneauStatusLabel(panneau)}</span>
-                          <span className="sm:hidden">{getPanneauStatusLabel(panneau).substring(0, 3)}</span>
-                        </span>
-                      </td>
-                      <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">
-                        <span className="hidden xs:inline">{faces.length}</span>
-                        <span className="xs:hidden">{faces.length}</span>
-                      </td>
-                      <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
-                        <div className="flex items-center justify-center gap-0.5 xs:gap-1 flex-wrap">
-                          {estBloque ? (
-                            <span className="text-[6px] xs:text-[8px] sm:text-[10px] text-red-500 font-bold whitespace-nowrap">⛔</span>
-                          ) : (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (faces.length > 0) {
-                                    openFaceDetails(panneau, faces[0]);
-                                  }
-                                }}
-                                className="p-0.5 xs:p-1 sm:px-1.5 sm:py-1 bg-blue-100 text-blue-700 rounded text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold hover:bg-blue-200 transition"
-                                title="Voir les détails"
-                              >
-                                <Eye size={isMobile ? 10 : 14} className="inline" />
-                                <span className="hidden xs:inline sm:hidden">👁️</span>
-                                <span className="hidden sm:inline ml-0.5">Détails</span>
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  ouvrirLaCarte();
-                                }}
-                                className="p-0.5 xs:p-1 sm:px-1.5 sm:py-1 bg-emerald-100 text-emerald-700 rounded text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition"
-                                title="Voir sur la carte"
-                              >
-                                <MapPin size={isMobile ? 10 : 14} className="inline" />
-                                <span className="hidden xs:inline sm:hidden">📍</span>
-                                <span className="hidden sm:inline ml-0.5">Carte</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[9px] sm:text-[10px] text-gray-400 border-r border-gray-200" colSpan={estEnPanneau ? 5 : 6}>
-                        <span className="text-[7px] xs:text-[8px] sm:text-[10px] text-blue-400 font-medium whitespace-nowrap">
-                          {estBloque ? '⛔ Panneau en panne' : 'Cliquez pour voir les faces'}
-                        </span>
-                      </td>
-                    </tr>
-
-                    {isExpanded && !estBloque && faces.map((face: Face, idx: number) => {
-                      const activeReservation = getReservationActive(face);
-                      const futureReservations = getReservationsFutures(face);
-                      const status = getFaceStatus(face);
-                      const faceId = face.id || `F${idx + 1}`;
-                      const nbMois = calculateMonths(
-                        activeReservation?.dateDebut,
-                        activeReservation?.dateFin
-                      );
-
-                      const getStatusColor = (statut: string): string => {
-                        switch (statut) {
-                          case 'Libre': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-                          case 'Occupé': return 'bg-blue-100 text-blue-700 border-blue-200';
-                          case 'Réservé': return 'bg-amber-100 text-amber-700 border-amber-200';
-                          default: return 'bg-gray-100 text-gray-700 border-gray-200';
-                        }
-                      };
-
-                      const getStatusDot = (statut: string): string => {
-                        switch (statut) {
-                          case 'Libre': return 'bg-emerald-500';
-                          case 'Occupé': return 'bg-blue-500';
-                          case 'Réservé': return 'bg-amber-500';
-                          default: return 'bg-gray-500';
-                        }
-                      };
-
-                      return (
-                        <tr
-                          key={`${panneau.id}-face-${idx}`}
-                          className="hover:bg-amber-50/40 transition-colors border-b border-gray-100 bg-blue-50/20"
-                        >
-                          <td className="px-1 xs:px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[7px] xs:text-[8px] sm:text-[10px] text-gray-400 border-r border-gray-200 sticky left-0 z-10 bg-blue-50/20 min-w-[60px] xs:min-w-[70px] sm:min-w-[100px]">
-                            <span className="ml-1 xs:ml-2 sm:ml-4 text-[6px] xs:text-[8px] sm:text-[10px] text-blue-400 whitespace-nowrap">
-                              {isMobile ? '└─' : '└──'} F{idx + 1}
-                            </span>
-                          </td>
-                          <td className="hidden sm:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
-                          <td className="hidden md:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
-                          <td className="hidden lg:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
-                          <td className="hidden lg:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
-                          <td className="px-1 xs:px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
-                          <td className="px-1 xs:px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-center border-r border-gray-200">
-                            <div className="flex items-center justify-center gap-0.5 xs:gap-1 flex-wrap">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openFaceDetails(panneau, face);
-                                }}
-                                className="p-0.5 xs:p-1 sm:px-1.5 sm:py-0.5 bg-blue-100 text-blue-700 rounded text-[6px] xs:text-[8px] sm:text-[10px] font-bold hover:bg-blue-200 transition"
-                              >
-                                <Eye size={isMobile ? 8 : 10} className="inline" />
-                                <span className="hidden xs:inline sm:hidden">👁️</span>
-                                <span className="hidden sm:inline ml-0.5">Voir</span>
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openReservationModal(panneau, face);
-                                }}
-                                className="p-0.5 xs:p-1 sm:px-1.5 sm:py-0.5 bg-amber-100 text-amber-700 rounded text-[6px] xs:text-[8px] sm:text-[10px] font-bold hover:bg-amber-200 transition"
-                              >
-                                <Calendar size={isMobile ? 8 : 10} className="inline" />
-                                <span className="hidden xs:inline sm:hidden">📅</span>
-                                <span className="hidden sm:inline ml-0.5">Réserver</span>
-                              </button>
-                            </div>
-                          </td>
-                          <td className="hidden sm:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-bold text-indigo-600 border-r border-gray-200">
-                            {faceId}
-                          </td>
-                          <td className="hidden md:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                            {face.sens || 'N/A'}
-                          </td>
-                          <td className="hidden lg:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
-                            <span className="truncate max-w-[80px] block">{activeReservation?.societeLocatrice || 'S/N'}</span>
-                          </td>
-                          <td className="hidden xl:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-medium text-gray-600 border-r border-gray-200">
-                            {activeReservation?.dateDebut && activeReservation?.dateFin ? (
-                              <span className="text-gray-700 text-[8px] xs:text-[9px] sm:text-[10px] md:text-xs">
-                                {activeReservation.dateDebut} – {activeReservation.dateFin}
-                              </span>
+                        </td>
+                        <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs md:text-sm font-black text-blue-600 border-r border-gray-200">
+                          <span className="hidden xs:inline">{faces.length}</span>
+                          <span className="xs:hidden">{faces.length}</span>
+                        </td>
+                        <td className="px-1 xs:px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-200">
+                          <div className="flex items-center justify-center gap-0.5 xs:gap-1 flex-wrap">
+                            {estBloque ? (
+                              <span className="text-[6px] xs:text-[8px] sm:text-[10px] text-red-500 font-bold whitespace-nowrap">⛔</span>
                             ) : (
-                              <span className="text-gray-300">-</span>
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (faces.length > 0) {
+                                      openFaceDetails(panneau, faces[0]);
+                                    }
+                                  }}
+                                  className="p-0.5 xs:p-1 sm:px-1.5 sm:py-1 bg-blue-100 text-blue-700 rounded text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold hover:bg-blue-200 transition"
+                                  title="Voir les détails"
+                                >
+                                  <Eye size={isMobile ? 10 : 14} className="inline" />
+                                  <span className="hidden xs:inline sm:hidden">👁️</span>
+                                  <span className="hidden sm:inline ml-0.5">Détails</span>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    ouvrirLaCarte();
+                                  }}
+                                  className="p-0.5 xs:p-1 sm:px-1.5 sm:py-1 bg-emerald-100 text-emerald-700 rounded text-[7px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold hover:bg-emerald-200 transition"
+                                  title="Voir sur la carte"
+                                >
+                                  <MapPin size={isMobile ? 10 : 14} className="inline" />
+                                  <span className="hidden xs:inline sm:hidden">📍</span>
+                                  <span className="hidden sm:inline ml-0.5">Carte</span>
+                                </button>
+                              </>
                             )}
-                          </td>
-                          <td className="hidden lg:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-center text-[10px] sm:text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
-                            {nbMois > 0 ? `${nbMois}` : '-'}
-                          </td>
-                          <td className="hidden md:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-center text-[10px] sm:text-xs md:text-sm font-bold text-amber-600 border-r border-gray-200">
-                            {futureReservations.length || 0}
-                          </td>
-                          <td className="px-1 xs:px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-center">
-                            <span className={`px-1 xs:px-1.5 sm:px-2 py-0.5 rounded-full text-[6px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold border ${getStatusColor(status)} flex items-center gap-0.5 xs:gap-1 justify-center whitespace-nowrap`}>
-                              <span className={`w-0.5 h-0.5 xs:w-1 xs:h-1 rounded-full ${getStatusDot(status)}`} />
-                              <span className="hidden xs:inline">{status}</span>
-                              <span className="xs:hidden">{status.substring(0, 3)}</span>
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                          </div>
+                        </td>
+                        <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-center text-[9px] sm:text-[10px] text-gray-400 border-r border-gray-200" colSpan={estEnPanneau ? 5 : 6}>
+                          <span className="text-[7px] xs:text-[8px] sm:text-[10px] text-blue-400 font-medium whitespace-nowrap">
+                            {estBloque ? '⛔ Panneau en panne' : 'Cliquez pour voir les faces'}
+                          </span>
+                        </td>
+                      </tr>
 
-      {/* Pied de tableau responsive */}
-      <div className="flex flex-wrap items-center justify-between gap-1 xs:gap-2 p-2 xs:p-3 bg-gray-50 border-t border-gray-200 text-[8px] xs:text-[10px] text-gray-500">
-        <div className="flex flex-wrap items-center gap-1 xs:gap-2 sm:gap-4">
-          <span className="font-semibold text-gray-600 text-[7px] xs:text-[10px]">
-            📊 {filteredPanneaux.length}
-            <span className="hidden xs:inline"> panneau(x)</span>
-          </span>
-          <span className="hidden xs:inline text-gray-300">•</span>
-          <span className="font-semibold text-gray-600 text-[7px] xs:text-[10px] hidden xs:inline">
-            🎯 {stats.totalFaces} face(s)
-          </span>
-          <span className="hidden xs:inline text-gray-300">•</span>
-          <div className="flex flex-wrap items-center gap-1 xs:gap-2">
-            <span className="flex items-center gap-0.5 xs:gap-1 font-medium text-gray-600 text-[7px] xs:text-[10px]">
-              <span className="w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full bg-emerald-500" />
-              <span className="hidden xs:inline">{stats.totalLibres} libres</span>
-              <span className="xs:hidden">{stats.totalLibres}</span>
+                      {isExpanded && !estBloque && faces.map((face: Face, idx: number) => {
+                        const activeReservation = getReservationActive(face);
+                        const futureReservations = getReservationsFutures(face);
+                        const status = getFaceStatus(face);
+                        const faceId = face.id || `F${idx + 1}`;
+                        const nbMois = calculateMonths(
+                          activeReservation?.dateDebut,
+                          activeReservation?.dateFin
+                        );
+
+                        const getStatusColor = (statut: string): string => {
+                          switch (statut) {
+                            case 'Libre': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+                            case 'Occupé': return 'bg-blue-100 text-blue-700 border-blue-200';
+                            case 'Réservé': return 'bg-amber-100 text-amber-700 border-amber-200';
+                            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+                          }
+                        };
+
+                        const getStatusDot = (statut: string): string => {
+                          switch (statut) {
+                            case 'Libre': return 'bg-emerald-500';
+                            case 'Occupé': return 'bg-blue-500';
+                            case 'Réservé': return 'bg-amber-500';
+                            default: return 'bg-gray-500';
+                          }
+                        };
+
+                        return (
+                          <tr
+                            key={`${panneau.id}-face-${idx}`}
+                            className="hover:bg-amber-50/40 transition-colors border-b border-gray-100 bg-blue-50/20"
+                          >
+                            <td className="px-1 xs:px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[7px] xs:text-[8px] sm:text-[10px] text-gray-400 border-r border-gray-200 sticky left-0 z-10 bg-blue-50/20 min-w-[60px] xs:min-w-[70px] sm:min-w-[100px]">
+                              <span className="ml-1 xs:ml-2 sm:ml-4 text-[6px] xs:text-[8px] sm:text-[10px] text-blue-400 whitespace-nowrap">
+                                {isMobile ? '└─' : '└──'} F{idx + 1}
+                              </span>
+                            </td>
+                            <td className="hidden sm:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
+                            <td className="hidden md:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
+                            <td className="hidden lg:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
+                            <td className="hidden lg:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
+                            <td className="px-1 xs:px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 border-r border-gray-200"></td>
+                            <td className="px-1 xs:px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-center border-r border-gray-200">
+                              <div className="flex items-center justify-center gap-0.5 xs:gap-1 flex-wrap">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openFaceDetails(panneau, face);
+                                  }}
+                                  className="p-0.5 xs:p-1 sm:px-1.5 sm:py-0.5 bg-blue-100 text-blue-700 rounded text-[6px] xs:text-[8px] sm:text-[10px] font-bold hover:bg-blue-200 transition"
+                                >
+                                  <Eye size={isMobile ? 8 : 10} className="inline" />
+                                  <span className="hidden xs:inline sm:hidden">👁️</span>
+                                  <span className="hidden sm:inline ml-0.5">Voir</span>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openReservationModal(panneau, face);
+                                  }}
+                                  className="p-0.5 xs:p-1 sm:px-1.5 sm:py-0.5 bg-amber-100 text-amber-700 rounded text-[6px] xs:text-[8px] sm:text-[10px] font-bold hover:bg-amber-200 transition"
+                                >
+                                  <Calendar size={isMobile ? 8 : 10} className="inline" />
+                                  <span className="hidden xs:inline sm:hidden">📅</span>
+                                  <span className="hidden sm:inline ml-0.5">Réserver</span>
+                                </button>
+                              </div>
+                            </td>
+                            <td className="hidden sm:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-bold text-indigo-600 border-r border-gray-200">
+                              {faceId}
+                            </td>
+                            <td className="hidden md:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                              {face.sens || 'N/A'}
+                            </td>
+                            <td className="hidden lg:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 border-r border-gray-200">
+                              <span className="truncate max-w-[80px] block">{activeReservation?.societeLocatrice || 'S/N'}</span>
+                            </td>
+                            <td className="hidden xl:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm font-medium text-gray-600 border-r border-gray-200">
+                              {activeReservation?.dateDebut && activeReservation?.dateFin ? (
+                                <span className="text-gray-700 text-[8px] xs:text-[9px] sm:text-[10px] md:text-xs">
+                                  {activeReservation.dateDebut} – {activeReservation.dateFin}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">-</span>
+                              )}
+                            </td>
+                            <td className="hidden lg:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-center text-[10px] sm:text-xs md:text-sm font-bold text-purple-600 border-r border-gray-200">
+                              {nbMois > 0 ? `${nbMois}` : '-'}
+                            </td>
+                            <td className="hidden md:table-cell px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-center text-[10px] sm:text-xs md:text-sm font-bold text-amber-600 border-r border-gray-200">
+                              {futureReservations.length || 0}
+                            </td>
+                            <td className="px-1 xs:px-2 sm:px-3 py-1 xs:py-1.5 sm:py-2 text-center">
+                              <span className={`px-1 xs:px-1.5 sm:px-2 py-0.5 rounded-full text-[6px] xs:text-[8px] sm:text-[10px] md:text-xs font-bold border ${getStatusColor(status)} flex items-center gap-0.5 xs:gap-1 justify-center whitespace-nowrap`}>
+                                <span className={`w-0.5 h-0.5 xs:w-1 xs:h-1 rounded-full ${getStatusDot(status)}`} />
+                                <span className="hidden xs:inline">{status}</span>
+                                <span className="xs:hidden">{status.substring(0, 3)}</span>
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Pied de tableau responsive */}
+        <div className="flex flex-wrap items-center justify-between gap-1 xs:gap-2 p-2 xs:p-3 bg-gray-50 border-t border-gray-200 text-[8px] xs:text-[10px] text-gray-500">
+          <div className="flex flex-wrap items-center gap-1 xs:gap-2 sm:gap-4">
+            <span className="font-semibold text-gray-600 text-[7px] xs:text-[10px]">
+              📊 {filteredPanneaux.length}
+              <span className="hidden xs:inline"> panneau(x)</span>
             </span>
-            <span className="flex items-center gap-0.5 xs:gap-1 font-medium text-gray-600 text-[7px] xs:text-[10px]">
-              <span className="w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full bg-blue-500" />
-              <span className="hidden xs:inline">{stats.totalOccupes} occupées</span>
-              <span className="xs:hidden">{stats.totalOccupes}</span>
+            <span className="hidden xs:inline text-gray-300">•</span>
+            <span className="font-semibold text-gray-600 text-[7px] xs:text-[10px] hidden xs:inline">
+              🎯 {stats.totalFaces} face(s)
             </span>
-            <span className="flex items-center gap-0.5 xs:gap-1 font-medium text-gray-600 text-[7px] xs:text-[10px]">
-              <span className="w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full bg-amber-500" />
-              <span className="hidden xs:inline">{stats.totalReserves} réservées</span>
-              <span className="xs:hidden">{stats.totalReserves}</span>
+            <span className="hidden xs:inline text-gray-300">•</span>
+            <div className="flex flex-wrap items-center gap-1 xs:gap-2">
+              <span className="flex items-center gap-0.5 xs:gap-1 font-medium text-gray-600 text-[7px] xs:text-[10px]">
+                <span className="w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full bg-emerald-500" />
+                <span className="hidden xs:inline">{stats.totalLibres} libres</span>
+                <span className="xs:hidden">{stats.totalLibres}</span>
+              </span>
+              <span className="flex items-center gap-0.5 xs:gap-1 font-medium text-gray-600 text-[7px] xs:text-[10px]">
+                <span className="w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full bg-blue-500" />
+                <span className="hidden xs:inline">{stats.totalOccupes} occupées</span>
+                <span className="xs:hidden">{stats.totalOccupes}</span>
+              </span>
+              <span className="flex items-center gap-0.5 xs:gap-1 font-medium text-gray-600 text-[7px] xs:text-[10px]">
+                <span className="w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full bg-amber-500" />
+                <span className="hidden xs:inline">{stats.totalReserves} réservées</span>
+                <span className="xs:hidden">{stats.totalReserves}</span>
+              </span>
+            </div>
+          </div>
+          <div className="text-[7px] xs:text-[9px] text-gray-400 flex items-center gap-1 xs:gap-2">
+            <RefreshCw
+              className="w-2.5 h-2.5 xs:w-3 xs:h-3 cursor-pointer hover:text-blue-500 transition"
+              onClick={loadData}
+            />
+            {lastUpdate && (
+              <span className="hidden sm:inline font-medium text-gray-400 text-[7px] xs:text-[9px]">
+                {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+            <span className="text-[6px] xs:text-[7px] sm:hidden text-gray-400">
+              ← Glissez →
             </span>
           </div>
         </div>
-        <div className="text-[7px] xs:text-[9px] text-gray-400 flex items-center gap-1 xs:gap-2">
-          <RefreshCw
-            className="w-2.5 h-2.5 xs:w-3 xs:h-3 cursor-pointer hover:text-blue-500 transition"
-            onClick={loadData}
-          />
-          {lastUpdate && (
-            <span className="hidden sm:inline font-medium text-gray-400 text-[7px] xs:text-[9px]">
-              {lastUpdate.toLocaleTimeString()}
-            </span>
-          )}
-          <span className="text-[6px] xs:text-[7px] sm:hidden text-gray-400">
-            ← Glissez →
-          </span>
-        </div>
-      </div>
 
-      <AnimatePresence>
-        {isFaceModalOpen && selectedFace && selectedPanneau && (
-          <FaceDetailModal
-            isOpen={isFaceModalOpen}
-            onClose={closeFaceModal}
-            panneau={{
-              ...selectedPanneau,
-              onEdit: openEditPanneau
-            }}
-            face={selectedFace}
-            onSelect={(selectionKey: string) => {
-              console.log('Face sélectionnée:', selectionKey);
-            }}
-            isSelected={false}
-            ouvrirLaCarte={ouvrirLaCarte}
+        <AnimatePresence>
+          {isFaceModalOpen && selectedFace && selectedPanneau && (
+            <FaceDetailModal
+              isOpen={isFaceModalOpen}
+              onClose={closeFaceModal}
+              panneau={{
+                ...selectedPanneau,
+                onEdit: openEditPanneau
+              }}
+              face={selectedFace}
+              onSelect={(selectionKey: string) => {
+                console.log('Face sélectionnée:', selectionKey);
+              }}
+              isSelected={false}
+              ouvrirLaCarte={ouvrirLaCarte}
+              user={user}
+            />
+          )}
+        </AnimatePresence>
+
+        {panneauToEdit && (
+          <EditPanneauModal
+            isOpen={true}
+            onClose={closeEditPanneau}
+            panneau={openReservationModal}
             user={user}
           />
         )}
-      </AnimatePresence>
-
-      {panneauToEdit && (
-        <EditPanneauModal
-          isOpen={true}
-          onClose={closeEditPanneau}
-          panneau={openReservationModal}
-          user={user}
-        />
-      )}
-    </div>
-  );
-};
+      </div>
+    );
+  };
 
 
 
@@ -4373,30 +4461,139 @@ const renderTableauPanneaux = (): React.ReactNode => {
       }
     }, [reservation]);
 
-    const handlePrint = () => {
-      const reservationImprime = {
-        ...reservation,
-        agentEmail: formData.agentEmail,
-        agentNom: formData.agentNom || formData.agentEmail?.split('@')[0] || 'Agent',
-        societeLocatrice: formData.societeLocatrice,
-        dateDebut: formData.dateDebut,
-        dateFin: formData.dateFin,
-        montant: formData.montant,
-        ancienAgentEmail: formData.ancienAgentEmail,
-        ancienAgentNom: formData.ancienAgentNom,
-        ancienneSociete: formData.ancienneSociete,
-        ancienneDateDebut: formData.ancienneDateDebut,
-        ancienneDateFin: formData.ancienneDateFin,
-        ancienMontant: formData.ancienMontant,
-        modification: true,
-        modifiePar: user?.email || 'admin',
-        modifieParNom: user?.nomComplet || user?.nom || 'Administrateur',
-        modifieLe: new Date().toISOString()
-      };
-
-      localStorage.setItem('facture_preview_data', JSON.stringify([reservationImprime]));
-      window.location.href = '/generationpdf';
+    // ✅ Fonction pour générer l'ID de face complet (idPan + numéro de face)
+    const generateFullFaceId = (panneauIdPan: string, faceIndex: number): string => {
+      if (!panneauIdPan) return `FACE-${faceIndex + 1}`;
+      // Si l'ID du panneau contient déjà un numéro, l'utiliser
+      // Sinon, ajouter le numéro de face
+      return `${panneauIdPan}${faceIndex + 1}`;
     };
+
+const handlePrint = () => {
+  if (!reservation) {
+    alert('❌ Erreur: Aucune réservation sélectionnée');
+    return;
+  }
+
+  const facturee = reservation?.facturee || reservation?.reservationData?.facturee || '';
+  const estDejaFacturee = facturee === "oui" || facturee === "Oui" || facturee === "OUI" || facturee === true || facturee === "true";
+  
+  if (estDejaFacturee) {
+    alert("⚠️ Cette réservation a déjà été facturée. Vous ne pouvez pas la modifier.");
+    return;
+  }
+
+  const reservationData = reservation.reservationData || {};
+  
+  const ancienAgentNom = reservationData.agentNom || reservation.agentNom || '';
+  const ancienAgentEmail = reservationData.agentEmail || reservation.agentEmail || '';
+  const ancienAgentId = reservationData.agentId || reservation.agentId || '';
+  
+  const ancienneSociete = reservationData.societeLocatrice || reservation.societeLocatrice || '';
+  const ancienneDateDebut = reservationData.dateDebut || reservation.dateDebut || '';
+  const ancienneDateFin = reservationData.dateFin || reservation.dateFin || '';
+  const ancienMontant = reservationData.montant || reservation.montant || 0;
+
+  const nouvelAgentNom = formData.agentNom || formData.agentEmail?.split('@')[0] || 'Agent';
+  const nouvelAgentEmail = formData.agentEmail || '';
+  
+  // ✅ Récupérer l'ID du document de l'agent sélectionné
+  const agentSelectionne = agents.find((a: any) => a.email === nouvelAgentEmail);
+  const nouvelAgentId = agentSelectionne?.id || '';  // ← Utiliser l'ID du document
+
+  let dureeMois = reservation.dureeMois || reservationData.dureeMois || 1;
+
+  if (!reservation.dureeMois && !reservationData.dureeMois) {
+    const dateDebut = formData.dateDebut || ancienneDateDebut;
+    const dateFin = formData.dateFin || ancienneDateFin;
+    if (dateDebut && dateFin) {
+      const start = new Date(dateDebut);
+      const end = new Date(dateFin);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      dureeMois = diffDays <= 30 ? 1 : Math.floor(diffDays / 30);
+    }
+  }
+
+  const panneauIdPan = reservation.panneauIdPan || reservationData.panneauIdPan || '';
+  const faceIndex = reservation.faceIndex !== undefined
+    ? reservation.faceIndex
+    : (reservation.faceIndexInPanneau !== undefined ? reservation.faceIndexInPanneau : 0);
+
+  const fullFaceId = panneauIdPan ? `${panneauIdPan}${faceIndex + 1}` : `FACE-${faceIndex + 1}`;
+
+  const reservationImprime = {
+    id: reservation.id || reservationData.id || '',
+    reservationId: reservation.id || reservationData.id || '',
+    panneauId: reservation.panneauId || reservationData.panneauId || '',
+    faceId: reservation.faceId || reservationData.faceId || '',
+    faceIndex: faceIndex,
+    idFace: fullFaceId,
+
+    faceIndexOriginal: reservation.faceIndexOriginal !== undefined
+      ? reservation.faceIndexOriginal
+      : (reservation.faceIndex !== undefined ? reservation.faceIndex : reservation.faceIndexInPanneau),
+
+    dateCreationOriginal: reservationData.createdAt || reservation.createdAt || '',
+    createdAt: reservationData.createdAt || reservation.createdAt || '',
+    dateDebutOriginal: reservationData.dateDebut || reservation.dateDebut || '',
+    dateFinOriginal: reservationData.dateFin || reservation.dateFin || '',
+    agentEmailOriginal: reservationData.agentEmail || reservation.agentEmail || '',
+    societeLocatriceOriginal: reservationData.societeLocatrice || reservation.societeLocatrice || '',
+
+    // ✅ NOUVELLES DONNÉES
+    agentEmail: nouvelAgentEmail,
+    agentNom: nouvelAgentNom,
+    agentId: nouvelAgentId,
+    
+    societeLocatrice: formData.societeLocatrice || ancienneSociete,
+    dateDebut: formData.dateDebut || ancienneDateDebut,
+    dateFin: formData.dateFin || ancienneDateFin,
+    montant: formData.montant || ancienMontant,
+
+    // ✅ ANCIENNES DONNÉES
+    ancienAgentEmail: ancienAgentEmail,
+    ancienAgentNom: ancienAgentNom,
+    ancienAgentId: ancienAgentId,
+    ancienneSociete: ancienneSociete,
+    ancienneDateDebut: ancienneDateDebut,
+    ancienneDateFin: ancienneDateFin,
+    ancienMontant: ancienMontant,
+
+    modification: true,
+    estModification: true,
+    isModification: true,
+    modifiePar: user?.email || 'admin',
+    modifieParNom: user?.nomComplet || user?.nom || 'Administrateur',
+    modifieLe: new Date().toISOString(),
+    dateModification: new Date().toISOString(),
+
+    statut: reservationData.statut || reservation.statut || 'Réservé',
+    statutPaiement: reservationData.statutPaiement || reservation.statutPaiement || 'en attente',
+    validationComptable: reservationData.validationComptable || reservation.validationComptable || false,
+
+    panneauIdPan: panneauIdPan,
+    adresse: reservation.adresse || reservationData.adresse || '',
+    panelDocId: reservation.panneauId || reservationData.panneauId || '',
+    reservationData: reservationData,
+    faceLabel: fullFaceId,
+    dureeMois: dureeMois,
+    label: fullFaceId,
+
+    facturee: reservationData.facturee || reservation.facturee || 'non',
+    photoCampagneUrl: reservationData.photoCampagneUrl || reservation.photoCampagneUrl || '',
+    createdBy: reservationData.createdBy || reservation.createdBy || '',
+    createdByEmail: reservationData.createdByEmail || reservation.createdByEmail || ''
+  };
+
+  localStorage.setItem('facture_preview_data', JSON.stringify([reservationImprime]));
+
+  if (onSave && typeof onSave === 'function') {
+    onSave(reservationImprime);
+  }
+
+  window.location.href = '/generationpdf';
+};
     if (!isOpen) return null;
 
     return (
@@ -4420,10 +4617,7 @@ const renderTableauPanneaux = (): React.ReactNode => {
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="fixed inset-2 xs:inset-3 sm:inset-4 md:inset-8 lg:inset-12 xl:inset-16 z-[301] bg-white rounded-xl xs:rounded-2xl shadow-2xl flex flex-col max-w-3xl mx-auto border border-gray-200/50"
         >
-
-          {/* ============================================================ */}
-          {/* HEADER - ULTRA RESPONSIVE */}
-          {/* ============================================================ */}
+          {/* HEADER */}
           <div className="relative px-3 xs:px-4 sm:px-5 md:px-6 py-2 xs:py-2.5 sm:py-3 md:py-4 border-b border-gray-200/50 bg-gradient-to-r from-[#00539B] to-[#003A6B] rounded-t-xl xs:rounded-t-2xl flex-shrink-0">
             <div className="absolute top-0 right-0 w-20 xs:w-28 sm:w-32 h-20 xs:h-28 sm:h-32 bg-purple-400/10 rounded-full blur-2xl" />
             <div className="absolute bottom-0 left-0 w-16 xs:w-20 sm:w-24 h-16 xs:h-20 sm:h-24 bg-blue-400/10 rounded-full blur-xl" />
@@ -4449,12 +4643,10 @@ const renderTableauPanneaux = (): React.ReactNode => {
             </div>
           </div>
 
-          {/* ============================================================ */}
-          {/* CONTENU - ULTRA RESPONSIVE */}
-          {/* ============================================================ */}
+          {/* CONTENU */}
           <div className="flex-1 overflow-y-auto p-3 xs:p-4 sm:p-5 md:p-6 space-y-3 xs:space-y-4 custom-scrollbar bg-gray-50/30">
 
-            {/* 🔹 HISTORIQUE DES MODIFICATIONS */}
+            {/* HISTORIQUE DES MODIFICATIONS */}
             {reservation?.modification && (
               <div className="bg-amber-50/90 border border-amber-200/70 rounded-xl p-2.5 xs:p-3 sm:p-3.5 shadow-sm">
                 <div className="flex items-center gap-1.5 xs:gap-2 mb-1.5 xs:mb-2">
@@ -4479,7 +4671,7 @@ const renderTableauPanneaux = (): React.ReactNode => {
                     <span className="font-bold truncate">{reservation.ancienneDateFin || 'N/A'}</span>
                   </div>
                   <div className="col-span-2 flex items-center gap-1">
-                    <span className="text-amber-500/70">Mon tant:</span>
+                    <span className="text-amber-500/70">Montant:</span>
                     <span className="font-bold">{reservation.ancienMontant?.toLocaleString()} $</span>
                   </div>
                   <div className="col-span-2 text-[7px] xs:text-[8px] text-amber-500 mt-0.5 flex items-center gap-1 flex-wrap">
@@ -4492,7 +4684,7 @@ const renderTableauPanneaux = (): React.ReactNode => {
               </div>
             )}
 
-            {/* 🔹 DONNÉES ACTUELLES */}
+            {/* DONNÉES ACTUELLES */}
             <div className="bg-blue-50/70 border border-blue-200/50 rounded-xl p-2.5 xs:p-3 sm:p-3.5 shadow-sm">
               <div className="flex items-center gap-1.5 xs:gap-2 mb-1.5 xs:mb-2">
                 <span className="text-[10px] xs:text-xs">📋</span>
@@ -4522,7 +4714,7 @@ const renderTableauPanneaux = (): React.ReactNode => {
               </div>
             </div>
 
-            {/* 🔹 NOUVELLES DONNÉES */}
+            {/* NOUVELLES DONNÉES */}
             <div className="bg-green-50/60 border border-green-200/50 rounded-xl p-2.5 xs:p-3 sm:p-3.5 shadow-sm">
               <div className="flex items-center gap-1.5 xs:gap-2 mb-2 xs:mb-3">
                 <span className="text-[10px] xs:text-xs">✏️</span>
@@ -4612,16 +4804,14 @@ const renderTableauPanneaux = (): React.ReactNode => {
               </div>
             </div>
 
-            {/* 🔹 AVERTISSEMENT */}
+            {/* AVERTISSEMENT */}
             <div className="bg-blue-50/70 border border-blue-200/50 rounded-lg p-2 xs:p-2.5 sm:p-3 text-[8px] xs:text-[9px] sm:text-[10px] text-blue-600 flex items-start gap-1.5">
               <span className="text-[10px] xs:text-xs mt-0.5">⚠️</span>
               <span>Les anciennes données seront sauvegardées dans l'historique. Les nouvelles données seront utilisées pour l'impression.</span>
             </div>
           </div>
 
-          {/* ============================================================ */}
-          {/* FOOTER - ULTRA RESPONSIVE - SANS BOUTON ENREGISTRER */}
-          {/* ============================================================ */}
+          {/* FOOTER */}
           <div className="px-3 xs:px-4 sm:px-5 md:px-6 py-2 xs:py-2.5 sm:py-3 md:py-4 border-t border-gray-200/50 bg-gray-50/90 rounded-b-xl xs:rounded-b-2xl flex flex-wrap justify-between items-center gap-1.5 xs:gap-2 flex-shrink-0">
             <button
               type="button"
@@ -4646,11 +4836,12 @@ const renderTableauPanneaux = (): React.ReactNode => {
               )}
             </button>
           </div>
-
         </motion.div>
       </>
     );
   };
+
+
   // ============================================
   // COMPOSANT ADMIN RDV TAB (CORRIGÉ)
   // ============================================
@@ -4889,74 +5080,6 @@ const renderTableauPanneaux = (): React.ReactNode => {
       </div>
     );
   };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

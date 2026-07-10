@@ -12,7 +12,7 @@ const config = require('../../config/db');
 // FIREBASE - Utilisation de la config
 // ============================================
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, collection, addDoc, doc, updateDoc, getDoc, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, doc, updateDoc, getDoc, getDocs } from 'firebase/firestore';
 import { getAuth } from "firebase/auth";
 
 const app = getApps().length > 0 ? getApp() : initializeApp(config.firebaseConfig);
@@ -29,73 +29,53 @@ const DispromaltPrintLayer = () => {
   const [factureNumber, setFactureNumber] = useState<string>('');
   const [allReservations, setAllReservations] = useState<any[]>([]);
 
- // ✅ Fonction pour générer le numéro de facture - CORRIGÉE
-const generateFactureNumber = async () => {
-  try {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const datePrefix = `${year}${month}${day}`;
+  // ✅ Fonction pour générer le numéro de facture
+  const generateFactureNumber = async () => {
+    try {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const datePrefix = `${year}${month}${day}`;
 
-    console.log(`📅 Recherche des factures avec le préfixe: ${datePrefix}`);
-
-    // ✅ Récupérer TOUTES les factures
-    const facturesRef = collection(db, "factures");
-    const querySnapshot = await getDocs(facturesRef);
-    
-    console.log(`📋 Nombre total de factures: ${querySnapshot.size}`);
-    
-    let maxNumber = 0;
-
-    // ✅ Parcourir TOUTES les factures pour trouver le plus grand numéro
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
+      const facturesRef = collection(db, "factures");
+      const querySnapshot = await getDocs(facturesRef);
       
-      // ✅ Utiliser factureIdFormat (comme dans votre structure)
-      const factureId = data.factureIdFormat || '';
-      
-      if (factureId) {
-        console.log(`🔍 Facture trouvée: ${factureId}`);
-        
-        // ✅ Vérifier si la facture commence par le préfixe du jour
-        if (factureId.startsWith(datePrefix)) {
+      let maxNumber = 0;
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const factureId = data.factureIdFormat || '';
+        if (factureId && factureId.startsWith(datePrefix)) {
           const sequentialPart = factureId.substring(datePrefix.length);
           const num = parseInt(sequentialPart, 10);
-          console.log(`   └─ Partie séquentielle: "${sequentialPart}" → nombre: ${num}`);
-          
           if (!isNaN(num) && num > maxNumber) {
             maxNumber = num;
-            console.log(`   └─ ✅ Nouveau max: ${maxNumber}`);
           }
-        } else {
-          console.log(`   └─ ⚠️ Ne commence pas par ${datePrefix} (commence par ${factureId.substring(0, 8)})`);
         }
-      }
-    });
+      });
 
-    // ✅ Incrémenter le plus grand numéro trouvé
-    const newNumber = maxNumber + 1;
-    const sequentialStr = String(newNumber).padStart(2, '0');
-    const newFactureId = `${datePrefix}${sequentialStr}`;
+      const newNumber = maxNumber + 1;
+      const sequentialStr = String(newNumber).padStart(2, '0');
+      const newFactureId = `${datePrefix}${sequentialStr}`;
 
-    
-    setFactureNumber(newFactureId);
-    return newFactureId;
+      setFactureNumber(newFactureId);
+      return newFactureId;
 
-  } catch (error) {
-    console.error('❌ Erreur génération numéro facture:', error);
-    // ✅ Fallback avec timestamp + random
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const random = String(Math.floor(Math.random() * 100)).padStart(2, '0');
-    const fallbackId = `${year}${month}${day}${random}`;
-    setFactureNumber(fallbackId);
-    return fallbackId;
-  }
-};
+    } catch (error) {
+      console.error('❌ Erreur génération numéro facture:', error);
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const random = String(Math.floor(Math.random() * 100)).padStart(2, '0');
+      const fallbackId = `${year}${month}${day}${random}`;
+      setFactureNumber(fallbackId);
+      return fallbackId;
+    }
+  };
+
+  // ✅ Redimensionnement pour mobile
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 850) {
@@ -109,6 +89,7 @@ const generateFactureNumber = async () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // ✅ Chargement des données depuis localStorage
   useEffect(() => {
     const loadData = async () => {
       const rawData = localStorage.getItem('facture_preview_data');
@@ -117,10 +98,9 @@ const generateFactureNumber = async () => {
           const decodedData = JSON.parse(rawData);
           const firstItem = decodedData[0];
 
-          // ✅ Stocker toutes les réservations
           setAllReservations(decodedData);
 
-          const isModif = firstItem?.modification === true;
+          const isModif = firstItem?.modification === true || firstItem?.estModification === true || firstItem?.isModification === true;
           setIsModification(isModif);
           setReservationData(firstItem);
 
@@ -151,7 +131,6 @@ const generateFactureNumber = async () => {
               montantParTranche: modePaiement === 'tranche' && nombreTranches > 1
                 ? total / nombreTranches
                 : 0,
-              // ✅ Ajouter les infos pour le marquage
               panneauId: item.panneauId,
               faceId: item.faceId,
               faceIndex: item.faceIndex,
@@ -176,6 +155,7 @@ const generateFactureNumber = async () => {
             rawReservations: decodedData
           });
         } catch (e) {
+          console.error('❌ Erreur chargement données:', e);
         }
       }
     };
@@ -183,326 +163,464 @@ const generateFactureNumber = async () => {
     loadData();
   }, []);
 
-// ============================================
-// ✅ FONCTION POUR MARQUER LES RÉSERVATIONS COMME FACTURÉES
-// ============================================
-const marquerReservationsFacturees = async (reservations: any[]) => {
-  try {
-    
-    let successCount = 0;
-    let errorCount = 0;
+  // ============================================
+  // ✅ FONCTION POUR MARQUER LES RÉSERVATIONS COMME FACTURÉES
+  // ============================================
+  const marquerReservationsFacturees = async (reservations: any[]) => {
+    try {
+      console.log('🔍 marquerReservationsFacturees - DÉBUT');
+      console.log('📦 Nombre de réservations à marquer:', reservations.length);
 
-    for (let i = 0; i < reservations.length; i++) {
-      const res = reservations[i];
-      
-      
+      let successCount = 0;
+      let errorCount = 0;
+      let alreadyFacturedCount = 0;
 
-      if (!res.panneauId) {
-        errorCount++;
-        continue;
-      }
+      for (let i = 0; i < reservations.length; i++) {
+        const res = reservations[i];
 
-      try {
-        // ✅ 1. Récupérer le panneau
-        const panneauRef = doc(db, "panneaux", res.panneauId);
-        const panneauSnap = await getDoc(panneauRef);
+        console.log(`\n📌 RÉSERVATION ${i + 1}/${reservations.length}`);
+        console.log(`  └─ PanneauId: ${res.panneauId}`);
+        console.log(`  └─ FaceId: ${res.faceId}`);
+        console.log(`  └─ Société: ${res.societeLocatrice}`);
+        console.log(`  └─ IsModification: ${res.isModification}`);
 
-        if (!panneauSnap.exists()) {
-          console.warn(`❌ Panneau ${res.panneauId} introuvable`);
+        if (!res.panneauId) {
+          console.error('❌ PanneauId manquant');
           errorCount++;
           continue;
         }
 
-        const panneauData = panneauSnap.data();
-        const faces = panneauData.faces || [];
-       
-        // ✅ 2. Déterminer l'index de la face
-        let faceIndex = -1;
+        try {
+          // ✅ 1. Récupérer le panneau
+          const panneauRef = doc(db, "panneaux", res.panneauId);
+          const panneauSnap = await getDoc(panneauRef);
 
-        // Méthode 1: Si on a un faceIndex explicite
-        if (res.faceIndex !== undefined && res.faceIndex !== null) {
-          faceIndex = parseInt(res.faceIndex);
-          if (faceIndex >= 0 && faceIndex < faces.length) {
-            console.log(`✅ Face trouvée par faceIndex: ${faceIndex}`);
-          } else {
-            faceIndex = -1;
+          if (!panneauSnap.exists()) {
+            console.error(`❌ Panneau ${res.panneauId} introuvable`);
+            errorCount++;
+            continue;
           }
-        }
 
-        // Méthode 2: Si faceId est fourni
-        if (faceIndex === -1 && res.faceId) {
-          const faceId = res.faceId;
-          // Essayer de trouver par ID exact
-          faceIndex = faces.findIndex((f: any) => f.id === faceId);
+          const panneauData = panneauSnap.data();
+          const faces = panneauData.faces || [];
+          console.log(`  └─ Panneau trouvé, ${faces.length} face(s)`);
+
+          // ✅ 2. Trouver la bonne face
+          let faceIndex = -1;
+
+          // Méthode 1: Par faceId
+          if (res.faceId) {
+            faceIndex = faces.findIndex((f: any) => f.id === res.faceId);
+            if (faceIndex !== -1) {
+              console.log(`  └─ ✅ Face trouvée par faceId à l'index ${faceIndex}`);
+            }
+          }
+
+          // Méthode 2: Par faceIndexOriginal (pour les modifications)
+          if (faceIndex === -1 && res.faceIndexOriginal !== undefined && res.faceIndexOriginal !== null && res.faceIndexOriginal !== -1) {
+            faceIndex = parseInt(res.faceIndexOriginal);
+            if (faceIndex >= 0 && faceIndex < faces.length) {
+              console.log(`  └─ ✅ Face trouvée par faceIndexOriginal à l'index ${faceIndex}`);
+            } else {
+              faceIndex = -1;
+            }
+          }
+
+          // Méthode 3: Par faceIndex
+          if (faceIndex === -1 && res.faceIndex !== undefined && res.faceIndex !== null && res.faceIndex !== -1) {
+            faceIndex = parseInt(res.faceIndex);
+            if (faceIndex >= 0 && faceIndex < faces.length) {
+              console.log(`  └─ ✅ Face trouvée par faceIndex à l'index ${faceIndex}`);
+            } else {
+              faceIndex = -1;
+            }
+          }
+
+          // Méthode 4: Recherche avancée
           if (faceIndex === -1) {
-            // Essayer de trouver par idPan + numéro
-            //const idPan = panneauData.idPan || '';
-            // Si l'ID de la face est comme "P_ZINGINDA_STADE_MARTYRE1" → extraire le numéro
-            const match = faceId.match(/\d+$/);
-            if (match) {
-              const num = parseInt(match[0]) - 1; // -1 car l'index commence à 0
-              if (num >= 0 && num < faces.length) {
-                faceIndex = num;
+            console.log('  └─ 🔍 Recherche avancée...');
+            const searchCreatedAt = res.dateCreationOriginal || res.createdAt;
+            const searchSociete = (res.societeLocatriceOriginal || res.societeLocatrice || '').toLowerCase().trim();
+            const searchDateDebut = res.dateDebutOriginal || res.dateDebut;
+            const searchDateFin = res.dateFinOriginal || res.dateFin;
+            const searchAgent = (res.agentEmailOriginal || res.agentEmail || '').toLowerCase().trim();
+
+            for (let j = 0; j < faces.length; j++) {
+              const faceReservations = faces[j].reservations || [];
+              
+              // Par createdAt
+              if (searchCreatedAt && faceReservations.some((r: any) => r.createdAt === searchCreatedAt)) {
+                faceIndex = j;
+                console.log(`  └─ ✅ Face trouvée par createdAt à l'index ${faceIndex}`);
+                break;
+              }
+              
+              // Par combinaison
+              let found = false;
+              for (const r of faceReservations) {
+                const rSociete = (r.societeLocatrice || '').toLowerCase().trim();
+                const rDateDebut = r.dateDebut;
+                const rDateFin = r.dateFin;
+                const rAgent = (r.agentEmail || '').toLowerCase().trim();
+                
+                let matchCount = 0;
+                if (searchSociete && rSociete === searchSociete) matchCount++;
+                if (searchDateDebut && rDateDebut === searchDateDebut) matchCount++;
+                if (searchDateFin && rDateFin === searchDateFin) matchCount++;
+                if (searchAgent && rAgent === searchAgent) matchCount++;
+                
+                if (matchCount >= 2) {
+                  found = true;
+                  break;
+                }
+              }
+              if (found) {
+                faceIndex = j;
+                console.log(`  └─ ✅ Face trouvée par combinaison à l'index ${faceIndex}`);
+                break;
               }
             }
           }
-          if (faceIndex !== -1) {
+
+          if (faceIndex === -1 || faceIndex >= faces.length) {
+            console.error(`❌ Face non trouvée pour la réservation`);
+            errorCount++;
+            continue;
           }
-        }
 
-        // Méthode 3: Si on a une seule face, prendre l'index 0
-        if (faceIndex === -1 && faces.length === 1) {
-          faceIndex = 0;
-        }
+          const face = faces[faceIndex];
+          const faceReservations = face.reservations || [];
+          console.log(`  └─ Face ${faceIndex}, ${faceReservations.length} réservations`);
 
-        // Méthode 4: Par sens
-        if (faceIndex === -1 && res.faceSens) {
-          faceIndex = faces.findIndex((f: any) => f.sens === res.faceSens);
-          if (faceIndex !== -1) {
-          }
-        }
+          // ✅ 3. Trouver et mettre à jour la réservation
+          let updated = false;
+          const updatedReservations = faceReservations.map((r: any) => {
+            let isMatch = false;
 
-        // Méthode 5: Parcourir toutes les faces pour trouver la réservation
-        if (faceIndex === -1) {
-          for (let j = 0; j < faces.length; j++) {
-            const faceReservations = faces[j].reservations || [];
-            const found = faceReservations.some((r: any) => 
-              r.societeLocatrice === res.societeLocatrice &&
-              r.dateDebut === res.dateDebut &&
-              r.dateFin === res.dateFin &&
-              r.agentEmail === res.agentEmail
-            );
-            if (found) {
-              faceIndex = j;
-              break;
+            // 🔍 VÉRIFIER SI DÉJÀ FACTURÉE
+            const estDejaFacturee = r.facturee === "oui" || r.facturee === "Oui" || r.facturee === true;
+            if (estDejaFacturee) {
+              console.log(`  └─ ⚠️ Réservation déjà facturée, ignorée`);
+              alreadyFacturedCount++;
+              return r;
             }
-          }
-        }
 
-        if (faceIndex === -1 || faceIndex >= faces.length) {
-          errorCount++;
-          continue;
-        }
+            // 🔍 Méthode 1: Par createdAt (le plus fiable)
+            const searchCreatedAt = res.dateCreationOriginal || res.createdAt;
+            if (searchCreatedAt && r.createdAt === searchCreatedAt) {
+              isMatch = true;
+              console.log(`  └─ ✅ Match par createdAt: ${searchCreatedAt}`);
+            }
 
-        const face = faces[faceIndex];
-        const faceReservations = face.reservations || [];
+            // 🔍 Méthode 2: Par combinaison de critères
+            if (!isMatch) {
+              const rSociete = (r.societeLocatrice || '').toLowerCase().trim();
+              const rDateDebut = r.dateDebut;
+              const rDateFin = r.dateFin;
+              const rAgent = (r.agentEmail || '').toLowerCase().trim();
 
-        // ✅ 3. Afficher les réservations pour débogage
-        
+              const searchSociete = (res.societeLocatriceOriginal || res.societeLocatrice || '').toLowerCase().trim();
+              const searchDateDebut = res.dateDebutOriginal || res.dateDebut;
+              const searchDateFin = res.dateFinOriginal || res.dateFin;
+              const searchAgent = (res.agentEmailOriginal || res.agentEmail || '').toLowerCase().trim();
 
-        // ✅ 4. Trouver et mettre à jour la réservation
-        let updated = false;
-        const updatedReservations = faceReservations.map((r: any) => {
-          const isMatch = 
-            r.societeLocatrice?.toLowerCase().trim() === res.societeLocatrice?.toLowerCase().trim() &&
-            r.dateDebut === res.dateDebut &&
-            r.dateFin === res.dateFin &&
-            r.agentEmail?.toLowerCase().trim() === res.agentEmail?.toLowerCase().trim();
+              let matchCount = 0;
+              if (searchSociete && rSociete === searchSociete) matchCount++;
+              if (searchDateDebut && rDateDebut === searchDateDebut) matchCount++;
+              if (searchDateFin && rDateFin === searchDateFin) matchCount++;
+              if (searchAgent && rAgent === searchAgent) matchCount++;
 
-          
-
-          if (isMatch && r.facturee !== "oui" && r.facturee !== "Oui" && r.facturee !== true) {
-            updated = true;
-            return {
-              ...r,
-              facturee: "oui",
-              dateFacturation: new Date().toISOString(),
-              factureId: factureNumber || res.factureIdFormat || `F-${Date.now()}`,
-              modifiePar: "facturation",
-              modifieLe: new Date().toISOString()
-            };
-          }
-          return r;
-        });
-
-        if (!updated) {
-          errorCount++;
-          continue;
-        }
-
-        // ✅ 5. Sauvegarder dans Firestore
-        const updatedFaces = [...faces];
-        updatedFaces[faceIndex] = {
-          ...face,
-          reservations: updatedReservations
-        };
-
-        await updateDoc(panneauRef, {
-          faces: updatedFaces,
-          updatedAt: new Date().toISOString()
-        });
-
-        successCount++;
-
-      } catch (err) {
-        errorCount++;
-      }
-    }
-
-    return successCount > 0;
-
-  } catch (error) {
-    return false;
-  }
-};
-  // ============================================
-  // ✅ HANDLE PRINT AND SAVE - CORRIGÉ AVEC MARQUAGE
-  // ============================================
-  const handlePrintAndSave = async () => {
-    if (isSaving) return;
-    setIsSaving(true);
-
-    try {
-      // ✅ 1. IMPRIMER
-      window.print();
-
-      const rawData = localStorage.getItem('facture_preview_data');
-      if (!rawData) {
-        throw new Error('Aucune donnée trouvée');
-      }
-
-      const items = JSON.parse(rawData);
-      const firstItem = items[0];
-
-      // Préparer les données pour le marquage
-      const reservationsToMark = items.map((item: any) => ({
-        panneauId: item.panneauId,
-        faceId: item.faceId,
-        faceIndex: item.faceIndex,
-        societeLocatrice: item.societeLocatrice,
-        dateDebut: item.dateDebut,
-        dateFin: item.dateFin,
-        agentEmail: item.agentEmail,
-        createdAt: item.createdAt,
-        dateCreation: item.dateCreation || item.createdAt
-      }));
-
-      // ✅ Marquer comme facturées
-      const markSuccess = await marquerReservationsFacturees(reservationsToMark);
-
-      if (!markSuccess) {
-        alert("❌ Erreur lors du marquage des réservations comme facturées.");
-        setIsSaving(false);
-        return;
-      }
-
-      // ✅ 3. ENREGISTRER LA FACTURE DANS FIRESTORE
-      const isModification = firstItem?.modification === true;
-
-      // Si c'est une modification, mettre à jour la réservation
-      if (isModification && firstItem?.panelDocId && firstItem?.faceIndex !== undefined) {
-        // console.log('🔄 Mise à jour de la réservation existante (modification)');
-
-        const panneauRef = doc(db, "panneaux", firstItem.panelDocId);
-        const panneauSnap = await getDoc(panneauRef);
-
-        if (panneauSnap.exists()) {
-          const data = panneauSnap.data();
-          const currentFaces = [...(data.faces || [])];
-          const faceIndex = firstItem.faceIndex;
-
-          if (currentFaces[faceIndex]) {
-            const faceReservations = currentFaces[faceIndex].reservations || [];
-
-            const updatedReservations = faceReservations.map((r: any) => {
-              const isMatch =
-                r.createdAt === firstItem.createdAt ||
-                (r.dateDebut === firstItem.dateDebut &&
-                  r.societeLocatrice === firstItem.societeLocatrice);
+              isMatch = matchCount >= 3;
 
               if (isMatch) {
-                return {
-                  ...r,
-                  agentEmail: firstItem.agentEmail || r.agentEmail,
-                  agentNom: firstItem.agentNom || r.agentNom,
-                  societeLocatrice: firstItem.societeLocatrice || r.societeLocatrice,
-                  dateDebut: firstItem.dateDebut || r.dateDebut,
-                  dateFin: firstItem.dateFin || r.dateFin,
-                  montant: firstItem.montant || r.montant,
-                  ancienAgentEmail: firstItem.ancienAgentEmail || r.agentEmail,
-                  ancienAgentNom: firstItem.ancienAgentNom || r.agentNom,
-                  ancienneSociete: firstItem.ancienneSociete || r.societeLocatrice,
-                  ancienneDateDebut: firstItem.ancienneDateDebut || r.dateDebut,
-                  ancienneDateFin: firstItem.ancienneDateFin || r.dateFin,
-                  ancienMontant: firstItem.ancienMontant || r.montant,
-                  modification: true,
-                  modifiePar: firstItem.modifiePar || 'admin',
-                  modifieParNom: firstItem.modifieParNom || 'Administrateur',
-                  modifieLe: firstItem.modifieLe || new Date().toISOString(),
-                  dateModification: new Date().toISOString(),
-                  facturee: "oui",
-                  modePaiement: firstItem.modePaiement || r.modePaiement || 'total',
-                  nombreTranches: firstItem.nombreTranches || r.nombreTranches || 1
-                };
+                console.log(`  └─ ✅ Match par critères (${matchCount}/4)`);
               }
-              return r;
-            });
+            }
 
-            currentFaces[faceIndex].reservations = updatedReservations;
-            await updateDoc(panneauRef, { faces: currentFaces });
+            // 🔍 Méthode 3: Pour les modifications
+            if (!isMatch && (res.isModification || res.modification || res.estModification)) {
+              const rSociete = (r.societeLocatrice || '').toLowerCase().trim();
+              const rDateDebut = r.dateDebut;
+              const rDateFin = r.dateFin;
+              const rAgent = (r.agentEmail || '').toLowerCase().trim();
+
+              const ancienneSociete = (res.ancienneSociete || '').toLowerCase().trim();
+              const ancienneDateDebut = res.ancienneDateDebut;
+              const ancienneDateFin = res.ancienneDateFin;
+              const ancienAgent = (res.ancienAgentEmail || '').toLowerCase().trim();
+
+              let matchCount = 0;
+              if (ancienneSociete && rSociete === ancienneSociete) matchCount++;
+              if (ancienneDateDebut && rDateDebut === ancienneDateDebut) matchCount++;
+              if (ancienneDateFin && rDateFin === ancienneDateFin) matchCount++;
+              if (ancienAgent && rAgent === ancienAgent) matchCount++;
+
+              isMatch = matchCount >= 2;
+
+              if (isMatch) {
+                console.log(`  └─ ✅ Match par anciennes valeurs (${matchCount}/4)`);
+              }
+            }
+
+            if (isMatch) {
+              updated = true;
+              console.log(`  └─ ✅ Réservation marquée comme facturée`);
+              
+              // ✅ Préparer les données mises à jour
+              const updatedReservation: any = {
+                ...r,
+                facturee: "oui",
+                dateFacturation: new Date().toISOString(),
+                factureId: factureNumber || res.factureIdFormat || `F-${Date.now()}`,
+                modifiePar: "facturation",
+                modifieLe: new Date().toISOString()
+              };
+
+              // ✅ Si c'est une modification, mettre à jour les données
+              if (res.isModification || res.modification || res.estModification) {
+                updatedReservation.agentEmail = res.agentEmail || r.agentEmail;
+                updatedReservation.agentNom = res.agentNom || r.agentNom;
+                updatedReservation.societeLocatrice = res.societeLocatrice || r.societeLocatrice;
+                updatedReservation.dateDebut = res.dateDebut || r.dateDebut;
+                updatedReservation.dateFin = res.dateFin || r.dateFin;
+                updatedReservation.montant = res.montant || r.montant;
+                updatedReservation.ancienAgentEmail = r.agentEmail;
+                updatedReservation.ancienAgentNom = r.agentNom;
+                updatedReservation.ancienneSociete = r.societeLocatrice;
+                updatedReservation.ancienneDateDebut = r.dateDebut;
+                updatedReservation.ancienneDateFin = r.dateFin;
+                updatedReservation.ancienMontant = r.montant || 0;
+                updatedReservation.modification = true;
+                updatedReservation.modifiePar = res.modifiePar || 'facturation';
+                updatedReservation.modifieParNom = res.modifieParNom || 'Facturation';
+                updatedReservation.dateModification = new Date().toISOString();
+              }
+
+              return updatedReservation;
+            }
+            return r;
+          });
+
+          if (!updated) {
+            console.error(`❌ Réservation non trouvée dans la face`);
+            errorCount++;
+            continue;
           }
+
+          // ✅ 4. Sauvegarder dans Firestore
+          const updatedFaces = [...faces];
+          updatedFaces[faceIndex] = {
+            ...face,
+            reservations: updatedReservations
+          };
+
+          await updateDoc(panneauRef, {
+            faces: updatedFaces,
+            updatedAt: new Date().toISOString()
+          });
+
+          console.log(`✅ Réservation ${i + 1} marquée avec succès`);
+          successCount++;
+
+        } catch (err) {
+          console.error(`❌ Erreur pour la réservation ${i}:`, err);
+          errorCount++;
         }
       }
 
-      // ✅ 4. ENREGISTRER LA FACTURE
-      await addDoc(collection(db, "factures"), {
-        factureIdFormat: factureNumber || factureData.factureId,
-        clientNom: factureData.client || "CLIENT INCONNU",
-        agentNom: factureData.agent || "N/A",
-        agentEmail: factureData.email || "",
-        totalHT: Number(factureData.totalHT) || 0,
+      console.log(`\n📊 RÉSUMÉ:`);
+      console.log(`  ✅ Marquées: ${successCount}`);
+      console.log(`  ⚠️ Déjà facturées: ${alreadyFacturedCount}`);
+      console.log(`  ❌ Erreurs: ${errorCount}`);
+      console.log(`  📋 Total: ${reservations.length}`);
+
+      // ✅ MESSAGE SI TOUTES ÉTAIENT DÉJÀ FACTURÉES
+      if (alreadyFacturedCount === reservations.length && successCount === 0 && errorCount === 0) {
+        alert("⚠️ Ces réservations ont déjà été facturées. Aucune modification n'a été effectuée.");
+        return false;
+      }
+
+      return successCount > 0;
+
+    } catch (error) {
+      console.error('❌ Erreur générale:', error);
+      return false;
+    }
+  };
+
+// ============================================
+// ✅ HANDLE PRINT AND SAVE - CORRIGÉ
+// ============================================
+const handlePrintAndSave = async () => {
+  if (isSaving) return;
+  setIsSaving(true);
+
+  try {
+    window.print();
+
+    const rawData = localStorage.getItem('facture_preview_data');
+    if (!rawData) {
+      throw new Error('Aucune donnée trouvée');
+    }
+
+    const items = JSON.parse(rawData);
+    const firstItem = items[0];
+
+    // ✅ 2. PRÉPARER LES DONNÉES POUR LE MARQUAGE
+    const reservationsToMark = items.map((item: any) => {
+      return {
+        panneauId: item.panneauId || item.panelDocId || '',
+        faceId: item.faceId || item.idFace || '',
+        faceIndex: item.faceIndex !== undefined && item.faceIndex !== null
+          ? parseInt(item.faceIndex)
+          : (item.faceIndexInPanneau !== undefined ? parseInt(item.faceIndexInPanneau) : -1),
+        faceIndexOriginal: item.faceIndexOriginal !== undefined && item.faceIndexOriginal !== null
+          ? parseInt(item.faceIndexOriginal)
+          : (item.faceIndex !== undefined && item.faceIndex !== null
+            ? parseInt(item.faceIndex)
+            : (item.faceIndexInPanneau !== undefined ? parseInt(item.faceIndexInPanneau) : -1)),
+        reservationId: item.reservationId || item.id || item.resUniqueId || '',
+        societeLocatrice: item.societeLocatrice || item.clientNom || '',
+        dateDebut: item.dateDebut || item.dateDebutOriginal || '',
+        dateFin: item.dateFin || item.dateFinOriginal || '',
+        agentEmail: item.agentEmail || item.agentEmailOriginal || '',
+        agentNom: item.agentNom || item.agentNomOriginal || '',
+        agentId: item.agentId || '',
+        createdAt: item.createdAt || item.dateCreation || '',
+        dateCreation: item.dateCreation || item.createdAt || '',
+        isModification: item.modification === true || item.estModification === true || item.isModification === true,
+        ancienneSociete: item.ancienneSociete || '',
+        ancienAgentEmail: item.ancienAgentEmail || '',
+        ancienAgentNom: item.ancienAgentNom || '',
+        ancienAgentId: item.ancienAgentId || '',
+        ancienneDateDebut: item.ancienneDateDebut || '',
+        ancienneDateFin: item.ancienneDateFin || '',
+        modifiePar: item.modifiePar || 'facturation',
+        modifieParNom: item.modifieParNom || 'Facturation',
+        dateCreationOriginal: item.dateCreationOriginal || item.createdAt || item.dateCreation || '',
+        dateDebutOriginal: item.dateDebutOriginal || item.dateDebut || '',
+        dateFinOriginal: item.dateFinOriginal || item.dateFin || '',
+        agentEmailOriginal: item.agentEmailOriginal || item.agentEmail || '',
+        societeLocatriceOriginal: item.societeLocatriceOriginal || item.societeLocatrice || '',
+        factureIdFormat: factureNumber || item.factureIdFormat || `F-${Date.now()}`,
+        panelDocId: item.panelDocId || item.panneauId || '',
+        adresse: item.adresse || item.panneauAdresse || '',
+        panneauIdPan: item.panneauIdPan || '',
+        faceLabel: item.faceLabel || item.idFace || '',
+        statut: item.statut || 'Réservé',
+        statutPaiement: item.statutPaiement || 'en attente',
+        validationComptable: item.validationComptable || false,
+        montant: item.montant || item.prixSaisi || 0,
+        dureeMois: item.dureeMois || 1
+      };
+    });
+
+    // ✅ 3. MARQUER COMME FACTURÉES
+    const markSuccess = await marquerReservationsFacturees(reservationsToMark);
+
+    if (!markSuccess) {
+      const allAlreadyFactured = reservationsToMark.every((item: any) => {
+        return item.dejaFacturee === true;
+      });
+      
+      if (allAlreadyFactured) {
+        alert("⚠️ Ces réservations ont déjà été facturées. Aucune modification n'a été effectuée.");
+      } else {
+        alert("❌ Erreur lors du marquage des réservations comme facturées.");
+      }
+      setIsSaving(false);
+      return;
+    }
+
+    // ✅ 4. ENREGISTRER LA FACTURE DANS FIRESTORE
+    try {
+      const isModification = firstItem?.modification || firstItem?.estModification || firstItem?.isModification || false;
+      
+      // 🔥 NOUVEL AGENT (celui sélectionné dans le formulaire)
+      const nouvelAgentNom = firstItem?.agentNom || 'N/A';
+      const nouvelAgentEmail = firstItem?.agentEmail || '';
+      const nouvelAgentId = firstItem?.agentId || '';
+      
+      // 🔥 ANCIEN AGENT (celui qui était avant modification)
+      const ancienAgentNom = firstItem?.ancienAgentNom || '';
+      const ancienAgentEmail = firstItem?.ancienAgentEmail || '';
+      const ancienAgentId = firstItem?.ancienAgentId || '';
+
+      const factureDataToSave = {
+        factureIdFormat: factureNumber || firstItem.factureIdFormat || `F-${Date.now()}`,
+        clientNom: firstItem.societeLocatrice || firstItem.clientNom || 'CLIENT INCONNU',
+        // ✅ NOUVEL agent dans la facture
+        agentNom: nouvelAgentNom,
+        agentEmail: nouvelAgentEmail,
+        agentId: nouvelAgentId,
+        // ✅ ANCIEN agent conservé pour l'historique
+        ancienAgentNom: ancienAgentNom,
+        ancienAgentEmail: ancienAgentEmail,
+        ancienAgentId: ancienAgentId,
+        totalHT: items.reduce((sum: number, item: any) => {
+          const prix = item.prixSaisi || item.montant || 0;
+          const duree = item.dureeMois || 1;
+          return sum + (prix * duree);
+        }, 0),
         dateCreation: new Date().toISOString(),
         dateValidation: new Date().toISOString(),
-        lignes: factureData.lignes.map((l: any) => ({
-          qte: l.qte || 1,
-          idFace: l.idFace || "N/A",
-          label: l.label || "",
-          adresse: l.adresse || "",
-          pu: l.pu || 0,
-          total: l.total || 0,
-          dateDebut: l.dateDebut || "",
-          dateFin: l.dateFin || "",
-          type: l.type || "Vinyle",
-          modePaiement: l.modePaiement || "total",
-          nombreTranches: l.nombreTranches || 1,
-          montantParTranche: l.montantParTranche || 0,
-          panneauId: l.panneauId || "",
-          faceId: l.faceId || ""
+        lignes: items.map((item: any) => ({
+          qte: item.dureeMois || 1,
+          idFace: item.idFace || item.faceId || 'N/A',
+          label: item.faceLabel || item.label || 'N/A',
+          adresse: item.adresse || item.panneauAdresse || '',
+          pu: item.prixSaisi || item.montant || 0,
+          total: (item.prixSaisi || item.montant || 0) * (item.dureeMois || 1),
+          dateDebut: item.dateDebut || '',
+          dateFin: item.dateFin || '',
+          type: item.type || 'Vinyle',
+          modePaiement: item.modePaiement || 'total',
+          nombreTranches: item.nombreTranches || 1,
+          montantParTranche: item.montantParTranche || 0,
+          panneauId: item.panneauId || '',
+          faceId: item.faceId || ''
         })),
         statut: "Validée",
         statutPaiement: "Payé",
         validationComptable: true,
-        estModification: isModification || false,
-        ancienAgentNom: firstItem?.ancienAgentNom || '',
+        estModification: isModification,
         ancienneSociete: firstItem?.ancienneSociete || '',
         modifiePar: firstItem?.modifiePar || 'admin',
         modifieParNom: firstItem?.modifieParNom || 'Administrateur'
-      });
+      };
 
-      // ✅ 5. METTRE À JOUR LE LOCALSTORAGE
-      const updatedItems = items.map((item: any) => ({
-        ...item,
-        facturee: "oui",
-        dateFacturation: new Date().toISOString()
-      }));
-      localStorage.setItem('facture_preview_data', JSON.stringify(updatedItems));
-
-      alert("✅ Facture enregistrée avec succès !");
-
-      // ✅ 6. NETTOYER ET REDIRIGER
-      setTimeout(() => {
-        localStorage.removeItem('facture_preview_data');
-        router.back();
-      }, 2000);
+      await addDoc(collection(db, "factures"), factureDataToSave);
+      console.log('✅ Facture enregistrée avec succès');
 
     } catch (error) {
-      alert("❌ Erreur lors de l'enregistrement.");
-    } finally {
-      setIsSaving(false);
+      console.error('❌ Erreur lors de l\'enregistrement de la facture:', error);
     }
-  };
+
+    // ✅ 5. METTRE À JOUR LE LOCALSTORAGE
+    const updatedItems = items.map((item: any) => ({
+      ...item,
+      facturee: "oui",
+      dateFacturation: new Date().toISOString()
+    }));
+    localStorage.setItem('facture_preview_data', JSON.stringify(updatedItems));
+
+    alert("✅ Facture enregistrée avec succès !");
+
+    setTimeout(() => {
+      localStorage.removeItem('facture_preview_data');
+      router.back();
+    }, 2000);
+
+  } catch (error) {
+    console.error('❌ Erreur:', error);
+    alert("❌ Erreur lors de l'enregistrement.");
+  } finally {
+    setIsSaving(false);
+  }
+};
   if (!factureData) return null;
 
+  // ✅ Affichage des informations de paiement
   const getPaymentInfoInDesignation = (l: any) => {
     if (l.modePaiement === 'tranche' && l.nombreTranches > 1) {
       return (
