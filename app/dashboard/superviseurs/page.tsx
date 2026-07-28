@@ -15,7 +15,7 @@ import {
   Plus,           // ✅ Pour le bouton flottant
   ChevronRight,   // ✅ Pour la flèche
 } from 'lucide-react';
-
+import { setDoc, } from 'firebase/firestore';
 import Footer from '@/components1/Footer';
 import Link from 'next/link';
 // Ajoute AlertTriangle ici
@@ -1275,65 +1275,65 @@ export default function UltimateSupervisor() {
   };
 
 
-// Dans UltimateSupervisor, la fonction reservationsEnAttente
-const reservationsEnAttente = useMemo(() => {
-  if (!panneauxData || !user?.email) return [];
+  // Dans UltimateSupervisor, la fonction reservationsEnAttente
+  const reservationsEnAttente = useMemo(() => {
+    if (!panneauxData || !user?.email) return [];
 
-  const list: any[] = [];
-  const emailConnecte = user.email.trim().toLowerCase();
+    const list: any[] = [];
+    const emailConnecte = user.email.trim().toLowerCase();
 
-  panneauxData.forEach((panneau: any) => {
-    const faces = panneau.faces || [];
+    panneauxData.forEach((panneau: any) => {
+      const faces = panneau.faces || [];
 
-    faces.forEach((face: any, faceIdx: number) => {
-      const reservations = face.reservations || [];
+      faces.forEach((face: any, faceIdx: number) => {
+        const reservations = face.reservations || [];
 
-      reservations.forEach((res: any, resIdx: number) => {
-        // ✅ 1. Vérifier que l'agent correspond
-        const emailReservation = (res.agentEmail || "").trim().toLowerCase();
-        if (emailReservation !== emailConnecte) return;
+        reservations.forEach((res: any, resIdx: number) => {
+          // ✅ 1. Vérifier que l'agent correspond
+          const emailReservation = (res.agentEmail || "").trim().toLowerCase();
+          if (emailReservation !== emailConnecte) return;
 
-        // ✅ 2. Vérifier que facturee === "non"
-        if (res.facturee !== "non") return;
+          // ✅ 2. Vérifier que facturee === "non"
+          if (res.facturee !== "non") return;
 
-        // ✅ 3. Ajouter à la liste
-        const debut = new Date(res.dateDebut);
-        const fin = new Date(res.dateFin);
-        const duree = Math.max(1, (fin.getFullYear() - debut.getFullYear()) * 12 + (fin.getMonth() - debut.getMonth()));
+          // ✅ 3. Ajouter à la liste
+          const debut = new Date(res.dateDebut);
+          const fin = new Date(res.dateFin);
+          const duree = Math.max(1, (fin.getFullYear() - debut.getFullYear()) * 12 + (fin.getMonth() - debut.getMonth()));
 
-        const faceLabel = `${panneau.idPan}-${faceIdx + 1} (${face.sens || 'SANS SENS'})`;
-        const resUniqueId = `res-${panneau.id}-${faceIdx}-${resIdx}-${res.dateDebut}`;
+          const faceLabel = `${panneau.idPan}-${faceIdx + 1} (${face.sens || 'SANS SENS'})`;
+          const resUniqueId = `res-${panneau.id}-${faceIdx}-${resIdx}-${res.dateDebut}`;
 
-        list.push({
-          ...res,
-          resUniqueId,
-          faceLabel,
-          idPan: panneau.idPan,
-          panelDocId: panneau.id,
-          faceIndex: faceIdx,
-          faceSens: face.sens,
-          adresse: panneau.adresse,
-          panneauAdresse: panneau.adresse,
-          panneauType: panneau.type,
-          dureeMois: duree,
-          dateDebut: res.dateDebut,
-          dateFin: res.dateFin,
-          type: panneau.type || "",
-          dateTri: res.createdAt ? new Date(res.createdAt).getTime() : 0,
-          societeLocatrice: res.societeLocatrice,
-          statut: res.statut,
-          statutPaiement: res.statutPaiement,
-          validationComptable: res.validationComptable,
-          facturee: res.facturee,
-          photoCampagneUrl: res.photoCampagneUrl,
-          joursAvantExpiration: res.joursAvantExpiration
+          list.push({
+            ...res,
+            resUniqueId,
+            faceLabel,
+            idPan: panneau.idPan,
+            panelDocId: panneau.id,
+            faceIndex: faceIdx,
+            faceSens: face.sens,
+            adresse: panneau.adresse,
+            panneauAdresse: panneau.adresse,
+            panneauType: panneau.type,
+            dureeMois: duree,
+            dateDebut: res.dateDebut,
+            dateFin: res.dateFin,
+            type: panneau.type || "",
+            dateTri: res.createdAt ? new Date(res.createdAt).getTime() : 0,
+            societeLocatrice: res.societeLocatrice,
+            statut: res.statut,
+            statutPaiement: res.statutPaiement,
+            validationComptable: res.validationComptable,
+            facturee: res.facturee,
+            photoCampagneUrl: res.photoCampagneUrl,
+            joursAvantExpiration: res.joursAvantExpiration
+          });
         });
       });
     });
-  });
 
-  return list.sort((a, b) => b.dateTri - a.dateTri);
-}, [panneauxData, user?.email]);
+    return list.sort((a, b) => b.dateTri - a.dateTri);
+  }, [panneauxData, user?.email]);
   // --- HOOKS D'ANIMATION ---
   const { scrollYProgress, scrollY } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
@@ -3556,25 +3556,7 @@ export const FaceDetailModal = ({
   //if (!isOpen) return null;
 
   // 2️⃣ Vérifier si en chargement OU pas de données
-  if (isLoading || !panneau || !face) {
-    return (
-      <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 min-w-[200px]">
-          {/* Spinner */}
-          <div className="relative">
-            <div className="w-16 h-16 rounded-full border-4 border-blue-100"></div>
-            <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-t-blue-600 border-r-transparent border-b-blue-300 border-l-transparent animate-spin"></div>
-          </div>
 
-          {/* Texte */}
-          <div className="text-center">
-            <p className="text-sm font-bold text-blue-900">Chargement...</p>
-            <p className="text-xs text-blue-500">Préparation du panneau</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ============================================
   // ✅ RÉSERVATION ACTIVE POUR LA PHOTO
@@ -3864,7 +3846,25 @@ export const FaceDetailModal = ({
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
   };
+  if (isLoading || !panneau || !face) {
+    return (
+      <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 min-w-[200px]">
+          {/* Spinner */}
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-blue-100"></div>
+            <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-t-blue-600 border-r-transparent border-b-blue-300 border-l-transparent animate-spin"></div>
+          </div>
 
+          {/* Texte */}
+          <div className="text-center">
+            <p className="text-sm font-bold text-blue-900">Chargement...</p>
+            <p className="text-xs text-blue-500">Préparation du panneau</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -4532,21 +4532,20 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   };
 
   // ✅ Fonction principale améliorée
-  const calculateExpirationDate = (createdAt: string) => {
-    const DELAI_EXPIRATION_JOURS = 3;
+  // 1. Définir la constante en haut du fichier (hors de toute fonction)
+  const DELAI_EXPIRATION_JOURS_GLOBAL = 3; // ✅ 3 JOURS
 
-    // Créer la date de création
+  // 2. Modifier la fonction calculateExpirationDate pour utiliser la constante
+  const calculateExpirationDate = (createdAt: string) => {
+    const DELAI_EXPIRATION_JOURS = DELAI_EXPIRATION_JOURS_GLOBAL; // ✅ Utiliser la constante globale
+
     const creationDate = new Date(createdAt);
     creationDate.setUTCHours(0, 0, 0, 0);
 
-    // Ajouter 3 jours calendaires
     let expirationDate = new Date(creationDate);
     expirationDate.setUTCDate(expirationDate.getUTCDate() + DELAI_EXPIRATION_JOURS);
 
-    // ✅ Ajuster si week-end
     expirationDate = ajusterDateSiWeekend(expirationDate);
-
-    // Mettre l'heure à 23:59:59
     expirationDate.setUTCHours(23, 59, 59, 999);
 
     const joursSemaine = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -4564,10 +4563,10 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       isWorkingDay: expirationDate.getUTCDay() >= 1 && expirationDate.getUTCDay() <= 5,
       timestamp: expirationDate.getTime(),
       isoString: expirationDate.toISOString(),
-      joursRestants: calculateDaysRemaining(expirationDate)
+      joursRestants: calculateDaysRemaining(expirationDate),
+      delaiExpirationJours: DELAI_EXPIRATION_JOURS // ✅ AJOUTER POUR TRAÇABILITÉ
     };
   };
-
   // ✅ Fonction pour calculer les jours restants
   const calculateDaysRemaining = (expirationDate: Date): number => {
     const now = new Date();
@@ -4606,7 +4605,105 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
   };
 
   // ============================================
-  // 5. FONCTION DE CONFIRMATION
+  // FONCTION POUR RÉCUPÉRER LA DATE SERVEUR (UTC+1 - AFRIQUE)
+  // À PLACER EN DEHORS DU COMPOSANT, EN HAUT DU FICHIER
+  // ============================================
+
+  const fetchServerDate = async (): Promise<Date> => {
+    try {
+      // ✅ MÉTHODE 1: Utiliser un document temporaire avec ServerTimestamp
+      const tempRef = doc(db, "_temp", "serverTime_" + Date.now());
+      await setDoc(tempRef, {
+        serverTimestamp: serverTimestamp(),
+        createdAt: new Date().toISOString()
+      });
+
+      // Récupérer le document pour avoir la date du serveur
+      const tempSnap = await getDoc(tempRef);
+
+      if (tempSnap.exists()) {
+        const data = tempSnap.data();
+        // ✅ Le serverTimestamp sera converti en Date par Firestore
+        if (data.serverTimestamp) {
+          const serverDate = data.serverTimestamp.toDate ? data.serverTimestamp.toDate() : new Date(data.serverTimestamp);
+
+          // Supprimer le document temporaire
+          await deleteDoc(tempRef);
+
+          // Afficher en UTC+1 (Afrique/Kinshasa)
+          console.log('📅 Date serveur (UTC+1):', serverDate.toLocaleString('fr-FR', { timeZone: 'Africa/Kinshasa' }));
+          return serverDate;
+        }
+      }
+
+      // Si la méthode 1 échoue, utiliser la méthode 2
+      throw new Error('Impossible de récupérer le server timestamp');
+
+    } catch (error) {
+      console.error("❌ Erreur récupération date serveur (méthode 1):", error);
+
+      // ✅ MÉTHODE 2: Utiliser un document "meta" avec mise à jour à chaque appel
+      try {
+        const metaRef = doc(db, "_meta", "serverTime");
+
+        // Mettre à jour le document avec un serverTimestamp
+        await setDoc(metaRef, {
+          lastUpdate: serverTimestamp(),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        const metaSnap = await getDoc(metaRef);
+
+        if (metaSnap.exists()) {
+          const data = metaSnap.data();
+          if (data.lastUpdate) {
+            const serverDate = data.lastUpdate.toDate ? data.lastUpdate.toDate() : new Date(data.lastUpdate);
+            console.log('📅 Date serveur (UTC+1):', serverDate.toLocaleString('fr-FR', { timeZone: 'Africa/Kinshasa' }));
+            return serverDate;
+          }
+        }
+      } catch (metaError) {
+        console.error("❌ Erreur méthode 2:", metaError);
+      }
+
+      // ✅ MÉTHODE 3: Fallback - Appeler une API externe pour la date
+      try {
+        const response = await fetch('https://worldtimeapi.org/api/timezone/Africa/Kinshasa');
+        if (response.ok) {
+          const data = await response.json();
+          const serverDate = new Date(data.utc_datetime);
+          console.log('📅 Date via API (UTC+1):', serverDate.toLocaleString('fr-FR', { timeZone: 'Africa/Kinshasa' }));
+          return serverDate;
+        }
+      } catch (apiError) {
+        console.error("❌ Erreur API:", apiError);
+      }
+
+      // ✅ DERNIER RECOURS: Utiliser la date locale avec ajustement UTC+1
+      console.warn("⚠️ Utilisation de la date locale comme fallback");
+      const fallbackDate = new Date(new Date().getTime() + (1 * 60 * 60 * 1000));
+      return fallbackDate;
+    }
+  };
+
+  // ✅ Fonction pour vérifier la date du téléphone
+  const verifyDeviceDate = async (): Promise<{ isValid: boolean; serverDate: Date; phoneDate: Date; diffMinutes: number }> => {
+    const serverDate = await fetchServerDate();
+    const phoneDate = new Date();
+
+    // Calculer la différence en minutes
+    const diffMinutes = Math.abs(serverDate.getTime() - phoneDate.getTime()) / (1000 * 60);
+    const isValid = diffMinutes <= 5; // Tolérance de 5 minutes
+
+    console.log(`📅 Vérification date: ${isValid ? '✅ OK' : '❌ Erreur'}`);
+    console.log(`   📍 Serveur: ${serverDate.toLocaleString('fr-FR', { timeZone: 'Africa/Kinshasa' })}`);
+    console.log(`   📱 Téléphone: ${phoneDate.toLocaleString('fr-FR', { timeZone: 'Africa/Kinshasa' })}`);
+    console.log(`   ⏱️ Différence: ${diffMinutes.toFixed(1)} minutes`);
+
+    return { isValid, serverDate, phoneDate, diffMinutes };
+  };
+  // ============================================
+  // 5. FONCTION DE CONFIRMATION - AVEC VÉRIFICATION DATE SERVEUR
   // ============================================
 
   const showReservationConfirmationModal = (
@@ -4614,7 +4711,297 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     faceLabel: string,
     user: any
   ): Promise<boolean> => {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
+
+      // ✅ 1. VÉRIFIER LA DATE DU TELEPHONE AVANT TOUT
+      const { isValid, serverDate, phoneDate, diffMinutes } = await verifyDeviceDate();
+
+      // ✅ 2. SI LA DATE EST INCORRECTE, AFFICHER UNE ALERTE
+      if (!isValid) {
+        const errorModal = document.createElement('div');
+        errorModal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
+  `;
+
+        // ✅ FORMATER LES DATES COMPLÈTES
+        const formatDateComplete = (date: Date): string => {
+          const jours = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+          const mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+          const jour = jours[date.getDay()];
+          const jourNum = date.getDate();
+          const moisNom = mois[date.getMonth()];
+          const annee = date.getFullYear();
+          const heures = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          const secondes = String(date.getSeconds()).padStart(2, '0');
+
+          return `${jour} ${jourNum} ${moisNom} ${annee} à ${heures}:${minutes}:${secondes}`;
+        };
+
+        errorModal.innerHTML = `
+    <div style="
+      background: white;
+      border-radius: 16px;
+      max-width: 420px;
+      width: 100%;
+      max-height: 95vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease;
+      position: relative;
+    ">
+      <!-- HEADER -->
+      <div style="text-align: center; margin-bottom: 16px;">
+        <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
+        <h2 style="font-size: 18px; font-weight: 900; color: #dc2626;">Date incorrecte</h2>
+        <p style="font-size: 13px; color: #6b7280; margin-top: 8px;">
+          La date de votre téléphone est incorrecte.
+        </p>
+        <p style="font-size: 11px; color: #ef4444; font-weight: 600; margin-top: 4px;">
+          ⏱️ Écart de ${diffMinutes.toFixed(0)} minutes
+        </p>
+      </div>
+
+      <!-- COMPARAISON DES DATES -->
+      <div style="
+        margin: 16px 0;
+        padding: 16px;
+        background: #f3f4f6;
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+      ">
+        <!-- DATE SERVEUR -->
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 6px 0;
+          border-bottom: 1px solid #e5e7eb;
+        ">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 16px;">🖥️</span>
+            <span style="font-size: 11px; color: #6b7280; font-weight: 700;">SERVEUR</span>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 12px; font-weight: 700; color: #16a34a;">
+              ${formatDateComplete(serverDate)}
+            </div>
+          </div>
+        </div>
+
+        <!-- DATE TÉLÉPHONE -->
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 6px 0;
+          margin-top: 4px;
+        ">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 16px;">📱</span>
+            <span style="font-size: 11px; color: #6b7280; font-weight: 700;">TÉLÉPHONE</span>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 12px; font-weight: 700; color: #dc2626;">
+              ${formatDateComplete(phoneDate)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DIFFÉRENCE -->
+      <div style="
+        text-align: center;
+        padding: 10px;
+        background: ${diffMinutes > 60 ? '#fef2f2' : '#fefce8'};
+        border-radius: 8px;
+        margin: 12px 0 16px 0;
+        border: 1px solid ${diffMinutes > 60 ? '#fecaca' : '#fde68a'};
+      ">
+        <span style="font-size: 12px; font-weight: 700; color: ${diffMinutes > 60 ? '#dc2626' : '#d97706'};">
+          ⏱️ Différence: ${diffMinutes.toFixed(0)} minutes
+          ${diffMinutes > 60 ? ' ⚠️ Écart important !' : ''}
+        </span>
+      </div>
+
+      <!-- ✅ NOUVEAU FOOTER - COMMENT MODIFIER LA DATE -->
+      <div style="
+        background: linear-gradient(135deg, #eff6ff, #dbeafe);
+        border: 2px solid #bfdbfe;
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin: 16px 0;
+      ">
+        <div style="display: flex; align-items: flex-start; gap: 10px;">
+          <span style="font-size: 18px; flex-shrink: 0;">📌</span>
+          <div style="flex: 1; min-width: 0;">
+            <p style="font-size: 11px; font-weight: 800; color: #1e40af; text-transform: uppercase; letter-spacing: 0.3px; margin: 0 0 4px 0;">
+              Comment corriger ?
+            </p>
+            <ol style="
+              margin: 0;
+              padding-left: 18px;
+              font-size: 11px;
+              color: #1e3a8a;
+              line-height: 1.8;
+              font-weight: 600;
+            ">
+              <li>📱 Allez dans <strong>Paramètres</strong> de votre téléphone</li>
+              <li>⏰ Sélectionnez <strong>Date et heure</strong></li>
+              <li>🌍 Activez <strong>"Fuseau horaire automatique"</strong> ou choisissez <strong>UTC+1 (Afrique/Kinshasa)</strong></li>
+              <li>✅ Assurez-vous que la <strong>date et l'heure</strong> sont correctes</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOUTONS -->
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <button id="error-close" style="
+          flex: 1;
+          min-width: 80px;
+          padding: 12px 16px;
+          background: #f1f5f9;
+          border: 2px solid #e2e8f0;
+          border-radius: 10px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #64748b;
+          cursor: pointer;
+          transition: all 0.2s;
+          -webkit-tap-highlight-color: transparent;
+        ">
+          ✕ Annuler
+        </button>
+        <button id="error-retry" style="
+          flex: 2;
+          min-width: 120px;
+          padding: 12px 16px;
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+          border: none;
+          border-radius: 10px;
+          font-size: 12px;
+          font-weight: 700;
+          color: white;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          -webkit-tap-highlight-color: transparent;
+        ">
+          🔄 Vérifier à nouveau
+        </button>
+      </div>
+
+      <!-- NOTE DE BAS DE PAGE -->
+      <div style="
+        margin-top: 14px;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        text-align: center;
+        font-size: 10px;
+        color: #94a3b8;
+        letter-spacing: 0.2px;
+      ">
+        📍 Fuseau horaire recommandé: <strong>UTC+1 (Afrique/Kinshasa)</strong>
+      </div>
+
+      <style>
+        @keyframes fadeIn { 
+          from { opacity: 0; } 
+          to { opacity: 1; } 
+        }
+        @keyframes slideUp { 
+          from { 
+            opacity: 0; 
+            transform: translateY(30px) scale(0.95); 
+          } 
+          to { 
+            opacity: 1; 
+            transform: translateY(0) scale(1); 
+          } 
+        }
+        #error-close:hover {
+          background: #e2e8f0;
+          border-color: #cbd5e1;
+        }
+        #error-close:active {
+          transform: scale(0.98);
+        }
+        #error-retry:hover {
+          transform: scale(1.02);
+          box-shadow: 0 6px 24px rgba(37, 99, 235, 0.45);
+        }
+        #error-retry:active {
+          transform: scale(0.98);
+        }
+        @media (max-width: 480px) {
+          #error-close, #error-retry {
+            padding: 14px 12px;
+            font-size: 13px;
+          }
+        }
+        @media (max-width: 360px) {
+          .modal-content {
+            padding: 12px 14px 18px !important;
+          }
+          #error-close, #error-retry {
+            padding: 16px 10px;
+            font-size: 14px;
+            min-height: 48px;
+          }
+        }
+      </style>
+    </div>
+  `;
+
+        document.body.appendChild(errorModal);
+
+        // Attendre la réponse de l'utilisateur
+        const result = await new Promise<boolean>((resolveError) => {
+          const closeError = (result: boolean) => {
+            errorModal.style.transition = 'opacity 0.3s ease';
+            errorModal.style.opacity = '0';
+            setTimeout(() => {
+              errorModal.remove();
+              resolveError(result);
+            }, 300);
+          };
+
+          errorModal.querySelector('#error-close')?.addEventListener('click', () => closeError(false));
+          errorModal.querySelector('#error-retry')?.addEventListener('click', () => {
+            closeError(true);
+            // Relancer la vérification
+            setTimeout(() => {
+              resolve(showReservationConfirmationModal(reservation, faceLabel, user));
+            }, 300);
+          });
+        });
+
+        if (!result) {
+          resolve(false);
+          return;
+        }
+        return;
+      }
+      // ✅ 5. SI LA DATE EST CORRECTE, AFFICHER LE MODAL DE CONFIRMATION
       const currentUTC = getCurrentUTCDate();
       const isoNow = new Date().toISOString();
 
@@ -4628,6 +5015,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       const heureExpiration = '23:59:59';
       const estOuvrable = isWorkingDay(currentUTC.dayNumber);
 
+      // ✅ 6. CRÉER LE MODAL DE CONFIRMATION
       const modal = document.createElement('div');
       modal.style.cssText = `
       position: fixed;
@@ -4646,342 +5034,343 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
     `;
 
       modal.innerHTML = `
-  <div style="
-    background: white;
-    border-radius: 16px;
-    max-width: 480px;
-    width: 100%;
-    max-height: 95vh;
-    overflow-y: auto;
-    padding: 16px 20px 24px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    animation: slideUp 0.3s ease;
-    position: relative;
-    margin: 8px;
-  ">
-    <!-- HEADER -->
-    <div style="
-      background: linear-gradient(135deg, #1e3a8a, #1e40af, #1e4fd9);
-      margin: -16px -20px 16px -20px;
-      padding: 16px 20px;
-      border-radius: 16px 16px 0 0;
-      position: sticky;
-      top: -16px;
-      z-index: 10;
-      border-bottom: 2px solid rgba(255,255,255,0.1);
-      box-shadow: 0 4px 20px rgba(30, 58, 138, 0.4);
-    ">
-      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
-        <div style="flex: 1; min-width: 0;">
-          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-            <span style="font-size: 14px;">📋</span>
-            <span style="color: #bfdbfe; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.95;">
-              Confirmation
-            </span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
-            <span style="
-              font-size: 16px;
-              font-weight: 900;
-              color: #ffffff;
-              letter-spacing: 0.3px;
-              text-shadow: 0 2px 8px rgba(0,0,0,0.3);
-              word-break: break-word;
-            ">
-              ${panneau.idPan || 'Panneau'}
-            </span>
-            <span style="
-              background: rgba(255, 255, 255, 0.12);
-              color: #bfdbfe;
-              padding: 2px 10px;
-              border-radius: 20px;
-              font-size: 8px;
-              font-weight: 700;
-              border: 1px solid rgba(255, 255, 255, 0.15);
-              backdrop-filter: blur(4px);
-              text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-              white-space: nowrap;
-            ">
-              Face ${faceLabel}
-            </span>
-          </div>
-        </div>
-        <button id="close-modal" style="
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.15);
-          color: #bfdbfe;
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          cursor: pointer;
-          font-size: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          transition: all 0.3s ease;
-        " 
-        onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='rotate(90deg)'; this.style.color='white'"
-        onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='rotate(0deg)'; this.style.color='#bfdbfe'"
-        ontouchstart="this.style.background='rgba(255,255,255,0.25)'"
-        ontouchend="this.style.background='rgba(255,255,255,0.1)'"
-        >✕</button>
-      </div>
-    </div>
-
-    <!-- 📋 INSTRUCTIONS -->
-    <div style="
-      background: linear-gradient(135deg, #fef3c7, #fde68a);
-      padding: 12px 14px;
-      border-radius: 10px;
-      margin-bottom: 14px;
-      border-left: 3px solid #f59e0b;
-    ">
-      <div style="display: flex; align-items: flex-start; gap: 8px;">
-        <span style="font-size: 16px; flex-shrink: 0;">📌</span>
-        <div style="flex: 1; min-width: 0;">
-          <div style="font-size: 9px; font-weight: 800; color: #d70606; text-transform: uppercase; letter-spacing: 0.3px;">
-            Instructions
-          </div>
-          <ul style="
-            margin: 4px 0 0 0;
-            padding-left: 14px;
-            font-size: 9px;
-            color: #020206f6;
-            line-height: 1.5;
-          ">
-            <li>⚠️ Paiement sous <strong>3 jours ouvrables</strong></li>
-            <li>⏰ Sinon <strong>annulation automatique</strong></li>
-            <li>📧 Confirmation envoyée à l'agent</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <!-- 📊 INFORMATIONS -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;">
-      <div style="background: #274e75; padding: 10px 12px; border-radius: 10px;">
-        <div style="font-size: 7px; color: #a9c605; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">Face</div>
-        <div style="font-size: 13px; font-weight: 700; color: #f9f9f9; margin-top: 2px; word-break: break-word;">${faceLabel}</div>
-      </div>
-      <div style="background: #274e75; padding: 10px 12px; border-radius: 10px;">
-        <div style="font-size: 7px; color: #a9c605; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">Client</div>
-        <div style="font-size: 13px; font-weight: 700; color: #f9f9f9; margin-top: 2px; word-break: break-word;">${reservation.societeLocatrice || 'N/A'}</div>
-      </div>
-    </div>
-
-    <!-- 📅 PÉRIODE -->
-    <div style="
-      background: #eff6ff;
-      padding: 12px 14px;
-      border-radius: 10px;
-      margin-bottom: 14px;
-      border: 1px solid #bfdbfe;
-    ">
-      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-        <span style="font-size: 12px;">📅</span>
-        <span style="font-size: 9px; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.3px;">
-          Période
-        </span>
-      </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 0;">
-          <div style="font-size: 7px; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Début</div>
-          <div style="font-size: 11px; font-weight: 700; color: #0f172a; word-break: break-word;">${dateDebutFormatted}</div>
-        </div>
-        <div style="color: #94a3b8; font-size: 16px; flex-shrink: 0;">→</div>
-        <div style="flex: 1; min-width: 0;">
-          <div style="font-size: 7px; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Fin</div>
-          <div style="font-size: 11px; font-weight: 700; color: #0f172a; word-break: break-word;">${dateFinFormatted}</div>
-        </div>
-      </div>
-      <div style="margin-top: 4px; font-size: 8px; color: #64748b;">
-        📆 ${joursReservation} jour(s) ouvrable(s)
-      </div>
-    </div>
-
-    <!-- ⏱️ EXPIRATION -->
-    <div style="
-      background: ${joursRestants === 0 ? '#fef2f2' : '#f0fdf4'};
-      padding: 12px 14px;
-      border-radius: 10px;
-      margin-bottom: 14px;
-      border: 1px solid ${joursRestants === 0 ? '#fecaca' : '#bbf7d0'};
-    ">
-      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-        <span style="font-size: 12px;">⏱️</span>
-        <span style="font-size: 9px; font-weight: 700; color: ${joursRestants === 0 ? '#dc2626' : '#16a34a'}; text-transform: uppercase; letter-spacing: 0.3px;">
-          ${joursRestants === 0 ? '⚠️ Expiré' : 'Délai d\'expiration'}
-        </span>
-      </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 0;">
-          <div style="font-size: 11px; font-weight: 700; color: #0f172a; word-break: break-word;">${dateExpirationFormatted}</div>
-          <div style="font-size: 8px; color: #64748b;">${heureExpiration} UTC</div>
-        </div>
+      <div style="
+        background: white;
+        border-radius: 16px;
+        max-width: 480px;
+        width: 100%;
+        max-height: 95vh;
+        overflow-y: auto;
+        padding: 16px 20px 24px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.3s ease;
+        position: relative;
+        margin: 8px;
+      ">
+        <!-- HEADER -->
         <div style="
-          background: ${joursRestants === 0 ? '#ef4444' : '#22c55e'};
-          color: white;
-          padding: 3px 12px;
-          border-radius: 20px;
-          font-size: 10px;
-          font-weight: 700;
-          flex-shrink: 0;
+          background: linear-gradient(135deg, #1e3a8a, #1e40af, #1e4fd9);
+          margin: -16px -20px 16px -20px;
+          padding: 16px 20px;
+          border-radius: 16px 16px 0 0;
+          position: sticky;
+          top: -16px;
+          z-index: 10;
+          border-bottom: 2px solid rgba(255,255,255,0.1);
+          box-shadow: 0 4px 20px rgba(30, 58, 138, 0.4);
         ">
-          ${joursRestants === 0 ? '🔥 Expiré' : `${joursRestants}j`}
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span style="font-size: 14px;">📋</span>
+                <span style="color: #bfdbfe; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.95;">
+                  Confirmation
+                </span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
+                <span style="
+                  font-size: 16px;
+                  font-weight: 900;
+                  color: #ffffff;
+                  letter-spacing: 0.3px;
+                  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                  word-break: break-word;
+                ">
+                  ${panneau?.idPan || 'Panneau'}
+                </span>
+                <span style="
+                  background: rgba(255, 255, 255, 0.12);
+                  color: #bfdbfe;
+                  padding: 2px 10px;
+                  border-radius: 20px;
+                  font-size: 8px;
+                  font-weight: 700;
+                  border: 1px solid rgba(255, 255, 255, 0.15);
+                  backdrop-filter: blur(4px);
+                  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                  white-space: nowrap;
+                ">
+                  Face ${faceLabel}
+                </span>
+              </div>
+            </div>
+            <button id="close-modal" style="
+              background: rgba(255,255,255,0.1);
+              border: 1px solid rgba(255,255,255,0.15);
+              color: #bfdbfe;
+              width: 28px;
+              height: 28px;
+              border-radius: 50%;
+              cursor: pointer;
+              font-size: 14px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              flex-shrink: 0;
+              transition: all 0.3s ease;
+            " 
+            onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='rotate(90deg)'; this.style.color='white'"
+            onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='rotate(0deg)'; this.style.color='#bfdbfe'"
+            ontouchstart="this.style.background='rgba(255,255,255,0.25)'"
+            ontouchend="this.style.background='rgba(255,255,255,0.1)'"
+            >✕</button>
+          </div>
         </div>
-      </div>
-      <div style="margin-top: 4px; font-size: 8px; color: ${joursRestants === 0 ? '#dc2626' : '#64748b'};">
-        ${joursRestants === 0 ? '🚨 Délai dépassé - Annulée' : `${joursRestants} jour(s) restant(s)`}
-      </div>
-    </div>
 
-    <!-- 📍 DATE/HEURE -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px;">
-      <div style="background: #274e75; padding: 8px 10px; border-radius: 8px;">
-        <div style="font-size: 7px; color: #a9c605; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Jour</div>
-        <div style="font-size: 11px; font-weight: 700; color: #f9f9f9;">${currentUTC.dayOfWeek}</div>
-        <div style="font-size: 8px; color: #a9c605;">${currentUTC.date}</div>
-      </div>
-      <div style="background: #274e75; padding: 8px 10px; border-radius: 8px;">
-        <div style="font-size: 7px; color: #a9c605; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Heure UTC</div>
-        <div style="font-size: 11px; font-weight: 700; color: #f9f9f9;">${currentUTC.time}</div>
-        <div style="font-size: 8px; color: ${estOuvrable ? '#a9c605' : '#ef4444'};">
-          ${estOuvrable ? '✅ Ouvrable' : '❌ Week-end'}
+        <!-- 📋 INSTRUCTIONS -->
+        <div style="
+          background: linear-gradient(135deg, #fef3c7, #fde68a);
+          padding: 12px 14px;
+          border-radius: 10px;
+          margin-bottom: 14px;
+          border-left: 3px solid #f59e0b;
+        ">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <span style="font-size: 16px; flex-shrink: 0;">📌</span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 9px; font-weight: 800; color: #d70606; text-transform: uppercase; letter-spacing: 0.3px;">
+                Instructions
+              </div>
+              <ul style="
+                margin: 4px 0 0 0;
+                padding-left: 14px;
+                font-size: 9px;
+                color: #020206f6;
+                line-height: 1.5;
+              ">
+                <li>⚠️ Paiement sous <strong>3 jours ouvrables</strong></li>
+                <li>⏰ Sinon <strong>annulation automatique</strong></li>
+                <li>📧 Confirmation envoyée à l'agent</li>
+              </ul>
+            </div>
+          </div>
         </div>
+
+        <!-- 📊 INFORMATIONS -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;">
+          <div style="background: #274e75; padding: 10px 12px; border-radius: 10px;">
+            <div style="font-size: 7px; color: #a9c605; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">Face</div>
+            <div style="font-size: 13px; font-weight: 700; color: #f9f9f9; margin-top: 2px; word-break: break-word;">${faceLabel}</div>
+          </div>
+          <div style="background: #274e75; padding: 10px 12px; border-radius: 10px;">
+            <div style="font-size: 7px; color: #a9c605; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">Client</div>
+            <div style="font-size: 13px; font-weight: 700; color: #f9f9f9; margin-top: 2px; word-break: break-word;">${reservation.societeLocatrice || 'N/A'}</div>
+          </div>
+        </div>
+
+        <!-- 📅 PÉRIODE -->
+        <div style="
+          background: #eff6ff;
+          padding: 12px 14px;
+          border-radius: 10px;
+          margin-bottom: 14px;
+          border: 1px solid #bfdbfe;
+        ">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <span style="font-size: 12px;">📅</span>
+            <span style="font-size: 9px; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.3px;">
+              Période
+            </span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 7px; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Début</div>
+              <div style="font-size: 11px; font-weight: 700; color: #0f172a; word-break: break-word;">${dateDebutFormatted}</div>
+            </div>
+            <div style="color: #94a3b8; font-size: 16px; flex-shrink: 0;">→</div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 7px; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Fin</div>
+              <div style="font-size: 11px; font-weight: 700; color: #0f172a; word-break: break-word;">${dateFinFormatted}</div>
+            </div>
+          </div>
+          <div style="margin-top: 4px; font-size: 8px; color: #64748b;">
+            📆 ${joursReservation} jour(s) ouvrable(s)
+          </div>
+        </div>
+
+        <!-- ⏱️ EXPIRATION -->
+        <div style="
+          background: ${joursRestants === 0 ? '#fef2f2' : '#f0fdf4'};
+          padding: 12px 14px;
+          border-radius: 10px;
+          margin-bottom: 14px;
+          border: 1px solid ${joursRestants === 0 ? '#fecaca' : '#bbf7d0'};
+        ">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <span style="font-size: 12px;">⏱️</span>
+            <span style="font-size: 9px; font-weight: 700; color: ${joursRestants === 0 ? '#dc2626' : '#16a34a'}; text-transform: uppercase; letter-spacing: 0.3px;">
+              ${joursRestants === 0 ? '⚠️ Expiré' : 'Délai d\'expiration'}
+            </span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11px; font-weight: 700; color: #0f172a; word-break: break-word;">${dateExpirationFormatted}</div>
+              <div style="font-size: 8px; color: #64748b;">${heureExpiration} UTC</div>
+            </div>
+            <div style="
+              background: ${joursRestants === 0 ? '#ef4444' : '#22c55e'};
+              color: white;
+              padding: 3px 12px;
+              border-radius: 20px;
+              font-size: 10px;
+              font-weight: 700;
+              flex-shrink: 0;
+            ">
+              ${joursRestants === 0 ? '🔥 Expiré' : `${joursRestants}j`}
+            </div>
+          </div>
+          <div style="margin-top: 4px; font-size: 8px; color: ${joursRestants === 0 ? '#dc2626' : '#64748b'};">
+            ${joursRestants === 0 ? '🚨 Délai dépassé - Annulée' : `${joursRestants} jour(s) restant(s)`}
+          </div>
+        </div>
+
+        <!-- 📍 DATE/HEURE ACTUELLE -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px;">
+          <div style="background: #274e75; padding: 8px 10px; border-radius: 8px;">
+            <div style="font-size: 7px; color: #a9c605; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Jour</div>
+            <div style="font-size: 11px; font-weight: 700; color: #f9f9f9;">${currentUTC.dayOfWeek}</div>
+            <div style="font-size: 8px; color: #a9c605;">${currentUTC.date}</div>
+          </div>
+          <div style="background: #274e75; padding: 8px 10px; border-radius: 8px;">
+            <div style="font-size: 7px; color: #a9c605; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Heure UTC</div>
+            <div style="font-size: 11px; font-weight: 700; color: #f9f9f9;">${currentUTC.time}</div>
+            <div style="font-size: 8px; color: ${estOuvrable ? '#a9c605' : '#ef4444'};">
+              ${estOuvrable ? '✅ Ouvrable' : '❌ Week-end'}
+            </div>
+          </div>
+        </div>
+
+        <!-- 👤 AGENT -->
+        <div style="
+          background: #f1f5f9;
+          padding: 10px 12px;
+          border-radius: 10px;
+          margin-bottom: 16px;
+        ">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+            <span style="font-size: 10px;">👤</span>
+            <span style="font-size: 7px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">Agent</span>
+          </div>
+          <div style="font-size: 12px; font-weight: 700; color: #0f172a; word-break: break-word;">
+            ${user?.nom || user?.nomComplet || user?.prenom || 'Agent'}
+          </div>
+          <div style="font-size: 9px; color: #64748b; word-break: break-word;">${user?.email || 'Email non disponible'}</div>
+        </div>
+
+        <!-- ✅ BOUTONS -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button id="confirm-cancel" style="
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 16px;
+            background: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+          ">
+            ✕ Annuler
+          </button>
+          <button id="confirm-ok" style="
+            flex: 2;
+            min-width: 120px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border: none;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            -webkit-tap-highlight-color: transparent;
+          ">
+            <span>✅</span>
+            <span>Confirmer</span>
+          </button>
+        </div>
+
+        <!-- 📌 NOTE -->
+        <div style="
+          margin-top: 12px;
+          padding-top: 10px;
+          border-top: 1px solid #e2e8f0;
+          text-align: center;
+          font-size: 7px;
+          color: #94a3b8;
+          letter-spacing: 0.2px;
+        ">
+          En confirmant, vous acceptez les conditions générales
+        </div>
+
+        <style>
+          @keyframes fadeIn { 
+            from { opacity: 0; } 
+            to { opacity: 1; } 
+          }
+          @keyframes slideUp { 
+            from { 
+              opacity: 0; 
+              transform: translateY(30px) scale(0.95); 
+            } 
+            to { 
+              opacity: 1; 
+              transform: translateY(0) scale(1); 
+            } 
+          }
+          #confirm-ok:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 24px rgba(37, 99, 235, 0.45);
+          }
+          #confirm-ok:active {
+            transform: scale(0.98);
+          }
+          #confirm-cancel:hover {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+          }
+          #confirm-cancel:active {
+            transform: scale(0.98);
+          }
+          #close-modal:hover {
+            background: rgba(255,255,255,0.2);
+            transform: rotate(90deg);
+          }
+          #close-modal:active {
+            transform: rotate(90deg) scale(0.9);
+          }
+          @media (max-width: 480px) {
+            #confirm-ok, #confirm-cancel {
+              padding: 14px 12px;
+              font-size: 13px;
+            }
+          }
+          @media (max-width: 360px) {
+            .modal-content {
+              padding: 12px 14px 18px !important;
+            }
+            #confirm-ok, #confirm-cancel {
+              padding: 16px 10px;
+              font-size: 14px;
+              min-height: 48px;
+            }
+          }
+        </style>
       </div>
-    </div>
-
-    <!-- 👤 AGENT -->
-    <div style="
-      background: #f1f5f9;
-      padding: 10px 12px;
-      border-radius: 10px;
-      margin-bottom: 16px;
-    ">
-      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
-        <span style="font-size: 10px;">👤</span>
-        <span style="font-size: 7px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;">Agent</span>
-      </div>
-      <div style="font-size: 12px; font-weight: 700; color: #0f172a; word-break: break-word;">
-        ${user?.nom || user?.nomComplet || user?.prenom || 'Agent'}
-      </div>
-      <div style="font-size: 9px; color: #64748b; word-break: break-word;">${user?.email || 'Email non disponible'}</div>
-    </div>
-
-    <!-- ✅ BOUTONS -->
-    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-      <button id="confirm-cancel" style="
-        flex: 1;
-        min-width: 80px;
-        padding: 12px 16px;
-        background: #f1f5f9;
-        border: 2px solid #e2e8f0;
-        border-radius: 10px;
-        font-size: 11px;
-        font-weight: 700;
-        color: #64748b;
-        cursor: pointer;
-        transition: all 0.2s;
-        -webkit-tap-highlight-color: transparent;
-      ">
-        ✕ Annuler
-      </button>
-      <button id="confirm-ok" style="
-        flex: 2;
-        min-width: 120px;
-        padding: 12px 16px;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        border: none;
-        border-radius: 10px;
-        font-size: 11px;
-        font-weight: 700;
-        color: white;
-        cursor: pointer;
-        transition: all 0.2s;
-        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        -webkit-tap-highlight-color: transparent;
-      ">
-        <span>✅</span>
-        <span>Confirmer</span>
-      </button>
-    </div>
-
-    <!-- 📌 NOTE -->
-    <div style="
-      margin-top: 12px;
-      padding-top: 10px;
-      border-top: 1px solid #e2e8f0;
-      text-align: center;
-      font-size: 7px;
-      color: #94a3b8;
-      letter-spacing: 0.2px;
-    ">
-      En confirmant, vous acceptez les conditions générales
-    </div>
-
-    <style>
-      @keyframes fadeIn { 
-        from { opacity: 0; } 
-        to { opacity: 1; } 
-      }
-      @keyframes slideUp { 
-        from { 
-          opacity: 0; 
-          transform: translateY(30px) scale(0.95); 
-        } 
-        to { 
-          opacity: 1; 
-          transform: translateY(0) scale(1); 
-        } 
-      }
-      #confirm-ok:hover {
-        transform: scale(1.02);
-        box-shadow: 0 6px 24px rgba(37, 99, 235, 0.45);
-      }
-      #confirm-ok:active {
-        transform: scale(0.98);
-      }
-      #confirm-cancel:hover {
-        background: #e2e8f0;
-        border-color: #cbd5e1;
-      }
-      #confirm-cancel:active {
-        transform: scale(0.98);
-      }
-      #close-modal:hover {
-        background: rgba(255,255,255,0.2);
-        transform: rotate(90deg);
-      }
-      #close-modal:active {
-        transform: rotate(90deg) scale(0.9);
-      }
-      @media (max-width: 480px) {
-        #confirm-ok, #confirm-cancel {
-          padding: 14px 12px;
-          font-size: 13px;
-        }
-      }
-      @media (max-width: 360px) {
-        .modal-content {
-          padding: 12px 14px 18px !important;
-        }
-        #confirm-ok, #confirm-cancel {
-          padding: 16px 10px;
-          font-size: 14px;
-          min-height: 48px;
-        }
-      }
-    </style>
-  </div>
-`;
+    `;
 
       document.body.appendChild(modal);
 
+      // ✅ 7. GESTION DES BOUTONS
       const cancelBtn = modal.querySelector('#confirm-cancel');
       const confirmBtn = modal.querySelector('#confirm-ok');
 
@@ -5003,13 +5392,11 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       document.addEventListener('keydown', handleEsc);
 
       const cleanup = () => document.removeEventListener('keydown', handleEsc);
-
       const newCloseModal = (result: boolean) => { cleanup(); closeModal(result); };
       cancelBtn?.addEventListener('click', () => newCloseModal(false));
       confirmBtn?.addEventListener('click', () => newCloseModal(true));
     });
   };
-
   // ============================================
   // 6. FONCTIONS DE LOGIQUE
   // ============================================
@@ -5213,14 +5600,9 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
       return;
     }
 
-    console.log('👤 Sauvegarde avec utilisateur:', {
-      id: localUser.id,
-      email: localUser.email,
-      nom: localUser.nom || localUser.nomComplet
-    });
+
 
     const currentUTC = getCurrentUTCDate();
-    console.log('📅 Date UTC actuelle:', currentUTC);
 
     // Validation complète
     const validationErrors: string[] = [];
@@ -5442,7 +5824,7 @@ export const EditPanneauModal = ({ isOpen, onClose, panneau, user }: any) => {
                 expirationDateFormatted: expirationInfo.dateFormatted,
                 expirationDayOfWeek: expirationInfo.dayOfWeek,
                 expirationIsWorkingDay: expirationInfo.isWorkingDay,
-                delaiExpirationJours: 10,
+                delaiExpirationJours: DELAI_EXPIRATION_JOURS_GLOBAL,
                 joursAvantExpiration: expirationInfo.joursRestants,
 
                 // === STATUT DE LA RÉSERVATION ===

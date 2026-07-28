@@ -53,10 +53,7 @@ const AccountingMaster = () => {
   // ============================================
   const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-
-
-
-
+  
   // ============================================
   // ÉTATS DES FILTRES GÉOGRAPHIQUES
   // ============================================
