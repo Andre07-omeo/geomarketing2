@@ -1317,7 +1317,7 @@ const getFaceStatus = (face: any): { status: string; label: string; activeReserv
 };
 
 // ============================================
-// LOGIQUE DE STATUT DU PANNEAU - AVEC ETATPANNEAU
+// LOGIQUE DE STATUT DU PANNEAU - AVEC ETATPANNEAU ET PRIORITÉ
 // ============================================
 const getPanneauStatus = (faces: any[], etatPanneau?: string): { status: string; label: string; color: string; stats: any } => {
   // ✅ Si le panneau est en panne, on retourne directement le statut "maintenance"
@@ -1347,45 +1347,39 @@ const getPanneauStatus = (faces: any[], etatPanneau?: string): { status: string;
     total: faces.length
   };
 
+  // Calcul des stats pour chaque face
   for (const face of faces) {
     const { status } = getFaceStatus(face);
     if (status === 'libre') stats.libre++;
-    if (status === 'occupe') stats.occupe++;
-    if (status === 'reserve') stats.reserve++;
-    if (status === 'maintenance') stats.maintenance++;
+    else if (status === 'occupe') stats.occupe++;
+    else if (status === 'reserve') stats.reserve++;
+    else if (status === 'maintenance') stats.maintenance++;
   }
 
-  if (stats.libre === stats.total) {
-    return { status: 'libre', label: 'Libre', color: '#10B981', stats };
-  }
-
-  if (stats.occupe === stats.total) {
-    return { status: 'occupe', label: 'Occupé', color: '#3B82F6', stats };
-  }
-
-  if (stats.reserve === stats.total) {
-    return { status: 'reserve', label: 'Réservé', color: '#F59E0B', stats };
-  }
-
-  if (stats.maintenance === stats.total) {
-    return { status: 'maintenance', label: 'Maintenance', color: '#EF4444', stats };
-  }
-
+  // ✅ APPLICATION DE LA PRIORITÉ : LIBRE > RÉSERVÉ > OCCUPÉ > MAINTENANCE
+  // Si au moins 1 face libre => panneau LIBRE
   if (stats.libre > 0) {
     return { status: 'libre', label: 'Libre', color: '#10B981', stats };
   }
 
+  // Si pas de face libre mais au moins 1 face réservée => panneau RÉSERVÉ
   if (stats.reserve > 0) {
     return { status: 'reserve', label: 'Réservé', color: '#F59E0B', stats };
   }
 
+  // Si pas de face libre ni réservée mais au moins 1 face occupée => panneau OCCUPÉ
   if (stats.occupe > 0) {
     return { status: 'occupe', label: 'Occupé', color: '#3B82F6', stats };
   }
 
+  // Si toutes les faces sont en maintenance
+  if (stats.maintenance === stats.total) {
+    return { status: 'maintenance', label: 'Maintenance', color: '#EF4444', stats };
+  }
+
+  // Fallback
   return { status: 'maintenance', label: 'Maintenance', color: '#EF4444', stats };
 };
-
 
 // ============================================
 // CRÉATION DE L'ICÔNE PIN SVG - AVEC CLIGNOTEMENT ROUGE POUR PANNE (SANS CERCLES)
